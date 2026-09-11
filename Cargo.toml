@@ -1,6 +1,6 @@
 [package]
 name = "chartlet"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 edition = "2024"
 license = "MIT"
 description = "Compile structured data into deterministic, accessible static charts"

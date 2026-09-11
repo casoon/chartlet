@@ -1,6 +1,6 @@
 {
   "name": "@casoon/chartlet",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3",
   "description": "Build-time SVG and HTML charts for static websites",
   "type": "module",
   "license": "MIT",

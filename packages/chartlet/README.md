@@ -8,7 +8,7 @@ The current alpha adapter calls the `chartlet` CLI, so install both the package 
 
 ```sh
 npm install @casoon/chartlet@alpha
-cargo install chartlet --version 0.1.0-alpha.2
+cargo install chartlet --version 0.1.0-alpha.3
 ```
 
 ```astro

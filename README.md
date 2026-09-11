@@ -23,7 +23,7 @@ Install the CLI from crates.io (Rust 1.88 or newer). While chartlet is in alpha,
 explicitly:
 
 ```sh
-cargo install chartlet --version 0.1.0-alpha.2
+cargo install chartlet --version 0.1.0-alpha.3
 ```
 
 Save a minimal specification as `spec.json`:
@@ -98,8 +98,7 @@ A legend is added automatically, and the data table gets one column per series.
 ## Interaction without JavaScript
 
 The HTML output can add native controls and CSS-based interaction. No chart JavaScript is
-shipped. These features are not part of `0.1.0-alpha.2` yet; build from a clone to use them
-before the next alpha.
+shipped.
 
 - **Series filter:** a grouped chart gets a checkbox per series. Deselecting one hides its bars
   and value labels with CSS `:has()`; the axis does not rescale. The data table and description always
@@ -214,7 +213,7 @@ CLI, so install both:
 
 ```sh
 npm install @casoon/chartlet@alpha
-cargo install chartlet --version 0.1.0-alpha.2
+cargo install chartlet --version 0.1.0-alpha.3
 ```
 
 ```astro
@@ -231,7 +230,7 @@ The CLI must be on `PATH`, or `CHARTLET_BIN` must point to it.
 ## Rust
 
 ```sh
-cargo add chartlet@0.1.0-alpha.2
+cargo add chartlet@0.1.0-alpha.3
 ```
 
 ```rust
