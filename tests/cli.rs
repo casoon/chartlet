@@ -51,6 +51,30 @@ fn help_exits_successfully() {
 }
 
 #[test]
+fn a_closed_stdout_ends_quietly() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+        .args(["render", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("chartlet CLI should start");
+    // Close the reading end before chartlet receives its input, so its write has to fail.
+    drop(child.stdout.take());
+    child
+        .stdin
+        .take()
+        .expect("stdin should be piped")
+        .write_all(include_bytes!("../examples/monthly-revenue.json"))
+        .expect("specification should be written");
+    let output = child.wait_with_output().expect("chartlet should finish");
+
+    let stderr = String::from_utf8(output.stderr).expect("stderr should be UTF-8");
+    assert!(output.status.success(), "unexpected stderr: {stderr}");
+    assert!(!stderr.contains("panicked"), "unexpected stderr: {stderr}");
+}
+
+#[test]
 fn cli_accepts_a_specification_on_stdin() {
     let mut child = Command::new(env!("CARGO_BIN_EXE_chartlet"))
         .args(["render", "-", "--id-prefix", "stdin-test"])

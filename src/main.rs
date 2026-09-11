@@ -1,6 +1,6 @@
 use std::{
     env, fs,
-    io::{self, Read},
+    io::{self, Read, Write},
     path::{Path, PathBuf},
     process,
 };
@@ -18,10 +18,7 @@ fn run() -> Result<(), String> {
     let mut arguments = env::args().skip(1);
     match arguments.next().as_deref() {
         Some("render") => {}
-        Some("-h" | "--help") => {
-            println!("{}", usage());
-            return Ok(());
-        }
+        Some("-h" | "--help") => return write_stdout(&usage()),
         _ => return Err(usage()),
     }
     let input = PathBuf::from(arguments.next().ok_or_else(usage)?);
@@ -62,10 +59,7 @@ fn run() -> Result<(), String> {
                     _ => return Err("--table must be details or visible".to_owned()),
                 };
             }
-            "-h" | "--help" => {
-                println!("{}", usage());
-                return Ok(());
-            }
+            "-h" | "--help" => return write_stdout(&usage()),
             unknown => return Err(format!("unknown argument {unknown:?}\n\n{}", usage())),
         }
     }
@@ -98,13 +92,23 @@ fn run() -> Result<(), String> {
         fs::write(&output, rendered.content)
             .map_err(|error| format!("could not write {}: {error}", output.display()))?;
     } else {
-        println!("{}", rendered.content);
+        write_stdout(&rendered.content)?;
     }
     Ok(())
 }
 
 fn usage() -> String {
     "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--strict]".to_owned()
+}
+
+/// Writes to stdout. A reader that stops early, such as `chartlet render … | head`, closes the
+/// pipe; that ends the program quietly instead of being reported as a failure.
+fn write_stdout(content: &str) -> Result<(), String> {
+    let mut stdout = io::stdout().lock();
+    match writeln!(stdout, "{content}").and_then(|()| stdout.flush()) {
+        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
+        result => result.map_err(|error| format!("could not write to stdout: {error}")),
+    }
 }
 
 fn read_input(input: &Path) -> Result<String, String> {
