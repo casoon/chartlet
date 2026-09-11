@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Operating costs",
+  "description": "Operating costs rose over the half year, with the steepest increase in June.",
+  "source": "Example data",
+  "categoryAxis": { "title": "Month" },
+  "valueAxis": { "title": "Costs in thousands", "format": "number" },
+  "data": [
+    { "label": "January", "value": 84 },
+    { "label": "February", "value": 86 },
+    { "label": "March", "value": 92 },
+    { "label": "April", "value": 89 },
+    { "label": "May", "value": 96 },
+    { "label": "June", "value": 101 }
+  ]
+}

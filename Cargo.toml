@@ -8,7 +8,7 @@ repository = "https://github.com/casoon/chartlet"
 readme = "README.md"
 keywords = ["charts", "svg", "accessibility", "static", "visualization"]
 categories = ["visualization", "command-line-utilities"]
-exclude = ["packages/**", "plan/**"]
+exclude = ["packages/**", "plan/**", "gallery/**"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

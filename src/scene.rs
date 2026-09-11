@@ -11,6 +11,7 @@ pub(crate) enum Element {
     Line(Line),
     Polyline(Polyline),
     Rect(Rect),
+    SeriesText(Text, usize),
     Text(Text),
 }
 
@@ -20,6 +21,10 @@ pub(crate) struct Circle {
     pub cy: f64,
     pub radius: f64,
     pub class: &'static str,
+    /// Series index (0-based) for multi-series charts; used for CSS filtering.
+    pub series_index: Option<usize>,
+    /// Accessible tooltip text displayed on hover via `<title>`.
+    pub tooltip: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -38,12 +43,20 @@ pub(crate) struct Rect {
     pub width: f64,
     pub height: f64,
     pub class: &'static str,
+    /// Series index (0-based) for multi-series charts; used for CSS filtering.
+    pub series_index: Option<usize>,
+    /// Accessible tooltip text displayed on hover via `<title>`.
+    pub tooltip: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct Polyline {
     pub points: Vec<(f64, f64)>,
     pub class: &'static str,
+    /// Series index (0-based) for multi-series charts; used for CSS filtering.
+    pub series_index: Option<usize>,
+    /// Accessible tooltip text displayed on hover via `<title>`.
+    pub tooltip: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]

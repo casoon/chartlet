@@ -1,0 +1,54 @@
+---
+import Base from '../../layouts/Base.astro';
+import { examples, getExample } from '../../data/examples';
+import { render } from '../../lib/chart';
+
+export function getStaticPaths() {
+  return examples.map((example) => ({ params: { slug: example.slug } }));
+}
+
+const { slug } = Astro.params;
+const example = getExample(slug ?? '');
+const base = import.meta.env.BASE_URL;
+
+if (!example) {
+  throw new Error(`Unknown example: ${slug}`);
+}
+
+const chart = render(example.spec, `detail-${slug}`, {
+  format: 'html',
+  table: 'visible',
+});
+---
+
+<Base title={String(example.spec.title)}>
+  <article class="detail-header">
+    <h1>{example.spec.title}</h1>
+    <p class="detail-tag">{example.chart} · {example.useCase}</p>
+    <p class="detail-blurb">{example.blurb}</p>
+  </article>
+
+  <aside class="desc-callout">
+    <h2>Accessible description</h2>
+    <p>{chart.description}</p>
+  </aside>
+
+  <div class="split">
+    <section class="chart">
+      <Fragment set:html={chart.content} />
+    </section>
+    <section class="spec">
+      <h2>Specification</h2>
+      <pre class="spec-pre">{JSON.stringify(example.spec, null, 2)}</pre>
+    </section>
+  </div>
+
+  {chart.warnings.length > 0 && (
+    <aside class="warnings-note">
+      <strong>Warnings emitted at build time:</strong><br />
+      {chart.warnings.map((w) => w.trim()).join(' · ')}
+    </aside>
+  )}
+
+  <p class="back-link"><a href={base}>← Back to the gallery</a></p>
+</Base>

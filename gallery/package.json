@@ -1,0 +1,21 @@
+{
+  "name": "chartlet-gallery",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Public gallery for chartlet, built with Astro and the @casoon/chartlet integration",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "test": "npm run build && playwright test"
+  },
+  "dependencies": {
+    "@casoon/chartlet": "file:../packages/chartlet",
+    "astro": "^7.3.2"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0"
+  }
+}

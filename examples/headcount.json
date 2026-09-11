@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "type": "line",
+  "title": "Headcount",
+  "description": "Headcount rose steadily from January to August.",
+  "source": "Example data",
+  "categoryAxis": { "title": "Month" },
+  "valueAxis": { "title": "Employees", "format": "number" },
+  "data": [
+    { "label": "January", "value": 42 },
+    { "label": "February", "value": 44 },
+    { "label": "March", "value": 47 },
+    { "label": "April", "value": 50 },
+    { "label": "May", "value": 54 },
+    { "label": "June", "value": 58 },
+    { "label": "July", "value": 61 },
+    { "label": "August", "value": 66 }
+  ]
+}

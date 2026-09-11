@@ -40,6 +40,9 @@ pub struct ChartSpec {
     pub categories: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub series: Vec<SeriesSpec>,
+    /// Optional zoom steps rendered as radio-selectable, pre-computed variants (HTML profile).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub zoom_steps: Vec<ZoomStep>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -94,6 +97,15 @@ pub struct DataPoint {
 pub struct SeriesSpec {
     pub name: String,
     pub values: Vec<Option<f64>>,
+}
+
+/// A pre-computed zoom step: shows categories `from..=to` as its own chart variant.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ZoomStep {
+    pub label: String,
+    pub from: usize,
+    pub to: usize,
 }
 
 /// Categories × series: the single shape that layout, description and data table work with.
@@ -206,6 +218,42 @@ impl ChartSpec {
                 "height must be between 240 and 1600",
             ));
         }
+        if self.zoom_steps.len() == 1 {
+            return Err(ChartError::new(
+                "not_enough_zoom_steps",
+                "/zoomSteps",
+                "provide at least 2 zoom steps so the view can be switched",
+            ));
+        }
+        for (i, step) in self.zoom_steps.iter().enumerate() {
+            validate_text(&step.label, &format!("/zoomSteps/{i}/label"), 40)?;
+            if step.from > step.to {
+                return Err(ChartError::new(
+                    "invalid_zoom_step",
+                    format!("/zoomSteps/{i}/from"),
+                    "from must not be greater than to",
+                ));
+            }
+            let count = if self.data.is_empty() {
+                self.categories.len()
+            } else {
+                self.data.len()
+            };
+            if step.to >= count {
+                return Err(ChartError::new(
+                    "zoom_out_of_range",
+                    format!("/zoomSteps/{i}/to"),
+                    format!("to must be less than the number of categories ({count})"),
+                ));
+            }
+        }
+        if self.zoom_steps.len() > 4 {
+            return Err(ChartError::new(
+                "too_many_zoom_steps",
+                "/zoomSteps",
+                "at most 4 zoom steps are supported",
+            ));
+        }
         Ok(())
     }
 
@@ -231,6 +279,26 @@ impl ChartSpec {
                     .collect(),
             }
         }
+    }
+
+    /// Returns a copy of this specification with categories and values sliced to `from..=to`.
+    pub(crate) fn sliced(&self, from: usize, to: usize) -> ChartSpec {
+        let mut spec = self.clone();
+        if self.data.is_empty() {
+            spec.categories = self.categories[from..=to].to_vec();
+            spec.series = self
+                .series
+                .iter()
+                .map(|s| {
+                    let mut series = s.clone();
+                    series.values = s.values[from..=to].to_vec();
+                    series
+                })
+                .collect();
+        } else {
+            spec.data = self.data[from..=to].to_vec();
+        }
+        spec
     }
 
     fn validate_data(&self) -> Result<Vec<ChartWarning>, ChartError> {

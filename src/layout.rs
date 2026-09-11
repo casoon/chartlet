@@ -86,18 +86,21 @@ fn layout_vertical(
                     width: thickness,
                     height: (baseline - value_y).abs(),
                     class: bar_class(dataset, series_index),
+                    series_index: (dataset.series.len() > 1).then_some(series_index),
+                    tooltip: Some(tooltip(
+                        category,
+                        value,
+                        spec.value_axis.format,
+                        series.name,
+                    )),
                 }));
             }
 
             if spec.show_values {
                 let content = format_value(value, spec.value_axis.format);
                 if group.fits(metrics.width(&content, LABEL_SIZE)) {
-                    elements.push(vertical_value_label(
-                        value,
-                        x + thickness / 2.0,
-                        value_y,
-                        content,
-                    ));
+                    let label = vertical_value_label(value, x + thickness / 2.0, value_y, content);
+                    elements.push(series_text(label, dataset, series_index));
                 } else {
                     labels_omitted = true;
                 }
@@ -199,19 +202,27 @@ fn layout_horizontal(
                     width: (baseline - value_x).abs(),
                     height: thickness,
                     class: bar_class(dataset, series_index),
+                    series_index: (dataset.series.len() > 1).then_some(series_index),
+                    tooltip: Some(tooltip(
+                        category,
+                        value,
+                        spec.value_axis.format,
+                        series.name,
+                    )),
                 }));
             }
 
             if spec.show_values {
                 if group.fits(LABEL_SIZE + 2.0) {
-                    elements.push(horizontal_value_label(
+                    let label = horizontal_value_label(
                         value,
                         value_x,
                         baseline,
                         y + thickness / 2.0,
                         spec.value_axis.format,
                         metrics,
-                    ));
+                    );
+                    elements.push(series_text(label, dataset, series_index));
                 } else {
                     labels_omitted = true;
                 }
@@ -339,6 +350,8 @@ fn add_line_data(
                 cy: y,
                 radius: 4.0,
                 class: "chartlet-point",
+                series_index: None,
+                tooltip: Some(tooltip(&point.label, value, spec.value_axis.format, None)),
             }));
             if spec.show_values {
                 elements.push(Element::Text(Text {
@@ -377,6 +390,8 @@ fn flush_line_segment(elements: &mut Vec<Element>, segment: &mut Vec<(f64, f64)>
         elements.push(Element::Polyline(Polyline {
             points: std::mem::take(segment),
             class: "chartlet-line",
+            series_index: None,
+            tooltip: None,
         }));
     } else {
         segment.clear();
@@ -524,8 +539,8 @@ fn add_bottom_category_title(
 }
 
 /// Places a value label above a positive bar or below a negative one.
-fn vertical_value_label(value: f64, center_x: f64, value_y: f64, content: String) -> Element {
-    Element::Text(Text {
+fn vertical_value_label(value: f64, center_x: f64, value_y: f64, content: String) -> Text {
+    Text {
         x: center_x,
         y: if value >= 0.0 {
             value_y - 8.0
@@ -535,7 +550,7 @@ fn vertical_value_label(value: f64, center_x: f64, value_y: f64, content: String
         class: "chartlet-value",
         anchor: TextAnchor::Middle,
         content,
-    })
+    }
 }
 
 fn horizontal_value_label(
@@ -545,7 +560,7 @@ fn horizontal_value_label(
     center_y: f64,
     format: ValueFormat,
     metrics: &impl TextMetrics,
-) -> Element {
+) -> Text {
     let content = format_value(value, format);
     // Inverse text is only readable on the bar itself; a short negative bar gets its label
     // outside, left of the bar end.
@@ -557,13 +572,21 @@ fn horizontal_value_label(
     } else {
         (value_x - 8.0, "chartlet-value", TextAnchor::End)
     };
-    Element::Text(Text {
+    Text {
         x,
         y: center_y + 4.0,
         class,
         anchor,
         content,
-    })
+    }
+}
+
+fn series_text(text: Text, dataset: &Dataset<'_>, series_index: usize) -> Element {
+    if dataset.series.len() > 1 {
+        Element::SeriesText(text, series_index)
+    } else {
+        Element::Text(text)
+    }
 }
 
 /// The bars of one category: a single bar, or one slot per series side by side.
@@ -641,6 +664,8 @@ fn add_legend(
             width: 10.0,
             height: 10.0,
             class: SERIES_BAR_CLASSES[index],
+            series_index: None,
+            tooltip: None,
         }));
         let label = fit_text(
             name,
@@ -667,6 +692,14 @@ fn bar_class(dataset: &Dataset<'_>, series_index: usize) -> &'static str {
         "chartlet-bar"
     } else {
         SERIES_BAR_CLASSES[series_index]
+    }
+}
+
+fn tooltip(category: &str, value: f64, format: ValueFormat, series_name: Option<&str>) -> String {
+    let formatted = format_value(value, format);
+    match series_name {
+        Some(name) => format!("{category} – {name}: {formatted}"),
+        None => format!("{category}: {formatted}"),
     }
 }
 

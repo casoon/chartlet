@@ -49,6 +49,15 @@ chartlet render spec.json --format html -o chart.html
 
 To build from a clone of this repository instead, run `cargo install --path .`.
 
+## Gallery
+
+Browse the [public gallery](https://casoon.github.io/chartlet/) to see every chart type, view
+the specification next to the rendered output, inspect the generated descriptions and data
+tables, and check the support matrix for embedding contexts, browsers, and screen readers.
+
+The gallery itself is built with Astro and uses the `@casoon/chartlet` integration. Its source
+lives at [`gallery/`](gallery/).
+
 ## Chart types
 
 | Chart | Specification | Example |
@@ -86,6 +95,42 @@ A legend is added automatically, and the data table gets one column per series.
 }
 ```
 
+## Interaction without JavaScript
+
+The HTML output can add native controls and CSS-based interaction. No chart JavaScript is
+shipped. These features are not part of `0.1.0-alpha.2` yet; build from a clone to use them
+before the next alpha.
+
+- **Series filter:** a grouped chart gets a checkbox per series. Deselecting one hides its bars
+  and value labels with CSS `:has()`; the axis does not rescale. The data table and description always
+  show the full data. Browsers without `:has()` support simply keep every series visible.
+- **Zoom steps:** add two to four `zoomSteps` to pre-compute narrower views of the same chart. The HTML
+  output renders one variant per step and switches between them with radio buttons. Each step
+  costs its own SVG in the output file.
+- **Tooltips:** every bar and point carries a native `<title>` (`Month: value`, or
+  `Month – Series: value`) that browsers can show on hover. The chart description and data table,
+  rather than these hover-only tooltips, remain the assistive-technology alternative.
+
+The pure SVG profile stays a single static chart; filtering and stepped zoom are HTML-only.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Quarterly revenue",
+  "data": [
+    { "label": "Q1", "value": 320 },
+    { "label": "Q2", "value": 345 },
+    { "label": "Q3", "value": 380 },
+    { "label": "Q4", "value": 410 }
+  ],
+  "zoomSteps": [
+    { "label": "First half", "from": 0, "to": 1 },
+    { "label": "All", "from": 0, "to": 3 }
+  ]
+}
+```
+
 ## Specification
 
 [`schema/chartlet.schema.json`](schema/chartlet.schema.json) is the complete contract and can be
@@ -106,6 +151,7 @@ used for editor validation.
 | `valueAxis.format` | no | `number` (default) or `percent`; `0.12` is shown as `12%`. |
 | `width`, `height` | no | Size in pixels: 320–2400 × 240–1600, default 800 × 450. |
 | `showValues` | no | Value labels on bars and points, default `true`. |
+| `zoomSteps` | no | Two to four `{ "label", "from", "to" }` variants, selectable in the HTML output. |
 
 Limits: up to 100 categories and four series. Labels must be unique. Values must be zero or have
 a magnitude between `1e-100` and `1e100`.
@@ -204,7 +250,7 @@ widths differ noticeably from the built-in profile.
 
 ## When chartlet is not the right tool
 
-- You need interaction such as tooltips, zooming, filtering or live updates.
+- You need continuous zooming, panning, cross-filtering, live updates or keyboard-addressable details for individual marks.
 - The data changes at runtime rather than at build time.
 - You need maps, networks, 3D charts or chart types beyond the ones listed above.
 - You want to explore data rather than publish a finished chart.

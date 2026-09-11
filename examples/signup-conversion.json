@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "orientation": "horizontal",
+  "title": "Signup conversion by page",
+  "description": "The referral page converts best, the blog worst.",
+  "source": "Example data",
+  "categoryAxis": { "title": "Page" },
+  "valueAxis": { "title": "Conversion rate", "format": "percent" },
+  "data": [
+    { "label": "Pricing", "value": 0.042 },
+    { "label": "Home", "value": 0.061 },
+    { "label": "Docs", "value": 0.038 },
+    { "label": "Blog", "value": 0.055 },
+    { "label": "Referral", "value": 0.074 }
+  ]
+}

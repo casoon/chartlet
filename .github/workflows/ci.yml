@@ -60,3 +60,17 @@ jobs:
         run: |
           npm ci
           npm test
+
+      - name: Install gallery browser
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: gallery
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Gallery build and accessibility
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: gallery
+        env:
+          CHARTLET_BIN: ${{ github.workspace }}/target/debug/chartlet
+        run: npm test

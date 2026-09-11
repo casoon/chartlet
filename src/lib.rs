@@ -12,7 +12,7 @@ pub use metrics::{BuiltinMetrics, TextMetrics};
 use spec::Dataset;
 pub use spec::{
     CategoryAxisSpec, ChartSpec, ChartType, DataPoint, Orientation, SeriesSpec, ValueAxisSpec,
-    ValueFormat,
+    ValueFormat, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,17 +86,51 @@ pub fn render_with_metrics(
         }
         None => default_id_prefix(spec)?,
     };
-    let description = spec
-        .description
-        .clone()
-        .unwrap_or_else(|| automatic_description(spec));
-    let scene = layout::layout(spec, &mut warnings, metrics);
-    let svg = render::svg(&scene, spec, &description, &id_prefix);
+
+    // Zoom steps render as pre-computed variants switched by radio buttons, which only the
+    // HTML profile can carry. The pure SVG profile stays a single static chart.
+    if format == RenderFormat::Html && spec.zoom_steps.len() > 1 {
+        let mut panels = Vec::new();
+        for (index, step) in spec.zoom_steps.iter().enumerate() {
+            let sliced = spec.sliced(step.from, step.to);
+            let panel_prefix = format!("{id_prefix}-z{index}");
+            let svg = render_panel(&sliced, &panel_prefix, metrics, &mut warnings);
+            panels.push((step.label.clone(), svg));
+        }
+        dedupe_warnings(&mut warnings);
+        return Ok(RenderOutput {
+            content: render::html_zoom(&panels, spec, options.table_mode, &id_prefix),
+            warnings,
+        });
+    }
+
+    let svg = render_panel(spec, &id_prefix, metrics, &mut warnings);
     let content = match format {
         RenderFormat::Svg => svg,
         RenderFormat::Html => render::html(&svg, spec, options.table_mode),
     };
     Ok(RenderOutput { content, warnings })
+}
+
+/// Lays out and serializes one chart, using its explicit description or a generated one.
+fn render_panel(
+    spec: &ChartSpec,
+    id_prefix: &str,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) -> String {
+    let description = spec
+        .description
+        .clone()
+        .unwrap_or_else(|| automatic_description(spec));
+    let scene = layout::layout(spec, warnings, metrics);
+    render::svg(&scene, spec, &description, id_prefix)
+}
+
+/// Zoom panels repeat the same data, so identical warnings would otherwise appear once per panel.
+fn dedupe_warnings(warnings: &mut Vec<ChartWarning>) {
+    let mut seen = std::collections::BTreeSet::new();
+    warnings.retain(|warning| seen.insert((warning.code, warning.path.clone())));
 }
 
 fn validate_id_prefix(value: &str) -> Result<(), ChartError> {
@@ -491,5 +525,89 @@ mod tests {
             render_json(&missing, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
         assert_eq!(error.code, "missing_bar_value");
         assert_eq!(error.path, "/data/0/value");
+    }
+
+    #[test]
+    fn grouped_bars_render_series_filter_checkboxes() {
+        let output = render_json(GROUPED, RenderFormat::Html, &RenderOptions::default()).unwrap();
+        assert!(
+            output
+                .content
+                .contains("<fieldset class=\"chartlet-filter\">")
+        );
+        assert!(output.content.contains("class=\"series-0\" checked"));
+        assert!(output.content.contains("data-series=\"0\""));
+        assert!(output.content.contains("<text data-series=\"0\""));
+        assert!(output.content.contains("<title>Jan – Budget: 120</title>"));
+    }
+
+    #[test]
+    fn single_series_bars_carry_native_tooltips() {
+        let output = render_json(SPEC, RenderFormat::Svg, &RenderOptions::default()).unwrap();
+        assert!(
+            output
+                .content
+                .contains("<title>North &lt;East&gt;: 12</title>")
+        );
+        assert!(!output.content.contains("data-series"));
+    }
+
+    #[test]
+    fn zoom_steps_render_radio_selectable_panels() {
+        let specification = r#"{
+            "schemaVersion": 1,
+            "type": "bar",
+            "title": "Quarterly revenue",
+            "data": [
+                {"label": "Q1", "value": 320},
+                {"label": "Q2", "value": 345},
+                {"label": "Q3", "value": 380},
+                {"label": "Q4", "value": 410}
+            ],
+            "zoomSteps": [
+                {"label": "First half", "from": 0, "to": 1},
+                {"label": "All", "from": 0, "to": 3}
+            ]
+        }"#;
+        let output =
+            render_json(specification, RenderFormat::Html, &RenderOptions::default()).unwrap();
+        assert!(
+            output
+                .content
+                .contains("<fieldset class=\"chartlet-zoom\">")
+        );
+        assert!(
+            output
+                .content
+                .contains("class=\"chartlet-panel chartlet-panel-0\"")
+        );
+        assert!(
+            output
+                .content
+                .contains("class=\"chartlet-panel chartlet-panel-1\"")
+        );
+        assert!(output.content.contains("class=\"zoom-0\" checked"));
+        // Every panel gets its own non-colliding accessibility IDs.
+        assert_eq!(output.content.matches("<title id=").count(), 2);
+    }
+
+    #[test]
+    fn a_single_zoom_step_is_rejected() {
+        let specification = r#"{
+            "schemaVersion": 1,
+            "type": "bar",
+            "title": "Quarterly revenue",
+            "data": [
+                {"label": "Q1", "value": 320},
+                {"label": "Q2", "value": 345}
+            ],
+            "zoomSteps": [
+                {"label": "All", "from": 0, "to": 1}
+            ]
+        }"#;
+        let error = render_json(specification, RenderFormat::Svg, &RenderOptions::default())
+            .expect_err("one zoom step cannot provide a choice");
+        assert_eq!(error.code, "not_enough_zoom_steps");
+        assert_eq!(error.path, "/zoomSteps");
     }
 }

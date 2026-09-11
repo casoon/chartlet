@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Revenue by channel",
+  "description": "Direct revenue grew every quarter and stayed the largest channel.",
+  "source": "Example data",
+  "categoryAxis": { "title": "Quarter" },
+  "valueAxis": { "title": "Revenue in thousands", "format": "number" },
+  "categories": ["Q1", "Q2", "Q3", "Q4"],
+  "series": [
+    { "name": "Direct", "values": [420, 455, 480, 512] },
+    { "name": "Partners", "values": [180, 205, 198, 236] },
+    { "name": "Marketplace", "values": [96, 88, 121, 140] }
+  ]
+}

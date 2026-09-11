@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "type": "line",
+  "title": "Weekly support tickets",
+  "description": "Ticket volume dipped in week four and recovered afterwards, peaking in week eight.",
+  "source": "Example data",
+  "categoryAxis": { "title": "Week" },
+  "valueAxis": { "title": "Tickets", "format": "number" },
+  "data": [
+    { "label": "Week 1", "value": 128 },
+    { "label": "Week 2", "value": 134 },
+    { "label": "Week 3", "value": 121 },
+    { "label": "Week 4", "value": 96 },
+    { "label": "Week 5", "value": 142 },
+    { "label": "Week 6", "value": 158 },
+    { "label": "Week 7", "value": 149 },
+    { "label": "Week 8", "value": 163 }
+  ]
+}

@@ -54,6 +54,22 @@
           "values": { "type": "array", "items": { "$ref": "#/$defs/value" } }
         }
       }
+    },
+    "zoomSteps": {
+      "description": "Optional pre-computed zoom variants, selectable in the HTML profile.",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "from", "to"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+          "from": { "type": "integer", "minimum": 0 },
+          "to": { "type": "integer", "minimum": 0 }
+        }
+      }
     }
   },
   "allOf": [
