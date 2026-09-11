@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --check
+
+      - name: Lint
+        run: cargo clippy --all-targets -- -D warnings
+
+      # The golden tests compare against the committed SVGs, so this also checks that the
+      # output is byte-identical on every platform.
+      - name: Test
+        run: cargo test
+
+      - name: Examples are up to date
+        run: |
+          cargo build
+          for spec in examples/*.json; do
+            base="${spec%.json}"
+            ./target/debug/chartlet render "$spec" --format svg -o "$base.svg"
+            ./target/debug/chartlet render "$spec" --format html -o "$base.html"
+          done
+          git diff --exit-code -- examples/
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: packages/chartlet/package-lock.json
+
+      - name: npm package and Astro integration
+        working-directory: packages/chartlet
+        env:
+          CHARTLET_BIN: ${{ github.workspace }}/target/debug/chartlet
+        run: |
+          npm ci
+          npm test
