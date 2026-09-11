@@ -245,14 +245,9 @@ svg {
 
 .split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2rem;
-  align-items: start;
   margin-bottom: 2rem;
-}
-
-.split .chart {
-  min-width: 0;
 }
 
 .split .spec h2 {
@@ -368,9 +363,3 @@ a:hover {
   text-decoration: underline;
 }
 
-/* Responsive --------------------------------------------------------------------------------- */
-@media (max-width: 48rem) {
-  .split {
-    grid-template-columns: 1fr;
-  }
-}

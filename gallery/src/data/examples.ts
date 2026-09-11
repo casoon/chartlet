@@ -57,7 +57,8 @@ export const examples: Example[] = [
     slug: 'budget-vs-actual',
     chart: 'Grouped bar',
     useCase: 'Plan versus actual',
-    blurb: 'Budget and actual costs side by side, including a missing value.',
+    blurb:
+      'Budget and actual costs side by side, including a missing value. Use the checkboxes to hide a series, or hover a bar for its value.',
     spec: budgetVsActual,
   },
   {
@@ -92,7 +93,8 @@ export const examples: Example[] = [
     slug: 'headcount',
     chart: 'Line',
     useCase: 'Show growth',
-    blurb: 'Steady headcount growth from January to August.',
+    blurb:
+      'Steady headcount growth from January to August. Switch between the full period and each half with the pre-rendered zoom steps.',
     spec: headcount,
   },
 ];

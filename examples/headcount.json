@@ -15,5 +15,10 @@
     { "label": "June", "value": 58 },
     { "label": "July", "value": 61 },
     { "label": "August", "value": 66 }
+  ],
+  "zoomSteps": [
+    { "label": "All months", "from": 0, "to": 7 },
+    { "label": "January to April", "from": 0, "to": 3 },
+    { "label": "May to August", "from": 4, "to": 7 }
   ]
 }
