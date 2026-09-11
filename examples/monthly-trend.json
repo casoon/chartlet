@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "type": "line",
+  "title": "Monthly active users",
+  "description": "Usage grew through May. April has no reported value and is shown as a gap.",
+  "source": "Example data",
+  "categoryAxis": { "title": "Month" },
+  "valueAxis": { "title": "Active users", "format": "number" },
+  "data": [
+    { "label": "January", "value": 1200 },
+    { "label": "February", "value": 1460 },
+    { "label": "March", "value": 1390 },
+    { "label": "April", "value": null },
+    { "label": "May", "value": 1810 },
+    { "label": "June", "value": 2050 }
+  ]
+}

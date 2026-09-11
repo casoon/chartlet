@@ -1,0 +1,30 @@
+---
+import Chart from '../../../src/Chart.astro';
+
+const spec = {
+  schemaVersion: 1,
+  type: 'line',
+  title: 'Build-time chart',
+  data: [
+    { label: 'First', value: 10 },
+    { label: 'Second', value: 12 },
+    { label: 'Missing', value: null },
+    { label: 'Fourth', value: 14 },
+  ],
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>chartlet Astro smoke test</title>
+  </head>
+  <body>
+    <main>
+      <h1>chartlet Astro smoke test</h1>
+      <Chart id="smoke-chart" spec={spec} />
+    </main>
+  </body>
+</html>

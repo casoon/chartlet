@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://casoon.github.io/chartlet/schema/v1.json",
+  "title": "chartlet v1 alpha specification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "type", "title"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "type": { "enum": ["bar", "line"] },
+    "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "source": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "categoryAxis": { "$ref": "#/$defs/categoryAxis" },
+    "valueAxis": { "$ref": "#/$defs/valueAxis" },
+    "width": { "type": "integer", "minimum": 320, "maximum": 2400, "default": 800 },
+    "height": { "type": "integer", "minimum": 240, "maximum": 1600, "default": 450 },
+    "showValues": { "type": "boolean", "default": true },
+    "data": {
+      "description": "Single-series data. Use either data or categories with series.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "value"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "value": { "$ref": "#/$defs/value" }
+        }
+      }
+    },
+    "categories": {
+      "description": "Unique category labels shared by all series.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+    },
+    "series": {
+      "description": "Named series with one value per category; null marks a missing value.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "values"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "values": { "type": "array", "items": { "$ref": "#/$defs/value" } }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "oneOf": [
+        {
+          "required": ["data"],
+          "not": { "anyOf": [{ "required": ["categories"] }, { "required": ["series"] }] }
+        },
+        {
+          "required": ["categories", "series"],
+          "not": { "required": ["data"] }
+        }
+      ]
+    },
+    {
+      "if": { "properties": { "type": { "const": "line" } } },
+      "then": { "not": { "anyOf": [{ "required": ["orientation"] }, { "required": ["series"] }] } }
+    }
+  ],
+  "$defs": {
+    "value": {
+      "anyOf": [
+        { "type": "null" },
+        { "const": 0 },
+        { "type": "number", "minimum": 1e-100, "maximum": 1e100 },
+        { "type": "number", "minimum": -1e100, "maximum": -1e-100 }
+      ]
+    },
+    "categoryAxis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "valueAxis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "format": { "enum": ["number", "percent"], "default": "number" }
+      }
+    }
+  }
+}

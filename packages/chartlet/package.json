@@ -1,0 +1,41 @@
+{
+  "name": "@casoon/chartlet",
+  "version": "0.1.0-alpha.1",
+  "description": "Build-time SVG and HTML charts for static websites",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/casoon/chartlet.git",
+    "directory": "packages/chartlet"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/render.mjs"
+    },
+    "./astro": "./src/Chart.astro"
+  },
+  "peerDependencies": {
+    "astro": ">=6.0.0"
+  },
+  "peerDependenciesMeta": {
+    "astro": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "astro": "^7.3.2"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

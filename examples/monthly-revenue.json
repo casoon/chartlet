@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Monthly revenue",
+  "description": "Revenue increased in February and remained above January in March.",
+  "source": "Example data",
+  "categoryAxis": { "title": "Month" },
+  "valueAxis": { "title": "Revenue in thousands", "format": "number" },
+  "data": [
+    { "label": "January", "value": 120 },
+    { "label": "February", "value": 180 },
+    { "label": "March", "value": 150 }
+  ]
+}

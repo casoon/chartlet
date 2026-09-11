@@ -1,0 +1,23 @@
+[package]
+name = "chartlet"
+version = "0.1.0-alpha.1"
+edition = "2024"
+license = "MIT"
+description = "Compile structured data into deterministic, accessible static charts"
+repository = "https://github.com/casoon/chartlet"
+readme = "README.md"
+keywords = ["charts", "svg", "accessibility", "static", "visualization"]
+categories = ["visualization", "command-line-utilities"]
+exclude = ["packages/**", "plan/**"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_path_to_error = "0.1"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"

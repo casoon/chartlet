@@ -1,0 +1,39 @@
+---
+import { renderChart } from './render.mjs';
+
+export interface Props {
+  id: string;
+  spec: Record<string, unknown>;
+  format?: 'svg' | 'html';
+  table?: 'details' | 'visible';
+  strict?: boolean;
+  binary?: string;
+}
+
+const {
+  id,
+  spec,
+  format = 'html',
+  table = 'details',
+  strict = false,
+  binary,
+} = Astro.props;
+
+if (!id) {
+  throw new Error('Chart requires a stable, page-unique id.');
+}
+
+const rendered = renderChart(spec, {
+  format,
+  table,
+  strict,
+  binary,
+  idPrefix: id,
+});
+
+for (const warning of rendered.warnings) {
+  console.warn(`[chartlet] ${warning}`);
+}
+---
+
+<Fragment set:html={rendered.content} />

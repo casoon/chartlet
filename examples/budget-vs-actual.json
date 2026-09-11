@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Budget and actual costs",
+  "source": "Example data",
+  "categoryAxis": { "title": "Month" },
+  "valueAxis": { "title": "Costs in thousands" },
+  "categories": ["January", "February", "March", "April"],
+  "series": [
+    { "name": "Budget", "values": [120, 150, 140, 160] },
+    { "name": "Actual", "values": [130, 145, 152, null] }
+  ]
+}

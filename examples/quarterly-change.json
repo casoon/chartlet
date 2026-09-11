@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "orientation": "horizontal",
+  "title": "Quarterly change",
+  "source": "Example data",
+  "categoryAxis": { "title": "Quarter" },
+  "valueAxis": { "title": "Change", "format": "percent" },
+  "data": [
+    { "label": "First quarter", "value": 0.12 },
+    { "label": "Second quarter", "value": -0.04 },
+    { "label": "Third quarter with a deliberately long label", "value": 0.08 },
+    { "label": "Fourth quarter", "value": 0.15 }
+  ]
+}
