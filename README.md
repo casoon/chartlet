@@ -19,14 +19,14 @@ the browser: no chart JavaScript, no hydration, no layout shift.
 
 ## Quick start
 
-chartlet is not published yet. Build the CLI from this repository (Rust 1.88 or newer):
+Install the CLI from crates.io (Rust 1.88 or newer). While chartlet is in alpha, name the version
+explicitly:
 
 ```sh
-cargo install --path .
-chartlet render examples/monthly-revenue.json --format html -o chart.html
+cargo install chartlet --version 0.1.0-alpha.2
 ```
 
-A minimal specification:
+Save a minimal specification as `spec.json`:
 
 ```json
 {
@@ -40,6 +40,14 @@ A minimal specification:
   ]
 }
 ```
+
+Render it:
+
+```sh
+chartlet render spec.json --format html -o chart.html
+```
+
+To build from a clone of this repository instead, run `cargo install --path .`.
 
 ## Chart types
 
@@ -155,7 +163,13 @@ Warnings are written to standard error, and the chart is still produced:
 ## Astro
 
 The npm package [`@casoon/chartlet`](packages/chartlet/README.md) renders charts while Astro
-builds the site and ships no JavaScript to the browser:
+builds the site and ships no JavaScript to the browser. In the alpha, it calls the `chartlet`
+CLI, so install both:
+
+```sh
+npm install @casoon/chartlet@alpha
+cargo install chartlet --version 0.1.0-alpha.2
+```
 
 ```astro
 ---
@@ -166,10 +180,13 @@ import revenue from '../data/monthly-revenue.json';
 <Chart id="monthly-revenue" spec={revenue} />
 ```
 
-In the alpha, the component calls the `chartlet` CLI, which must be on `PATH` or set via
-`CHARTLET_BIN`.
+The CLI must be on `PATH`, or `CHARTLET_BIN` must point to it.
 
 ## Rust
+
+```sh
+cargo add chartlet@0.1.0-alpha.2
+```
 
 ```rust
 use chartlet::{render_json, RenderFormat, RenderOptions};

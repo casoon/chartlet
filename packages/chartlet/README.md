@@ -3,16 +3,12 @@
 Build static, accessible SVG or HTML charts during an Astro build. The component runs only on
 the server and ships no chart JavaScript to the browser.
 
-The current alpha adapter calls the `chartlet` CLI. Install the CLI and make it available on
-`PATH`, or set `CHARTLET_BIN` to its absolute path.
-
-Neither the package nor the CLI is published to a registry yet. Install the CLI from the release
-tag, and the package from a local clone of the repository:
+The current alpha adapter calls the `chartlet` CLI, so install both the package and the CLI
+(Rust 1.88 or newer). The CLI must be on `PATH`, or set `CHARTLET_BIN` to its absolute path.
 
 ```sh
-cargo install --git https://github.com/casoon/chartlet --tag v0.1.0-alpha.2
-git clone --branch v0.1.0-alpha.2 https://github.com/casoon/chartlet.git
-npm install ./chartlet/packages/chartlet
+npm install @casoon/chartlet@alpha
+cargo install chartlet --version 0.1.0-alpha.2
 ```
 
 ```astro
