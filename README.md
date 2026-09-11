@@ -137,7 +137,8 @@ accessibility, not as verified.
 
 ## Warnings and errors
 
-Errors stop rendering and name a code, the location in the specification and a way to fix it:
+Errors stop rendering and name a code, the location in the specification as a JSON Pointer
+(`/` for the whole document) and a way to fix it:
 
 ```text
 chartlet: series_length_mismatch at /series/0/values: expected 2 values, one per category; use null for a missing value

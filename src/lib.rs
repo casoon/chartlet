@@ -264,6 +264,32 @@ mod tests {
     }
 
     #[test]
+    fn deserialization_errors_use_json_pointers() {
+        for (input, code, path) in [
+            (
+                SPEC.replace("\"title\"", "\"colour\": 1, \"title\""),
+                "invalid_spec",
+                "/colour",
+            ),
+            (
+                SPEC.replace("12}", "\"12\"}"),
+                "invalid_spec",
+                "/data/0/value",
+            ),
+            (
+                SPEC.replace("\"title\": \"Profit & loss\",", ""),
+                "invalid_spec",
+                "/",
+            ),
+            ("{\"schemaVersion\": 1,".to_owned(), "invalid_json", "/"),
+        ] {
+            let error =
+                render_json(&input, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{input}");
+        }
+    }
+
+    #[test]
     fn rejects_duplicate_labels_with_path() {
         let duplicate = SPEC.replace("South", "North <East>");
         let error =

@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
+use serde_path_to_error::Segment;
 
 use crate::error::{ChartError, ChartWarning};
 
@@ -129,18 +130,19 @@ impl ChartSpec {
     ///
     /// # Errors
     ///
-    /// Returns `invalid_json` when the input does not match the versioned specification.
+    /// Returns `invalid_json` for malformed JSON and `invalid_spec` for JSON that does not match
+    /// the versioned specification. Like every other error, both carry a JSON Pointer path; a
+    /// syntax error points at the document root and names line and column in its message.
     pub fn from_json(input: &str) -> Result<Self, ChartError> {
         let mut deserializer = serde_json::Deserializer::from_str(input);
         serde_path_to_error::deserialize(&mut deserializer).map_err(|error| {
             let source = error.inner();
             let (code, path) = match source.classify() {
-                serde_json::error::Category::Syntax | serde_json::error::Category::Eof => (
-                    "invalid_json",
-                    format!("line {}, column {}", source.line(), source.column()),
-                ),
+                serde_json::error::Category::Syntax | serde_json::error::Category::Eof => {
+                    ("invalid_json", "/".to_owned())
+                }
                 serde_json::error::Category::Data | serde_json::error::Category::Io => {
-                    ("invalid_spec", format!("${}", error.path()))
+                    ("invalid_spec", json_pointer(error.path()))
                 }
             };
             ChartError::new(code, path, source.to_string())
@@ -401,6 +403,25 @@ impl ChartSpec {
             ));
         }
         Ok(warnings)
+    }
+}
+
+/// Converts a deserialization path such as `data[0].value` into the JSON Pointer
+/// `/data/0/value` that validation errors use. The document root is `/`.
+fn json_pointer(path: &serde_path_to_error::Path) -> String {
+    let pointer: String = path
+        .iter()
+        .filter_map(|segment| match segment {
+            Segment::Seq { index } => Some(format!("/{index}")),
+            Segment::Map { key } => Some(format!("/{}", key.replace('~', "~0").replace('/', "~1"))),
+            Segment::Enum { variant } => Some(format!("/{variant}")),
+            Segment::Unknown => None,
+        })
+        .collect();
+    if pointer.is_empty() {
+        "/".to_owned()
+    } else {
+        pointer
     }
 }
 
