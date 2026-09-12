@@ -49,14 +49,15 @@ chartlet render spec.json --format html -o chart.html
 
 To build from a clone of this repository instead, run `cargo install --path .`.
 
-## Gallery
+## Website and documentation
 
-Browse the [public gallery](https://casoon.github.io/chartlet/) to see every chart type, view
-the specification next to the rendered output, inspect the generated descriptions and data
-tables, and check the support matrix for embedding contexts, browsers, and screen readers.
+The [project website](https://casoon.github.io/chartlet/) has the documentation, every example
+chart with its specification next to the rendered output, and the support matrix for embedding
+contexts, browsers, and screen readers.
 
-The gallery itself is built with Astro and uses the `@casoon/chartlet` integration. Its source
-lives at [`gallery/`](gallery/).
+The site is built with Astro on the shared CASOON Pages theme and renders every chart with
+`@casoon/chartlet` at build time. Its source lives in [`site/`](site/), the documentation in
+[`docs/`](docs/).
 
 ## Chart types
 

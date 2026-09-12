@@ -61,16 +61,21 @@ jobs:
           npm ci
           npm test
 
-      - name: Install gallery browser
+      - uses: pnpm/action-setup@v6
         if: matrix.os == 'ubuntu-latest'
-        working-directory: gallery
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
+        with:
+          version: 10
 
-      - name: Gallery build and accessibility
+      - name: Install site browser
         if: matrix.os == 'ubuntu-latest'
-        working-directory: gallery
+        working-directory: site
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Site build and accessibility
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: site
         env:
           CHARTLET_BIN: ${{ github.workspace }}/target/debug/chartlet
-        run: npm test
+        run: pnpm test

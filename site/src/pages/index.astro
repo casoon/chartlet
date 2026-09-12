@@ -1,0 +1,108 @@
+---
+import {
+  Badge,
+  Badges,
+  BuildOutput,
+  CodeBlock,
+  Facts,
+  Features,
+  Hero,
+  Install,
+  Quickstart,
+} from '@casoon/pages-theme/components';
+import Base from '@casoon/pages-theme/layouts/Base.astro';
+import { render, spec } from '../showcase';
+
+const hero = render(spec('budget-vs-actual'), 'hero', 'svg');
+const trend = render(spec('monthly-trend'), 'build-output');
+
+const specJson = `{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Monthly revenue",
+  "data": [
+    { "label": "January", "value": 120 },
+    { "label": "February", "value": 180 },
+    { "label": "March", "value": 150 }
+  ]
+}`;
+
+const astro = `---
+import Chart from '@casoon/chartlet/astro';
+import revenue from '../data/monthly-revenue.json';
+---
+
+<Chart id="monthly-revenue" spec={revenue} />`;
+---
+
+<Base>
+  <Hero
+    title="Accessible charts, compiled at build time."
+    lead="chartlet turns a small JSON specification into plain SVG or an HTML figure with caption, source and data table. No chart JavaScript, no hydration, no layout shift – and the same bytes on every build."
+  >
+    <Install
+      commands={[
+        { label: 'cargo', command: 'cargo install chartlet --version 0.1.0-alpha.3' },
+        { label: 'npm', command: 'npm install @casoon/chartlet@alpha' },
+      ]}
+    />
+    <Badges>
+      <Badge>MIT</Badge>
+      <Badge tone="brand">alpha</Badge>
+      <Badge>crates.io 0.1.0-alpha.3</Badge>
+      <Badge>npm 0.1.0-alpha.3</Badge>
+      <Badge>Rust 1.88+</Badge>
+    </Badges>
+    <div slot="output" set:html={hero.html} />
+  </Hero>
+
+  <Facts
+    items={[
+      { value: '0', label: 'bytes of chart JavaScript in the browser' },
+      { value: '10', label: 'example charts, also the golden-file test inputs' },
+      { value: '4.5:1', label: 'minimum contrast of every series colour on white' },
+      { value: '4', label: 'series per chart, up to 100 categories' },
+    ]}
+  />
+
+  <Features
+    items={[
+      {
+        title: 'Accessible by default',
+        body: 'Every chart carries a title and a description generated from the data, and the HTML output always includes the complete data as a table.',
+      },
+      {
+        title: 'Deterministic',
+        body: 'The same specification produces the same bytes, so charts can be reviewed, diffed and cached like any other build artifact.',
+      },
+      {
+        title: 'Honest about problems',
+        body: 'Invalid input is rejected with a code, a path and a fix. Shortened labels and omitted value labels are reported as warnings instead of happening silently.',
+      },
+      {
+        title: 'Interaction without JavaScript',
+        body: 'Series filters and pre-rendered zoom steps use native controls and CSS; every mark has a native tooltip.',
+      },
+    ]}
+  />
+
+  <BuildOutput
+    caption="Every chart on this site is rendered by chartlet during the build, from the same specifications the test suite uses."
+    file="examples/monthly-trend.json"
+  >
+    <Fragment set:html={trend.html} />
+  </BuildOutput>
+
+  <Quickstart
+    lead="From a specification to a finished chart. The full walkthrough lives in the documentation."
+    steps={[
+      'Install the CLI, or the Astro package together with the CLI.',
+      'Describe the chart in a small JSON specification.',
+      'Render it with <code>chartlet render</code> or the <code>&lt;Chart&gt;</code> component.',
+    ]}
+  >
+    <CodeBlock code={specJson} lang="json" title="spec.json" label="Specification" />
+    <CodeBlock code="chartlet render spec.json --format html -o chart.html" lang="sh" label="CLI" />
+    <CodeBlock code={astro} lang="astro" title="index.astro" label="Astro" />
+  </Quickstart>
+</Base>
