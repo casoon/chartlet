@@ -1,0 +1,57 @@
+---
+title: Installation
+description: chartlet ships as a CLI and crate on crates.io and as an Astro package on npm. All three use the same renderer.
+order: 1
+---
+
+<Tabs
+  label="Package"
+  tabs={[
+    { id: 'cli', label: 'CLI' },
+    { id: 'astro', label: 'Astro' },
+    { id: 'rust', label: 'Rust' },
+  ]}
+>
+<div slot="cli">
+
+```sh
+cargo install chartlet --version 0.1.0-alpha.3
+```
+
+To build from a clone of the repository instead, run `cargo install --path .`.
+
+</div>
+<div slot="astro">
+
+```sh
+npm install @casoon/chartlet@alpha
+cargo install chartlet --version 0.1.0-alpha.3
+```
+
+The alpha package calls the `chartlet` CLI, so install both. The CLI must be on `PATH`, or
+`CHARTLET_BIN` must point to it.
+
+</div>
+<div slot="rust">
+
+```sh
+cargo add chartlet@0.1.0-alpha.3
+```
+
+</div>
+</Tabs>
+
+<Callout type="caution">
+  While chartlet is in alpha, name the version explicitly. On npm, use the `alpha` tag.
+</Callout>
+
+## Requirements
+
+| Package | Requirement |
+| --- | --- |
+| CLI and crate | Rust 1.88 or newer |
+| `@casoon/chartlet` | Astro 6 or newer, and the `chartlet` CLI |
+
+## Next steps
+
+Continue with the [Quickstart](../quickstart/).
