@@ -4,6 +4,8 @@ chartlet compiles a small JSON chart specification into a finished, accessible c
 time. You get plain SVG, or an HTML figure with caption, source and data table. Nothing runs in
 the browser: no chart JavaScript, no hydration, no layout shift.
 
+**Website and documentation:** [casoon.github.io/chartlet](https://casoon.github.io/chartlet/)
+
 ![Grouped bar chart comparing budget and actual costs from January to April](examples/budget-vs-actual.svg)
 
 - **Accessible by default:** every chart carries a title and a generated description of the
