@@ -1,6 +1,7 @@
 mod error;
 mod layout;
 mod metrics;
+pub mod qr;
 mod render;
 mod scene;
 mod spec;
