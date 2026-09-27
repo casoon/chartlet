@@ -40,9 +40,21 @@ chartlet is in early alpha. Statuses: **Verified**, **Designed, not yet verified
 
 | Context | Status | Notes |
 | --- | --- | --- |
-| Light (default) | Verified | The default palette keeps at least 4.5:1 contrast on white. |
-| Dark | Planned | Planned via CSS custom properties; not yet shipped. |
+| Light (default) | Verified | The default palette keeps at least 4.5:1 contrast on white (lowest series color 5.17:1). |
+| Dark | Verified | `"theme": "dark"` sets the palette through the same CSS custom properties and paints its own background. Lowest series color 7.65:1 against `#0e131c`. |
 | Forced colours / high contrast | Planned | Planned; not yet shipped. |
+| Host-page colors (`var(--name)` per layer) | Verified | A `var()` reference is passed through and falls back to the chart's text color when the page defines nothing. |
+
+## Time series
+
+| Context | Status | Notes |
+| --- | --- | --- |
+| Calendar axis (ticks, timezone) | Verified | Ticks snap to calendar boundaries; a fixed UTC offset such as `"+02:00"` shifts the labels and the data table. Covered by unit and golden-file tests. |
+| Line on the time axis | Verified | Up to four layers of 2000 observations in one pane; markers and value labels up to 60 observations per layer. |
+| Dense series | Verified | More observations than plot pixels is reported as `dense_chart`; measured at 131 KB of SVG for four layers of 2000 points. |
+| `area`, `ohlc`, `band`, `annotation` marks | Planned | Refused with `mark_not_implemented`. |
+| More than one pane | Planned | Refused with `too_many_panes`. |
+| Gaps (`null`) and `zoomSteps` on a time chart | Planned | Refused with `option_not_supported`. |
 
 ## Distribution and interactions
 

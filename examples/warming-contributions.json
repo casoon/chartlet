@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "type": "rangebar",
+  "orientation": "horizontal",
+  "title": "Contributions to warming",
+  "source": "Illustrative values, chartlet",
+  "valueAxis": {
+    "title": "°C"
+  },
+  "ranges": [
+    { "label": "Observed", "low": 0.9, "high": 1.2, "mid": 1.05 },
+    { "label": "Human influence", "low": 0.8, "high": 1.3, "mid": 1.05, "modeled": true },
+    { "label": "Greenhouse gases", "low": 1.0, "high": 2.0, "mid": 1.5, "modeled": true },
+    { "label": "Other human drivers", "low": -0.8, "high": 0.0, "mid": -0.4, "modeled": true },
+    { "label": "Natural drivers", "low": -0.1, "high": 0.1, "mid": 0.0, "modeled": true }
+  ]
+}

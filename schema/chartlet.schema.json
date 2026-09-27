@@ -7,13 +7,53 @@
   "required": ["schemaVersion", "type", "title"],
   "properties": {
     "schemaVersion": { "const": 1 },
-    "type": { "enum": ["bar", "line"] },
+    "type": {
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples"]
+    },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
     "description": { "type": "string", "minLength": 1, "maxLength": 1000 },
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "theme": { "enum": ["light", "dark"], "default": "light" },
     "categoryAxis": { "$ref": "#/$defs/categoryAxis" },
     "valueAxis": { "$ref": "#/$defs/valueAxis" },
+    "timeAxis": { "$ref": "#/$defs/timeAxis" },
+    "panes": {
+      "description": "Time charts are drawn from one pane, small multiples from 2 to 12 titled panes.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/pane" }
+    },
+    "columns": {
+      "description": "Grid columns of a type: \"multiples\" chart; defaults to up to three.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 6
+    },
+    "stripes": {
+      "description": "The yearly values of a type: \"stripes\" chart.",
+      "$ref": "#/$defs/stripes"
+    },
+    "calendar": {
+      "description": "The daily values of a type: \"calendar\" chart.",
+      "$ref": "#/$defs/calendar"
+    },
+    "ranges": {
+      "description": "The spans of a type: \"rangebar\" chart, one per category.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/range" }
+    },
+    "topicmap": {
+      "description": "Topic areas of a type: \"topicmap\" chart.",
+      "$ref": "#/$defs/topicMap"
+    },
+    "atlas": {
+      "description": "The knowledge landscape of a type: \"atlas\" chart.",
+      "$ref": "#/$defs/atlas"
+    },
     "width": { "type": "integer", "minimum": 320, "maximum": 2400, "default": 800 },
     "height": { "type": "integer", "minimum": 240, "maximum": 1600, "default": 450 },
     "showValues": { "type": "boolean", "default": true },
@@ -82,12 +122,156 @@
         {
           "required": ["categories", "series"],
           "not": { "required": ["data"] }
+        },
+        {
+          "required": ["panes"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] }
+            ]
+          }
+        },
+        {
+          "required": ["topicmap"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["atlas"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["stripes"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["calendar"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["ranges"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
         }
       ]
     },
     {
+      "if": { "properties": { "type": { "const": "stripes" } } },
+      "then": { "required": ["stripes"] },
+      "else": { "not": { "required": ["stripes"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "calendar" } } },
+      "then": { "required": ["calendar"] },
+      "else": { "not": { "required": ["calendar"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "rangebar" } } },
+      "then": { "required": ["ranges"] },
+      "else": { "not": { "required": ["ranges"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "multiples" } } },
+      "then": {
+        "required": ["panes"],
+        "properties": { "panes": { "minItems": 2 } },
+        "not": {
+          "anyOf": [
+            { "required": ["orientation"] },
+            { "required": ["categoryAxis"] },
+            { "required": ["zoomSteps"] },
+            { "required": ["topicmap"] },
+            { "required": ["atlas"] }
+          ]
+        }
+      },
+      "else": { "not": { "required": ["columns"] } }
+    },
+    {
       "if": { "properties": { "type": { "const": "line" } } },
       "then": { "not": { "anyOf": [{ "required": ["orientation"] }, { "required": ["series"] }] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "time" } } },
+      "then": {
+        "required": ["panes"],
+        "properties": { "panes": { "maxItems": 1 } },
+        "not": {
+          "anyOf": [
+            { "required": ["orientation"] },
+            { "required": ["categoryAxis"] },
+            { "required": ["valueAxis"] },
+            { "required": ["zoomSteps"] },
+            { "required": ["topicmap"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "enum": ["bar", "line"] } } },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["panes"] },
+            { "required": ["timeAxis"] },
+            { "required": ["topicmap"] }
+          ]
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "topicmap" } } },
+      "then": {
+        "required": ["topicmap"],
+        "not": {
+          "anyOf": [
+            { "required": ["data"] },
+            { "required": ["categories"] },
+            { "required": ["series"] },
+            { "required": ["zoomSteps"] },
+            { "required": ["panes"] },
+            { "required": ["orientation"] },
+            { "required": ["categoryAxis"] },
+            { "required": ["valueAxis"] },
+            { "required": ["timeAxis"] }
+          ]
+        }
+      }
     }
   ],
   "$defs": {
@@ -112,6 +296,377 @@
       "properties": {
         "title": { "type": "string", "minLength": 1, "maxLength": 100 },
         "format": { "enum": ["number", "percent"], "default": "number" }
+      }
+    },
+    "timeAxis": {
+      "description": "The time axis of a type: \"time\" chart: Unix seconds or ISO 8601 timestamps.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "timezone": {
+          "description": "UTC or a fixed offset such as +02:00. Timestamps without their own offset are read as wall-clock time in this zone.",
+          "type": "string",
+          "pattern": "^(UTC|utc|Z|[+-](0[0-9]|1[0-4]):[0-5][0-9])$",
+          "default": "UTC"
+        },
+        "gaps": { "enum": ["show", "collapse"], "default": "show" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "timeValue": {
+      "description": "Unix seconds between 1700-01-01 and 2200-01-01, an ISO 8601 date such as 2026-03-01 or 2026-03-01T12:00:00Z, or a year such as 1850 (January 1st).",
+      "anyOf": [
+        { "type": "integer", "minimum": -8520336000, "maximum": 7258118399 },
+        { "type": "string", "pattern": "^[0-9]{4}$" },
+        { "type": "string", "minLength": 10, "maxLength": 25 }
+      ]
+    },
+    "stripes": {
+      "description": "Warming stripes: one value per consecutive year from firstYear on; null leaves a year empty. The diverging scale has eight equal steps on either side of reference; min and max default to the largest distance from reference, and values beyond them take the outermost step.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["firstYear", "values"],
+      "properties": {
+        "firstYear": { "type": "integer", "minimum": 1, "maximum": 9999 },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 500,
+          "items": { "$ref": "#/$defs/value" }
+        },
+        "reference": { "type": "number", "default": 0 },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "yearLabels": {
+          "description": "Label the first and the last year under the stripes.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "calendar": {
+      "description": "A calendar heatmap of one year. A day that is absent or null stays an empty cell. reference, min and max work as for stripes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["year", "days"],
+      "properties": {
+        "year": { "type": "integer", "minimum": 1700, "maximum": 2199 },
+        "layout": {
+          "description": "months: twelve rows of up to 31 days; weeks: seven weekday rows, one column per week.",
+          "enum": ["months", "weeks"],
+          "default": "months"
+        },
+        "days": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 366,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["date", "value"],
+            "properties": {
+              "date": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+              "value": { "$ref": "#/$defs/value" }
+            }
+          }
+        },
+        "reference": { "type": "number", "default": 0 },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "range": {
+      "description": "One span of a rangebar chart; mid must lie between low and high.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "low", "high"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "low": { "type": "number" },
+        "high": { "type": "number" },
+        "mid": { "type": "number" },
+        "modeled": { "type": "boolean", "default": false }
+      }
+    },
+    "pane": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "description": "Heading of a small-multiples panel; required there, not allowed in a time chart.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "heightRatio": { "type": "integer", "minimum": 1, "maximum": 20, "default": 1 },
+        "valueAxis": { "$ref": "#/$defs/valueAxis" },
+        "layers": {
+          "description": "Up to 4 data layers and up to 6 annotation layers.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": { "$ref": "#/$defs/layer" }
+        }
+      }
+    },
+    "layer": {
+      "description": "One layer of a pane. Which fields apply depends on mark.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mark"],
+      "properties": {
+        "mark": { "enum": ["line", "area", "ohlc", "band", "annotation"] },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "color": {
+          "description": "#rgb, #rrggbb, #rrggbbaa or var(--name). Anything else is reported and replaced by the neutral tone.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "points": {
+          "description": "Observations of a line or area layer.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["time", "value"],
+            "properties": {
+              "time": { "$ref": "#/$defs/timeValue" },
+              "value": { "$ref": "#/$defs/value" },
+              "lower": {
+                "description": "Lower edge of the uncertainty band; give lower and upper on every point of a layer, or on none.",
+                "type": "number"
+              },
+              "upper": { "description": "Upper edge of the uncertainty band.", "type": "number" }
+            }
+          }
+        },
+        "data": {
+          "description": "Candlesticks of an ohlc layer.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["time", "open", "high", "low", "close"],
+            "properties": {
+              "time": { "$ref": "#/$defs/timeValue" },
+              "open": { "type": "number" },
+              "high": { "type": "number" },
+              "low": { "type": "number" },
+              "close": { "type": "number" }
+            }
+          }
+        },
+        "from": { "$ref": "#/$defs/timeValue" },
+        "to": { "$ref": "#/$defs/timeValue" },
+        "top": { "type": "number" },
+        "bottom": { "type": "number" },
+        "time": { "$ref": "#/$defs/timeValue" },
+        "value": { "type": "number" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "shape": { "enum": ["triangle-up", "triangle-down", "square", "circle", "diamond"] },
+        "modeled": {
+          "description": "A line from a model: drawn dashed, its band hatched, and named modeled in legend and description.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "mark": { "const": "line" } }, "required": ["mark"] },
+          "then": {
+            "required": ["points"],
+            "not": {
+              "anyOf": [
+                { "required": ["data"] },
+                { "required": ["from"] },
+                { "required": ["to"] },
+                { "required": ["top"] },
+                { "required": ["bottom"] },
+                { "required": ["time"] },
+                { "required": ["value"] },
+                { "required": ["label"] },
+                { "required": ["shape"] }
+              ]
+            }
+          }
+        },
+        {
+          "if": { "properties": { "mark": { "const": "annotation" } }, "required": ["mark"] },
+          "then": {
+            "description": "A reference line: value draws a horizontal one, time a vertical one; label is required.",
+            "required": ["label"],
+            "oneOf": [{ "required": ["value"] }, { "required": ["time"] }],
+            "not": {
+              "anyOf": [
+                { "required": ["name"] },
+                { "required": ["points"] },
+                { "required": ["data"] },
+                { "required": ["from"] },
+                { "required": ["to"] },
+                { "required": ["top"] },
+                { "required": ["bottom"] },
+                { "required": ["shape"] },
+                { "required": ["modeled"] }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "topic": {
+      "description": "One topic or island of a type: \"topicmap\" chart.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "value"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "value": { "type": "number", "minimum": 1, "maximum": 1e100 },
+        "points": {
+          "description": "Number of paths through this topic; drawn as points inside its area.",
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "tooltip": { "type": "string", "minLength": 1, "maxLength": 300 }
+      }
+    },
+    "topicLink": {
+      "description": "A neighborhood between two topics or islands, drawn as a route.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 }
+      }
+    },
+    "cartouche": {
+      "description": "The legend box printed on the map.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["heading", "meta"],
+      "properties": {
+        "heading": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "meta": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "corner": {
+          "enum": ["bottomRight", "bottomLeft", "topRight", "topLeft"],
+          "default": "bottomRight"
+        }
+      }
+    },
+    "atlas": {
+      "description": "Realms of neighbouring regions, holding places. Where a region lies says as much as how large it is.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["realms"],
+      "properties": {
+        "realms": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/realm" }
+        },
+        "links": {
+          "description": "Kinship between two regions, named by label and valid across realm borders.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/topicLink" }
+        },
+        "seed": { "type": "integer", "minimum": 0, "default": 0 },
+        "areaDamping": {
+          "description": "The exponent a region's area follows: 1 is proportional to its value, 0.5 its square root.",
+          "type": "number",
+          "minimum": 0.2,
+          "maximum": 1,
+          "default": 0.5
+        },
+        "contours": {
+          "description": "Contour lines from the density of places.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "realm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "regions"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "regions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/region" }
+        },
+        "tooltip": { "type": "string", "minLength": 1, "maxLength": 300 }
+      }
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "value"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "value": { "type": "number", "minimum": 1 },
+        "places": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/place" }
+        },
+        "tooltip": { "type": "string", "minLength": 1, "maxLength": 300 }
+      }
+    },
+    "place": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "weight": {
+          "description": "How prominent the point is. 1 is an ordinary place.",
+          "type": "number",
+          "minimum": 0.25,
+          "maximum": 4,
+          "default": 1
+        },
+        "tooltip": { "type": "string", "minLength": 1, "maxLength": 300 }
+      }
+    },
+    "topicMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topics"],
+      "properties": {
+        "topics": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "items": { "$ref": "#/$defs/topic" }
+        },
+        "links": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/topicLink" }
+        },
+        "islands": {
+          "description": "Fringe topics, drawn as small fixed-size islands rather than area-proportional landmasses.",
+          "type": "array",
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/topic" }
+        },
+        "seed": { "type": "integer", "minimum": 0, "default": 0 },
+        "cartouche": { "$ref": "#/$defs/cartouche" },
+        "graticule": { "type": "boolean", "default": true },
+        "compass": { "type": "boolean", "default": true },
+        "depthBands": {
+          "description": "Number of depth-line rings drawn around each coastline.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3,
+          "default": 2
+        }
       }
     }
   }

@@ -15,8 +15,9 @@ the browser: no chart JavaScript, no hydration, no layout shift.
 - **Honest about problems:** invalid input is rejected with a code, a path and a fix; layout
   compromises such as shortened labels are reported as warnings instead of happening silently.
 
-> **Status:** early alpha. Bar charts (single and grouped, vertical and horizontal) and
-> categorical line charts are supported. The specification may still change before the first
+> **Status:** early alpha. Bar charts (single and grouped, vertical and horizontal), categorical
+> line charts, time series with uncertainty bands and reference lines, warming stripes, calendar
+> heatmaps, range bars and small multiples are supported. The specification may still change before the first
 > stable release.
 
 ## Quick start
@@ -69,6 +70,16 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Bar, horizontal, with negative values | `"orientation": "horizontal"` | [quarterly-change](examples/quarterly-change.json) |
 | Grouped bar, up to four series | `categories` and `series` instead of `data` | [budget-vs-actual](examples/budget-vs-actual.json) |
 | Line with gaps for missing values | `"type": "line"`, `null` values | [monthly-trend](examples/monthly-trend.json) |
+| Time series on a calendar axis | `"type": "time"` with `panes` and `layers` | [daily-orders](examples/daily-orders.json) |
+| Time series, dark theme, declared colors | `"theme": "dark"`, `color` per layer | [revenue-vs-forecast](examples/revenue-vs-forecast.json) |
+| Topic map: separate landmasses, area by value | `"type": "topicmap"` with `topics` | [topicmap-sample](examples/topicmap-sample.json) |
+| Knowledge landscape: one land, position by kinship | `"type": "atlas"` with `realms` | [knowledge-landscape](examples/knowledge-landscape.json) |
+| Time series with uncertainty band, modeled (hatched, dashed) | `lower`/`upper` per point, `"modeled": true` per layer | [temperature-projection](examples/temperature-projection.json) |
+| Reference lines: threshold and date marker | `"mark": "annotation"` with `value` or `time` and `label` | [annual-mean-threshold](examples/annual-mean-threshold.json) |
+| Warming stripes on a diverging scale | `"type": "stripes"` with `stripes` | [warming-stripes](examples/warming-stripes.json) |
+| Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
+| Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
+| Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
 
 Each example has its rendered `.svg` and `.html` next to it. The SVG files are also the
 reference output of the test suite.
@@ -84,6 +95,31 @@ category.
 
 Replace `data` with `categories` and `series`. Every series needs exactly one value per category.
 A legend is added automatically, and the data table gets one column per series.
+
+### Time series
+
+`"type": "time"` replaces categories with timestamps and draws lines on a calendar axis. Each
+observation is `{ "time": …, "value": … }`, where `time` is Unix seconds or an ISO 8601 date; a
+timestamp without its own offset is read as wall-clock time in `timeAxis.timezone` (a fixed UTC
+offset, `UTC` by default). Layers live in `panes` and may name their own color. See the
+[time series guide](docs/guides/time-series.md) for the contract, the theme, and the measured
+limits for dense series.
+
+A line layer can carry an uncertainty band: give every point `lower` and `upper`. With
+`"modeled": true` the line is dashed, its band hatched, and legend, description and data table
+say “modeled”. An `"annotation"` layer draws a labelled reference line: `value` for a horizontal
+threshold, `time` for a vertical marker. A bare year such as `"1850"` is a valid timestamp, and
+annual data is labelled by year. `"type": "multiples"` lays out 2 to 12 titled panes as small
+time charts in a grid (`columns`), sharing one value axis and one legend.
+
+### Stripes, calendars and range bars
+
+`"type": "stripes"` draws one stripe per year (`stripes.firstYear`, `stripes.values`);
+`"type": "calendar"` one cell per day of `calendar.year` (`layout`: `months` or `weeks`). Both
+color on a diverging scale of eight equal steps either side of `reference` (default 0), whose
+outermost steps begin at `min` and `max` (default: the largest distance from the reference). A
+missing value leaves an empty stripe or an outlined cell. `"type": "rangebar"` draws one span per
+entry of `ranges` (`low`, `high`, optional `mid` and `modeled`), vertical or horizontal.
 
 ```json
 {
@@ -141,22 +177,32 @@ used for editor validation.
 | Field | Required | Description |
 |---|---|---|
 | `schemaVersion` | yes | Always `1`. |
-| `type` | yes | `bar` or `line`. |
+| `type` | yes | `bar`, `line`, `time`, `topicmap`, or `atlas`. |
 | `title` | yes | Visible title; also the accessible name of the chart. |
 | `data` | one of | Single series: `[{ "label": "…", "value": 1 }]`. |
 | `categories` + `series` | one of | Several series: unique category labels, and `[{ "name": "…", "values": […] }]`. |
 | `orientation` | no | `vertical` (default) or `horizontal`; bar charts only. |
+| `theme` | no | `light` (default) or `dark`; the palette lives in CSS custom properties. |
+| `timeAxis.timezone` | no | Fixed UTC offset such as `"+02:00"`, or `UTC` (default); `time` charts only. |
+| `timeAxis.title` | no | Title of the time axis. |
+| `timeAxis.gaps` | no | `show` (default) or `collapse`. |
+| `panes` | no | `time` charts only: one pane with a `valueAxis` and up to four `layers`. |
+| `panes[].layers[].mark` | no | `line`; `area`, `ohlc`, `band`, and `annotation` are planned. |
+| `panes[].layers[].points` | yes | `[{ "time": 1772323200, "value": 1 }]`; ISO dates are accepted too. |
+| `panes[].layers[].color` | no | `#rgb`, `#rrggbb`, `#rrggbbaa`, or `var(--name)`. |
 | `description` | no | Replaces the generated description. |
 | `source` | no | Shown below the chart in the HTML output. |
 | `categoryAxis.title` | no | Title of the category axis. |
 | `valueAxis.title` | no | Title of the value axis. |
 | `valueAxis.format` | no | `number` (default) or `percent`; `0.12` is shown as `12%`. |
 | `width`, `height` | no | Size in pixels: 320–2400 × 240–1600, default 800 × 450. |
-| `showValues` | no | Value labels on bars and points, default `true`. |
+| `showValues` | no | Value labels on bars and points, default `true`. On a time pane with several layers the labels can overlap; the values stay in the tooltips and the data table. |
 | `zoomSteps` | no | Two to four `{ "label", "from", "to" }` variants, selectable in the HTML output. |
 
 Limits: up to 100 categories and four series. Labels must be unique. Values must be zero or have
-a magnitude between `1e-100` and `1e100`.
+a magnitude between `1e-100` and `1e100`. A `time` chart carries up to four layers of 2000
+observations each in one pane; markers and value labels are drawn up to 60 observations per
+layer, and beyond one observation per plot pixel the rendering is reported as `dense_chart`.
 
 ## Output
 
@@ -184,7 +230,8 @@ or external resources.
 - The HTML output adds a `<figure>` with caption and a real `<table>` containing every value,
   including values whose visual label had to be left out.
 - Series colors stay distinguishable for the common forms of color-vision deficiency and have at
-  least 4.5:1 contrast against white. The legend lists series in the same order as the bars.
+  least 4.5:1 contrast against white — and against the dark theme's background, where the lowest
+  series color reaches 7.65:1. The legend lists series in the same order as the bars.
 - Text is never removed silently: shortened labels and omitted value labels produce warnings, and
   the full text stays in the specification and the data table.
 
@@ -206,7 +253,13 @@ Warnings are written to standard error, and the chart is still produced:
 |---|---|
 | `text_truncated` | A label or title was shortened to fit. |
 | `value_labels_omitted` | Some value labels had no room next to their bars. |
-| `dense_chart` | More than 16 categories; the chart may be hard to read at this size. |
+| `dense_chart` | More than 16 categories, or more observations in a time layer than the plot has horizontal pixels; the chart may be hard to read at this size. |
+| `color_not_supported` | A layer's `color` was outside the contract and replaced by the neutral gray. |
+| `topic_too_small_for_label` | A topic map area is too small to hold its own name. |
+| `label_does_not_fit` | A region of a knowledge landscape has no room for its name; the area keeps its tooltip. |
+| `places_did_not_fit` | A region declares more places than it has ground. |
+| `realm_without_structure` | A realm holds a single region, so it has no inner structure to show. |
+| `more_places_than_value` | A region lists more places than its value. |
 
 ## Astro
 

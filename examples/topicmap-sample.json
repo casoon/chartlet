@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "type": "topicmap",
+  "title": "Insights themes",
+  "description": "Which topics carry the most published articles, and how closely they relate.",
+  "source": "Example data",
+  "topicmap": {
+    "topics": [
+      { "label": "AI in practice", "value": 291, "points": 41 },
+      { "label": "Engineering", "value": 282, "points": 24 },
+      { "label": "Cloud native", "value": 100, "points": 9 },
+      { "label": "Web marketing", "value": 95, "points": 7 },
+      { "label": "Management", "value": 69, "points": 5 }
+    ],
+    "links": [{ "from": "AI in practice", "to": "Engineering", "weight": 0.6 }],
+    "islands": [{ "label": "WASM", "value": 6, "points": 1 }],
+    "cartouche": { "heading": "Topic map", "meta": "843 entries · 87 paths · 2026" }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "type": "time",
+  "title": "Daily orders",
+  "description": "Orders per day over two weeks; the weekend dips are visible as local minima.",
+  "source": "Example data, chartlet",
+  "timeAxis": {
+    "timezone": "UTC",
+    "title": "Day"
+  },
+  "panes": [
+    {
+      "heightRatio": 1,
+      "valueAxis": {
+        "title": "Orders"
+      },
+      "layers": [
+        {
+          "mark": "line",
+          "name": "Orders",
+          "points": [
+            { "time": "2026-02-02", "value": 412 },
+            { "time": "2026-02-03", "value": 438 },
+            { "time": "2026-02-04", "value": 455 },
+            { "time": "2026-02-05", "value": 471 },
+            { "time": "2026-02-06", "value": 508 },
+            { "time": "2026-02-07", "value": 201 },
+            { "time": "2026-02-08", "value": 176 },
+            { "time": "2026-02-09", "value": 489 },
+            { "time": "2026-02-10", "value": 512 },
+            { "time": "2026-02-11", "value": 497 },
+            { "time": "2026-02-12", "value": 534 },
+            { "time": "2026-02-13", "value": 561 },
+            { "time": "2026-02-14", "value": 228 },
+            { "time": "2026-02-15", "value": 195 }
+          ]
+        }
+      ]
+    }
+  ]
+}

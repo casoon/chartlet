@@ -22,5 +22,17 @@ Warnings are written to standard error, and the chart is still produced:
 | `text_truncated` | A label or title was shortened to fit. |
 | `value_labels_omitted` | Some value labels had no room next to their bars. |
 | `dense_chart` | More than 16 categories; the chart may be hard to read at this size. |
+| `topic_too_small_for_label` | A topic map area is too small to hold its own name; consider listing it as an island. |
+| `label_does_not_fit` | A region of a knowledge landscape has no room for its name; the area keeps its tooltip. |
+| `places_did_not_fit` | A region declares more places than it has ground, and some were left off. |
+| `realm_without_structure` | A realm holds a single region, so it has no inner structure to show. |
+| `more_places_than_value` | A region lists more places than its value; the two numbers come from different counts. |
+| `value_outside_band` | A line's value lies outside its own uncertainty band. |
+
+Errors added with bands, reference lines, stripes, calendars, range bars and small multiples:
+`incomplete_band`, `invalid_band`, `missing_label`, `missing_position`, `too_many_annotations`,
+`missing_stripes`, `missing_calendar`, `invalid_year`, `invalid_scale`, `invalid_date`,
+`date_outside_year`, `duplicate_date`, `invalid_range`, `mid_outside_range`, `not_enough_panes`,
+`invalid_columns`, `missing_title`, `duplicate_title`.
 
 Pass `--strict` to fail on any warning, for example in CI.

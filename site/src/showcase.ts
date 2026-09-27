@@ -15,9 +15,11 @@ export function spec(slug: string): Spec {
 }
 
 /**
- * Renders a chart and wraps it in a light surface: chartlet ships a light palette only
- * (dark mode is planned, see the support matrix), so the chart keeps its contrast in the
- * site's dark theme.
+ * Renders a chart for the showcase.
+ *
+ * A light chart is wrapped in a light surface because chartlet's light palette assumes one and
+ * the site's own theme may be dark. A chart with `"theme": "dark"` paints its own dark
+ * background and is left as it is.
  */
 export function render(
   source: Spec,
@@ -25,8 +27,11 @@ export function render(
   format: 'svg' | 'html' = 'html',
 ): { html: string; warnings: string[] } {
   const { content, warnings } = renderChart(source, { format, table: 'details', idPrefix: id });
+  const dark = source.theme === 'dark';
   return {
-    html: `<div style="background:#fff;color:#172033;color-scheme:light;padding:16px;border-radius:10px">${content}</div>`,
+    html: dark
+      ? content
+      : `<div style="background:#fff;color:#172033;color-scheme:light;padding:16px;border-radius:10px">${content}</div>`,
     warnings: warnings.map((warning: string) => warning.trim()),
   };
 }
@@ -93,6 +98,34 @@ const catalogue = [
     useCase: 'Show growth',
     blurb:
       'Steady headcount growth from January to August. Switch between the full period and each half with the pre-rendered zoom steps.',
+  },
+  {
+    slug: 'daily-orders',
+    chart: 'Time series',
+    useCase: 'Plot against a real time axis',
+    blurb:
+      'Orders per day on a calendar axis: the ticks sit on day boundaries and the weekend dips show up as local minima.',
+  },
+  {
+    slug: 'revenue-vs-forecast',
+    chart: 'Time series (dark)',
+    useCase: 'Compare two series over time',
+    blurb:
+      'Weekly revenue against its forecast on a dark theme, with both layers naming their own color — one as a hex value, one as a CSS variable the host page owns.',
+  },
+  {
+    slug: 'topicmap-sample',
+    chart: 'Topic map',
+    useCase: 'Compare how much there is of each subject',
+    blurb:
+      'Published entries per subject, drawn as a map: the area of each landmass is its share of the whole, the points are the paths through it, and the dashed route joins the two subjects that overlap most. Pick an area to bring it forward — radio buttons and CSS, no script.',
+  },
+  {
+    slug: 'knowledge-landscape',
+    chart: 'Knowledge landscape',
+    useCase: 'Show how subjects lie next to each other',
+    blurb:
+      'Documentation as one continuous land: realms of neighbouring regions, sized by how much they hold but damped so the largest does not swallow the map, with the terrain rising where the writing is densest and every marked place a page worth starting from. Where a region lies says as much as how large it is — kinship across realms leaves a subject on the border facing its kin.',
   },
 ];
 

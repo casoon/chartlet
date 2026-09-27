@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "type": "time",
+  "title": "Revenue against forecast",
+  "description": "Weekly revenue in thousands next to the forecast band's centre line; both layers name their own color.",
+  "source": "Example data, chartlet",
+  "theme": "dark",
+  "showValues": false,
+  "timeAxis": {
+    "timezone": "UTC",
+    "title": "Week starting"
+  },
+  "panes": [
+    {
+      "valueAxis": {
+        "title": "Revenue in thousands"
+      },
+      "layers": [
+        {
+          "mark": "line",
+          "name": "Revenue",
+          "color": "#7ea6ff",
+          "points": [
+            { "time": 1769990400, "value": 96 },
+            { "time": 1770595200, "value": 104 },
+            { "time": 1771200000, "value": 99 },
+            { "time": 1771804800, "value": 118 },
+            { "time": 1772409600, "value": 131 },
+            { "time": 1773014400, "value": 127 },
+            { "time": 1773619200, "value": 140 },
+            { "time": 1774224000, "value": 152 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Forecast",
+          "color": "var(--chart-forecast)",
+          "points": [
+            { "time": 1769990400, "value": 100 },
+            { "time": 1770595200, "value": 102 },
+            { "time": 1771200000, "value": 108 },
+            { "time": 1771804800, "value": 112 },
+            { "time": 1772409600, "value": 120 },
+            { "time": 1773014400, "value": 126 },
+            { "time": 1773619200, "value": 134 },
+            { "time": 1774224000, "value": 140 }
+          ]
+        }
+      ]
+    }
+  ]
+}

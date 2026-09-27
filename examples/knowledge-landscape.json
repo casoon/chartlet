@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "type": "atlas",
+  "title": "Documentation by area",
+  "description": "Pages of documentation, drawn as a landscape: neighbouring regions share subjects, the terrain rises where the writing is dense, and every marked place is a page worth starting from.",
+  "source": "Internal documentation audit, Q3",
+  "width": 840,
+  "height": 480,
+  "atlas": {
+    "seed": 11,
+    "areaDamping": 0.5,
+    "contours": true,
+    "realms": [
+      {
+        "label": "Platform",
+        "regions": [
+          {
+            "label": "Runtime",
+            "value": 148,
+            "places": [
+              { "label": "Process model", "weight": 2.4 },
+              { "label": "Scheduling and limits" },
+              { "label": "Cold starts" }
+            ]
+          },
+          {
+            "label": "Storage",
+            "value": 96,
+            "places": [{ "label": "Consistency guarantees", "weight": 2 }, { "label": "Backups" }]
+          },
+          { "label": "Networking", "value": 54, "places": [{ "label": "Private links" }] }
+        ]
+      },
+      {
+        "label": "Interfaces",
+        "regions": [
+          {
+            "label": "HTTP API",
+            "value": 112,
+            "places": [
+              { "label": "Authentication", "weight": 2.4, "tooltip": "Rewritten in July" },
+              { "label": "Pagination" }
+            ]
+          },
+          { "label": "Command line", "value": 61, "places": [{ "label": "First run" }] },
+          { "label": "Client libraries", "value": 38, "places": [{ "label": "Retries and timeouts" }] }
+        ]
+      },
+      {
+        "label": "Operations",
+        "regions": [
+          {
+            "label": "Deployment",
+            "value": 74,
+            "places": [{ "label": "Rollbacks", "weight": 2 }, { "label": "Blue-green" }]
+          },
+          { "label": "Observability", "value": 45, "places": [{ "label": "Reading a trace" }] }
+        ]
+      },
+      {
+        "label": "Learning",
+        "regions": [
+          {
+            "label": "Tutorials",
+            "value": 67,
+            "places": [{ "label": "Your first deployment", "weight": 2.4 }]
+          },
+          { "label": "Reference", "value": 39, "places": [{ "label": "Configuration keys" }] }
+        ]
+      }
+    ],
+    "links": [
+      { "from": "Client libraries", "to": "Reference", "weight": 0.9 },
+      { "from": "Observability", "to": "Runtime", "weight": 0.8 },
+      { "from": "Command line", "to": "Deployment", "weight": 0.7 },
+      { "from": "Tutorials", "to": "HTTP API", "weight": 0.6 },
+      { "from": "Storage", "to": "Networking", "weight": 0.5 }
+    ]
+  }
+}

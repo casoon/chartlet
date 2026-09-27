@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "type": "multiples",
+  "title": "Emission pathways by sector",
+  "source": "Illustrative values, chartlet",
+  "height": 560,
+  "columns": 2,
+  "valueAxis": {
+    "title": "Gt CO₂ per year"
+  },
+  "timeAxis": {
+    "title": "Year"
+  },
+  "panes": [
+    {
+      "title": "Energy",
+      "layers": [
+        {
+          "mark": "line",
+          "name": "History",
+          "points": [
+            { "time": "1990", "value": 13.7 },
+            { "time": "1993", "value": 14.6 },
+            { "time": "1996", "value": 14.67 },
+            { "time": "1999", "value": 14.91 },
+            { "time": "2002", "value": 15.73 },
+            { "time": "2005", "value": 15.54 },
+            { "time": "2008", "value": 16.24 },
+            { "time": "2011", "value": 16.66 },
+            { "time": "2014", "value": 16.59 },
+            { "time": "2017", "value": 17.51 },
+            { "time": "2020", "value": 17.49 },
+            { "time": "2023", "value": 17.85 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Low pathway",
+          "modeled": true,
+          "points": [
+            { "time": "2025", "value": 17.96, "lower": 17.76, "upper": 18.16 },
+            { "time": "2040", "value": 14.47, "lower": 14.07, "upper": 14.87 },
+            { "time": "2055", "value": 10.98, "lower": 10.38, "upper": 11.58 },
+            { "time": "2070", "value": 7.48, "lower": 6.68, "upper": 8.28 },
+            { "time": "2085", "value": 3.99, "lower": 2.99, "upper": 4.99 },
+            { "time": "2100", "value": 0.5, "lower": -0.7, "upper": 1.7 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "High pathway",
+          "modeled": true,
+          "points": [
+            { "time": "2025", "value": 17.96, "lower": 17.76, "upper": 18.16 },
+            { "time": "2040", "value": 18.17, "lower": 17.57, "upper": 18.77 },
+            { "time": "2055", "value": 18.38, "lower": 17.38, "upper": 19.38 },
+            { "time": "2070", "value": 18.58, "lower": 17.18, "upper": 19.98 },
+            { "time": "2085", "value": 18.79, "lower": 16.99, "upper": 20.59 },
+            { "time": "2100", "value": 19.0, "lower": 16.8, "upper": 21.2 }
+          ]
+        },
+        {
+          "mark": "annotation",
+          "value": 0,
+          "label": "Net zero"
+        }
+      ]
+    },
+    {
+      "title": "Industry",
+      "layers": [
+        {
+          "mark": "line",
+          "name": "History",
+          "points": [
+            { "time": "1990", "value": 5.7 },
+            { "time": "1993", "value": 6.39 },
+            { "time": "1996", "value": 6.25 },
+            { "time": "1999", "value": 6.28 },
+            { "time": "2002", "value": 6.89 },
+            { "time": "2005", "value": 6.49 },
+            { "time": "2008", "value": 6.98 },
+            { "time": "2011", "value": 7.19 },
+            { "time": "2014", "value": 6.91 },
+            { "time": "2017", "value": 7.62 },
+            { "time": "2020", "value": 7.39 },
+            { "time": "2023", "value": 7.54 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Low pathway",
+          "modeled": true,
+          "points": [
+            { "time": "2025", "value": 7.65, "lower": 7.45, "upper": 7.85 },
+            { "time": "2040", "value": 6.32, "lower": 5.92, "upper": 6.72 },
+            { "time": "2055", "value": 4.99, "lower": 4.39, "upper": 5.59 },
+            { "time": "2070", "value": 3.66, "lower": 2.86, "upper": 4.46 },
+            { "time": "2085", "value": 2.33, "lower": 1.33, "upper": 3.33 },
+            { "time": "2100", "value": 1.0, "lower": -0.2, "upper": 2.2 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "High pathway",
+          "modeled": true,
+          "points": [
+            { "time": "2025", "value": 7.65, "lower": 7.45, "upper": 7.85 },
+            { "time": "2040", "value": 7.72, "lower": 7.12, "upper": 8.32 },
+            { "time": "2055", "value": 7.79, "lower": 6.79, "upper": 8.79 },
+            { "time": "2070", "value": 7.86, "lower": 6.46, "upper": 9.26 },
+            { "time": "2085", "value": 7.93, "lower": 6.13, "upper": 9.73 },
+            { "time": "2100", "value": 8.0, "lower": 5.8, "upper": 10.2 }
+          ]
+        },
+        {
+          "mark": "annotation",
+          "value": 0,
+          "label": "Net zero"
+        }
+      ]
+    },
+    {
+      "title": "Transport",
+      "layers": [
+        {
+          "mark": "line",
+          "name": "History",
+          "points": [
+            { "time": "1990", "value": 3.7 },
+            { "time": "1993", "value": 4.42 },
+            { "time": "1996", "value": 4.31 },
+            { "time": "1999", "value": 4.37 },
+            { "time": "2002", "value": 5.01 },
+            { "time": "2005", "value": 4.64 },
+            { "time": "2008", "value": 5.16 },
+            { "time": "2011", "value": 5.4 },
+            { "time": "2014", "value": 5.15 },
+            { "time": "2017", "value": 5.89 },
+            { "time": "2020", "value": 5.69 },
+            { "time": "2023", "value": 5.87 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Low pathway",
+          "modeled": true,
+          "points": [
+            { "time": "2025", "value": 5.98, "lower": 5.78, "upper": 6.18 },
+            { "time": "2040", "value": 4.84, "lower": 4.44, "upper": 5.24 },
+            { "time": "2055", "value": 3.71, "lower": 3.11, "upper": 4.31 },
+            { "time": "2070", "value": 2.57, "lower": 1.77, "upper": 3.37 },
+            { "time": "2085", "value": 1.44, "lower": 0.44, "upper": 2.44 },
+            { "time": "2100", "value": 0.3, "lower": -0.9, "upper": 1.5 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "High pathway",
+          "modeled": true,
+          "points": [
+            { "time": "2025", "value": 5.98, "lower": 5.78, "upper": 6.18 },
+            { "time": "2040", "value": 6.18, "lower": 5.58, "upper": 6.78 },
+            { "time": "2055", "value": 6.39, "lower": 5.39, "upper": 7.39 },
+            { "time": "2070", "value": 6.59, "lower": 5.19, "upper": 7.99 },
+            { "time": "2085", "value": 6.8, "lower": 5.0, "upper": 8.6 },
+            { "time": "2100", "value": 7.0, "lower": 4.8, "upper": 9.2 }
+          ]
+        },
+        {
+          "mark": "annotation",
+          "value": 0,
+          "label": "Net zero"
+        }
+      ]
+    },
+    {
+      "title": "Buildings",
+      "layers": [
+        {
+          "mark": "line",
+          "name": "History",
+          "points": [
+            { "time": "1990", "value": 2.7 },
+            { "time": "1993", "value": 3.3 },
+            { "time": "1996", "value": 3.07 },
+            { "time": "1999", "value": 3.01 },
+            { "time": "2002", "value": 3.53 },
+            { "time": "2005", "value": 3.04 },
+            { "time": "2008", "value": 3.44 },
+            { "time": "2011", "value": 3.56 },
+            { "time": "2014", "value": 3.19 },
+            { "time": "2017", "value": 3.81 },
+            { "time": "2020", "value": 3.49 },
+            { "time": "2023", "value": 3.55 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Low pathway",
+          "modeled": true,
+          "points": [
+            { "time": "2025", "value": 3.66, "lower": 3.46, "upper": 3.86 },
+            { "time": "2040", "value": 2.97, "lower": 2.57, "upper": 3.37 },
+            { "time": "2055", "value": 2.28, "lower": 1.68, "upper": 2.88 },
+            { "time": "2070", "value": 1.58, "lower": 0.78, "upper": 2.38 },
+            { "time": "2085", "value": 0.89, "lower": -0.11, "upper": 1.89 },
+            { "time": "2100", "value": 0.2, "lower": -1.0, "upper": 1.4 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "High pathway",
+          "modeled": true,
+          "points": [
+            { "time": "2025", "value": 3.66, "lower": 3.46, "upper": 3.86 },
+            { "time": "2040", "value": 3.63, "lower": 3.03, "upper": 4.23 },
+            { "time": "2055", "value": 3.6, "lower": 2.6, "upper": 4.6 },
+            { "time": "2070", "value": 3.56, "lower": 2.16, "upper": 4.96 },
+            { "time": "2085", "value": 3.53, "lower": 1.73, "upper": 5.33 },
+            { "time": "2100", "value": 3.5, "lower": 1.3, "upper": 5.7 }
+          ]
+        },
+        {
+          "mark": "annotation",
+          "value": 0,
+          "label": "Net zero"
+        }
+      ]
+    }
+  ]
+}
