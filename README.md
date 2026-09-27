@@ -26,7 +26,7 @@ Install the CLI from crates.io (Rust 1.88 or newer). While chartlet is in alpha,
 explicitly:
 
 ```sh
-cargo install chartlet --version 0.1.0-alpha.3
+cargo install chartlet --version 0.1.0-alpha.4
 ```
 
 Save a minimal specification as `spec.json`:
@@ -269,7 +269,7 @@ CLI, so install both:
 
 ```sh
 npm install @casoon/chartlet@alpha
-cargo install chartlet --version 0.1.0-alpha.3
+cargo install chartlet --version 0.1.0-alpha.4
 ```
 
 ```astro
@@ -286,7 +286,7 @@ The CLI must be on `PATH`, or `CHARTLET_BIN` must point to it.
 ## Rust
 
 ```sh
-cargo add chartlet@0.1.0-alpha.3
+cargo add chartlet@0.1.0-alpha.4
 ```
 
 ```rust

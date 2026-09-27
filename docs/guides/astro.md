@@ -10,7 +10,7 @@ the CLI is on `PATH` or `CHARTLET_BIN` points to it.
 
 ```sh
 npm install @casoon/chartlet@alpha
-cargo install chartlet --version 0.1.0-alpha.3
+cargo install chartlet --version 0.1.0-alpha.4
 ```
 
 ## The component
