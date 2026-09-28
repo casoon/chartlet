@@ -4,7 +4,7 @@ use crate::{
     TableMode,
     layout::format_value,
     scene::{Element, Scene, TextAnchor, TextStyle},
-    spec::{ChartSpec, ChartType, Mark, Theme},
+    spec::{ChartSpec, ChartType, Mark, NumberStyle, Theme},
 };
 
 /// The light palette. Every color is a CSS custom property so a host page can override a single
@@ -21,14 +21,14 @@ const DARK_STYLE: &str = ".chartlet-theme-dark{--chartlet-text:#e8edf6;--chartle
 const SERIES_STYLE: &str = ".chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}.chartlet-series-1{fill:var(--chartlet-color-1)}.chartlet-series-2{fill:var(--chartlet-color-2)}.chartlet-series-3{fill:var(--chartlet-color-3)}.chartlet-series-4{fill:var(--chartlet-color-4)}";
 
 /// Strokes for time layers that declare no color of their own; the same palette as the bars.
-const LINE_SERIES_STYLE: &str = ".chartlet-line-series-1{stroke:var(--chartlet-color-1)}.chartlet-line-series-2{stroke:var(--chartlet-color-2)}.chartlet-line-series-3{stroke:var(--chartlet-color-3)}.chartlet-line-series-4{stroke:var(--chartlet-color-4)}";
+const LINE_SERIES_STYLE: &str = ".chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}.chartlet-line-series-1{stroke:var(--chartlet-color-1)}.chartlet-line-series-2{stroke:var(--chartlet-color-2)}.chartlet-line-series-3{stroke:var(--chartlet-color-3)}.chartlet-line-series-4{stroke:var(--chartlet-color-4)}";
 
 /// CSS rules that hide series when their checkbox is deselected (HTML profile only).
 /// Browsers that don't understand `:has()` ignore these rules; the chart stays fully visible.
 /// Bands, modeled lines, reference lines and further palette markers of time charts and small
 /// multiples. Only included when a chart uses one of them, so that existing charts keep their
 /// bytes.
-const LAYER_EXTRA_STYLE: &str = ".chartlet-band{stroke:none;fill-opacity:.18}.chartlet-band-series-1{fill:var(--chartlet-color-1)}.chartlet-band-series-2{fill:var(--chartlet-color-2)}.chartlet-band-series-3{fill:var(--chartlet-color-3)}.chartlet-band-series-4{fill:var(--chartlet-color-4)}.chartlet-hatch{stroke:none}.chartlet-hatch-line{stroke-width:1.2;opacity:.75}.chartlet-line-modeled{stroke-dasharray:7 5}.chartlet-point-series-2{fill:var(--chartlet-color-2)}.chartlet-point-series-3{fill:var(--chartlet-color-3)}.chartlet-point-series-4{fill:var(--chartlet-color-4)}.chartlet-legend-swatch.chartlet-series-1{fill:var(--chartlet-color-1)}.chartlet-legend-swatch.chartlet-series-2{fill:var(--chartlet-color-2)}.chartlet-legend-swatch.chartlet-series-3{fill:var(--chartlet-color-3)}.chartlet-legend-swatch.chartlet-series-4{fill:var(--chartlet-color-4)}.chartlet-rule{fill:none;stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-rule-label{font-size:12px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
+const LAYER_EXTRA_STYLE: &str = ".chartlet-band{stroke:none;fill-opacity:.18}.chartlet-band-series-1{fill:var(--chartlet-color-1)}.chartlet-band-series-2{fill:var(--chartlet-color-2)}.chartlet-band-series-3{fill:var(--chartlet-color-3)}.chartlet-band-series-4{fill:var(--chartlet-color-4)}.chartlet-hatch{stroke:none}.chartlet-hatch-line{stroke-width:1.2;opacity:.75}.chartlet-line-modeled{stroke-dasharray:7 5}.chartlet-line-thin{stroke-width:1}.chartlet-point-series-2{fill:var(--chartlet-color-2)}.chartlet-point-series-3{fill:var(--chartlet-color-3)}.chartlet-point-series-4{fill:var(--chartlet-color-4)}.chartlet-rule{fill:none;stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-rule-label{font-size:12px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
 
 /// Small multiples draw thinner lines, because their plots are small.
 const MULTIPLES_STYLE: &str = ".chartlet-multiples .chartlet-line{stroke-width:2}.chartlet-panel-title{font-size:13px;font-weight:650;fill:var(--chartlet-text)}";
@@ -444,7 +444,12 @@ fn html_document(
         output.push_str("</fieldset>");
     }
     if has_series {
-        output.push_str("<fieldset class=\"chartlet-filter\"><legend>Series</legend>");
+        write!(
+            output,
+            "<fieldset class=\"chartlet-filter\"><legend>{}</legend>",
+            spec.locale.words().series
+        )
+        .expect("write");
         for (i, series) in spec.series.iter().enumerate() {
             write!(
                 output,
@@ -458,7 +463,8 @@ fn html_document(
     if zoom {
         write!(
             output,
-            "<style>{ZOOM_STYLE}</style><fieldset class=\"chartlet-zoom\"><legend>View</legend>"
+            "<style>{ZOOM_STYLE}</style><fieldset class=\"chartlet-zoom\"><legend>{}</legend>",
+            spec.locale.words().view
         )
         .expect("write");
         for (i, (label, _)) in panels.iter().enumerate() {
@@ -488,7 +494,8 @@ fn html_document(
     if let Some(source) = &spec.source {
         write!(
             output,
-            "<p class=\"chartlet-source\">Source: {}</p>",
+            "<p class=\"chartlet-source\">{}: {}</p>",
+            spec.locale.words().source,
             escape(source)
         )
         .expect("write");
@@ -503,17 +510,23 @@ fn html_document(
 
 fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMode) {
     if table_mode == TableMode::Details {
-        output.push_str("<details class=\"chartlet-data\"><summary>Show chart data</summary>");
+        write!(
+            output,
+            "<details class=\"chartlet-data\"><summary>{}</summary>",
+            spec.locale.words().show_data
+        )
+        .expect("write");
     } else {
         output.push_str("<div class=\"chartlet-data\">");
     }
     let dataset = spec.table_dataset();
     write!(
         output,
-        "<table><caption>Data for {}</caption><thead><tr><th scope=\"col\">{}</th>",
+        "<table><caption>{} {}</caption><thead><tr><th scope=\"col\">{}</th>",
+        spec.locale.words().data_for,
         escape(&spec.title),
         match spec.chart_type {
-            ChartType::Time | ChartType::Multiples => "Time",
+            ChartType::Time | ChartType::Multiples => spec.locale.words().time,
             ChartType::Topicmap => "Topic",
             ChartType::Atlas => "Region",
             ChartType::Stripes => "Year",
@@ -526,7 +539,7 @@ fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMod
         write!(
             output,
             "<th scope=\"col\">{}</th>",
-            escape(series.name.as_deref().unwrap_or("Value"))
+            escape(series.name.as_deref().unwrap_or(spec.locale.words().value))
         )
         .expect("write");
     }
@@ -538,11 +551,16 @@ fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMod
                 output,
                 "<td>{}</td>",
                 series.values[index].map_or_else(
-                    || "Missing".to_owned(),
+                    || spec.locale.words().missing.to_owned(),
                     |value| {
+                        let style = spec.number_style();
                         escape(&format_value(
                             value,
-                            series.format.unwrap_or_else(|| spec.value_format()),
+                            series.format.map_or(style, |format| NumberStyle {
+                                format,
+                                decimals: None,
+                                ..style
+                            }),
                         ))
                     },
                 )

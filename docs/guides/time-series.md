@@ -56,6 +56,10 @@ charge of the value and falls back to the chart's text color when the page defin
 series never disappears silently. A value outside the contract becomes the neutral gray `#667085`
 and is reported as a `color_not_supported` warning.
 
+`"stroke": "thin"` draws a line at one pixel instead of three, for example single years under
+their running mean. The legend draws a short piece of each line — color, weight and dashing — so
+two lines never differ by color alone.
+
 ## Uncertainty bands and modeled lines
 
 Give every point of a line `lower` and `upper` to draw a band around it, in the line's color. A
@@ -84,7 +88,26 @@ labels; the tooltips and the table (one column per panel and layer) carry the va
 
 `"theme": "dark"` switches the palette. Both themes are drawn from CSS custom properties on the
 chart root, so a page can override any single value; the dark theme additionally paints its own
-background, which makes the SVG self-contained.
+background, which makes the SVG self-contained. To take the page's own tokens, set the properties
+with a selector more specific than the chart's own, for example
+`.report .chartlet-root { --chartlet-text: var(--color-text); }`.
+
+## Language and numbers
+
+`"locale": "de"` writes every generated text in German — description, legend additions, tooltips,
+the HTML caption and data table — and writes numbers with a decimal comma. Text from the
+specification is never translated. `time` and `multiples` charts take a locale so far; other types
+refuse it with `locale_not_supported` rather than mixing languages.
+
+Axis ticks carry as many decimals as their step, so an axis reads `0.0, 0.5, 1.0`. For every other
+value, `valueAxis.decimals` (0–6) fixes the decimals: `1.547` with two decimals is `1.55`. Negative
+numbers use the true minus sign `−`, which screen readers announce as “minus”.
+
+## Title
+
+The title is the accessible name of the chart. When the page already heads the chart,
+`"showTitle": false` leaves the drawn title out and gives its space to the plot; the title stays in
+`<title>` and in the HTML caption. Available for `time` charts.
 
 ## Dense series
 

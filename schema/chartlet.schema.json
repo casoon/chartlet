@@ -15,6 +15,11 @@
     "description": { "type": "string", "minLength": 1, "maxLength": 1000 },
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
     "theme": { "enum": ["light", "dark"], "default": "light" },
+    "locale": {
+      "description": "Language of the texts chartlet generates (description, legend additions, tooltips, HTML figure and table) and of the number format. \"de\" is available for time and multiples charts.",
+      "enum": ["en", "de"],
+      "default": "en"
+    },
     "categoryAxis": { "$ref": "#/$defs/categoryAxis" },
     "valueAxis": { "$ref": "#/$defs/valueAxis" },
     "timeAxis": { "$ref": "#/$defs/timeAxis" },
@@ -295,7 +300,13 @@
       "additionalProperties": false,
       "properties": {
         "title": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "format": { "enum": ["number", "percent"], "default": "number" }
+        "format": { "enum": ["number", "percent"], "default": "number" },
+        "decimals": {
+          "description": "Fixed decimal places for values in labels, tooltips, description and data table; axis ticks follow the tick step.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 6
+        }
       }
     },
     "timeAxis": {
@@ -472,6 +483,11 @@
           "description": "A line from a model: drawn dashed, its band hatched, and named modeled in legend and description.",
           "type": "boolean",
           "default": false
+        },
+        "stroke": {
+          "description": "Line weight; thin sets a line back, for example single years under their mean.",
+          "enum": ["regular", "thin"],
+          "default": "regular"
         }
       },
       "allOf": [
@@ -510,7 +526,8 @@
                 { "required": ["top"] },
                 { "required": ["bottom"] },
                 { "required": ["shape"] },
-                { "required": ["modeled"] }
+                { "required": ["modeled"] },
+                { "required": ["stroke"] }
               ]
             }
           }

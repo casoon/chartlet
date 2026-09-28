@@ -13,6 +13,7 @@ mod render;
 mod scene;
 mod spec;
 mod stripes;
+mod text;
 mod time;
 
 use std::fmt::Write as _;
@@ -23,8 +24,8 @@ use spec::Dataset;
 pub use spec::{
     CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec,
     ChartType, Corner, DataPoint, Gaps, LayerSpec, Mark, OhlcPoint, Orientation, PaneSpec,
-    RangeSpec, SeriesSpec, Shape, StripesSpec, Theme, TimeAxisSpec, TimePoint, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomStep,
+    RangeSpec, SeriesSpec, Shape, StripesSpec, Stroke, Theme, TimeAxisSpec, TimePoint,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -190,7 +191,7 @@ fn automatic_description(spec: &ChartSpec) -> String {
     }
     let dataset = spec.dataset();
     let chart = chart_type_name(spec.chart_type);
-    let show = |value| layout::format_value(value, spec.value_format());
+    let show = |value| layout::format_value(value, spec.number_style());
     let highest_value = dataset
         .values()
         .max_by(f64::total_cmp)
@@ -230,9 +231,9 @@ fn automatic_description(spec: &ChartSpec) -> String {
             description,
             " Highest: {} ({}). Lowest: {} ({}).",
             show(highest_value),
-            labels_at_value(&dataset, highest_value),
+            labels_at_value(&dataset, highest_value, spec.locale),
             show(lowest_value),
-            labels_at_value(&dataset, lowest_value)
+            labels_at_value(&dataset, lowest_value, spec.locale)
         )
     }
     .expect("writing to String cannot fail");
@@ -253,7 +254,7 @@ fn automatic_description(spec: &ChartSpec) -> String {
     description
 }
 
-fn labels_at_value(dataset: &Dataset, value: f64) -> String {
+fn labels_at_value(dataset: &Dataset, value: f64, locale: spec::Locale) -> String {
     let grouped = dataset.series.len() > 1;
     dataset
         .categories
@@ -268,7 +269,7 @@ fn labels_at_value(dataset: &Dataset, value: f64) -> String {
                         .is_some_and(|series_value| series_value.total_cmp(&value).is_eq())
                 })
                 .map(move |series| match series.name.as_deref() {
-                    Some(name) if grouped => format!("{name} in {category}"),
+                    Some(name) if grouped => text::series_at(locale, name, category),
                     _ => category.clone(),
                 })
         })
@@ -280,17 +281,21 @@ fn labels_at_value(dataset: &Dataset, value: f64) -> String {
 /// reference lines add. Small multiples name their panels first, since the panel is what a reader
 /// compares.
 fn time_description(spec: &ChartSpec) -> String {
+    let locale = spec.locale;
+    let words = locale.words();
     let zone = spec.time_zone().unwrap_or_default();
     let precision = spec.time_precision(zone);
     let dataset = spec.time_dataset(zone, precision, false);
-    let show = |value| layout::format_value(value, spec.value_format());
+    let show = |value| layout::format_value(value, spec.number_style());
     let points = dataset.categories.len();
     let range = format!(
-        "from {} to {}",
+        "{} {} {} {}",
+        words.from,
         dataset
             .categories
             .first()
             .expect("validated time charts have points"),
+        words.to,
         dataset
             .categories
             .last()
@@ -305,7 +310,7 @@ fn time_description(spec: &ChartSpec) -> String {
                 .data_layers()
                 .any(|entry| entry.layer.name.as_ref() == Some(&name) && entry.layer.modeled);
             if modeled {
-                format!("{name} (modeled)")
+                format!("{name} ({})", words.modeled)
             } else {
                 name
             }
@@ -317,26 +322,21 @@ fn time_description(spec: &ChartSpec) -> String {
             .iter()
             .filter_map(|pane| pane.title.clone())
             .collect::<Vec<_>>();
-        let mut text = format!(
-            "Small multiples of {} panels ({}) with a shared value axis, each {range}",
-            panels.len(),
-            panels.join(", ")
-        );
-        if names.len() > 1 {
-            write!(text, ", showing {}", names.join(", ")).expect("writing to String cannot fail");
-        }
-        text.push('.');
-        text
-    } else if dataset.series.len() > 1 {
-        format!(
-            "Time chart with {points} points {range} and {} series ({}).",
-            dataset.series.len(),
-            names.join(", ")
-        )
-    } else if names.len() == 1 && spec.data_layers().any(|entry| entry.layer.modeled) {
-        format!("Time chart with {points} points {range}, modeled.")
+        text::multiples_opening(locale, &panels, &range, &names)
     } else {
-        format!("Time chart with {points} points {range}.")
+        // A single series names itself only through the title; several are listed.
+        let listed = if dataset.series.len() > 1 {
+            names.as_slice()
+        } else {
+            &[]
+        };
+        text::time_opening(
+            locale,
+            points,
+            &range,
+            listed,
+            names.len() == 1 && spec.data_layers().any(|entry| entry.layer.modeled),
+        )
     };
 
     let highest_value = dataset
@@ -348,15 +348,22 @@ fn time_description(spec: &ChartSpec) -> String {
         .min_by(f64::total_cmp)
         .expect("validated time charts contain values");
     if highest_value.total_cmp(&lowest_value).is_eq() {
-        write!(description, " All values: {}.", show(highest_value))
+        write!(
+            description,
+            " {}: {}.",
+            words.all_values,
+            show(highest_value)
+        )
     } else {
         write!(
             description,
-            " Highest: {} ({}). Lowest: {} ({}).",
+            " {}: {} ({}). {}: {} ({}).",
+            words.highest,
             show(highest_value),
-            labels_at_value(&dataset, highest_value),
+            labels_at_value(&dataset, highest_value, locale),
+            words.lowest,
             show(lowest_value),
-            labels_at_value(&dataset, lowest_value)
+            labels_at_value(&dataset, lowest_value, locale)
         )
     }
     .expect("writing to String cannot fail");
@@ -378,44 +385,37 @@ fn describe_bands(spec: &ChartSpec, description: &mut String) {
     let hatched = spec
         .data_layers()
         .any(|entry| entry.layer.has_band() && entry.layer.modeled);
-    write!(
-        description,
-        " {} a shaded band from its lower to its upper bound{}; the data table lists both.",
-        if banded == 1 {
-            "One line has"
-        } else {
-            "Lines have"
-        },
-        if hatched {
-            ", hatched where modeled"
-        } else {
-            ""
-        }
-    )
-    .expect("writing to String cannot fail");
+    description.push_str(&text::bands(spec.locale, banded, hatched));
 }
 
 /// The sentence that names every reference line and where it lies.
 fn describe_rules(spec: &ChartSpec, zone: time::TimeZone, description: &mut String) {
-    let show = |value| layout::format_value(value, spec.value_format());
+    let words = spec.locale.words();
+    let show = |value| layout::format_value(value, spec.number_style());
     let rules = spec
         .layers()
         .filter(|layer| layer.mark == spec::Mark::Annotation)
         .filter_map(|layer| {
             let label = layer.label.as_deref()?;
             if let Some(value) = layer.value {
-                return Some(format!("{label} at {}", show(value)));
+                return Some(format!("{label} {} {}", words.at, show(value)));
             }
             let epoch = layer.time.as_ref()?.resolve(zone).ok()?;
             Some(format!(
-                "{label} at {}",
+                "{label} {} {}",
+                words.at,
                 time::Precision::of(std::iter::once(epoch), zone).format(epoch, zone)
             ))
         })
         .collect::<Vec<_>>();
     if !rules.is_empty() {
-        write!(description, " Reference lines: {}.", rules.join("; "))
-            .expect("writing to String cannot fail");
+        write!(
+            description,
+            " {}: {}.",
+            words.reference_lines,
+            rules.join("; ")
+        )
+        .expect("writing to String cannot fail");
     }
 }
 
@@ -427,7 +427,7 @@ fn atlas_description(spec: &ChartSpec) -> String {
         .atlas
         .as_ref()
         .expect("validated atlas charts carry an atlas block");
-    let show = |value| layout::format_value(value, spec.value_format());
+    let show = |value| layout::format_value(value, spec.number_style());
     let realms = atlas.realms.len();
     let regions: usize = atlas.realms.iter().map(|realm| realm.regions.len()).sum();
     let places: usize = atlas
@@ -459,7 +459,7 @@ fn topicmap_description(spec: &ChartSpec) -> String {
         .topicmap
         .as_ref()
         .expect("validated topicmap charts carry a topicmap block");
-    let show = |value| layout::format_value(value, spec.value_format());
+    let show = |value| layout::format_value(value, spec.number_style());
     let areas = topicmap.topics.len();
     let largest = topicmap
         .topics
@@ -555,7 +555,7 @@ mod tests {
         assert!(output.content.contains("<figure"));
         assert!(output.content.contains("<details"));
         assert!(output.content.contains("<table>"));
-        assert!(output.content.contains("<td>-4</td>"));
+        assert!(output.content.contains("<td>−4</td>"));
     }
 
     #[test]
@@ -774,7 +774,7 @@ mod tests {
         assert!(
             output
                 .content
-                .contains("text-anchor=\"end\" class=\"chartlet-value\">-0.5%</text>")
+                .contains("text-anchor=\"end\" class=\"chartlet-value\">−0.5%</text>")
         );
         assert!(!output.content.contains("class=\"chartlet-value-inverse\""));
     }
@@ -922,6 +922,85 @@ mod tests {
                 ]
             }}"#
         )
+    }
+
+    #[test]
+    fn german_locale_writes_description_table_and_numbers_in_german() {
+        let spec = TIME
+            .replace(
+                "\"type\": \"time\",",
+                "\"type\": \"time\", \"locale\": \"de\", \"source\": \"Shop\",",
+            )
+            .replace(
+                "\"valueAxis\": {\"title\": \"Orders\"}",
+                "\"valueAxis\": {\"title\": \"Orders\", \"decimals\": 1}",
+            )
+            .replace("\"value\": 15}", "\"value\": -1.5}");
+        let html = render_json(&spec, RenderFormat::Html, &RenderOptions::default()).unwrap();
+        let content = &html.content;
+        assert!(content.contains(
+            "Zeitreihe mit 3 Punkten von 2026-03-01 bis 2026-03-03. Höchster Wert: 20,0 (2026-03-03). Niedrigster Wert: \u{2212}1,5 (2026-03-02)."
+        ));
+        assert!(content.contains("<summary>Diagrammdaten anzeigen</summary>"));
+        assert!(content.contains("<caption>Daten zu Daily orders</caption>"));
+        assert!(content.contains("<th scope=\"col\">Zeit</th>"));
+        assert!(content.contains("<td>\u{2212}1,5</td>"));
+        assert!(content.contains("<p class=\"chartlet-source\">Quelle: Shop</p>"));
+    }
+
+    #[test]
+    fn a_thin_line_is_drawn_thin_in_the_plot_and_in_the_legend() {
+        let spec = TIME.replace(
+            "\"name\": \"Orders\",",
+            "\"name\": \"Orders\", \"stroke\": \"thin\",",
+        ).replace(
+            "]\n            }\n        ]",
+            ", {\"mark\": \"line\", \"name\": \"Mean\", \"points\": [{\"time\": \"2026-03-01\", \"value\": 12}, {\"time\": \"2026-03-03\", \"value\": 18}]}]\n            }\n        ]",
+        );
+        let svg = render_ok(&spec).content;
+        assert!(svg.contains(".chartlet-line-thin{stroke-width:1}"));
+        // The plotted line and its legend sample.
+        assert_eq!(
+            svg.matches("class=\"chartlet-line chartlet-line-thin chartlet-line-series-1\"")
+                .count(),
+            2
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-line chartlet-line-series-2\"")
+                .count(),
+            2
+        );
+        let rule = TIME.replace(
+            "\"name\": \"Orders\",",
+            "\"name\": \"Orders\", \"points\": [{\"time\": \"2026-03-01\", \"value\": 1}, {\"time\": \"2026-03-02\", \"value\": 2}]}, {\"mark\": \"annotation\", \"value\": 1, \"label\": \"Limit\", \"stroke\": \"thin\"}, {\"mark\": \"line\", \"name\": \"Other\",",
+        );
+        assert_eq!(
+            render_err(&rule),
+            (
+                "option_not_supported",
+                "/panes/0/layers/1/stroke".to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn a_locale_is_refused_where_texts_are_not_translated_yet() {
+        let spec = SPEC.replace(
+            "\"type\": \"bar\",",
+            "\"type\": \"bar\", \"locale\": \"de\",",
+        );
+        assert_eq!(
+            render_err(&spec),
+            ("locale_not_supported", "/locale".to_owned())
+        );
+        let spec = TIME.replace(
+            "\"valueAxis\": {\"title\": \"Orders\"}",
+            "\"valueAxis\": {\"title\": \"Orders\", \"decimals\": 9}",
+        );
+        assert_eq!(
+            render_err(&spec),
+            ("invalid_decimals", "/panes/0/valueAxis/decimals".to_owned())
+        );
     }
 
     #[test]
@@ -1429,8 +1508,8 @@ mod tests {
         assert!(output.warnings.is_empty(), "{:?}", output.warnings);
         // Five values; the missing year stays empty.
         assert_eq!(svg.matches("class=\"chartlet-diverging-").count(), 5);
-        assert!(svg.contains("class=\"chartlet-diverging-0\"><title>1850: -1</title>"));
-        assert!(svg.contains("class=\"chartlet-diverging-4\"><title>1851: -0.5</title>"));
+        assert!(svg.contains("class=\"chartlet-diverging-0\"><title>1850: −1</title>"));
+        assert!(svg.contains("class=\"chartlet-diverging-4\"><title>1851: −0.5</title>"));
         assert!(svg.contains("class=\"chartlet-diverging-8\"><title>1853: 0</title>"));
         // Beyond max takes the outermost step.
         assert!(svg.contains("class=\"chartlet-diverging-16\"><title>1855: 2</title>"));
@@ -1438,7 +1517,7 @@ mod tests {
         assert!(svg.contains(">1855</text>"));
         assert!(svg.contains("--chartlet-diverging-8:#eeeeee"));
         assert!(svg.contains(
-            "Warming stripes from 1850 to 1855, one stripe per year, on a diverging color scale around 0 with its outermost steps at -1 and 1. Lowest: -1 (1850). Highest: 2 (1855). 1 year has no value."
+            "Warming stripes from 1850 to 1855, one stripe per year, on a diverging color scale around 0 with its outermost steps at −1 and 1. Lowest: −1 (1850). Highest: 2 (1855). 1 year has no value."
         ));
         let html = render_json(STRIPES, RenderFormat::Html, &RenderOptions::default()).unwrap();
         assert!(html.content.contains("<th scope=\"col\">Year</th>"));
@@ -1536,11 +1615,11 @@ mod tests {
                 svg.matches("class=\"chartlet-calendar-empty\"").count(),
                 364
             );
-            assert!(svg.contains("class=\"chartlet-diverging-4\"><title>2024-01-01: -2</title>"));
+            assert!(svg.contains("class=\"chartlet-diverging-4\"><title>2024-01-01: −2</title>"));
             assert!(svg.contains("class=\"chartlet-diverging-16\"><title>2024-02-29: 4</title>"));
             assert!(svg.contains("<title>2024-12-31: no value</title>"));
             assert!(svg.contains(
-                "2 of 366 days have a value. Lowest: -2 (2024-01-01). Highest: 4 (2024-02-29)."
+                "2 of 366 days have a value. Lowest: −2 (2024-01-01). Highest: 4 (2024-02-29)."
             ));
         }
         let weeks = render_ok(&calendar("weeks", DAYS)).content;
@@ -1623,10 +1702,10 @@ mod tests {
             assert_eq!(svg.matches("class=\"chartlet-range-mid\"").count(), 1);
             assert!(svg.contains("-hatch-range\" width=\"6\""));
             assert!(svg.contains("<title>Observed: 1.05 (0.9 to 1.2)</title>"));
-            assert!(svg.contains("<title>Natural: -0.1 to 0.1, modeled</title>"));
+            assert!(svg.contains("<title>Natural: −0.1 to 0.1, modeled</title>"));
             assert!(svg.contains(">Hatched: modeled<"));
             assert!(svg.contains(
-                "Range chart with 2 categories, each a span from low to high and a central value. Lowest low: -0.1 (Natural). Highest high: 1.2 (Observed). Modeled, drawn hatched: Natural."
+                "Range chart with 2 categories, each a span from low to high and a central value. Lowest low: −0.1 (Natural). Highest high: 1.2 (Observed). Modeled, drawn hatched: Natural."
             ));
         }
         let html = render_json(RANGES, RenderFormat::Html, &RenderOptions::default()).unwrap();
@@ -1634,7 +1713,7 @@ mod tests {
             "<th scope=\"col\">Low</th><th scope=\"col\">Mid</th><th scope=\"col\">High</th>"
         ));
         assert!(html.content.contains(
-            "<th scope=\"row\">Natural (modeled)</th><td>-0.1</td><td>Missing</td><td>0.1</td>"
+            "<th scope=\"row\">Natural (modeled)</th><td>−0.1</td><td>Missing</td><td>0.1</td>"
         ));
     }
 
@@ -1726,7 +1805,8 @@ mod tests {
         assert_eq!(
             svg.matches("chartlet-line chartlet-line-modeled chartlet-line-series-2")
                 .count(),
-            3
+            // Three panels and the legend sample.
+            4
         );
         assert!(svg.contains("<title>2050 – Industry · Pathway: 0 (range 0 to 2)</title>"));
         assert!(svg.contains(

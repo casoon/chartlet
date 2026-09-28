@@ -271,8 +271,9 @@ impl Step {
 
 /// Tick candidates from an hour up to a century. Business time series need the finer end; the
 /// coarse end keeps very long histories readable. The two- and three-day steps keep a two- to
-/// three-week span from falling back to weekly ticks, which would leave only a couple of labels.
-const STEPS: [Step; 15] = [
+/// three-week span from falling back to weekly ticks, which would leave only a couple of labels;
+/// the 20- and 25-year steps do the same for a climate record since 1850.
+const STEPS: [Step; 19] = [
     Step::Seconds(SECONDS_PER_HOUR),
     Step::Seconds(6 * SECONDS_PER_HOUR),
     Step::Seconds(12 * SECONDS_PER_HOUR),
@@ -288,6 +289,10 @@ const STEPS: [Step; 15] = [
     Step::Months(24),
     Step::Months(60),
     Step::Months(120),
+    Step::Months(240),
+    Step::Months(300),
+    Step::Months(600),
+    Step::Months(1200),
 ];
 
 /// Calendar-aligned ticks across `min..=max`, at most about `max_ticks` of them.
@@ -307,7 +312,7 @@ pub(crate) fn ticks(
         .into_iter()
         .filter(|step| allow_sub_day || !step.is_sub_day())
         .find(|step| step.tick_count(min, max, zone) <= limit)
-        .unwrap_or(Step::Months(600));
+        .unwrap_or(Step::Months(1200));
     let mut ticks = Vec::new();
     let mut current = step.first(min, zone);
     // The chosen step always terminates; the bound only keeps a rounding surprise from spinning.

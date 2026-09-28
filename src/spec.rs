@@ -28,6 +28,8 @@ pub(crate) const MAX_COLUMNS: u32 = 6;
 /// Warming stripes: one stripe per year; beyond this the stripes get thinner than a pixel at the
 /// default width.
 pub(crate) const MAX_STRIPES: usize = 500;
+/// Fixed decimal places; beyond this a value stops being readable as a number.
+pub(crate) const MAX_DECIMALS: u8 = 6;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -52,6 +54,10 @@ pub struct ChartSpec {
     pub height: u32,
     #[serde(default = "default_show_values")]
     pub show_values: bool,
+    /// Whether the title is drawn in the chart. It always remains the accessible name and the
+    /// HTML caption; a page that heads the chart itself can leave the drawing out.
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub show_title: bool,
     /// Single-series data. Use either `data` or `categories` with `series`.
     #[serde(default)]
     pub data: Vec<DataPoint>,
@@ -95,6 +101,11 @@ pub struct ChartSpec {
     /// Number of grid columns of a `type: "multiples"` chart; defaults to up to three.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub columns: Option<u32>,
+    /// Language of every text chartlet generates: description, legend additions, tooltips, the
+    /// HTML figure and its data table, and the number format. Skipped while it is the default,
+    /// like `theme`.
+    #[serde(default, skip_serializing_if = "Locale::is_en")]
+    pub locale: Locale,
 }
 
 /// A diverging color scale around a reference value, shared by stripes and calendars. Values are
@@ -283,6 +294,40 @@ impl Theme {
     }
 }
 
+/// The language of generated texts and numbers.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Locale {
+    #[default]
+    En,
+    De,
+}
+
+impl Locale {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_en(&self) -> bool {
+        matches!(self, Self::En)
+    }
+}
+
+/// How a value is written: format, fixed decimals if any, and locale.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct NumberStyle {
+    pub format: ValueFormat,
+    pub decimals: Option<u8>,
+    pub locale: Locale,
+}
+
+impl From<ValueFormat> for NumberStyle {
+    fn from(format: ValueFormat) -> Self {
+        Self {
+            format,
+            ..Self::default()
+        }
+    }
+}
+
 /// Whether the time axis leaves a gap where an observation is missing, or collapses it.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -408,6 +453,27 @@ pub struct LayerSpec {
     /// points carry one, is hatched.
     #[serde(default, skip_serializing_if = "is_false")]
     pub modeled: bool,
+    /// Line weight: `thin` sets a line back, for example single years under their mean, so the
+    /// two differ in more than color.
+    #[serde(default, skip_serializing_if = "Stroke::is_regular")]
+    pub stroke: Stroke,
+}
+
+/// The weight of a line.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Stroke {
+    #[default]
+    Regular,
+    Thin,
+}
+
+impl Stroke {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_regular(&self) -> bool {
+        matches!(self, Self::Regular)
+    }
 }
 
 impl LayerSpec {
@@ -667,6 +733,10 @@ pub struct ValueAxisSpec {
     pub title: Option<String>,
     #[serde(default)]
     pub format: ValueFormat,
+    /// Fixed number of decimal places for values in labels, tooltips, the description and the
+    /// data table. Axis ticks take theirs from the tick step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decimals: Option<u8>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -793,6 +863,41 @@ impl ChartSpec {
         Ok(warnings)
     }
 
+    /// A locale is only offered where every generated text is translated; fixed decimals stay in
+    /// a readable range.
+    fn validate_locale_and_decimals(&self) -> Result<(), ChartError> {
+        if self.locale != Locale::En
+            && !matches!(self.chart_type, ChartType::Time | ChartType::Multiples)
+        {
+            return Err(ChartError::new(
+                "locale_not_supported",
+                "/locale",
+                "a locale other than \"en\" is available for time and multiples charts so far; remove it for this chart type",
+            ));
+        }
+        let axes = std::iter::once(("/valueAxis/decimals".to_owned(), &self.value_axis)).chain(
+            self.panes.iter().enumerate().map(|(index, pane)| {
+                (
+                    format!("/panes/{index}/valueAxis/decimals"),
+                    &pane.value_axis,
+                )
+            }),
+        );
+        for (path, axis) in axes {
+            if axis
+                .decimals
+                .is_some_and(|decimals| decimals > MAX_DECIMALS)
+            {
+                return Err(ChartError::new(
+                    "invalid_decimals",
+                    path,
+                    format!("use 0 to {MAX_DECIMALS} decimal places"),
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn validate_metadata(&self) -> Result<(), ChartError> {
         if self.schema_version != 1 {
             return Err(ChartError::new(
@@ -806,6 +911,14 @@ impl ChartSpec {
                 "option_not_supported",
                 "/orientation",
                 "orientation is only available for bar charts",
+            ));
+        }
+        self.validate_locale_and_decimals()?;
+        if !self.show_title && self.chart_type != ChartType::Time {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/showTitle",
+                "leaving the drawn title out is available for time charts so far",
             ));
         }
         validate_text(&self.title, "/title", 200)?;
@@ -1151,6 +1264,25 @@ impl ChartSpec {
         crate::time::Precision::of(epochs.into_iter(), zone)
     }
 
+    /// How values are written: the value format, the fixed decimals of the axis that applies, and
+    /// the locale.
+    pub(crate) fn number_style(&self) -> NumberStyle {
+        let decimals = match self.chart_type {
+            ChartType::Time => self.panes.first().and_then(|pane| pane.value_axis.decimals),
+            ChartType::Bar | ChartType::Line | ChartType::Rangebar | ChartType::Multiples => {
+                self.value_axis.decimals
+            }
+            ChartType::Topicmap | ChartType::Atlas | ChartType::Stripes | ChartType::Calendar => {
+                None
+            }
+        };
+        NumberStyle {
+            format: self.value_format(),
+            decimals,
+            locale: self.locale,
+        }
+    }
+
     /// The value format that applies to the chart: the pane's format for a time chart, otherwise
     /// the single top-level value axis.
     pub(crate) fn value_format(&self) -> ValueFormat {
@@ -1209,13 +1341,16 @@ impl ChartSpec {
             });
             if bounds && layer.has_band() {
                 let band = layer.resolved_band(zone);
-                for (edge, pick) in [("lower", 0), ("upper", 1)] {
+                let words = self.locale.words();
+                for (edge, pick) in [(words.lower, 0), (words.upper, 1)] {
                     let edge_name = if let Some(name) = &name {
                         format!("{name} ({edge})")
                     } else {
-                        let mut edge = edge.to_owned();
-                        edge[..1].make_ascii_uppercase();
-                        edge
+                        let mut chars = edge.chars();
+                        chars
+                            .next()
+                            .map(|first| first.to_uppercase().chain(chars).collect())
+                            .unwrap_or_default()
                     };
                     series.push(Series {
                         name: Some(edge_name),
@@ -1250,7 +1385,7 @@ impl ChartSpec {
             let name = layer
                 .name
                 .clone()
-                .or_else(|| named.then(|| "Value".to_owned()));
+                .or_else(|| named.then(|| self.locale.words().value.to_owned()));
             match (&self.panes[pane_index].title, name) {
                 (Some(title), Some(name)) if self.chart_type == ChartType::Multiples => {
                     Some(if layer.name.is_some() {
@@ -1661,7 +1796,10 @@ impl ChartSpec {
                     "panel titles must be unique",
                 ));
             }
-            if pane.value_axis.title.is_some() || pane.value_axis.format != ValueFormat::Number {
+            if pane.value_axis.title.is_some()
+                || pane.value_axis.format != ValueFormat::Number
+                || pane.value_axis.decimals.is_some()
+            {
                 return Err(ChartError::new(
                     "option_not_supported",
                     format!("{pane_path}/valueAxis"),
@@ -2438,6 +2576,11 @@ fn validate_annotation(
         ("bottom", layer.bottom.is_some(), "belongs to a band layer"),
         ("modeled", layer.modeled, "belongs to a line layer"),
         (
+            "stroke",
+            layer.stroke != Stroke::Regular,
+            "belongs to a line layer",
+        ),
+        (
             "name",
             layer.name.is_some(),
             "is not used; an annotation is named by its label",
@@ -2764,6 +2907,12 @@ const fn default_true() -> bool {
 #[allow(clippy::trivially_copy_pass_by_ref)]
 const fn is_false(value: &bool) -> bool {
     !*value
+}
+
+// serde hands this function a reference, so the signature follows serde's shape.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_true(value: &bool) -> bool {
+    *value
 }
 
 /// A middle value in the 0..3 range: visible depth without crowding a small map.

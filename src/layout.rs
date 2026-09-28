@@ -7,8 +7,8 @@ use crate::{
     noise,
     scene::{Circle, Element, Line, Polyline, Rect, Scene, Text, TextAnchor, TextStyle},
     spec::{
-        AtlasSpec, ChartSpec, ChartType, Corner, Dataset, LayerRef, MAX_SERIES, Mark, Orientation,
-        TopicLinkSpec, TopicMapSpec, TopicSpec, ValueFormat,
+        AtlasSpec, ChartSpec, ChartType, Corner, Dataset, LayerRef, Locale, MAX_SERIES, Mark,
+        NumberStyle, Orientation, Stroke, TopicLinkSpec, TopicMapSpec, TopicSpec, ValueFormat,
     },
     time::{self, Precision, TimeZone},
 };
@@ -16,11 +16,27 @@ use crate::{
 pub(crate) const LABEL_SIZE: f64 = 12.0;
 /// Extra top margin that makes room for the legend of a multi-series chart.
 const LEGEND_HEIGHT: f64 = 24.0;
+/// Top of the legend row below a drawn title.
+const LEGEND_ROW: f64 = 46.0;
+/// Height of the drawn title with its spacing; a chart without a drawn title gains it.
+const TITLE_BLOCK: f64 = 44.0;
+/// Length of the line sample in a time chart's legend.
+const LEGEND_LINE: f64 = 24.0;
 /// Gutter left of the plot for the value-axis ticks, and the margin right of it.
 pub(crate) const AXIS_GUTTER: u32 = 72;
 pub(crate) const PLOT_MARGIN: u32 = 24;
-/// Target distance between two time-axis ticks, in pixels.
+/// Target distance between two time-axis ticks, in pixels: dates need room for `2026-02-02`, a
+/// year label is less than half as wide.
 const TIME_TICK_SPACING: u32 = 90;
+const YEAR_TICK_SPACING: u32 = 64;
+
+/// The tick spacing that fits the labels an axis of this precision writes.
+const fn time_tick_spacing(precision: Precision) -> u32 {
+    match precision {
+        Precision::Year => YEAR_TICK_SPACING,
+        Precision::Day | Precision::Minute => TIME_TICK_SPACING,
+    }
+}
 
 /// The horizontal pixels a plot keeps out of a chart of `width`: the gutter for the value-axis
 /// ticks and the margin on the right come off. Measured in whole pixels, so the density check in
@@ -67,6 +83,19 @@ const MODELED_LINE_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-line chartlet-line-modeled chartlet-line-series-3",
     "chartlet-line chartlet-line-modeled chartlet-line-series-4",
 ];
+/// A thin line in the palette, regular and modeled.
+const THIN_LINE_CLASSES: [&str; MAX_SERIES] = [
+    "chartlet-line chartlet-line-thin chartlet-line-series-1",
+    "chartlet-line chartlet-line-thin chartlet-line-series-2",
+    "chartlet-line chartlet-line-thin chartlet-line-series-3",
+    "chartlet-line chartlet-line-thin chartlet-line-series-4",
+];
+const THIN_MODELED_LINE_CLASSES: [&str; MAX_SERIES] = [
+    "chartlet-line chartlet-line-thin chartlet-line-modeled chartlet-line-series-1",
+    "chartlet-line chartlet-line-thin chartlet-line-modeled chartlet-line-series-2",
+    "chartlet-line chartlet-line-thin chartlet-line-modeled chartlet-line-series-3",
+    "chartlet-line chartlet-line-thin chartlet-line-modeled chartlet-line-series-4",
+];
 /// Fill of an uncertainty band, in the palette color of its line.
 const BAND_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-band chartlet-band-series-1",
@@ -80,12 +109,6 @@ const POINT_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-point chartlet-point-series-2",
     "chartlet-point chartlet-point-series-3",
     "chartlet-point chartlet-point-series-4",
-];
-const LEGEND_SWATCH_CLASSES: [&str; MAX_SERIES] = [
-    "chartlet-legend-swatch chartlet-series-1",
-    "chartlet-legend-swatch chartlet-series-2",
-    "chartlet-legend-swatch chartlet-series-3",
-    "chartlet-legend-swatch chartlet-series-4",
 ];
 
 pub(crate) fn layout(
@@ -171,14 +194,14 @@ fn layout_vertical(
                     tooltip: Some(tooltip(
                         category,
                         value,
-                        spec.value_format(),
+                        spec.number_style(),
                         series.name.as_deref(),
                     )),
                 }));
             }
 
             if spec.show_values {
-                let content = format_value(value, spec.value_format());
+                let content = format_value(value, spec.number_style());
                 if group.fits(metrics.width(&content, LABEL_SIZE)) {
                     let label = vertical_value_label(value, x + thickness / 2.0, value_y, content);
                     elements.push(series_text(label, dataset, series_index));
@@ -288,7 +311,7 @@ fn layout_horizontal(
                     tooltip: Some(tooltip(
                         category,
                         value,
-                        spec.value_format(),
+                        spec.number_style(),
                         series.name.as_deref(),
                     )),
                 }));
@@ -301,7 +324,7 @@ fn layout_horizontal(
                         value_x,
                         baseline,
                         y + thickness / 2.0,
-                        spec.value_format(),
+                        spec.number_style(),
                         metrics,
                     );
                     elements.push(series_text(label, dataset, series_index));
@@ -412,11 +435,13 @@ fn layout_time(
     let left = f64::from(AXIS_GUTTER);
     let right = f64::from(PLOT_MARGIN);
     let layered = spec.series_names().len() > 1;
-    let top = 78.0 + if layered { LEGEND_HEIGHT } else { 0.0 };
+    // Without a drawn title the legend and the plot move up into its place.
+    let head = if spec.show_title { 0.0 } else { TITLE_BLOCK };
+    let top = 78.0 - head + if layered { LEGEND_HEIGHT } else { 0.0 };
     let bottom = if spec.time_axis.title.is_some() {
-        82.0
+        56.0
     } else {
-        62.0
+        36.0
     };
     let plot = PlotArea {
         left,
@@ -438,6 +463,7 @@ fn layout_time(
     if layered {
         add_layer_legend(
             spec,
+            LEGEND_ROW - head,
             plot.left,
             plot.width,
             &mut elements,
@@ -510,6 +536,7 @@ fn multiples_header(
     if spec.series_names().len() > 1 {
         add_layer_legend(
             spec,
+            LEGEND_ROW,
             MULTIPLES_MARGIN,
             width - 2.0 * MULTIPLES_MARGIN,
             elements,
@@ -566,9 +593,10 @@ fn layout_multiples(
     let span = time_span(spec, zone);
     let precision = spec.time_precision(zone);
     let scale = time_scale(spec, zone);
-    let max_ticks =
-        usize::try_from((panel_plot_pixels(spec.width, columns) / TIME_TICK_SPACING).max(2))
-            .expect("a usize is at least 32 bits wide");
+    let max_ticks = usize::try_from(
+        (panel_plot_pixels(spec.width, columns) / time_tick_spacing(precision)).max(2),
+    )
+    .expect("a usize is at least 32 bits wide");
 
     for (pane_index, pane) in spec.panes.iter().enumerate() {
         let column = pane_index % usize::try_from(columns).expect("columns are limited");
@@ -2541,7 +2569,7 @@ fn push_rule(
                     &path,
                 ),
             },
-            format!("{label}: {}", format_value(value, spec.value_format())),
+            format!("{label}: {}", format_value(value, spec.number_style())),
         )
     } else {
         let epoch = layer
@@ -2600,12 +2628,7 @@ fn push_line(
     let points = layer.resolved_points(frame.zone);
     let explicit = layer.resolved_color().is_some();
     let palette = spec.palette_index(entry.pane, layer);
-    let class = match (explicit, layer.modeled) {
-        (true, false) => "chartlet-line",
-        (true, true) => "chartlet-line chartlet-line-modeled",
-        (false, false) => LINE_CLASSES[palette],
-        (false, true) => MODELED_LINE_CLASSES[palette],
-    };
+    let class = line_class(spec, entry);
     elements.push(Element::Polyline(Polyline {
         points: points
             .iter()
@@ -2631,15 +2654,17 @@ fn push_line(
         let mut text = tooltip(
             &frame.precision.format(*epoch, frame.zone),
             *value,
-            spec.value_format(),
+            spec.number_style(),
             name.as_deref(),
         );
         if let Some((_, lower, upper)) = band.get(index) {
             write!(
                 text,
-                " (range {} to {})",
-                format_value(*lower, spec.value_format()),
-                format_value(*upper, spec.value_format())
+                " ({} {} {} {})",
+                spec.locale.words().range,
+                format_value(*lower, spec.number_style()),
+                spec.locale.words().to,
+                format_value(*upper, spec.number_style())
             )
             .expect("writing to String cannot fail");
         }
@@ -2663,9 +2688,27 @@ fn push_line(
                 y: y - 10.0,
                 class: "chartlet-value",
                 anchor: TextAnchor::Middle,
-                content: format_value(*value, spec.value_format()),
+                content: format_value(*value, spec.number_style()),
             }));
         }
+    }
+}
+
+/// The classes of a line: palette or declared color, dashed when modeled, and its weight. The
+/// legend draws its sample with the same classes, so it looks exactly like the line.
+fn line_class(spec: &ChartSpec, entry: LayerRef) -> &'static str {
+    let layer = entry.layer;
+    let palette = spec.palette_index(entry.pane, layer);
+    let thin = layer.stroke == Stroke::Thin;
+    match (layer.resolved_color().is_some(), layer.modeled, thin) {
+        (true, false, false) => "chartlet-line",
+        (true, true, false) => "chartlet-line chartlet-line-modeled",
+        (true, false, true) => "chartlet-line chartlet-line-thin",
+        (true, true, true) => "chartlet-line chartlet-line-thin chartlet-line-modeled",
+        (false, false, false) => LINE_CLASSES[palette],
+        (false, true, false) => MODELED_LINE_CLASSES[palette],
+        (false, false, true) => THIN_LINE_CLASSES[palette],
+        (false, true, true) => THIN_MODELED_LINE_CLASSES[palette],
     }
 }
 
@@ -2690,7 +2733,7 @@ fn push_value_grid(spec: &ChartSpec, frame: &TimeFrame, elements: &mut Vec<Eleme
             y: y + 4.0,
             class: "chartlet-tick",
             anchor: TextAnchor::End,
-            content: format_value(value, spec.value_format()),
+            content: format_tick(value, frame.scale.step, spec.number_style()),
         }));
     }
 }
@@ -2730,18 +2773,22 @@ fn time_base_elements(
     metrics: &impl TextMetrics,
 ) -> Vec<Element> {
     let plot = frame.plot;
-    let title = fit_text(&spec.title, plot.width, 22.0, metrics, warnings, "/title");
-    let mut elements = vec![Element::Text(Text {
-        x: plot.left,
-        y: 30.0,
-        class: "chartlet-title",
-        anchor: TextAnchor::Start,
-        content: title,
-    })];
+    let mut elements = Vec::new();
+    if spec.show_title {
+        let title = fit_text(&spec.title, plot.width, 22.0, metrics, warnings, "/title");
+        elements.push(Element::Text(Text {
+            x: plot.left,
+            y: 30.0,
+            class: "chartlet-title",
+            anchor: TextAnchor::Start,
+            content: title,
+        }));
+    }
 
     push_value_grid(spec, frame, &mut elements);
-    let max_ticks = usize::try_from((plot_pixels(spec.width) / TIME_TICK_SPACING).max(2))
-        .expect("a usize is at least 32 bits wide");
+    let max_ticks =
+        usize::try_from((plot_pixels(spec.width) / time_tick_spacing(frame.precision)).max(2))
+            .expect("a usize is at least 32 bits wide");
     push_time_ticks(frame, max_ticks, &mut elements);
 
     if let Some(title) = spec
@@ -2772,6 +2819,7 @@ fn time_base_elements(
 /// its entry, because the dashing alone is not a legend.
 fn add_layer_legend(
     spec: &ChartSpec,
+    row: f64,
     left: f64,
     available_width: f64,
     elements: &mut Vec<Element>,
@@ -2791,29 +2839,26 @@ fn add_layer_legend(
     let mut x = left;
     for entry in entries {
         let explicit = entry.layer.resolved_color().is_some();
-        elements.push(Element::Rect(Rect {
-            x,
-            y: 46.0,
-            width: 10.0,
-            height: 10.0,
-            class: if explicit {
-                "chartlet-legend-swatch"
-            } else {
-                LEGEND_SWATCH_CLASSES[spec.palette_index(entry.pane, entry.layer)]
-            },
+        // A short piece of the line itself: color, dashing and weight, so that a legend entry
+        // never rests on color alone.
+        elements.push(Element::Polyline(Polyline {
+            points: vec![(x, row + 5.0), (x + LEGEND_LINE, row + 5.0)],
+            class: line_class(spec, entry),
+            topic: None,
             series_index: None,
             style_index: explicit.then_some(entry.global),
             tooltip: None,
         }));
-        let name = entry.layer.name.as_deref().unwrap_or("Value");
+        let words = spec.locale.words();
+        let name = entry.layer.name.as_deref().unwrap_or(words.value);
         let name = if entry.layer.modeled {
-            format!("{name} (modeled)")
+            format!("{name} ({})", words.modeled)
         } else {
             name.to_owned()
         };
         let label = fit_text(
             &name,
-            entry_width - 36.0,
+            entry_width - LEGEND_LINE - 28.0,
             LABEL_SIZE,
             metrics,
             warnings,
@@ -2821,13 +2866,13 @@ fn add_layer_legend(
         );
         let label_width = metrics.width(&label, LABEL_SIZE);
         elements.push(Element::Text(Text {
-            x: x + 16.0,
-            y: 55.0,
+            x: x + LEGEND_LINE + 8.0,
+            y: row + 9.0,
             class: "chartlet-legend",
             anchor: TextAnchor::Start,
             content: label,
         }));
-        x += 16.0 + label_width + 20.0;
+        x += LEGEND_LINE + 8.0 + label_width + 20.0;
     }
 }
 
@@ -2899,7 +2944,7 @@ fn add_line_data(
                 topic: None,
                 series_index: None,
                 style_index: None,
-                tooltip: Some(tooltip(&point.label, value, spec.value_format(), None)),
+                tooltip: Some(tooltip(&point.label, value, spec.number_style(), None)),
             }));
             if spec.show_values {
                 elements.push(Element::Text(Text {
@@ -2907,7 +2952,7 @@ fn add_line_data(
                     y: y - 10.0,
                     class: "chartlet-value",
                     anchor: TextAnchor::Middle,
-                    content: format_value(value, spec.value_format()),
+                    content: format_value(value, spec.number_style()),
                 }));
             }
         } else {
@@ -2983,7 +3028,7 @@ pub(crate) fn base_elements(
                 y: y + 4.0,
                 class: "chartlet-tick",
                 anchor: TextAnchor::End,
-                content: format_value(value, spec.value_format()),
+                content: format_tick(value, scale.step, spec.number_style()),
             }));
         } else {
             let x = scale.map(value, plot.left, plot.left + plot.width);
@@ -3003,7 +3048,7 @@ pub(crate) fn base_elements(
                 y: plot.top + plot.height + 22.0,
                 class: "chartlet-tick",
                 anchor: TextAnchor::Middle,
-                content: format_value(value, spec.value_format()),
+                content: format_tick(value, scale.step, spec.number_style()),
             }));
         }
     }
@@ -3108,10 +3153,10 @@ fn horizontal_value_label(
     value_x: f64,
     baseline: f64,
     center_y: f64,
-    format: ValueFormat,
+    style: NumberStyle,
     metrics: &impl TextMetrics,
 ) -> Text {
-    let content = format_value(value, format);
+    let content = format_value(value, style);
     // Inverse text is only readable on the bar itself; a short negative bar gets its label
     // outside, left of the bar end.
     let fits_inside = metrics.width(&content, LABEL_SIZE) + 16.0 <= (baseline - value_x).abs();
@@ -3252,10 +3297,10 @@ fn bar_class(dataset: &Dataset, series_index: usize) -> &'static str {
 pub(crate) fn tooltip(
     category: &str,
     value: f64,
-    format: ValueFormat,
+    style: NumberStyle,
     series_name: Option<&str>,
 ) -> String {
-    let formatted = format_value(value, format);
+    let formatted = format_value(value, style);
     match series_name {
         Some(name) => format!("{category} – {name}: {formatted}"),
         None => format!("{category}: {formatted}"),
@@ -3321,17 +3366,56 @@ pub(crate) fn fit_text(
     output
 }
 
-pub(crate) fn format_value(value: f64, format: ValueFormat) -> String {
-    let value = match format {
+/// Writes a value for reading: percent scaled and suffixed, fixed decimals if the style asks for
+/// them, a true minus sign (U+2212, which screen readers announce as “minus”), and the locale's
+/// decimal separator.
+pub(crate) fn format_value(value: f64, style: impl Into<NumberStyle>) -> String {
+    let style = style.into();
+    let value = match style.format {
         ValueFormat::Number => value,
         ValueFormat::Percent => value * 100.0,
     };
-    let suffix = if format == ValueFormat::Percent {
-        "%"
-    } else {
-        ""
+    let digits = match style.decimals {
+        Some(decimals) => format!("{:.*}", usize::from(decimals), tidy(value)),
+        None => format!("{}", tidy(value)),
     };
-    format!("{}{suffix}", tidy(value))
+    // Rounding to fixed decimals can turn a small negative value into `-0.0`.
+    let digits = if digits.starts_with('-') && digits.trim_start_matches(['-', '0', '.']).is_empty()
+    {
+        digits[1..].to_owned()
+    } else {
+        digits
+    };
+    let digits = digits.replace('-', "\u{2212}");
+    let digits = match style.locale {
+        Locale::En => digits,
+        Locale::De => digits.replace('.', ","),
+    };
+    let suffix = match (style.format, style.locale) {
+        (ValueFormat::Number, _) => "",
+        (ValueFormat::Percent, Locale::En) => "%",
+        (ValueFormat::Percent, Locale::De) => "\u{202f}%",
+    };
+    format!("{digits}{suffix}")
+}
+
+/// Writes an axis tick with as many decimals as the tick step has, so that every tick of an axis
+/// carries the same number of digits: `0.0, 0.5, 1.0` rather than `0, 0.5, 1`.
+pub(crate) fn format_tick(value: f64, step: f64, style: NumberStyle) -> String {
+    let step = match style.format {
+        ValueFormat::Number => step,
+        ValueFormat::Percent => step * 100.0,
+    };
+    let decimals = format!("{}", tidy(step))
+        .split_once('.')
+        .map_or(0, |(_, fraction)| fraction.len());
+    format_value(
+        value,
+        NumberStyle {
+            decimals: Some(u8::try_from(decimals).unwrap_or(u8::MAX)),
+            ..style
+        },
+    )
 }
 
 /// Removes binary floating-point noise (`0.07 * 100`, `0.1 + 0.2`) by keeping 12 significant
@@ -3412,12 +3496,15 @@ impl NumericScale {
 mod tests {
     use super::{
         DEPTH_BAND_STEP, HALO_WIDTH, MAX_WOBBLE, MIN_WOBBLE, NumericScale, PLOT_MARGIN, cap_links,
-        coastline_profile, count, distance_to, format_value, plan_furniture, topicmap_positions,
-        unit_polygon_area,
+        coastline_profile, count, distance_to, format_tick, format_value, plan_furniture,
+        topicmap_positions, unit_polygon_area,
     };
     use crate::{
         metrics::BuiltinMetrics,
-        spec::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec, ValueFormat},
+        spec::{
+            CartoucheSpec, Corner, Locale, NumberStyle, TopicLinkSpec, TopicMapSpec, TopicSpec,
+            ValueFormat,
+        },
     };
 
     #[test]
@@ -3445,6 +3532,38 @@ mod tests {
     }
 
     #[test]
+    fn writes_german_numbers_with_comma_and_true_minus() {
+        let de = NumberStyle {
+            locale: Locale::De,
+            ..NumberStyle::default()
+        };
+        assert_eq!(format_value(-1.25, de), "\u{2212}1,25");
+        assert_eq!(format_value(-1.25, ValueFormat::Number), "\u{2212}1.25");
+        let fixed = NumberStyle {
+            decimals: Some(2),
+            ..de
+        };
+        assert_eq!(format_value(1.547, fixed), "1,55");
+        assert_eq!(format_value(-0.001, fixed), "0,00");
+        let percent = NumberStyle {
+            format: ValueFormat::Percent,
+            ..de
+        };
+        assert_eq!(format_value(0.125, percent), "12,5\u{202f}%");
+    }
+
+    #[test]
+    fn ticks_share_the_decimals_of_their_step() {
+        let style = NumberStyle::default();
+        assert_eq!(format_tick(1.0, 0.5, style), "1.0");
+        assert_eq!(format_tick(-0.5, 0.5, style), "\u{2212}0.5");
+        assert_eq!(format_tick(20.0, 5.0, style), "20");
+        let percent = NumberStyle::from(ValueFormat::Percent);
+        assert_eq!(format_tick(0.1, 0.05, percent), "10%");
+        assert_eq!(format_tick(0.1, 0.025, percent), "10.0%");
+    }
+
+    #[test]
     fn ticks_do_not_accumulate_rounding_errors() {
         let scale = NumericScale::from_values([0.12, -0.04, 0.15].into_iter(), true);
         assert_eq!(
@@ -3457,7 +3576,7 @@ mod tests {
                 .ticks()
                 .map(|tick| format_value(tick, ValueFormat::Percent))
                 .collect::<Vec<_>>(),
-            vec!["-10%", "0%", "10%", "20%", "30%"]
+            vec!["−10%", "0%", "10%", "20%", "30%"]
         );
     }
 

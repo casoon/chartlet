@@ -26,6 +26,7 @@ is the complete contract and can be used for editor validation.
 | `panes[].layers[].name` | one of | Legend and table label; required and unique once a pane has several layers. |
 | `panes[].layers[].points` | line | `[{ "time": 1772323200, "value": 1 }]`; ISO 8601 dates and bare years (`"1850"`) are accepted too. Add `lower` and `upper` to every point for an uncertainty band. |
 | `panes[].layers[].modeled` | no | Line layers: the line is dashed, its band hatched, and legend, description and table say “modeled”. |
+| `panes[].layers[].stroke` | no | Line layers: `regular` (default) or `thin`; the legend sample shows the same weight, so two lines differ in more than color. |
 | `panes[].layers[].value` / `time` | annotation | A horizontal reference line at `value`, or a vertical one at `time`; exactly one of the two. |
 | `panes[].layers[].label` | annotation | Required text of a reference line. |
 | `stripes` | stripes | `{ "firstYear": 1850, "values": [..], "reference": 0, "min": .., "max": .., "yearLabels": true }`; `null` leaves a year empty. |
@@ -37,6 +38,9 @@ is the complete contract and can be used for editor validation.
 | `categoryAxis.title` | no | Title of the category axis. |
 | `valueAxis.title` | no | Title of the value axis. |
 | `valueAxis.format` | no | `number` (default) or `percent`; `0.12` is shown as `12%`. |
+| `valueAxis.decimals` | no | Fixed decimal places, 0–6, for values in tooltips, value labels, description and table. Axis ticks always carry as many decimals as their step (`0.0, 0.5, 1.0`). On a `time` chart set it on `panes[0].valueAxis`. |
+| `locale` | no | `en` (default) or `de`: language of the generated texts (description, legend additions, tooltips, HTML caption and table) and the number format (`1,5`). `time` and `multiples` only so far. Negative numbers always use the true minus sign `−`. |
+| `showTitle` | no | `false` leaves the drawn title out of a `time` chart when the page heads it; it stays the accessible name and the HTML caption. Default `true`. |
 | `width`, `height` | no | Size in pixels: 320–2400 × 240–1600, default 800 × 450. |
 | `showValues` | no | Value labels on bars and points, default `true`. On a time pane with several layers the labels can overlap; the values stay in the tooltips and the data table. |
 | `zoomSteps` | no | Two to four `{ "label", "from", "to" }` variants, selectable in the HTML output. |

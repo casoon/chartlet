@@ -24,7 +24,7 @@ const MID_OVERHANG: f64 = 3.0;
 
 /// The label of one span: its central value and its bounds, or only the bounds.
 fn span_label(spec: &ChartSpec, range: &RangeSpec) -> String {
-    let show = |value| format_value(value, spec.value_format());
+    let show = |value| format_value(value, spec.number_style());
     match range.mid {
         Some(mid) => format!(
             "{} ({} to {})",
@@ -321,7 +321,7 @@ fn layout_vertical(
 
 /// What the spans show in one sentence: how many, their overall reach, and which are modeled.
 pub(crate) fn description(spec: &ChartSpec) -> String {
-    let show = |value| format_value(value, spec.value_format());
+    let show = |value| format_value(value, spec.number_style());
     let lowest = spec
         .ranges
         .iter()
