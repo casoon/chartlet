@@ -1,0 +1,833 @@
+mod atlas;
+mod calendar;
+mod categorical;
+mod dataset;
+mod rangebar;
+mod stripes;
+mod timechart;
+mod topicmap;
+
+use serde::{Deserialize, Serialize};
+use serde_path_to_error::Segment;
+
+use crate::{
+    error::{ChartError, ChartWarning},
+    time::TimeValue,
+};
+pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
+pub(crate) use calendar::calendar_date;
+pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
+pub use categorical::{DataPoint, SeriesSpec};
+pub use rangebar::RangeSpec;
+pub(crate) use stripes::Diverging;
+pub use stripes::StripesSpec;
+pub use timechart::{
+    Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimeAxisSpec, TimePoint,
+};
+pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
+pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
+
+const MAX_DATA_POINTS: usize = 100;
+/// Limited so that every series keeps a color that stays distinguishable for common
+/// color-vision deficiencies.
+pub(crate) const MAX_SERIES: usize = 4;
+/// Fixed decimal places; beyond this a value stops being readable as a number.
+pub(crate) const MAX_DECIMALS: u8 = 6;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ChartSpec {
+    pub schema_version: u8,
+    #[serde(rename = "type")]
+    pub chart_type: ChartType,
+    #[serde(default)]
+    pub orientation: Orientation,
+    pub title: String,
+    #[serde(default)]
+    pub description: Option<String>,
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub category_axis: CategoryAxisSpec,
+    #[serde(default)]
+    pub value_axis: ValueAxisSpec,
+    #[serde(default = "default_width")]
+    pub width: u32,
+    #[serde(default = "default_height")]
+    pub height: u32,
+    #[serde(default = "default_show_values")]
+    pub show_values: bool,
+    /// Whether the SVG profile draws the title in the chart. It always remains the accessible name;
+    /// the HTML profile never draws it, its caption is the visible title.
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub show_title: bool,
+    /// Single-series data. Use either `data` or `categories` with `series`.
+    #[serde(default)]
+    pub data: Vec<DataPoint>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub categories: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub series: Vec<SeriesSpec>,
+    /// Optional zoom steps rendered as radio-selectable, pre-computed variants (HTML profile).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub zoom_steps: Vec<ZoomStep>,
+    /// Palette a chart is rendered in. Skipped while it is the default so that adding the field
+    /// did not change the serialized form, and with it the generated accessibility IDs, of every
+    /// existing specification.
+    #[serde(default, skip_serializing_if = "Theme::is_light")]
+    pub theme: Theme,
+    /// The time axis of a `type: "time"` chart.
+    #[serde(default, skip_serializing_if = "TimeAxisSpec::is_default")]
+    pub time_axis: TimeAxisSpec,
+    /// The panes of a `type: "time"` chart; every pane stacks one value axis over the shared
+    /// time axis and holds its own layers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub panes: Vec<PaneSpec>,
+    /// The topics of a `type: "topicmap"` chart. Skipped while absent, for the same reason as
+    /// `theme`: adding the field must not change the serialized form, and with it the generated
+    /// accessibility IDs, of every existing specification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub topicmap: Option<TopicMapSpec>,
+    /// The landscape of a `type: "atlas"` chart. Skipped while absent, for the same reason as
+    /// `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub atlas: Option<AtlasSpec>,
+    /// The yearly values of a `type: "stripes"` chart. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stripes: Option<StripesSpec>,
+    /// The daily values of a `type: "calendar"` chart. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calendar: Option<CalendarSpec>,
+    /// The spans of a `type: "rangebar"` chart, one per category.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ranges: Vec<RangeSpec>,
+    /// Number of grid columns of a `type: "multiples"` chart; defaults to up to three.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub columns: Option<u32>,
+    /// Language of every text chartlet generates: description, legend additions, tooltips, the
+    /// HTML figure and its data table, and the number format. Skipped while it is the default,
+    /// like `theme`.
+    #[serde(default, skip_serializing_if = "Locale::is_en")]
+    pub locale: Locale,
+    /// A second layout for narrow containers. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mobile: Option<MobileSpec>,
+}
+
+/// The size of the mobile variant, and the container width below which the HTML profile shows it
+/// instead of the chart at `width` × `height`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MobileSpec {
+    pub width: u32,
+    #[serde(default = "default_mobile_height")]
+    pub height: u32,
+    /// Container width in CSS pixels; the mobile variant shows below it.
+    #[serde(default = "default_breakpoint")]
+    pub breakpoint: u32,
+}
+
+/// The palette a chart is rendered in. Both palettes are expressed as CSS custom properties, so a
+/// host page can override any single color.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    #[default]
+    Light,
+    Dark,
+}
+
+impl Theme {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_light(&self) -> bool {
+        matches!(self, Self::Light)
+    }
+}
+
+/// The language of generated texts and numbers.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Locale {
+    #[default]
+    En,
+    De,
+}
+
+impl Locale {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_en(&self) -> bool {
+        matches!(self, Self::En)
+    }
+}
+
+/// How a value is written: format, fixed decimals if any, and locale.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct NumberStyle {
+    pub format: ValueFormat,
+    pub decimals: Option<u8>,
+    pub locale: Locale,
+}
+
+impl From<ValueFormat> for NumberStyle {
+    fn from(format: ValueFormat) -> Self {
+        Self {
+            format,
+            ..Self::default()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ChartType {
+    Bar,
+    Line,
+    /// A time series on a shared time axis, drawn from panes and layers.
+    Time,
+    /// Topic areas as a landmass map; area proportional to each topic's value.
+    Topicmap,
+    /// A knowledge landscape: realms of adjacent regions, holding places. Where `topicmap` packs
+    /// separate landmasses and lets size carry the whole statement, an `atlas` tiles one
+    /// continuous land, so that *where* something lies says as much as how large it is.
+    Atlas,
+    /// Warming stripes: one colored stripe per year on a diverging scale.
+    Stripes,
+    /// A calendar heatmap: one cell per day of a year on a diverging scale.
+    Calendar,
+    /// Spans with a low and a high value per category, optionally with a central estimate.
+    Rangebar,
+    /// Small multiples: several small time charts in a grid, sharing both axes.
+    Multiples,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Orientation {
+    #[default]
+    Vertical,
+    Horizontal,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CategoryAxisSpec {
+    #[serde(default)]
+    pub title: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ValueAxisSpec {
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub format: ValueFormat,
+    /// Fixed number of decimal places for values in labels, tooltips, the description and the
+    /// data table. Axis ticks take theirs from the tick step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decimals: Option<u8>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ValueFormat {
+    #[default]
+    Number,
+    Percent,
+}
+
+/// A pre-computed zoom step: shows categories `from..=to`, or on a time chart the observations
+/// from `from` to `to`, as its own chart variant.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ZoomStep {
+    pub label: String,
+    pub from: ZoomBound,
+    pub to: ZoomBound,
+}
+
+/// One end of a zoom step: a category index on a bar or line chart, a timestamp on a time chart.
+/// A whole number from 0 up reads as an index first, so that a category chart keeps its
+/// serialized form; on a time chart the same number is Unix seconds.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ZoomBound {
+    Index(usize),
+    Time(TimeValue),
+}
+
+impl ZoomBound {
+    /// The category index, `None` for a timestamp that is not a whole number from 0.
+    pub(crate) const fn index(&self) -> Option<usize> {
+        match self {
+            Self::Index(index) => Some(*index),
+            Self::Time(_) => None,
+        }
+    }
+
+    /// The bound as Unix seconds, in the forms a point's `time` accepts.
+    pub(crate) fn resolve(&self, zone: crate::time::TimeZone) -> Result<i64, &'static str> {
+        match self {
+            Self::Index(seconds) => {
+                // Anything beyond the 1700–2200 contract is refused by `resolve` anyway.
+                #[allow(clippy::cast_precision_loss)]
+                let seconds = *seconds as f64;
+                TimeValue::Number(seconds).resolve(zone)
+            }
+            Self::Time(time) => time.resolve(zone),
+        }
+    }
+}
+
+/// A layer together with where it sits in the specification.
+#[derive(Clone, Copy)]
+pub(crate) struct LayerRef<'a> {
+    /// Index among all layers of all panes; keys a declared color and a hatch pattern.
+    pub global: usize,
+    pub pane: usize,
+    /// Index within its pane, as the specification path names it.
+    pub local: usize,
+    pub layer: &'a LayerSpec,
+}
+
+/// Categories × series: the single shape that layout, description and data table work with.
+pub(crate) struct Dataset {
+    pub categories: Vec<String>,
+    pub series: Vec<Series>,
+}
+
+pub(crate) struct Series {
+    /// `None` when the chart was given as a single `data` list.
+    pub name: Option<String>,
+    pub values: Vec<Option<f64>>,
+    /// How this column is written when it is not written like the chart's values: a topic map's
+    /// share column is a percentage while the counts beside it are plain numbers, and every pane
+    /// of a time chart has its own value axis.
+    pub style: Option<NumberStyle>,
+}
+
+impl Dataset {
+    pub(crate) fn values(&self) -> impl Iterator<Item = f64> + '_ {
+        self.series
+            .iter()
+            .flat_map(|series| series.values.iter().flatten().copied())
+    }
+
+    /// JSON pointer to a category label in the specification.
+    pub(crate) fn category_path(&self, index: usize) -> String {
+        if self.series[0].name.is_none() {
+            format!("/data/{index}/label")
+        } else {
+            format!("/categories/{index}")
+        }
+    }
+}
+
+impl ChartSpec {
+    /// Parses a chart specification from JSON.
+    ///
+    /// # Errors
+    ///
+    /// Returns `invalid_json` for malformed JSON and `invalid_spec` for JSON that does not match
+    /// the versioned specification. Like every other error, both carry a JSON Pointer path; a
+    /// syntax error points at the document root and names line and column in its message.
+    pub fn from_json(input: &str) -> Result<Self, ChartError> {
+        let mut deserializer = serde_json::Deserializer::from_str(input);
+        serde_path_to_error::deserialize(&mut deserializer).map_err(|error| {
+            let source = error.inner();
+            let (code, path) = match source.classify() {
+                serde_json::error::Category::Syntax | serde_json::error::Category::Eof => {
+                    ("invalid_json", "/".to_owned())
+                }
+                serde_json::error::Category::Data | serde_json::error::Category::Io => {
+                    ("invalid_spec", json_pointer(error.path()))
+                }
+            };
+            ChartError::new(code, path, source.to_string())
+        })
+    }
+
+    pub(crate) fn validate(&self) -> Result<Vec<ChartWarning>, ChartError> {
+        self.validate_sized(true)
+    }
+
+    /// The chart laid out at the size of its mobile variant, or `None` without one.
+    pub(crate) fn mobile_variant(&self) -> Option<ChartSpec> {
+        let mobile = self.mobile.as_ref()?;
+        let mut spec = self.clone();
+        spec.width = mobile.width;
+        spec.height = mobile.height;
+        spec.mobile = None;
+        Some(spec)
+    }
+
+    /// Validates a mobile variant. Its size was already checked against the limits of `mobile`,
+    /// which admit narrower charts than `width`; the checks that depend on the size, such as
+    /// observations per plot pixel, run at that size.
+    pub(crate) fn validate_mobile_variant(&self) -> Result<Vec<ChartWarning>, ChartError> {
+        self.validate_sized(false)
+    }
+
+    fn validate_sized(&self, check_size: bool) -> Result<Vec<ChartWarning>, ChartError> {
+        self.validate_metadata(check_size)?;
+        self.reject_foreign_blocks()?;
+        match self.chart_type {
+            ChartType::Time => return self.validate_time(),
+            ChartType::Multiples => return self.validate_multiples(),
+            ChartType::Topicmap => return self.validate_topicmap(),
+            ChartType::Atlas => return self.validate_atlas(),
+            ChartType::Stripes => return self.validate_stripes(),
+            ChartType::Calendar => return self.validate_calendar(),
+            ChartType::Rangebar => return self.validate_rangebar(),
+            ChartType::Bar | ChartType::Line => {}
+        }
+        let warnings = self.validate_data()?;
+        if self.chart_type == ChartType::Line && self.data.iter().all(|point| point.value.is_none())
+        {
+            return Err(ChartError::new(
+                "empty_series",
+                "/data",
+                "line charts require at least one numeric value",
+            ));
+        }
+        Ok(warnings)
+    }
+
+    /// Fixed decimals stay in a readable range.
+    fn validate_decimals(&self) -> Result<(), ChartError> {
+        let axes = std::iter::once(("/valueAxis/decimals".to_owned(), &self.value_axis)).chain(
+            self.panes.iter().enumerate().map(|(index, pane)| {
+                (
+                    format!("/panes/{index}/valueAxis/decimals"),
+                    &pane.value_axis,
+                )
+            }),
+        );
+        for (path, axis) in axes {
+            if axis
+                .decimals
+                .is_some_and(|decimals| decimals > MAX_DECIMALS)
+            {
+                return Err(ChartError::new(
+                    "invalid_decimals",
+                    path,
+                    format!("use 0 to {MAX_DECIMALS} decimal places"),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// The size of the chart and of its mobile variant.
+    fn validate_size(&self) -> Result<(), ChartError> {
+        if !(320..=2_400).contains(&self.width) {
+            return Err(ChartError::new(
+                "invalid_dimension",
+                "/width",
+                "width must be between 320 and 2400",
+            ));
+        }
+        if !(240..=1_600).contains(&self.height) {
+            return Err(ChartError::new(
+                "invalid_dimension",
+                "/height",
+                "height must be between 240 and 1600",
+            ));
+        }
+        if let Some(mobile) = &self.mobile {
+            for (path, value, range) in [
+                ("/mobile/width", mobile.width, 280..=600),
+                ("/mobile/height", mobile.height, 240..=1_600),
+                ("/mobile/breakpoint", mobile.breakpoint, 320..=1_600),
+            ] {
+                if !range.contains(&value) {
+                    return Err(ChartError::new(
+                        "invalid_dimension",
+                        path,
+                        format!(
+                            "{} must be between {} and {}",
+                            &path[1..],
+                            range.start(),
+                            range.end()
+                        ),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_metadata(&self, check_size: bool) -> Result<(), ChartError> {
+        if self.schema_version != 1 {
+            return Err(ChartError::new(
+                "unsupported_schema_version",
+                "/schemaVersion",
+                "expected schemaVersion 1",
+            ));
+        }
+        if self.chart_type == ChartType::Line && self.orientation != Orientation::Vertical {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/orientation",
+                "orientation is only available for bar charts",
+            ));
+        }
+        self.validate_decimals()?;
+        validate_text(&self.title, "/title", 200)?;
+        if let Some(description) = &self.description {
+            validate_text(description, "/description", 1_000)?;
+        }
+        if let Some(source) = &self.source {
+            validate_text(source, "/source", 300)?;
+        }
+        validate_optional_text(
+            self.category_axis.title.as_ref(),
+            "/categoryAxis/title",
+            100,
+        )?;
+        validate_optional_text(self.value_axis.title.as_ref(), "/valueAxis/title", 100)?;
+
+        if check_size {
+            self.validate_size()?;
+        }
+        // Zoom steps slice `data` or `categories`, which only bar and line charts have; every
+        // other type rejects the field by name.
+        if !matches!(self.chart_type, ChartType::Bar | ChartType::Line) {
+            return Ok(());
+        }
+        if self.zoom_steps.len() == 1 {
+            return Err(ChartError::new(
+                "not_enough_zoom_steps",
+                "/zoomSteps",
+                "provide at least 2 zoom steps so the view can be switched",
+            ));
+        }
+        for (i, step) in self.zoom_steps.iter().enumerate() {
+            validate_text(&step.label, &format!("/zoomSteps/{i}/label"), 40)?;
+            let index = |field: &str, bound: &ZoomBound| {
+                bound.index().ok_or_else(|| {
+                    ChartError::new(
+                        "invalid_spec",
+                        format!("/zoomSteps/{i}/{field}"),
+                        "expected a category index, a whole number from 0",
+                    )
+                })
+            };
+            let from = index("from", &step.from)?;
+            let to = index("to", &step.to)?;
+            if from > to {
+                return Err(ChartError::new(
+                    "invalid_zoom_step",
+                    format!("/zoomSteps/{i}/from"),
+                    "from must not be greater than to",
+                ));
+            }
+            let count = if self.data.is_empty() {
+                self.categories.len()
+            } else {
+                self.data.len()
+            };
+            if to >= count {
+                return Err(ChartError::new(
+                    "zoom_out_of_range",
+                    format!("/zoomSteps/{i}/to"),
+                    format!("to must be less than the number of categories ({count})"),
+                ));
+            }
+        }
+        if self.zoom_steps.len() > 4 {
+            return Err(ChartError::new(
+                "too_many_zoom_steps",
+                "/zoomSteps",
+                "at most 4 zoom steps are supported",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Rejects the fields that only a bar or line chart has, naming the field and the fix. Small
+    /// multiples keep the top-level value axis, which all their panels share.
+    fn reject_bar_and_line_options(&self, noun: &str) -> Result<(), ChartError> {
+        for (field, present) in [
+            ("/data", !self.data.is_empty()),
+            ("/categories", !self.categories.is_empty()),
+            ("/series", !self.series.is_empty()),
+            (
+                "/zoomSteps",
+                !self.zoom_steps.is_empty() && self.chart_type == ChartType::Multiples,
+            ),
+        ] {
+            if present {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    field,
+                    format!("{noun} is drawn from panes and layers; remove this field"),
+                ));
+            }
+        }
+        if self.orientation != Orientation::Vertical {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/orientation",
+                "orientation is only available for bar charts",
+            ));
+        }
+        if self.category_axis.title.is_some() {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/categoryAxis/title",
+                format!("{noun} labels its time axis with timeAxis.title"),
+            ));
+        }
+        if self.chart_type == ChartType::Multiples {
+            return Ok(());
+        }
+        if self.value_axis.title.is_some() {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/valueAxis/title",
+                "a time chart sets the value axis title inside its pane",
+            ));
+        }
+        if self.value_axis.format != ValueFormat::Number {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/valueAxis/format",
+                "a time chart sets the value format inside its pane",
+            ));
+        }
+        Ok(())
+    }
+
+    /// Rejects a block that belongs to another chart type, so that it is never silently ignored.
+    fn reject_foreign_blocks(&self) -> Result<(), ChartError> {
+        let own = self.chart_type;
+        for (field, present, owner) in [
+            ("/stripes", self.stripes.is_some(), ChartType::Stripes),
+            ("/calendar", self.calendar.is_some(), ChartType::Calendar),
+            ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
+            ("/columns", self.columns.is_some(), ChartType::Multiples),
+        ] {
+            if present && own != owner {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    field,
+                    format!(
+                        "{field} belongs to a {} chart; remove it or change the type",
+                        type_name(owner)
+                    ),
+                ));
+            }
+        }
+        if matches!(
+            own,
+            ChartType::Stripes | ChartType::Calendar | ChartType::Rangebar | ChartType::Multiples
+        ) {
+            for (field, present, owner) in [
+                ("/topicmap", self.topicmap.is_some(), ChartType::Topicmap),
+                ("/atlas", self.atlas.is_some(), ChartType::Atlas),
+            ] {
+                if present {
+                    return Err(ChartError::new(
+                        "option_not_supported",
+                        field,
+                        format!(
+                            "{field} belongs to a {} chart; remove it or change the type",
+                            type_name(owner)
+                        ),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Rejects the fields that only a bar, line, or time chart has, naming the field and the fix.
+    /// Neither map has axes, series or panes. `noun` and `source` name the type in the message,
+    /// so the error says what to do rather than only what is wrong.
+    fn reject_map_options(&self, noun: &str, source: &str) -> Result<(), ChartError> {
+        for (field, present) in [
+            ("/data", !self.data.is_empty()),
+            ("/categories", !self.categories.is_empty()),
+            ("/series", !self.series.is_empty()),
+            ("/zoomSteps", !self.zoom_steps.is_empty()),
+            ("/panes", !self.panes.is_empty()),
+        ] {
+            if present {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    field,
+                    format!("{noun} is drawn from {source}; remove this field"),
+                ));
+            }
+        }
+        if self.orientation != Orientation::Vertical {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/orientation",
+                "orientation is only available for bar charts",
+            ));
+        }
+        if self.category_axis.title.is_some() {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/categoryAxis/title",
+                format!("{noun} has no category axis"),
+            ));
+        }
+        if self.value_axis.title.is_some() || self.value_axis.format != ValueFormat::Number {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/valueAxis",
+                format!("{noun} has no value axis"),
+            ));
+        }
+        if !self.time_axis.is_default() {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/timeAxis",
+                format!("{noun} has no time axis"),
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// The value of `type` that selects a chart type.
+pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
+    match chart_type {
+        ChartType::Bar => "bar",
+        ChartType::Line => "line",
+        ChartType::Time => "time",
+        ChartType::Topicmap => "topicmap",
+        ChartType::Atlas => "atlas",
+        ChartType::Stripes => "stripes",
+        ChartType::Calendar => "calendar",
+        ChartType::Rangebar => "rangebar",
+        ChartType::Multiples => "multiples",
+    }
+}
+
+/// Converts a deserialization path such as `data[0].value` into the JSON Pointer
+/// `/data/0/value` that validation errors use. The document root is `/`.
+fn json_pointer(path: &serde_path_to_error::Path) -> String {
+    let pointer: String = path
+        .iter()
+        .filter_map(|segment| match segment {
+            Segment::Seq { index } => Some(format!("/{index}")),
+            Segment::Map { key } => Some(format!("/{}", key.replace('~', "~0").replace('/', "~1"))),
+            Segment::Enum { variant } => Some(format!("/{variant}")),
+            Segment::Unknown => None,
+        })
+        .collect();
+    if pointer.is_empty() {
+        "/".to_owned()
+    } else {
+        pointer
+    }
+}
+
+pub(crate) fn validate_number(value: f64, path: &str) -> Result<(), ChartError> {
+    if !value.is_finite() {
+        return Err(ChartError::new(
+            "non_finite_value",
+            path,
+            "value must be finite",
+        ));
+    }
+    let magnitude = value.abs();
+    if magnitude > 1e100 || (magnitude > 0.0 && magnitude < 1e-100) {
+        return Err(ChartError::new(
+            "unsupported_numeric_range",
+            path,
+            "value magnitude must be zero or between 1e-100 and 1e100",
+        ));
+    }
+    Ok(())
+}
+
+fn validate_optional_text(
+    value: Option<&String>,
+    path: &str,
+    max_length: usize,
+) -> Result<(), ChartError> {
+    if let Some(value) = value {
+        validate_text(value, path, max_length)?;
+    }
+    Ok(())
+}
+
+fn validate_text(value: &str, path: &str, max_length: usize) -> Result<(), ChartError> {
+    let length = value.chars().count();
+    if value.trim().is_empty() {
+        return Err(ChartError::new(
+            "empty_text",
+            path,
+            "value must contain visible text",
+        ));
+    }
+    if length > max_length {
+        return Err(ChartError::new(
+            "text_too_long",
+            path,
+            format!("value must not exceed {max_length} characters"),
+        ));
+    }
+    if value.chars().any(|character| !is_xml_character(character)) {
+        return Err(ChartError::new(
+            "invalid_xml_character",
+            path,
+            "text contains a control character that XML 1.0 cannot represent",
+        ));
+    }
+    Ok(())
+}
+
+fn is_xml_character(character: char) -> bool {
+    matches!(character, '\u{9}' | '\u{A}' | '\u{D}')
+        || ('\u{20}'..='\u{D7FF}').contains(&character)
+        || ('\u{E000}'..='\u{FFFD}').contains(&character)
+        || ('\u{10000}'..='\u{10FFFF}').contains(&character)
+}
+
+const fn default_width() -> u32 {
+    800
+}
+
+const fn default_height() -> u32 {
+    450
+}
+
+const fn default_mobile_height() -> u32 {
+    360
+}
+
+const fn default_breakpoint() -> u32 {
+    640
+}
+
+const fn default_show_values() -> bool {
+    true
+}
+
+const fn one() -> f64 {
+    1.0
+}
+
+const fn default_true() -> bool {
+    true
+}
+
+// serde hands this function a reference, so the signature follows serde's shape.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_false(value: &bool) -> bool {
+    !*value
+}
+
+// serde hands this function a reference, so the signature follows serde's shape.
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_true(value: &bool) -> bool {
+    *value
+}
