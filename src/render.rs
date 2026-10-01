@@ -797,7 +797,9 @@ fn html_document(
         }
         output.push_str("</fieldset>");
     }
-    output.push_str("<figure class=\"chartlet-figure\">");
+    // `data-viz` and `data-viz-text` follow the display-mode convention of barrierlab: a chart
+    // figure whose text layer is its data table.
+    output.push_str("<figure class=\"chartlet-figure\" data-viz=\"chart\">");
     write!(output, "<figcaption>{}</figcaption>", escape(&spec.title)).expect("write");
     emit_panels(panels, zoom, &mut output);
     if let Some(source) = &spec.source {
@@ -843,12 +845,12 @@ fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMod
     if table_mode == TableMode::Details {
         write!(
             output,
-            "<details class=\"chartlet-data\"><summary>{}</summary>",
+            "<details class=\"chartlet-data\" data-viz-text><summary>{}</summary>",
             spec.locale.words().show_data
         )
         .expect("write");
     } else {
-        output.push_str("<div class=\"chartlet-data\">");
+        output.push_str("<div class=\"chartlet-data\" data-viz-text>");
     }
     let table = data_table(spec);
     write!(

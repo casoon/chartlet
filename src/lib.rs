@@ -740,7 +740,11 @@ mod tests {
             },
         )
         .unwrap();
-        assert!(output.content.contains("<div class=\"chartlet-data\">"));
+        assert!(
+            output
+                .content
+                .contains("<div class=\"chartlet-data\" data-viz-text>")
+        );
         assert!(!output.content.contains("<details"));
     }
 
