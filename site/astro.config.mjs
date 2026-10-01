@@ -12,7 +12,7 @@ export default defineConfig({
       description:
         'Compiles a small JSON specification into a deterministic, accessible SVG or HTML chart at build time.',
       repo: 'casoon/chartlet',
-      version: '0.1.0-alpha.6',
+      version: '0.1.0-alpha.7',
       license: 'MIT',
       packages: [
         { label: 'crates.io', href: 'https://crates.io/crates/chartlet' },

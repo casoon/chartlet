@@ -26,7 +26,7 @@ Install the CLI from crates.io (Rust 1.88 or newer). While chartlet is in alpha,
 explicitly:
 
 ```sh
-cargo install chartlet --version 0.1.0-alpha.6
+cargo install chartlet --version 0.1.0-alpha.7
 ```
 
 Save a minimal specification as `spec.json`:
@@ -287,7 +287,7 @@ No model runs in the server and the data is never changed. See [AI agents](docs/
 ## Rust
 
 ```sh
-cargo add chartlet@0.1.0-alpha.6
+cargo add chartlet@0.1.0-alpha.7
 ```
 
 ```rust
