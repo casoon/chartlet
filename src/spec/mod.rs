@@ -188,6 +188,14 @@ pub enum Locale {
 }
 
 impl Locale {
+    /// The language code the specification uses: `en` or `de`.
+    pub(crate) const fn code(self) -> &'static str {
+        match self {
+            Self::En => "en",
+            Self::De => "de",
+        }
+    }
+
     // serde hands this function a reference, so the signature follows serde's shape.
     #[allow(clippy::trivially_copy_pass_by_ref)]
     const fn is_en(&self) -> bool {

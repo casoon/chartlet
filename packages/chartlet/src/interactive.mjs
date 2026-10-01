@@ -80,6 +80,8 @@ export function readChart(root) {
     columns,
     rows,
     plots,
+    // The language of the chart's texts, for the controls this module adds.
+    words: WORDS[svgs[0]?.dataset.chartletLocale] ?? WORDS.en,
     // Series switched off, by their index among the data layers.
     hidden: new Set(),
     on: (listener) => listeners.push(listener),
@@ -254,12 +256,25 @@ export function crosshair(chart) {
   return () => cleanups.forEach((cleanup) => cleanup());
 }
 
+// The controls' words in the languages chartlet writes; `labels` and `legend` options override
+// them.
+const WORDS = {
+  en: {
+    series: "Series",
+    playback: { group: "Playback", play: "Play", pause: "Pause", back: "Step back", forward: "Step forward", all: "Show all" },
+  },
+  de: {
+    series: "Reihen",
+    playback: { group: "Wiedergabe", play: "Abspielen", pause: "Pause", back: "Schritt zurück", forward: "Schritt vor", all: "Alles zeigen" },
+  },
+};
+
 // The groups that draw data layers, by name.
 const named = (chart) => chart.svgs.flatMap((svg) => [...svg.querySelectorAll("g[data-series][data-name]")]);
 
 // One checkbox per named series of a time chart or small multiples, the way the series filter of
 // a bar chart works: switching one off hides its lines, bands and markers; the axes stay.
-export function toggle(chart, { legend = "Series" } = {}) {
+export function toggle(chart, { legend = chart.words.series } = {}) {
   const groups = named(chart).sort((a, b) => a.dataset.series - b.dataset.series);
   const names = [...new Set(groups.map((group) => group.dataset.name))];
   if (names.length < 2 || chart.root.querySelector?.(".chartlet-filter")) return undefined;
@@ -372,7 +387,7 @@ export function play(chart, { interval, labels = {} } = {}) {
   const plot = chart.plots.get(chart.svgs[0])?.[0];
   if (!plot) return undefined;
   const rows = visibleRows(chart, plot);
-  const text = { group: "Playback", play: "Play", pause: "Pause", back: "Step back", forward: "Step forward", all: "Show all", ...labels };
+  const text = { ...chart.words.playback, ...labels };
   const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const group = element("div", { class: "chartlet-play", role: "group", "aria-label": text.group });
   const status = element("span", { role: "status" });

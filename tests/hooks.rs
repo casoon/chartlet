@@ -79,6 +79,7 @@ fn without_hooks(content: &str) -> String {
     for name in [
         "data-chartlet-type",
         "data-chartlet-id",
+        "data-chartlet-locale",
         "data-chartlet-table",
         "data-part",
         "data-x",

@@ -199,8 +199,9 @@ pub(crate) fn svg(
             String::new()
         } else {
             format!(
-                " data-chartlet-type=\"{}\" data-chartlet-id=\"{id_prefix}\"",
-                crate::spec::type_name(spec.chart_type)
+                " data-chartlet-type=\"{}\" data-chartlet-id=\"{id_prefix}\" data-chartlet-locale=\"{}\"",
+                crate::spec::type_name(spec.chart_type),
+                spec.locale.code()
             )
         },
         // Stretched stripes take whatever box the page gives them.
