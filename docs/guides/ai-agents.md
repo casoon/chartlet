@@ -1,0 +1,57 @@
+---
+title: AI agents
+description: Let an AI assistant draft charts while chartlet validates and compiles them, through the MCP server @casoon/chartlet-mcp.
+order: 7
+---
+
+An assistant is good at reading a request and drafting a specification; it is not reliable at
+drawing a correct chart or describing data exactly. `@casoon/chartlet-mcp` splits the work: the
+assistant proposes, chartlet validates and compiles deterministically. The server runs no
+language model, never changes the data, and reports only facts it can compute.
+
+## Setup
+
+The server speaks the [Model Context Protocol](https://modelcontextprotocol.io) over stdio. In
+Claude Code:
+
+```sh
+claude mcp add chartlet -- npx -y @casoon/chartlet-mcp@alpha
+```
+
+For Claude Desktop and project configuration, see the
+[package README](https://github.com/casoon/chartlet/blob/main/packages/chartlet-mcp/README.md).
+
+## Tools
+
+- `inspect_data` reads CSV or row objects and returns the row count, per column the inferred
+  type, missing values and range, and which chart types fit, each with the columns to use and a
+  reason. The rules are fixed: a category and numbers suggest a bar chart, a time column and
+  numbers a time chart, open/high/low/close an `ohlc` layer, low/high a range bar, years and one
+  value warming stripes, dates of one year and one value a calendar.
+- `validate_spec` renders the specification and discards the output. It returns `ok`, the error
+  with `code`, JSON Pointer `path` and `message`, and every warning, for the desktop and the
+  `mobile` layout. An invalid specification is a regular result, so the assistant can fix the
+  field the path points to and try again.
+- `render_chart` returns the SVG or HTML with warnings, CSP `styleHashes` and the provenance
+  [manifest](warnings-and-errors.md#provenance). With `outputPath` it writes the file below the
+  server's working directory instead and returns the path and size.
+- `explain_chart` returns the description chartlet generates for the chart and, per series or
+  layer, count, missing values, minimum, maximum, first and last value with their labels or
+  times. The result says that it is computed, not interpreted; conclusions about causes or
+  trends stay with the reader.
+
+The resource `chartlet://schema` holds the [specification](../reference/specification.md)
+schema.
+
+## What the server refuses
+
+- To guess: `1,234` is a string, not a number, and an unsorted time column is reported, not
+  sorted. Suggestions name what has to change first, such as aggregating repeated categories.
+- To write outside its working directory: absolute paths, `..`, and symbolic links that lead out
+  are refused.
+
+## With the npm package
+
+The tools are a thin layer over `renderChartDetailed` from `@casoon/chartlet`, which returns the
+compiler's diagnostics as data instead of throwing; see
+[JavaScript runtimes](javascript.md#structured-diagnostics).

@@ -1,0 +1,35 @@
+{
+  "name": "@casoon/chartlet-mcp",
+  "version": "0.1.0-alpha.6",
+  "description": "MCP server that inspects data and validates, renders and describes chartlet charts",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/casoon/chartlet.git",
+    "directory": "packages/chartlet-mcp"
+  },
+  "bin": {
+    "chartlet-mcp": "src/server.mjs"
+  },
+  "files": [
+    "src",
+    "schema",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "@casoon/chartlet": "file:../chartlet",
+    "@modelcontextprotocol/sdk": "^1.31.0",
+    "zod": "^4.6.5"
+  },
+  "scripts": {
+    "copy-schema": "node scripts/copy-schema.mjs",
+    "pretest": "npm run copy-schema",
+    "prepack": "npm run copy-schema",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  }
+}

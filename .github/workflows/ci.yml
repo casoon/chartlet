@@ -67,6 +67,14 @@ jobs:
           npm run build:wasm
           npm test
 
+      # Runs against the WebAssembly build of the previous step through `file:../chartlet`.
+      - name: MCP server
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: packages/chartlet-mcp
+        run: |
+          npm ci
+          npm test
+
       - uses: pnpm/action-setup@v6
         if: matrix.os == 'ubuntu-latest'
         with:
