@@ -21,7 +21,7 @@ const DARK_STYLE: &str = ".chartlet-theme-dark{--chartlet-text:#e8edf6;--chartle
 const SERIES_STYLE: &str = ".chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}.chartlet-series-1{fill:var(--chartlet-color-1)}.chartlet-series-2{fill:var(--chartlet-color-2)}.chartlet-series-3{fill:var(--chartlet-color-3)}.chartlet-series-4{fill:var(--chartlet-color-4)}";
 
 /// Strokes for time layers that declare no color of their own; the same palette as the bars.
-const LINE_SERIES_STYLE: &str = ".chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}.chartlet-line-series-1{stroke:var(--chartlet-color-1)}.chartlet-line-series-2{stroke:var(--chartlet-color-2)}.chartlet-line-series-3{stroke:var(--chartlet-color-3)}.chartlet-line-series-4{stroke:var(--chartlet-color-4)}";
+const LINE_SERIES_STYLE: &str = ".chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}.chartlet-line-series-1{stroke:var(--chartlet-color-1)}.chartlet-line-series-2{stroke:var(--chartlet-color-2)}.chartlet-line-series-3{stroke:var(--chartlet-color-3)}.chartlet-line-series-4{stroke:var(--chartlet-color-4)}.chartlet-hit{fill:transparent;stroke:none}";
 
 /// CSS rules that hide series when their checkbox is deselected (HTML profile only).
 /// Browsers that don't understand `:has()` ignore these rules; the chart stays fully visible.

@@ -47,6 +47,24 @@ pub(crate) const PLOT_MARGIN: u32 = 24;
 /// The horizontal pixels a plot keeps out of a chart of `width`: the gutter for the value-axis
 /// ticks and the margin on the right come off. Measured in whole pixels, so the density check in
 /// the specification and the tick count use the same number.
+/// Below this median distance between neighbouring marks, in pixels, a mark gets no tooltip: the
+/// targets would be too small to point at, and every tooltip costs bytes. The values stay in the
+/// data table and the description. One rule for the markers of lines and for candles.
+pub(crate) const MIN_TOOLTIP_SPACING: f64 = 4.0;
+
+/// Whether marks at the horizontal positions `xs` stand far enough apart for a tooltip each.
+pub(crate) fn tooltips_fit(xs: &[f64]) -> bool {
+    let mut gaps: Vec<f64> = xs
+        .windows(2)
+        .map(|pair| (pair[1] - pair[0]).abs())
+        .collect();
+    if gaps.is_empty() {
+        return true;
+    }
+    gaps.sort_by(f64::total_cmp);
+    gaps[gaps.len() / 2] >= MIN_TOOLTIP_SPACING
+}
+
 pub(crate) const fn plot_pixels(width: u32) -> u32 {
     width.saturating_sub(AXIS_GUTTER + PLOT_MARGIN)
 }

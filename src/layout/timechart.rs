@@ -10,7 +10,7 @@ use super::{
     legend::{add_layer_legend, legend_rows},
     panel_plot_pixels, plot_pixels,
     title::{push_title, title_extra},
-    tooltip,
+    tooltip, tooltips_fit,
 };
 use crate::{
     error::ChartWarning,
@@ -747,9 +747,14 @@ fn push_line(
     }
 
     // Markers and their labels are only drawn while the observations stay far enough apart
-    // for them to be readable.
-    if points.len() > MAX_TIME_MARKERS {
-        return;
+    // for them to be readable. Beyond that, an invisible target keeps the tooltip of each
+    // observation, as long as the targets stay far enough apart to point at.
+    let markers = points.len() <= MAX_TIME_MARKERS;
+    if !markers {
+        let xs: Vec<f64> = points.iter().map(|(epoch, _)| frame.x(*epoch)).collect();
+        if !tooltips_fit(&xs) {
+            return;
+        }
     }
     let band = layer.resolved_band(frame.zone);
     let name = tooltip_name(spec, entry);
@@ -772,6 +777,19 @@ fn push_line(
                 format_value(*upper, frame.style)
             )
             .expect("writing to String cannot fail");
+        }
+        if !markers {
+            elements.push(Element::Circle(Circle {
+                cx: x,
+                cy: y,
+                radius: 4.0,
+                class: "chartlet-hit",
+                topic: None,
+                series_index: None,
+                style_index: None,
+                tooltip: Some(text),
+            }));
+            continue;
         }
         elements.push(Element::Circle(Circle {
             cx: x,

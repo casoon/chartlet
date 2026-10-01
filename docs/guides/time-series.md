@@ -148,7 +148,8 @@ and the highest high and lowest low with their times.
 More candles than a third of the plot's horizontal pixels — 234 at the default width — leave
 less than three pixels per candle. The layer is then drawn as wicks only, from low to high, in the
 rise and fall colors, without bodies and tooltips, and the render reports `dense_chart`. A zoom
-step with fewer candles draws the bodies again.
+step with fewer candles draws the bodies again. Candles closer than 4 pixels keep their bodies but, like the
+observations of a line, lose their tooltips.
 
 A candlestick pane may carry line layers such as a moving average, which are drawn over the
 candles, as well as zones, reference lines and point markers. Candles are drawn on `time` charts
@@ -300,8 +301,10 @@ stays in `<title>`.
 ## Dense series
 
 chartlet draws markers and value labels only while they stay readable — up to 60 observations per
-layer. Above that the layer is drawn as a line only; the values remain in the data table, which is
-always part of the HTML profile.
+layer. Above that the layer is drawn as a line only. Tooltips follow one rule for lines and
+candles: every observation keeps its tooltip, on an invisible target where no marker is drawn,
+as long as neighbouring observations stand at least 4 pixels apart; denser layers have none. The
+values always remain in the data table, which is part of the HTML profile.
 
 The limits are measured, not guessed. At the default width of 800 pixels, four layers of 2000
 observations each render to 131 KB of SVG (355 KB of HTML) in about 14 ms; six layers, the

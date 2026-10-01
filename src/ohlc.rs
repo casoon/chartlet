@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 
 use crate::{
     error::{ChartError, ChartWarning},
-    layout::{TimeFrame, format_value, plot_pixels, tooltip_name},
+    layout::{TimeFrame, format_value, plot_pixels, tooltip_name, tooltips_fit},
     scene::{Element, Line, Rect},
     spec::{
         ChartSpec, LayerContext, LayerRef, LayerSpec, MAX_TIME_POINTS_PER_LAYER, NumberStyle,
@@ -194,6 +194,7 @@ pub(crate) fn push_candles(
     let dense = candles.len()
         > usize::try_from(dense_limit(spec.width)).expect("a usize is at least 32 bits wide");
     let width = body_width(&xs);
+    let with_tooltips = tooltips_fit(&xs);
     let name = tooltip_name(spec, entry);
     for ((epoch, [open, high, low, close]), x) in candles.iter().zip(xs) {
         let rising = close >= open;
@@ -234,7 +235,7 @@ pub(crate) fn push_candles(
             },
             series_index: None,
             style_index: None,
-            tooltip: Some(match &name {
+            tooltip: with_tooltips.then(|| match &name {
                 Some(name) => format!("{time} – {name}: {values}"),
                 None => format!("{time}: {values}"),
             }),
