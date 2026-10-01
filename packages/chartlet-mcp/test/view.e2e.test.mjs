@@ -30,10 +30,10 @@ const spec = {
   ],
 };
 
-// What the MCP Apps specification lets a host enforce by default for a view that declares no
-// domains: inline script and style, nothing from the network.
+// The default CSP the MCP Apps specification (2026-01-26) has hosts apply to a view that declares
+// no domains: inline script and style, nothing from the network.
 const CSP =
-  "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'";
+  "default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' data:; connect-src 'none';";
 
 const HOST = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Test host</title></head>
