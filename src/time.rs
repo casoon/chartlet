@@ -73,20 +73,22 @@ impl TimeValue {
     }
 }
 
-/// How the positions of a time axis are read: as timestamps in a fixed offset from UTC, or as
-/// plain numbers on a numeric axis (distance, depth, millions of years), written in `numeric`'s
-/// locale.
+/// How the positions of a time axis are read and written: as timestamps in a fixed offset from
+/// UTC, or as plain numbers on a numeric axis (distance, depth, millions of years); either way
+/// written in `locale`, ISO dates in English and `31.08.2026` in German.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) struct TimeZone {
     offset: i64,
-    numeric: Option<Locale>,
+    numeric: bool,
+    locale: Locale,
 }
 
 impl TimeZone {
     pub(crate) const fn utc() -> Self {
         Self {
             offset: 0,
-            numeric: None,
+            numeric: false,
+            locale: Locale::En,
         }
     }
 
@@ -94,12 +96,18 @@ impl TimeZone {
     pub(crate) const fn numeric(locale: Locale) -> Self {
         Self {
             offset: 0,
-            numeric: Some(locale),
+            numeric: true,
+            locale,
         }
     }
 
+    /// The same offset, its dates written in `locale`.
+    pub(crate) const fn with_locale(self, locale: Locale) -> Self {
+        Self { locale, ..self }
+    }
+
     pub(crate) const fn is_numeric(self) -> bool {
-        self.numeric.is_some()
+        self.numeric
     }
 
     pub(crate) const fn offset(self) -> i64 {
@@ -129,7 +137,7 @@ impl TimeZone {
         }
         Some(Self {
             offset: sign * (hours * SECONDS_PER_HOUR + minutes * 60),
-            numeric: None,
+            ..Self::utc()
         })
     }
 }
@@ -149,22 +157,28 @@ fn local_fields(epoch: i64, zone: TimeZone) -> (i64, u32, u32, u32, u32) {
     )
 }
 
-/// `2026-03-01`, the locale-neutral date an ISO 8601 label uses.
+/// `2026-03-01`, the ISO 8601 date, or `01.03.2026` in German.
 pub(crate) fn format_date(epoch: i64, zone: TimeZone) -> String {
     let (year, month, day, _, _) = local_fields(epoch, zone);
-    format!("{year:04}-{month:02}-{day:02}")
+    match zone.locale {
+        Locale::En => format!("{year:04}-{month:02}-{day:02}"),
+        Locale::De => format!("{day:02}.{month:02}.{year:04}"),
+    }
 }
 
-/// `2026-03-01 12:00`.
+/// `2026-03-01 12:00`, or `01.03.2026 12:00` in German.
 pub(crate) fn format_datetime(epoch: i64, zone: TimeZone) -> String {
-    let (year, month, day, hour, minute) = local_fields(epoch, zone);
-    format!("{year:04}-{month:02}-{day:02} {hour:02}:{minute:02}")
+    let (_, _, _, hour, minute) = local_fields(epoch, zone);
+    format!("{} {hour:02}:{minute:02}", format_date(epoch, zone))
 }
 
-/// `2026-03` for month steps, `2026` for year steps.
+/// `2026-03`, or `03.2026` in German, for month steps.
 fn format_month(epoch: i64, zone: TimeZone) -> String {
     let (year, month, _, _, _) = local_fields(epoch, zone);
-    format!("{year:04}-{month:02}")
+    match zone.locale {
+        Locale::En => format!("{year:04}-{month:02}"),
+        Locale::De => format!("{month:02}.{year:04}"),
+    }
 }
 
 fn format_year(epoch: i64, zone: TimeZone) -> String {
@@ -233,7 +247,7 @@ fn format_numeric(units: i64, decimals: u8, zone: TimeZone) -> String {
         value,
         NumberStyle {
             decimals: Some(decimals),
-            locale: zone.numeric.unwrap_or_default(),
+            locale: zone.locale,
             ..NumberStyle::default()
         },
     )

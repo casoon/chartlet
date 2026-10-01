@@ -1166,7 +1166,7 @@ mod tests {
         let html = render_json(&spec, RenderFormat::Html, &RenderOptions::default()).unwrap();
         let content = &html.content;
         assert!(content.contains(
-            "Zeitreihe mit 3 Punkten von 2026-03-01 bis 2026-03-03. Höchster Wert: 20,0 (2026-03-03). Niedrigster Wert: \u{2212}1,5 (2026-03-02)."
+            "Zeitreihe mit 3 Punkten von 01.03.2026 bis 03.03.2026. Höchster Wert: 20,0 (03.03.2026). Niedrigster Wert: \u{2212}1,5 (02.03.2026)."
         ));
         assert!(content.contains("<summary>Diagrammdaten anzeigen</summary>"));
         assert!(content.contains("<caption>Daten zu Daily orders</caption>"));
@@ -2184,10 +2184,10 @@ mod tests {
         );
         let svg = render_ok(&spec).content;
         assert!(svg.contains(
-            "Bereiche: Ruhe, 2026-03-01 bis 2026-03-02; Ziel, 2026-03-02 bis 2026-03-03, Werte über 2,5."
+            "Bereiche: Ruhe, 01.03.2026 bis 02.03.2026; Ziel, 02.03.2026 bis 03.03.2026, Werte über 2,5."
         ), "{svg}");
-        assert!(svg.contains("Markierungen: Start bei 2026-03-02, 12,5."));
-        assert!(svg.contains("<title>Start: 2026-03-02, 12,5</title>"));
+        assert!(svg.contains("Markierungen: Start bei 02.03.2026, 12,5."));
+        assert!(svg.contains("<title>Start: 02.03.2026, 12,5</title>"));
     }
 
     #[test]
@@ -3285,7 +3285,7 @@ mod tests {
 
         let german = html_ok(&german(&spec, "time"));
         assert!(german.contains("1 Wert fehlt."));
-        assert!(german.contains("<th scope=\"row\">2026-03-03</th><td>fehlt</td>"));
+        assert!(german.contains("<th scope=\"row\">03.03.2026</th><td>fehlt</td>"));
 
         // A lone value between two gaps keeps its marker but draws no line.
         let lone = week(&sensor("Load", "", ["10", "null", "12", "null", "15"]), "");
@@ -3926,7 +3926,7 @@ mod tests {
         let html = html_ok(&spec);
         assert!(html.contains("Price (hohl: steigend, gefüllt: fallend)</text>"));
         assert!(html.contains(
-            "<title>2026-03-02 – Price: Eröffnung 10,00; Hoch 12,00; Tief 9,00; Schluss 11,00</title>"
+            "<title>02.03.2026 – Price: Eröffnung 10,00; Hoch 12,00; Tief 9,00; Schluss 11,00</title>"
         ));
         assert!(
             html.contains(
@@ -3934,7 +3934,7 @@ mod tests {
             )
         );
         assert!(html.contains(
-            "Price: Eröffnung 10,00 am 2026-03-02, Schluss 9,00 am 2026-03-04, Veränderung \u{2212}1,00 (\u{2212}10,0\u{202f}%); Hoch 12,00 am 2026-03-02, Tief 8,00 am 2026-03-03."
+            "Price: Eröffnung 10,00 am 02.03.2026, Schluss 9,00 am 04.03.2026, Veränderung \u{2212}1,00 (\u{2212}10,0\u{202f}%); Hoch 12,00 am 02.03.2026, Tief 8,00 am 03.03.2026."
         ), "{html}");
         assert!(html.contains("<th scope=\"col\">Price (Eröffnung)</th><th scope=\"col\">Price (Hoch)</th><th scope=\"col\">Price (Tief)</th><th scope=\"col\">Price (Schluss)</th>"));
         assert!(html.contains("<td>12\u{202f}%</td>"));

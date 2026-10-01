@@ -204,13 +204,15 @@ impl ChartSpec {
         if self.time_axis.kind == super::TimeAxisKind::Number {
             return Ok(crate::time::TimeZone::numeric(self.locale));
         }
-        crate::time::TimeZone::parse(&self.time_axis.timezone).ok_or_else(|| {
-            ChartError::new(
-                "invalid_timezone",
-                "/timeAxis/timezone",
-                "expected UTC or a fixed offset such as +02:00",
-            )
-        })
+        crate::time::TimeZone::parse(&self.time_axis.timezone)
+            .map(|zone| zone.with_locale(self.locale))
+            .ok_or_else(|| {
+                ChartError::new(
+                    "invalid_timezone",
+                    "/timeAxis/timezone",
+                    "expected UTC or a fixed offset such as +02:00",
+                )
+            })
     }
 
     /// Every layer of every pane, in the order they are drawn.
