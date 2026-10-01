@@ -292,9 +292,10 @@ numbers use the true minus sign `−`, which screen readers announce as “minus
 
 ## Title
 
-The title is the accessible name of the chart. When the page already heads the chart,
-`"showTitle": false` leaves the drawn title out and gives its space to the plot; the title stays in
-`<title>` and in the HTML caption. Available for `time` charts.
+The title is the accessible name of the chart. The HTML profile shows it once, as the
+`<figcaption>`, and draws no title inside the SVG. When the page already heads a standalone SVG,
+`"showTitle": false` leaves the drawn title out of it too and gives its space to the plot; the title
+stays in `<title>`.
 
 ## Dense series
 

@@ -75,7 +75,7 @@ fn plot_top(spec: &ChartSpec, plot_width: f64, metrics: &impl TextMetrics) -> f6
     } else {
         0.0
     };
-    78.0 + title_extra(&spec.title, plot_width, metrics) + legend
+    78.0 + title_extra(spec, plot_width, metrics) + legend
 }
 
 /// One entry that says what the hatching means, if any span is modeled; `x` is the left of the
@@ -89,7 +89,7 @@ fn push_legend(
     if !spec.ranges.iter().any(|range| range.modeled) {
         return;
     }
-    let y = 46.0 + title_extra(&spec.title, plot_width, metrics);
+    let y = 46.0 + title_extra(spec, plot_width, metrics);
     for class in ["chartlet-range", "chartlet-range-hatch"] {
         elements.push(Element::Rect(Rect {
             x,

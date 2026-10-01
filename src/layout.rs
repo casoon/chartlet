@@ -148,7 +148,7 @@ fn layout_vertical(
     let left = f64::from(AXIS_GUTTER);
     let right = f64::from(PLOT_MARGIN);
     let plot_width = width - left - right;
-    let head = title_extra(&spec.title, plot_width, metrics);
+    let head = title_extra(spec, plot_width, metrics);
     let top = 78.0 + head + legend_space(dataset, plot_width, metrics);
     let bottom = if spec.category_axis.title.is_some() {
         82.0
@@ -254,7 +254,7 @@ fn layout_horizontal(
     let left = (measured_label + 28.0).clamp(88.0, 210.0);
     let right = 68.0;
     let plot_width = width - left - right;
-    let head = title_extra(&spec.title, plot_width, metrics);
+    let head = title_extra(spec, plot_width, metrics);
     let top = 78.0 + head + legend_space(dataset, plot_width, metrics);
     let bottom = if spec.value_axis.title.is_some() {
         56.0
@@ -350,7 +350,7 @@ fn layout_line(
     let left = f64::from(AXIS_GUTTER);
     let right = f64::from(PLOT_MARGIN);
     let plot_width = width - left - right;
-    let top = 78.0 + title_extra(&spec.title, plot_width, metrics);
+    let top = 78.0 + title_extra(spec, plot_width, metrics);
     let bottom = if spec.category_axis.title.is_some() {
         82.0
     } else {
@@ -420,11 +420,7 @@ fn layout_time(
         spec.series_names().len() > 1 || spec.layers().any(|layer| layer.mark == Mark::Ohlc);
     // Without a drawn title the legend and the plot move up into its place; a title on two lines
     // pushes them down.
-    let head = if spec.show_title {
-        -title_extra(&spec.title, width - left - right, metrics)
-    } else {
-        TITLE_BLOCK
-    };
+    let head = -title_extra(spec, width - left - right, metrics);
     let legend = if layered {
         count(legend_rows(spec, width - left - right, metrics)) * LEGEND_HEIGHT
     } else {
@@ -446,16 +442,14 @@ fn layout_time(
 
     let frames = pane_frames(spec, zone, plot, warnings);
     let mut elements = Vec::new();
-    if spec.show_title {
-        push_title(
-            &mut elements,
-            &spec.title,
-            plot.left,
-            plot.width,
-            metrics,
-            warnings,
-        );
-    }
+    push_title(
+        &mut elements,
+        spec,
+        plot.left,
+        plot.width,
+        metrics,
+        warnings,
+    );
     for (pane_index, frame) in frames.iter().enumerate() {
         let bottom_pane = pane_index + 1 == frames.len();
         push_pane_axes(
@@ -528,14 +522,14 @@ fn multiples_header(
     let width = f64::from(spec.width);
     push_title(
         elements,
-        &spec.title,
+        spec,
         MULTIPLES_MARGIN,
         width - 2.0 * MULTIPLES_MARGIN,
         metrics,
         warnings,
     );
 
-    let head = title_extra(&spec.title, width - 2.0 * MULTIPLES_MARGIN, metrics);
+    let head = title_extra(spec, width - 2.0 * MULTIPLES_MARGIN, metrics);
     let mut cursor = LEGEND_ROW + head;
     if spec.series_names().len() > 1 {
         add_layer_legend(
@@ -1961,7 +1955,7 @@ fn layout_topicmap(
         .expect("validated topicmap charts carry a topicmap block");
     let margin = f64::from(PLOT_MARGIN);
     let plot_width = f64::from(spec.width) - margin * 2.0;
-    let top = 78.0 + title_extra(&spec.title, plot_width, metrics);
+    let top = 78.0 + title_extra(spec, plot_width, metrics);
     let plot_height = f64::from(spec.height) - top - margin;
 
     let mut ordered: Vec<(usize, &TopicSpec)> = topicmap.topics.iter().enumerate().collect();
@@ -2000,14 +1994,7 @@ fn layout_topicmap(
     let outside = settle_outside_labels(outside, plot, warnings);
 
     let mut elements = Vec::new();
-    push_title(
-        &mut elements,
-        &spec.title,
-        margin,
-        plot_width,
-        metrics,
-        warnings,
-    );
+    push_title(&mut elements, spec, margin, plot_width, metrics, warnings);
     push_sea(&mut elements, plot, topicmap.graticule);
     for area in &areas {
         push_depth_lines(&mut elements, area, topicmap.depth_bands);
@@ -3801,7 +3788,7 @@ pub(crate) fn base_elements(
     let mut elements = Vec::new();
     push_title(
         &mut elements,
-        &spec.title,
+        spec,
         plot.left,
         plot.width,
         metrics,
@@ -4212,9 +4199,12 @@ fn two_lines<'a>(
         .last()
 }
 
-/// The height a title gains when it wraps onto a second line, see [`push_title`].
-pub(crate) fn title_extra(title: &str, max_width: f64, metrics: &impl TextMetrics) -> f64 {
-    if two_lines(title, max_width, TITLE_SIZE, metrics).is_some() {
+/// How far whatever sits below the title moves down: by a second line when the title wraps, see
+/// [`push_title`], and up into its place when the title is not drawn.
+pub(crate) fn title_extra(spec: &ChartSpec, max_width: f64, metrics: &impl TextMetrics) -> f64 {
+    if !spec.show_title {
+        -TITLE_BLOCK
+    } else if two_lines(&spec.title, max_width, TITLE_SIZE, metrics).is_some() {
         TITLE_LINE
     } else {
         0.0
@@ -4223,15 +4213,20 @@ pub(crate) fn title_extra(title: &str, max_width: f64, metrics: &impl TextMetric
 
 /// Draws the chart title at `x`: on one line if it fits `max_width`, otherwise on two, broken at
 /// a space. Only a second line that is still too wide, or a first word wider than the chart, is
-/// shortened. Whatever sits below the title moves down by [`title_extra`].
+/// shortened. Whatever sits below the title moves down by [`title_extra`]. Draws nothing when the
+/// specification leaves the title out.
 pub(crate) fn push_title(
     elements: &mut Vec<Element>,
-    title: &str,
+    spec: &ChartSpec,
     x: f64,
     max_width: f64,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) {
+    if !spec.show_title {
+        return;
+    }
+    let title = spec.title.as_str();
     let lines = match two_lines(title, max_width, TITLE_SIZE, metrics) {
         Some((first, rest)) => vec![
             first.to_owned(),

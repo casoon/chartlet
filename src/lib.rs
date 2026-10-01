@@ -241,7 +241,8 @@ fn render_content(
             ));
         };
         let mut warnings = mobile.validate_mobile_variant()?;
-        let content = render_panel(&mobile, &mobile_prefix(&id_prefix), metrics, &mut warnings);
+        let prefix = mobile_prefix(&id_prefix);
+        let content = render_panel(&mobile, format, &prefix, metrics, &mut warnings);
         return Ok(RenderOutput {
             content,
             warnings,
@@ -263,10 +264,11 @@ fn render_content(
         for (index, step) in spec.zoom_steps.iter().enumerate() {
             let sliced = zoom_variant(spec, step);
             let panel_prefix = format!("{id_prefix}-z{index}");
-            let svg = render_panel(&sliced, &panel_prefix, metrics, &mut warnings);
+            let svg = render_panel(&sliced, format, &panel_prefix, metrics, &mut warnings);
             let mobile = mobile.as_ref().map(|mobile| {
                 render_panel(
                     &zoom_variant(mobile, step),
+                    format,
                     &mobile_prefix(&panel_prefix),
                     metrics,
                     &mut mobile_warnings,
@@ -287,13 +289,14 @@ fn render_content(
         });
     }
 
-    let svg = render_panel(spec, &id_prefix, metrics, &mut warnings);
+    let svg = render_panel(spec, format, &id_prefix, metrics, &mut warnings);
     let content = match format {
         RenderFormat::Svg => svg,
         RenderFormat::Html => {
             let mobile = mobile.as_ref().map(|mobile| {
                 render_panel(
                     mobile,
+                    format,
                     &mobile_prefix(&id_prefix),
                     metrics,
                     &mut mobile_warnings,
@@ -340,9 +343,12 @@ fn zoom_variant(spec: &ChartSpec, step: &ZoomStep) -> ChartSpec {
     }
 }
 
-/// Lays out and serializes one chart, using its explicit description or a generated one.
+/// Lays out and serializes one chart, using its explicit description or a generated one. The HTML
+/// profile captions the chart, so its SVGs leave the drawn title out (`format`); the title stays
+/// their accessible name either way.
 fn render_panel(
     spec: &ChartSpec,
+    format: RenderFormat,
     id_prefix: &str,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
@@ -351,7 +357,15 @@ fn render_panel(
         .description
         .clone()
         .unwrap_or_else(|| automatic_description(spec));
-    let scene = layout::layout(spec, warnings, metrics);
+    let scene = if format == RenderFormat::Html && spec.show_title {
+        let untitled = ChartSpec {
+            show_title: false,
+            ..spec.clone()
+        };
+        layout::layout(&untitled, warnings, metrics)
+    } else {
+        layout::layout(spec, warnings, metrics)
+    };
     render::svg(&scene, spec, &description, id_prefix)
 }
 
@@ -995,6 +1009,63 @@ mod tests {
         assert!(output.content.contains("<details"));
         assert!(output.content.contains("<table>"));
         assert!(output.content.contains("<td>−4</td>"));
+    }
+
+    #[test]
+    fn html_captions_the_title_instead_of_drawing_it() {
+        let svg = render_json(SPEC, RenderFormat::Svg, &RenderOptions::default()).unwrap();
+        let html = render_json(SPEC, RenderFormat::Html, &RenderOptions::default()).unwrap();
+        assert!(
+            svg.content
+                .contains("class=\"chartlet-title\">Profit &amp; loss")
+        );
+        assert!(!html.content.contains("class=\"chartlet-title\""));
+        assert!(
+            html.content
+                .contains("<figcaption>Profit &amp; loss</figcaption>")
+        );
+        assert!(html.content.contains("-title\">Profit &amp; loss</title>"));
+        let ids = |content: &str| {
+            content
+                .split("id=\"")
+                .skip(1)
+                .filter_map(|rest| rest.split('"').next())
+                .filter(|id| id.starts_with("chartlet-"))
+                .map(str::to_owned)
+                .collect::<std::collections::BTreeSet<_>>()
+        };
+        assert!(ids(&svg.content).is_subset(&ids(&html.content)));
+    }
+
+    #[test]
+    fn show_title_false_leaves_the_title_out_of_any_svg() {
+        let spec = SPEC.replacen(
+            "\"type\": \"bar\",",
+            "\"type\": \"bar\", \"showTitle\": false,",
+            1,
+        );
+        let output = render_json(&spec, RenderFormat::Svg, &RenderOptions::default()).unwrap();
+        assert!(!output.content.contains("class=\"chartlet-title\""));
+        assert!(
+            output
+                .content
+                .contains("-title\">Profit &amp; loss</title>")
+        );
+    }
+
+    #[test]
+    fn html_does_not_shorten_the_title() {
+        let title = "A very long title ".repeat(10);
+        let spec = SPEC.replacen("Profit & loss", title.trim(), 1);
+        let truncated = |format| {
+            render_json(&spec, format, &RenderOptions::default())
+                .unwrap()
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "text_truncated" && warning.path == "/title")
+        };
+        assert!(truncated(RenderFormat::Svg));
+        assert!(!truncated(RenderFormat::Html));
     }
 
     #[test]

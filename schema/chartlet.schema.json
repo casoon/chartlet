@@ -80,7 +80,7 @@
     },
     "showValues": { "type": "boolean", "default": true },
     "showTitle": {
-      "description": "false leaves the drawn title out of a time chart; it stays the accessible name. Time charts only.",
+      "description": "false leaves the drawn title out of the SVG profile and gives its space to the chart; the title stays the accessible name. The HTML profile never draws the title: its figcaption is the visible title.",
       "type": "boolean",
       "default": true
     },

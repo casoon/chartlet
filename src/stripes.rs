@@ -31,21 +31,14 @@ pub(crate) fn layout(
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
     let plot_width = width - 2.0 * MARGIN;
-    let top = 56.0 + title_extra(&spec.title, plot_width, metrics);
+    let top = 56.0 + title_extra(spec, plot_width, metrics);
     let bottom = if stripes.year_labels { 40.0 } else { 24.0 };
     let plot_height = height - top - bottom;
     let stripe = plot_width / count(stripes.values.len());
     let scale = stripes.diverging();
 
     let mut elements = Vec::new();
-    push_title(
-        &mut elements,
-        &spec.title,
-        MARGIN,
-        plot_width,
-        metrics,
-        warnings,
-    );
+    push_title(&mut elements, spec, MARGIN, plot_width, metrics, warnings);
 
     let last = stripes.values.len() - 1;
     for (index, (year, value)) in stripes.years().zip(&stripes.values).enumerate() {

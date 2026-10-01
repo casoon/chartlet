@@ -57,13 +57,13 @@ pub(crate) fn layout(
     let mut elements = Vec::new();
     push_title(
         &mut elements,
-        &spec.title,
+        spec,
         MARGIN,
         width - 2.0 * MARGIN,
         metrics,
         warnings,
     );
-    let top = 72.0 + title_extra(&spec.title, width - 2.0 * MARGIN, metrics);
+    let top = 72.0 + title_extra(spec, width - 2.0 * MARGIN, metrics);
     let (values, length) = values_by_day(calendar);
     let year = i64::from(calendar.year);
     let cells = Cells {

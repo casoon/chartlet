@@ -19,7 +19,7 @@ Warnings are written to standard error, and the chart is still produced:
 
 | Code | Meaning |
 | --- | --- |
-| `text_truncated` | A label or title was shortened to fit. A title wraps onto a second line first, as do the category labels of bar and range bar charts; only what does not fit on two lines, or a single word wider than the room, is shortened. The legend of a bar chart wraps into further rows and shortens only a name wider than a whole row. |
+| `text_truncated` | A label or title was shortened to fit. A title is drawn only in the SVG profile and wraps onto a second line first, as do the category labels of bar and range bar charts; only what does not fit on two lines, or a single word wider than the room, is shortened. The legend of a bar chart wraps into further rows and shortens only a name wider than a whole row. |
 | `value_labels_omitted` | Some value labels had no room next to their bars. |
 | `dense_chart` | More than 16 categories; the chart may be hard to read at this size. |
 | `topic_too_small_for_label` | A topic map area is too small to hold its own name; consider listing it as an island. |

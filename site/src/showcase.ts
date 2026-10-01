@@ -181,7 +181,7 @@ const catalogue = [
     chart: 'Mobile variant',
     useCase: 'Stay readable on a phone',
     blurb:
-      'Three sales channels over eighteen months, laid out twice: at 800 × 450 and at 360 × 420 for containers narrower than 640 pixels, where the title wraps onto two lines and the legend into two rows. A container query switches between them; caption, source and data table appear once. The output panel on this page is narrower than 640 pixels at every window size, so it shows the mobile variant. Illustrative values.',
+      'Three sales channels over eighteen months, laid out twice: at 800 × 450 and at 360 × 420 for containers narrower than 640 pixels, where the legend wraps into two rows. A container query switches between them; caption, source and data table appear once. The output panel on this page is narrower than 640 pixels at every window size, so it shows the mobile variant. Illustrative values.',
   },
   {
     slug: 'topicmap-sample',

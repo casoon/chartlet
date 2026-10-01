@@ -11,7 +11,7 @@ is the complete contract and can be used for editor validation.
 | --- | --- | --- |
 | `schemaVersion` | yes | Always `1`. |
 | `type` | yes | `bar`, `line`, `time`, `topicmap`, `atlas`, `stripes`, `calendar`, `rangebar`, or `multiples`. |
-| `title` | yes | Visible title; also the accessible name of the chart. A title wider than the chart wraps onto a second line at a space, and the chart below it moves down; only what does not fit on two lines is shortened (`text_truncated`). |
+| `title` | yes | Visible title; also the accessible name of the chart (`<title>`). The SVG profile draws it in the chart: a title wider than the chart wraps onto a second line at a space, and the chart below it moves down; only what does not fit on two lines is shortened (`text_truncated`). The HTML profile shows it as the `<figcaption>` and draws no title in its SVGs, so it never shortens it. |
 | `data` | one of | Single series: `[{ "label": "…", "value": 1 }]`. |
 | `categories` + `series` | one of | Several series: unique category labels, and `[{ "name": "…", "values": […] }]`. |
 | `orientation` | no | `vertical` (default) or `horizontal`; bar charts only. |
@@ -47,7 +47,7 @@ is the complete contract and can be used for editor validation.
 | `valueAxis.format` | no | `number` (default) or `percent`; `0.12` is shown as `12%`. |
 | `valueAxis.decimals` | no | Fixed decimal places, 0–6, for values in tooltips, value labels, description and table. Axis ticks always carry as many decimals as their step (`0.0, 0.5, 1.0`). On a `time` chart every pane sets it on its own `valueAxis`. |
 | `locale` | no | `en` (default) or `de`: language of the generated texts (description, legend additions, tooltips, calendar month and weekday names, HTML caption and table) and the number format (`1,5`). Available for every chart type. Negative numbers always use the true minus sign `−`. |
-| `showTitle` | no | `false` leaves the drawn title out of a `time` chart when the page heads it; it stays the accessible name and the HTML caption. Default `true`. |
+| `showTitle` | no | `false` leaves the drawn title out of the SVG profile when the page heads the chart, and gives its space to the chart; it stays the accessible name. Every chart type. The HTML profile never draws the title (its `<figcaption>` is the visible title), so it ignores `showTitle`. Default `true`. |
 | `width`, `height` | no | Size in pixels: 320–2400 × 240–1600, default 800 × 450. |
 | `mobile` | no | A second layout for narrow containers: `{ "width": 360, "height": 360, "breakpoint": 640 }`. `width` is required, 280–600; `height` 240–1600, default 360; `breakpoint` 320–1600, default 640, is the container width in CSS pixels below which the HTML profile shows the mobile variant. Available for every chart type. The SVG profile is unchanged; `--variant mobile` renders the mobile variant alone. See [Responsive charts](../guides/responsive.md). |
 | `showValues` | no | Value labels on bars and points, default `true`. On a time pane with several layers the labels can overlap; the values stay in the tooltips and the data table. |

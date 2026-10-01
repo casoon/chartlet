@@ -26,8 +26,8 @@ composed for it rather than a smaller copy.
 | `mobile.breakpoint` | 640 | Container width in CSS pixels below which the mobile variant is shown, 320–1600. |
 
 The mobile variant is available for every chart type. It is laid out by the same rules as the chart
-itself, which already depend on the width: fewer ticks, a title and category labels that wrap onto
-a second line, legends that wrap into further rows, and labels shortened only where two lines do
+itself, which already depend on the width: fewer ticks, a drawn title (SVG profile) and category
+labels that wrap onto a second line, legends that wrap into further rows, and labels shortened only where two lines do
 not suffice. A label that only the mobile layout has to shorten is reported with its
 usual code and path, and a message beginning with `mobile variant: `.
 
@@ -40,7 +40,8 @@ with a CSS container query on the wrapper's width:
   breakpoint. A browser without container queries keeps the full-size chart.
 - The hidden variant is `display: none`, so exactly one SVG is in the accessibility tree at any
   width.
-- Caption, source and data table appear once. Series filters, zoom steps and the area picker of a
+- Caption, source and data table appear once; the caption is the visible title, neither SVG draws
+  one. Series filters, zoom steps and the area picker of a
   topic map are shared and switch both variants.
 - The IDs of the mobile variant end in `-m` (`revenue-m`, `revenue-m-title`, …), so both variants
   and their scoped styles stay apart on one page.

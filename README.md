@@ -199,8 +199,8 @@ reported as `dense_chart`. Small multiples take 2 to 12 panes.
 
 | Option | Effect |
 |---|---|
-| `--format svg` | Standalone SVG with `<title>` and `<desc>` (default). |
-| `--format html` | `<figure>` with caption, SVG, source and data table; with `mobile` in the specification, both variants behind a container query. |
+| `--format svg` | Standalone SVG with `<title>` and `<desc>` and the title drawn in the chart (default). |
+| `--format html` | `<figure>` with caption, SVG, source and data table; the caption is the visible title, the SVG draws none. With `mobile` in the specification, both variants behind a container query. |
 | `--table details` | Puts the HTML data table in a native, initially closed `<details>` (default). |
 | `--table visible` | Shows the data table permanently. |
 | `--id-prefix <prefix>` | Stable ID of the chart root and prefix for its other IDs; needed when the same chart appears twice on one page. |
@@ -222,7 +222,9 @@ or external resources.
   (Budget, Actual). Highest: 160 (Budget in April). Lowest: 120 (Budget in January). 1 value is
   missing.”
 - The HTML output adds a `<figure>` with caption and a real `<table>` containing every value,
-  including values whose visual label had to be left out.
+  including values whose visual label had to be left out. The caption is the visible title: the
+  SVG inside the figure draws none, so the title is shown and announced once, while the SVG keeps it
+  as its accessible name.
 - Series colors stay distinguishable for the common forms of color-vision deficiency and have at
   least 4.5:1 contrast against white — and against the dark theme's background, where the lowest
   series color reaches 7.65:1. The legend lists series in the same order as the bars.
@@ -245,7 +247,7 @@ Warnings are written to standard error, and the chart is still produced:
 
 | Code | Meaning |
 |---|---|
-| `text_truncated` | A label or title was shortened to fit. Titles and the category labels of bar and range bar charts wrap onto a second line first; what does not fit on two lines is shortened. |
+| `text_truncated` | A label or title was shortened to fit. Titles (drawn only in the SVG profile) and the category labels of bar and range bar charts wrap onto a second line first; what does not fit on two lines is shortened. |
 | `value_labels_omitted` | Some value labels had no room next to their bars. |
 | `dense_chart` | More than 16 categories, or more observations in a time layer than the plot has horizontal pixels; the chart may be hard to read at this size. |
 | `color_not_supported` | A layer's `color` was outside the contract and replaced by the neutral gray. |

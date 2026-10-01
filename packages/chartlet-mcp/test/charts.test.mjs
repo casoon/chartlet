@@ -45,7 +45,8 @@ test("validates with structured errors and warnings", () => {
 
 test("reports warnings of the mobile variant", () => {
   const spec = example("mobile-revenue");
-  spec.title = "A very long title that will need to wrap or be truncated on narrow mobile layouts";
+  spec.panes[0].layers[0].name =
+    "A very long series name that cannot fit into a narrow mobile legend row at all";
   spec.mobile.width = 280;
   assert.ok(validateSpec(spec).warnings.some(({ message }) => message.startsWith("mobile variant")));
 });

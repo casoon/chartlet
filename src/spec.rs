@@ -56,8 +56,8 @@ pub struct ChartSpec {
     pub height: u32,
     #[serde(default = "default_show_values")]
     pub show_values: bool,
-    /// Whether the title is drawn in the chart. It always remains the accessible name and the
-    /// HTML caption; a page that heads the chart itself can leave the drawing out.
+    /// Whether the SVG profile draws the title in the chart. It always remains the accessible name;
+    /// the HTML profile never draws it, its caption is the visible title.
     #[serde(default = "default_true", skip_serializing_if = "is_true")]
     pub show_title: bool,
     /// Single-series data. Use either `data` or `categories` with `series`.
@@ -1120,13 +1120,6 @@ impl ChartSpec {
             ));
         }
         self.validate_decimals()?;
-        if !self.show_title && self.chart_type != ChartType::Time {
-            return Err(ChartError::new(
-                "option_not_supported",
-                "/showTitle",
-                "leaving the drawn title out is available for time charts so far",
-            ));
-        }
         validate_text(&self.title, "/title", 200)?;
         if let Some(description) = &self.description {
             validate_text(description, "/description", 1_000)?;

@@ -9,7 +9,9 @@ order: 4
   (Budget, Actual). Highest: 160 (Budget in April). Lowest: 120 (Budget in January). 1 value is
   missing.”
 - The HTML output adds a `<figure>` with caption and a real `<table>` containing every value,
-  including values whose visual label had to be left out.
+  including values whose visual label had to be left out. The caption is the visible title: the
+  SVG inside the figure draws none, so the title is shown and announced once, while the SVG keeps it
+  as its accessible name.
 - Series colours stay distinguishable for the common forms of colour-vision deficiency and have at
   least 4.5:1 contrast against white — and against the dark theme's background, where the lowest
   series colour reaches 7.65:1. The legend lists series in the same order as the bars.

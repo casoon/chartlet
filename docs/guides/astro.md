@@ -29,7 +29,7 @@ import revenue from '../data/monthly-revenue.json';
 - `id` must be stable and unique within the page. It prevents accessibility ID collisions when the
   same specification is embedded more than once.
 - `format="svg"` renders the graphic alone; `format="html"` (the default) renders the figure with
-  caption, source and data table.
+  caption, source and data table; the caption is the visible title, the graphic draws none.
 - The HTML table uses a native disclosure by default; set `table="visible"` to show it permanently.
 - A specification with `mobile` needs nothing extra: the component passes the HTML through, and
   the figure switches to the mobile variant by the width of its container. See

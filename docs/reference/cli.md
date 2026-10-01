@@ -11,8 +11,8 @@ chartlet render <spec.json | -> [options]
 
 | Option | Effect |
 | --- | --- |
-| `--format svg` | Standalone SVG with `<title>` and `<desc>` (default). |
-| `--format html` | `<figure>` with caption, SVG, source and data table; with `mobile` in the specification, both variants behind a container query. |
+| `--format svg` | Standalone SVG with `<title>` and `<desc>` and the title drawn in the chart (default). |
+| `--format html` | `<figure>` with caption, SVG, source and data table; the caption is the visible title, the SVG draws none. With `mobile` in the specification, both variants behind a container query. |
 | `--table details` | Puts the HTML data table in a native, initially closed `<details>` (default). |
 | `--table visible` | Shows the data table permanently. |
 | `--id-prefix <prefix>` | Stable ID of the chart root and prefix for its other IDs; needed when the same chart appears twice on one page. |
