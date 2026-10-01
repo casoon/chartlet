@@ -5,7 +5,8 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "strict", "allowWarnings", "manifest", "alternative" } }`. Response: `{ "ok": true, "content", "styleHashes",
+//! "variant", "strict", "allowWarnings", "manifest", "alternative", "styles" } }`, or
+//! `{ "stylesheet": true }` for the shared stylesheet of `"styles": "external"`. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
 //! `{ "ok": false, "error": { "code", "path", "message" }, "warnings" }`, the same diagnostics
 //! the CLI reports with `--diagnostics json`. `styleHashes` are the CSP source expressions of the
@@ -21,8 +22,8 @@ use std::{
 };
 
 use chartlet::{
-    ChartSpec, ChartWarning, Manifest, RenderFormat, RenderOptions, TableMode, TextAlternative,
-    Variant, render_json, text_alternative,
+    ChartSpec, ChartWarning, Manifest, RenderFormat, RenderOptions, Styles, TableMode,
+    TextAlternative, Variant, render_json, stylesheet, text_alternative,
 };
 use serde_json::{Value, json};
 
@@ -65,6 +66,9 @@ pub extern "C" fn result_len() -> usize {
 }
 
 fn respond(request: &[u8]) -> Value {
+    if serde_json::from_slice::<Value>(request).is_ok_and(|request| request["stylesheet"] == true) {
+        return json!({ "ok": true, "stylesheet": stylesheet() });
+    }
     let mut warnings = Vec::new();
     let result = run(request, &mut warnings);
     let warnings: Vec<Value> = warnings.iter().map(warning_json).collect();
@@ -131,6 +135,11 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
         Some("print") => Variant::Print,
         _ => return Err(failure("variant must be desktop, mobile or print")),
     };
+    let styles = match options["styles"].as_str() {
+        Some("inline") | None => Styles::Inline,
+        Some("external") => Styles::External,
+        _ => return Err(failure("styles must be inline or external")),
+    };
     let rendered = render_json(
         &spec,
         format,
@@ -139,6 +148,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
             table_mode,
             variant,
             manifest: options["manifest"].as_bool() == Some(true),
+            styles,
         },
     )
     .map_err(|error| error_json(&error))?;

@@ -8,6 +8,7 @@ export interface Props {
   table?: 'details' | 'visible';
   strict?: boolean;
   allowWarnings?: string[];
+  styles?: 'inline' | 'external';
   binary?: string;
 }
 
@@ -18,6 +19,7 @@ const {
   table = 'details',
   strict = false,
   allowWarnings,
+  styles,
   binary,
 } = Astro.props;
 
@@ -30,6 +32,7 @@ const rendered = renderChart(spec, {
   table,
   strict,
   allowWarnings,
+  styles,
   binary,
   idPrefix: id,
 });

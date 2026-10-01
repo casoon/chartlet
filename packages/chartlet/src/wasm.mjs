@@ -10,22 +10,8 @@ export function createRenderer(module) {
     .exports;
 
   // Sends one request to the renderer and returns its parsed JSON response.
-  function respond(spec, options) {
-    const request = encoder.encode(
-      JSON.stringify({
-        spec,
-        options: {
-          format: options.format ?? "html",
-          table: options.table ?? "details",
-          idPrefix: options.idPrefix || undefined,
-          variant: options.variant,
-          strict: options.strict ?? false,
-          allowWarnings: options.allowWarnings ?? [],
-          manifest: options.manifest ?? false,
-          alternative: options.alternative ?? false,
-        },
-      }),
-    );
+  function send(message) {
+    const request = encoder.encode(JSON.stringify(message));
     const input = alloc(request.length);
     new Uint8Array(memory.buffer, input, request.length).set(request);
     const output = render(input, request.length);
@@ -34,6 +20,24 @@ export function createRenderer(module) {
     dealloc(input, request.length);
     dealloc(output, length);
     return response;
+  }
+
+  // Renders one chart and returns the renderer's response.
+  function respond(spec, options) {
+    return send({
+      spec,
+      options: {
+        format: options.format ?? "html",
+        table: options.table ?? "details",
+        idPrefix: options.idPrefix || undefined,
+        variant: options.variant,
+        strict: options.strict ?? false,
+        allowWarnings: options.allowWarnings ?? [],
+        manifest: options.manifest ?? false,
+        alternative: options.alternative ?? false,
+        styles: options.styles ?? "inline",
+      },
+    });
   }
 
   return {
@@ -63,6 +67,11 @@ export function createRenderer(module) {
     // and `alternative`, and the warnings as `{ code, path, message }`. A string is taken as JSON text.
     renderChartDetailed(spec, options = {}) {
       return respond(typeof spec === "string" ? spec : JSON.stringify(spec), options);
+    },
+
+    // The shared stylesheet that charts rendered with `styles: "external"` rely on.
+    stylesheet() {
+      return send({ stylesheet: true }).stylesheet;
     },
   };
 }

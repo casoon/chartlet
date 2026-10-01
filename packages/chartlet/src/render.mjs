@@ -36,6 +36,12 @@ function withAlternative(rendered, spec, options) {
   return rendered;
 }
 
+// The shared stylesheet that charts rendered with `styles: "external"` rely on. The package also
+// ships it as `@casoon/chartlet/chartlet.css`.
+export function stylesheet() {
+  return wasmRenderer().stylesheet();
+}
+
 // Resolved by package name, not relative to this file: bundlers such as Vite copy this module
 // into a server chunk elsewhere, but leave the package where Node can resolve it.
 function readWasm() {
@@ -114,6 +120,9 @@ function runCli(binary, input, options, extraArgs) {
   }
   if (options.variant) {
     args.push("--variant", options.variant);
+  }
+  if (options.styles) {
+    args.push("--styles", options.styles);
   }
   if (options.strict) {
     args.push("--strict");

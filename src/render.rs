@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use crate::{
-    DataTable, TableMode,
+    DataTable, Styles, TableMode,
     layout::format_value,
     scene::{Element, Scene, TextAnchor, TextStyle},
     spec::{ChartSpec, ChartType, Dash, Mark, Stroke, Theme},
@@ -138,30 +138,41 @@ fn root_id(svg: &str) -> Option<&str> {
     Some(&svg[start..end])
 }
 
-/// Serializes a laid-out chart. `print` resolves its stylesheet for renderers outside the
-/// browser, see [`print_stylesheet`].
+/// Where a chart's stylesheet goes: all of it inline, only its own declared colors inline with the
+/// rest in the shared stylesheet, or all of it inline and resolved for the print variant.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StyleMode {
+    Inline,
+    External,
+    /// Resolved for renderers outside the browser, see [`print_stylesheet`].
+    Print,
+}
+
+impl From<Styles> for StyleMode {
+    fn from(styles: Styles) -> Self {
+        match styles {
+            Styles::Inline => Self::Inline,
+            Styles::External => Self::External,
+        }
+    }
+}
+
+/// Serializes a laid-out chart with its stylesheet placed as `styles` says.
 pub(crate) fn svg(
     scene: &Scene,
     spec: &ChartSpec,
     description: &str,
     id_prefix: &str,
-    print: bool,
+    styles: StyleMode,
 ) -> String {
     let title_id = format!("{id_prefix}-title");
     let description_id = format!("{id_prefix}-description");
-    let has_series = spec.series.len() > 1;
-    let is_time = matches!(spec.chart_type, ChartType::Time | ChartType::Multiples);
     let is_multiples = spec.chart_type == ChartType::Multiples;
-    let is_diverging = matches!(spec.chart_type, ChartType::Stripes | ChartType::Calendar);
-    let is_calendar = spec.chart_type == ChartType::Calendar;
-    let is_rangebar = spec.chart_type == ChartType::Rangebar;
-    let is_topicmap = spec.chart_type == ChartType::Topicmap;
-    let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = spec.theme == Theme::Dark;
     let mut output = String::new();
     write!(
         output,
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}\">",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}{}\">",
         scene.width,
         scene.height,
         scene.width,
@@ -171,11 +182,76 @@ pub(crate) fn svg(
             (true, false) => " chartlet-theme-dark",
             (false, true) => " chartlet-multiples",
             (false, false) => "",
+        },
+        // The shared stylesheet addresses each chart type by this class.
+        if styles == StyleMode::External {
+            format!(" {}", type_class(spec.chart_type))
+        } else {
+            String::new()
         }
     )
     .expect("writing to String cannot fail");
-    let stylesheet = format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+    let print = styles == StyleMode::Print;
+    let stylesheet = match styles {
+        StyleMode::Inline => base_style(spec, false) + &layer_style(spec),
+        StyleMode::External => layer_style(spec),
+        StyleMode::Print => {
+            print_stylesheet(&(base_style(spec, true) + &layer_style(spec)), is_dark)
+        }
+    };
+    write!(
+        output,
+        "<title id=\"{title_id}\">{}</title><desc id=\"{description_id}\">{}</desc>",
+        escape(&spec.title),
+        escape(description),
+    )
+    .expect("writing to String cannot fail");
+    if !stylesheet.is_empty() {
+        write!(
+            output,
+            "<style>{}</style>",
+            scope_stylesheet(&stylesheet, &format!("#{id_prefix}"), print),
+        )
+        .expect("writing to String cannot fail");
+    }
+    emit_hatches(spec, id_prefix, &mut output);
+
+    // A dark chart cannot know the color of the page behind it, so it paints its own surface.
+    if is_dark {
+        write!(
+            output,
+            "<rect class=\"chartlet-background\" x=\"0\" y=\"0\" width=\"{}\" height=\"{}\"/>",
+            scene.width, scene.height
+        )
+        .expect("writing to String cannot fail");
+    }
+    for element in &scene.elements {
+        emit_element(element, id_prefix, &mut output);
+    }
+    output.push_str("</svg>");
+    output
+}
+
+/// The class by which the shared stylesheet addresses a chart type.
+fn type_class(chart_type: ChartType) -> String {
+    format!("chartlet-type-{}", crate::spec::type_name(chart_type))
+}
+
+/// The style groups a chart uses, in the order of [`shared_stylesheet`], so that rules cascade
+/// alike in a chart's own stylesheet and in the shared one. The print variant has no series
+/// filter to style.
+fn base_style(spec: &ChartSpec, print: bool) -> String {
+    let has_series = spec.series.len() > 1;
+    let is_time = matches!(spec.chart_type, ChartType::Time | ChartType::Multiples);
+    let is_multiples = spec.chart_type == ChartType::Multiples;
+    let is_diverging = matches!(spec.chart_type, ChartType::Stripes | ChartType::Calendar);
+    let is_calendar = spec.chart_type == ChartType::Calendar;
+    let is_rangebar = spec.chart_type == ChartType::Rangebar;
+    let is_topicmap = spec.chart_type == ChartType::Topicmap;
+    let is_atlas = spec.chart_type == ChartType::Atlas;
+    let is_dark = spec.theme == Theme::Dark;
+    format!(
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -219,37 +295,48 @@ pub(crate) fn svg(
         } else {
             ""
         },
-        layer_style(spec),
-    );
-    let stylesheet = if print {
-        print_stylesheet(&stylesheet, is_dark)
-    } else {
-        stylesheet
-    };
-    write!(
-        output,
-        "<title id=\"{title_id}\">{}</title><desc id=\"{description_id}\">{}</desc><style>{}</style>",
-        escape(&spec.title),
-        escape(description),
-        scope_stylesheet(&stylesheet, id_prefix, print),
     )
-    .expect("writing to String cannot fail");
-    emit_hatches(spec, id_prefix, &mut output);
+}
 
-    // A dark chart cannot know the color of the page behind it, so it paints its own surface.
-    if is_dark {
-        write!(
-            output,
-            "<rect class=\"chartlet-background\" x=\"0\" y=\"0\" width=\"{}\" height=\"{}\"/>",
-            scene.width, scene.height
-        )
-        .expect("writing to String cannot fail");
+/// Every style group for every chart type that can use it, in the order of [`base_style`]. The
+/// light palette and the dark theme apply to every chart; every other group is scoped to the
+/// chart types that use it, so that two groups styling the same class, such as the hatching of a
+/// time chart and of a range bar chart, never meet.
+pub(crate) fn shared_stylesheet() -> String {
+    use ChartType::{Atlas, Bar, Calendar, Multiples, Rangebar, Stripes, Time, Topicmap};
+    let groups: [(&str, &[ChartType]); 16] = [
+        (STYLE, &[]),
+        (DARK_STYLE, &[]),
+        (SERIES_STYLE, &[Bar]),
+        (FILTER_STYLE, &[Bar]),
+        (LINE_SERIES_STYLE, &[Time, Multiples]),
+        (LAYER_EXTRA_STYLE, &[Time, Multiples]),
+        (MARK_EXTRA_STYLE, &[Time, Multiples]),
+        (ANNOTATION_EXTRA_STYLE, &[Time, Multiples]),
+        (MULTIPLES_STYLE, &[Multiples]),
+        (crate::diverging::STYLE, &[Stripes, Calendar]),
+        (CALENDAR_STYLE, &[Calendar]),
+        (RANGEBAR_STYLE, &[Rangebar]),
+        (REFERENCE_STYLE, &[Bar]),
+        (TOPICMAP_STYLE, &[Topicmap]),
+        (ATLAS_STYLE, &[Atlas]),
+        (OHLC_STYLE, &[Time]),
+    ];
+    let mut stylesheet = String::new();
+    for (group, types) in groups {
+        // An empty list of types: the group applies to every chart.
+        if types.is_empty() {
+            stylesheet.push_str(&scope_stylesheet(group, ".chartlet-root", false));
+        }
+        for chart_type in types {
+            stylesheet.push_str(&scope_stylesheet(
+                group,
+                &format!(".{}", type_class(*chart_type)),
+                false,
+            ));
+        }
     }
-    for element in &scene.elements {
-        emit_element(element, id_prefix, &mut output);
-    }
-    output.push_str("</svg>");
-    output
+    stylesheet
 }
 
 /// The stylesheet of the print variant. Renderers outside the browser, such as those of print and
@@ -344,7 +431,7 @@ fn resolve_variables<'a>(declaration: &str, lookup: &impl Fn(&str) -> Option<&'a
 /// doubles its class so that a later light chart's defaults cannot win over it. Rules for the
 /// HTML controls around the SVG stay as they are. The print variant has no custom properties to
 /// override, so its rules on the root are scoped by ID too.
-fn scope_stylesheet(stylesheet: &str, id_prefix: &str, print: bool) -> String {
+fn scope_stylesheet(stylesheet: &str, scope: &str, print: bool) -> String {
     let mut scoped = String::with_capacity(stylesheet.len() * 2);
     for rule in stylesheet.split_inclusive('}') {
         let Some((selectors, body)) = rule.split_once('{') else {
@@ -353,7 +440,7 @@ fn scope_stylesheet(stylesheet: &str, id_prefix: &str, print: bool) -> String {
         };
         let selectors: Vec<String> = selectors
             .split(',')
-            .map(|selector| scope_selector(selector, id_prefix, print))
+            .map(|selector| scope_selector(selector, scope, print))
             .collect();
         scoped.push_str(&selectors.join(","));
         scoped.push('{');
@@ -362,7 +449,7 @@ fn scope_stylesheet(stylesheet: &str, id_prefix: &str, print: bool) -> String {
     scoped
 }
 
-fn scope_selector(selector: &str, id_prefix: &str, print: bool) -> String {
+fn scope_selector(selector: &str, scope: &str, print: bool) -> String {
     const ROOT_CLASSES: [&str; 3] = [
         ".chartlet-root",
         ".chartlet-theme-dark",
@@ -379,10 +466,10 @@ fn scope_selector(selector: &str, id_prefix: &str, print: bool) -> String {
         (true, false) if selector == ".chartlet-theme-dark" => {
             ".chartlet-root.chartlet-theme-dark".to_owned()
         }
-        (true, false) if print => format!("#{id_prefix}{selector}"),
+        (true, false) if print => format!("{scope}{selector}"),
         (true, false) => selector.to_owned(),
-        (true, true) => format!("#{id_prefix}{selector}"),
-        (false, _) => format!("#{id_prefix} {selector}"),
+        (true, true) => format!("{scope}{selector}"),
+        (false, _) => format!("{scope} {selector}"),
     }
 }
 

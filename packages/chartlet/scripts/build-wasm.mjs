@@ -1,9 +1,11 @@
 // Builds the WebAssembly renderer from the workspace crate `wasm/` and copies it to
 // src/chartlet.wasm. Runs wasm-opt when it is on PATH; the output is valid without it.
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync } from "node:fs";
+import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { createRenderer } from "../src/wasm.mjs";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repository = resolve(packageDirectory, "../..");
@@ -40,3 +42,7 @@ if (optimized.error?.code === "ENOENT") {
 } else if (optimized.status !== 0) {
   process.exit(optimized.status ?? 1);
 }
+
+// The shared stylesheet for `styles: "external"`, from the renderer just built.
+const renderer = createRenderer(new WebAssembly.Module(readFileSync(output)));
+writeFileSync(join(packageDirectory, "src/chartlet.css"), `${renderer.stylesheet()}\n`);

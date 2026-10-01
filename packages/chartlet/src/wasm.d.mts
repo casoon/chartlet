@@ -12,6 +12,8 @@ export interface ChartRenderer {
     spec: Record<string, unknown> | string,
     options?: RenderChartOptions,
   ): RenderChartDetailedResult;
+  /** The shared stylesheet that charts rendered with `styles: "external"` rely on. */
+  stylesheet(): string;
 }
 
 /** Instantiates the renderer from the compiled `@casoon/chartlet/chartlet.wasm` module. */

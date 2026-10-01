@@ -17,6 +17,11 @@ export interface RenderChartOptions {
   allowWarnings?: string[];
   /** Also return a provenance manifest of the render in `manifest`. */
   manifest?: boolean;
+  /**
+   * `inline` (default): every chart carries its whole stylesheet. `external`: the page loads
+   * `@casoon/chartlet/chartlet.css` once, and a chart carries only its own declared colors.
+   */
+  styles?: "inline" | "external";
   /** Also return the chart's text alternative in `alternative`. */
   alternative?: boolean;
   /** A `chartlet` executable to render with instead of the bundled WebAssembly build. */
@@ -76,6 +81,9 @@ export interface ChartTextAlternative {
     rows: string[][];
   };
 }
+
+/** The shared stylesheet that charts rendered with `styles: "external"` rely on. */
+export declare function stylesheet(): string;
 
 export declare function renderChart(
   spec: Record<string, unknown>,

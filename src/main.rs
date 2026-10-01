@@ -5,7 +5,9 @@ use std::{
     process,
 };
 
-use chartlet::{ChartWarning, RenderFormat, RenderOptions, TableMode, Variant, render_json};
+use chartlet::{
+    ChartWarning, RenderFormat, RenderOptions, Styles, TableMode, Variant, render_json, stylesheet,
+};
 use serde_json::{Value, json};
 
 /// A failure of the CLI: a code for machine-readable diagnostics, the location in the
@@ -63,6 +65,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut arguments = env::args().skip(1);
     match arguments.next().as_deref() {
         Some("render") => {}
+        Some("stylesheet") => return Ok(write_stdout(&stylesheet())?),
         Some("-h" | "--help") => return Ok(write_stdout(&usage())?),
         _ => return Err(usage().into()),
     }
@@ -79,16 +82,11 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut table_mode = TableMode::Details;
     let mut variant = Variant::Desktop;
     let mut manifest = None;
+    let mut styles = Styles::Inline;
 
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
-            "--format" => {
-                format = match arguments.next().as_deref() {
-                    Some("svg") => RenderFormat::Svg,
-                    Some("html") => RenderFormat::Html,
-                    _ => return Err("--format must be svg or html".to_owned().into()),
-                };
-            }
+            "--format" => format = parse_format(arguments.next().as_deref())?,
             "-o" | "--output" => output = Some(path_after(&mut arguments, "--output")?),
             "--id-prefix" => {
                 id_prefix = Some(
@@ -111,6 +109,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                 };
             }
             "--variant" => variant = parse_variant(arguments.next().as_deref())?,
+            "--styles" => styles = parse_styles(arguments.next().as_deref())?,
             "--manifest" => manifest = Some(path_after(&mut arguments, "--manifest")?),
             "--diagnostics" => match arguments.next().as_deref() {
                 Some("json" | "text") => {}
@@ -131,6 +130,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             table_mode,
             variant,
             manifest: manifest.is_some(),
+            styles,
         },
     )
     .map_err(|error| Failure {
@@ -177,6 +177,22 @@ fn path_after(
         .ok_or_else(|| format!("{option} requires a path"))
 }
 
+fn parse_format(value: Option<&str>) -> Result<RenderFormat, String> {
+    match value {
+        Some("svg") => Ok(RenderFormat::Svg),
+        Some("html") => Ok(RenderFormat::Html),
+        _ => Err("--format must be svg or html".to_owned()),
+    }
+}
+
+fn parse_styles(value: Option<&str>) -> Result<Styles, String> {
+    match value {
+        Some("inline") => Ok(Styles::Inline),
+        Some("external") => Ok(Styles::External),
+        _ => Err("--styles must be inline or external".to_owned()),
+    }
+}
+
 fn parse_variant(value: Option<&str>) -> Result<Variant, String> {
     match value {
         Some("desktop") => Ok(Variant::Desktop),
@@ -200,7 +216,8 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print] [--manifest <path>] [--strict [--allow-warning <code>]...] [--diagnostics text|json]".to_owned()
+    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print] [--manifest <path>] [--styles inline|external] [--strict [--allow-warning <code>]...] [--diagnostics text|json]
+       chartlet stylesheet".to_owned()
 }
 
 /// Writes to stdout. A reader that stops early, such as `chartlet render … | head`, closes the

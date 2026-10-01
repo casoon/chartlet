@@ -45,6 +45,26 @@ pub struct RenderOptions {
     pub variant: Variant,
     /// Also returns a [`Manifest`] of the render in [`RenderOutput::manifest`].
     pub manifest: bool,
+    /// Where the chart's styles live. The print variant always carries its own.
+    pub styles: Styles,
+}
+
+/// Where a chart's styles live.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Styles {
+    /// Every chart carries its whole stylesheet, scoped to its root: an SVG file stands alone.
+    #[default]
+    Inline,
+    /// The page loads the shared [`stylesheet`] once; a chart carries only what is its own, such
+    /// as declared layer colors, and often no `<style>` at all.
+    External,
+}
+
+/// The stylesheet every chart rendered with [`Styles::External`] relies on. It is the same for
+/// every chart, so a site serves it once as a cacheable file.
+#[must_use]
+pub fn stylesheet() -> String {
+    render::shared_stylesheet()
 }
 
 /// Which layout the SVG profile renders. The HTML profile always carries the chart and, when the
@@ -264,11 +284,27 @@ fn render_content(
 
     let mobile = spec.mobile_variant();
     let mobile_prefix = |prefix: &str| format!("{prefix}-m");
+    let panel = |spec: &ChartSpec, prefix: &str, warnings: &mut Vec<ChartWarning>| {
+        render_panel(
+            spec,
+            format,
+            prefix,
+            options.styles.into(),
+            metrics,
+            warnings,
+        )
+    };
 
     match options.variant {
         Variant::Desktop => {}
         Variant::Mobile => {
-            return render_mobile_alone(mobile, format, &mobile_prefix(&id_prefix), metrics);
+            return render_mobile_alone(
+                mobile,
+                format,
+                &mobile_prefix(&id_prefix),
+                options.styles,
+                metrics,
+            );
         }
         Variant::Print => return render_print(spec, format, &id_prefix, warnings, metrics),
     }
@@ -287,21 +323,11 @@ fn render_content(
         for (index, step) in spec.zoom_steps.iter().enumerate() {
             let sliced = zoom_variant(spec, step);
             let panel_prefix = format!("{id_prefix}-z{index}");
-            let svg = render_panel(
-                &sliced,
-                format,
-                &panel_prefix,
-                false,
-                metrics,
-                &mut warnings,
-            );
+            let svg = panel(&sliced, &panel_prefix, &mut warnings);
             let mobile = mobile.as_ref().map(|mobile| {
-                render_panel(
+                panel(
                     &zoom_variant(mobile, step),
-                    format,
                     &mobile_prefix(&panel_prefix),
-                    false,
-                    metrics,
                     &mut mobile_warnings,
                 )
             });
@@ -320,20 +346,13 @@ fn render_content(
         });
     }
 
-    let svg = render_panel(spec, format, &id_prefix, false, metrics, &mut warnings);
+    let svg = panel(spec, &id_prefix, &mut warnings);
     let content = match format {
         RenderFormat::Svg => svg,
         RenderFormat::Html => {
-            let mobile = mobile.as_ref().map(|mobile| {
-                render_panel(
-                    mobile,
-                    format,
-                    &mobile_prefix(&id_prefix),
-                    false,
-                    metrics,
-                    &mut mobile_warnings,
-                )
-            });
+            let mobile = mobile
+                .as_ref()
+                .map(|mobile| panel(mobile, &mobile_prefix(&id_prefix), &mut mobile_warnings));
             merge_mobile_warnings(&mut warnings, mobile_warnings);
             render::html(
                 render::Panel {
@@ -380,6 +399,7 @@ fn render_mobile_alone(
     mobile: Option<ChartSpec>,
     format: RenderFormat,
     prefix: &str,
+    styles: Styles,
     metrics: &impl TextMetrics,
 ) -> Result<RenderOutput, ChartError> {
     if format == RenderFormat::Html {
@@ -397,7 +417,14 @@ fn render_mobile_alone(
         ));
     };
     let mut warnings = mobile.validate_mobile_variant()?;
-    let content = render_panel(&mobile, format, prefix, false, metrics, &mut warnings);
+    let content = render_panel(
+        &mobile,
+        format,
+        prefix,
+        styles.into(),
+        metrics,
+        &mut warnings,
+    );
     Ok(RenderOutput {
         content,
         warnings,
@@ -424,7 +451,7 @@ fn render_print(
         spec,
         format,
         &format!("{id_prefix}-p"),
-        true,
+        render::StyleMode::Print,
         metrics,
         &mut warnings,
     );
@@ -457,7 +484,7 @@ fn render_panel(
     spec: &ChartSpec,
     format: RenderFormat,
     id_prefix: &str,
-    print: bool,
+    styles: render::StyleMode,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> String {
@@ -474,7 +501,7 @@ fn render_panel(
     } else {
         layout::layout(spec, warnings, metrics)
     };
-    render::svg(&scene, spec, &description, id_prefix, print)
+    render::svg(&scene, spec, &description, id_prefix, styles)
 }
 
 /// Zoom panels repeat the same data, so identical warnings would otherwise appear once per panel.

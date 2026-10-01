@@ -24,6 +24,7 @@
       "import": "./src/wasm.mjs"
     },
     "./chartlet.wasm": "./src/chartlet.wasm",
+    "./chartlet.css": "./src/chartlet.css",
     "./astro": "./src/Chart.astro"
   },
   "peerDependencies": {

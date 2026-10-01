@@ -111,6 +111,23 @@ const { renderChart } = createRenderer(module);
 `renderChart` from `createRenderer` takes the same options and returns the same result as the
 Node.js entry; `binary` is ignored.
 
+## Shared stylesheet
+
+By default every chart carries its whole stylesheet, scoped to its root, so an SVG file stands
+alone. On a page with many charts that repeats about 1.5–4 KB of identical CSS per chart, and a
+mobile variant repeats it again. With `styles: 'external'` a chart carries only what is its own —
+the colors its layers declare — and usually no `<style>` at all; the page loads the shared
+stylesheet once:
+
+```js
+import '@casoon/chartlet/chartlet.css'; // or link the file; 16 KB, about 2 KB gzipped
+const { content } = renderChart(spec, { format: 'html', styles: 'external' });
+```
+
+The stylesheet is the same for every chart, so it caches across pages, and as a file it needs no
+CSP hash. `stylesheet()` returns it as a string; the CLI prints it with `chartlet stylesheet` and
+renders with `--styles external`. A chart looks the same either way.
+
 ## Content Security Policy
 
 A chart carries its styles in inline `<style>` elements, which a strict `style-src` blocks unless

@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { createRenderer } from "@casoon/chartlet/wasm";
 
-import { renderChart, renderChartDetailed } from "../src/render.mjs";
+import { renderChart, renderChartDetailed, stylesheet } from "../src/render.mjs";
 
 // Without a CLI configured, renderChart uses the bundled WebAssembly build.
 delete process.env.CHARTLET_BIN;
@@ -143,6 +143,18 @@ test("reports the outcome as structured diagnostics without throwing", () => {
     renderChart(spec, { format: "svg", alternative: true, binary }).alternative,
     described.alternative,
   );
+
+  const external = renderChart(spec, { format: "svg", styles: "external" });
+  assert.ok(!external.content.includes("<style>"));
+  assert.deepEqual(external.styleHashes, []);
+  assert.ok(external.content.includes("chartlet-type-line"));
+  assert.deepEqual(
+    renderChart(spec, { format: "svg", styles: "external", binary }).content,
+    external.content,
+  );
+  const css = stylesheet();
+  assert.equal(css, execFileSync(binary, ["stylesheet"], { encoding: "utf8" }).trimEnd());
+  assert.equal(readFileSync(join(packageDirectory, "src/chartlet.css"), "utf8").trimEnd(), css);
 
   const pie = renderChartDetailed({ ...spec, type: "pie" });
   assert.equal(pie.ok, false);
