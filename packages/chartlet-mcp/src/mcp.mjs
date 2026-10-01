@@ -1,13 +1,16 @@
-// The MCP server: four tools and the specification schema as a resource. The tools only read
-// data, call the chartlet compiler and compute; there is no model and no interpretation here.
+// The MCP server: four tools, the specification schema as a resource, and the MCP App view of
+// chartlet_render. The tools only read data, call the chartlet compiler and compute; there is no
+// model and no interpretation here.
 
 import { readFileSync } from "node:fs";
 
-import { McpServer } from "@modelcontextprotocol/server";
+import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
+import { CLIENT_CAPABILITIES_META_KEY, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import { explainSpec, renderSpec, validateSpec } from "./charts.mjs";
 import { DISTINCT_CAP, inspectData } from "./inspect.mjs";
+import { supportsView, VIEW_META_KEY, VIEW_RESOURCE_META, VIEW_URI, viewHtml, viewPayload } from "./view.mjs";
 
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const SCHEMA_URL = new URL("../schema/chartlet.schema.json", import.meta.url);
@@ -150,7 +153,8 @@ Use after drafting or editing a spec and before chartlet_render. An invalid spec
     async ({ spec }) => success(validateSpec(spec)),
   );
 
-  server.registerTool(
+  registerAppTool(
+    server,
     "chartlet_render",
     {
       title: "Render a chartlet chart",
@@ -158,7 +162,9 @@ Use after drafting or editing a spec and before chartlet_render. An invalid spec
 
 Returns content (or, with outputPath, the written path and byte size instead), warnings, styleHashes (CSP 'sha256-…' sources for the inline styles) and manifest. Charts can be 10–200 KB: prefer outputPath when the content does not need to be read.
 
-outputPath writes the file relative to the directory the server was given in CHARTLET_MCP_ROOT and is refused when that variable is not set. Absolute paths, ".." segments and symbolic links leading outside it are refused; missing directories are created and an existing file is overwritten. An invalid spec returns a tool error with code, path and message; run chartlet_validate_spec first.`,
+outputPath writes the file relative to the directory the server was given in CHARTLET_MCP_ROOT and is refused when that variable is not set. Absolute paths, ".." segments and symbolic links leading outside it are refused; missing directories are created and an existing file is overwritten. An invalid spec returns a tool error with code, path and message; run chartlet_validate_spec first.
+
+In a client that shows MCP Apps, the chart also appears in the conversation as a static figure with its data table, following the client's light or dark theme when the spec sets none.`,
       inputSchema: z.object({
         spec,
         format: z
@@ -197,11 +203,23 @@ outputPath writes the file relative to the directory the server was given in CHA
         idempotentHint: true,
         openWorldHint: false,
       },
+      _meta: { ui: { resourceUri: VIEW_URI } },
     },
-    async (input) => {
+    async (input, ctx) => {
       try {
         const result = renderSpec(input, root);
-        return "error" in result ? specFailure(result) : success(result);
+        if ("error" in result) {
+          return specFailure(result);
+        }
+        // Clients of protocol 2026-07-28 send their capabilities with each request; older ones
+        // declared them once at initialization.
+        const capabilities =
+          /** @type {import("@modelcontextprotocol/server").ClientCapabilities | undefined} */ (
+            ctx.mcpReq.envelope?.[CLIENT_CAPABILITIES_META_KEY]
+          ) ?? server.server.getClientCapabilities();
+        return supportsView(capabilities)
+          ? { ...success(result), _meta: { [VIEW_META_KEY]: viewPayload(input, result) } }
+          : success(result);
       } catch (error) {
         return failure(/** @type {Error} */ (error).message);
       }
@@ -258,6 +276,23 @@ For ohlc layers min is the lowest low, max the highest high, first the first ope
     async (uri) => ({
       contents: [
         { uri: uri.href, mimeType: "application/schema+json", text: readFileSync(SCHEMA_URL, "utf8") },
+      ],
+    }),
+  );
+
+  registerAppResource(
+    server,
+    "figure",
+    VIEW_URI,
+    {
+      title: "chartlet figure",
+      description: "MCP App view of chartlet_render: the rendered figure with caption, source and data table.",
+      mimeType: RESOURCE_MIME_TYPE,
+      _meta: VIEW_RESOURCE_META,
+    },
+    async (uri) => ({
+      contents: [
+        { uri: uri.href, mimeType: RESOURCE_MIME_TYPE, text: viewHtml(packageJson.version), _meta: VIEW_RESOURCE_META },
       ],
     }),
   );

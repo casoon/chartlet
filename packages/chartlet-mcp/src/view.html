@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>chartlet figure</title>
+<style>/*chartlet-stylesheet*/</style>
+<style>
+:root {
+  color-scheme: light;
+  --view-background: var(--color-background-primary, #ffffff);
+  --view-text: var(--color-text-primary, #172033);
+  --view-muted: var(--color-text-secondary, #475467);
+  --view-border: var(--color-border-primary, #c7cdd8);
+  --view-button: var(--color-background-secondary, #f2f4f7);
+  --view-ring: var(--color-ring-primary, #2563eb);
+  --view-danger: var(--color-text-danger, #b42318);
+  --view-font: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+  --view-radius: var(--border-radius-md, 6px);
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --view-background: var(--color-background-primary, #0f141c);
+  --view-text: var(--color-text-primary, #e8edf6);
+  --view-muted: var(--color-text-secondary, #a9b4c7);
+  --view-border: var(--color-border-primary, #3a4556);
+  --view-button: var(--color-background-secondary, #1c2430);
+  --view-ring: var(--color-ring-primary, #8db4ff);
+  --view-danger: var(--color-text-danger, #ff9c94);
+}
+html { background: var(--view-background); }
+body {
+  margin: 0;
+  padding: 12px;
+  background: var(--view-background);
+  color: var(--view-text);
+  font-family: var(--view-font);
+  font-size: 14px;
+  line-height: 1.45;
+}
+main { max-width: 100%; }
+.chartlet-figure { margin: 0; }
+.chartlet-figure figcaption { font-weight: 600; font-size: 1.05em; margin: 0 0 8px; }
+.chartlet-figure svg { display: block; max-width: 100%; height: auto; }
+.chartlet-source { margin: 8px 0 0; color: var(--view-muted); font-size: 0.9em; }
+.chartlet-data { margin-top: 8px; }
+.chartlet-data summary { cursor: pointer; width: fit-content; border-radius: 2px; }
+.chartlet-data table { border-collapse: collapse; margin-top: 8px; font-variant-numeric: tabular-nums; }
+.chartlet-data caption { text-align: left; color: var(--view-muted); padding-bottom: 4px; }
+.chartlet-data th, .chartlet-data td { padding: 3px 10px 3px 0; border-bottom: 1px solid var(--view-border); text-align: left; }
+.chartlet-data td { text-align: right; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+button {
+  font: inherit;
+  color: inherit;
+  background: var(--view-button);
+  border: 1px solid var(--view-border);
+  border-radius: var(--view-radius);
+  padding: 5px 12px;
+  cursor: pointer;
+}
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--view-ring); outline-offset: 2px; }
+.note { margin: 0; color: var(--view-muted); }
+.error { margin: 0; color: var(--view-danger); white-space: pre-wrap; }
+#status { margin: 8px 0 0; min-height: 1.45em; color: var(--view-muted); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+<div id="figure" aria-busy="true"><p class="note">Waiting for the chart…</p></div>
+<div class="actions" id="actions" role="group" aria-label="Chart actions" hidden>
+<button type="button" data-action="svg" hidden>Download SVG</button>
+<button type="button" data-action="html" hidden>Download HTML</button>
+<button type="button" data-action="spec">Copy specification</button>
+</div>
+<p id="status" role="status"></p>
+</main>
+<script>
+// The bridge to the host (MCP Apps, protocol 2026-01-26): receive the tool result, follow the
+// host theme, report the size, and ask the host to download files. The chart itself is the HTML
+// the chartlet compiler rendered on the server; nothing here draws or changes data.
+(() => {
+  "use strict";
+  const META_KEY = "chartlet/view";
+  const host = window.parent;
+  const root = document.documentElement;
+  const figure = document.getElementById("figure");
+  const actions = document.getElementById("actions");
+  const status = document.getElementById("status");
+  const pending = new Map();
+  let nextId = 1;
+  let context = {};
+  let capabilities = {};
+  let view = null;
+
+  const send = (message) => host.postMessage({ jsonrpc: "2.0", ...message }, "*");
+  const notify = (method, params) => send({ method, params });
+  const request = (method, params) =>
+    new Promise((resolve, reject) => {
+      const id = nextId++;
+      pending.set(id, { resolve, reject });
+      send({ id, method, params });
+    });
+
+  function applyTheme(theme) {
+    root.dataset.theme = theme;
+    const variables = context.styles?.variables ?? {};
+    const useHost = theme === (context.theme ?? "light") && Object.keys(variables).length > 0;
+    for (const [name, value] of Object.entries(variables)) {
+      if (useHost && typeof value === "string") {
+        root.style.setProperty(name, value);
+      } else {
+        root.style.removeProperty(name);
+      }
+    }
+  }
+
+  function show() {
+    if (view === null) {
+      applyTheme(context.theme ?? "light");
+      return;
+    }
+    const wanted = context.theme ?? "light";
+    const theme = wanted in view.figures ? wanted : Object.keys(view.figures)[0];
+    figure.innerHTML = view.figures[theme];
+    figure.removeAttribute("aria-busy");
+    applyTheme(theme);
+    for (const button of actions.querySelectorAll("button[data-action]")) {
+      const action = button.dataset.action;
+      button.hidden = action !== "spec" && (!capabilities.downloadFile || !view.files[action]);
+    }
+    actions.hidden = false;
+  }
+
+  function showMessage(text, className) {
+    view = null;
+    const paragraph = document.createElement("p");
+    paragraph.className = className;
+    paragraph.textContent = text;
+    figure.replaceChildren(paragraph);
+    figure.removeAttribute("aria-busy");
+    actions.hidden = true;
+    applyTheme(context.theme ?? "light");
+  }
+
+  function onToolResult(result) {
+    const text = (result.content ?? []).filter((block) => block.type === "text").map((block) => block.text).join("\n");
+    if (result.isError) {
+      showMessage(text || "chartlet could not render the chart.", "error");
+      return;
+    }
+    const payload = result._meta?.[META_KEY];
+    if (!payload) {
+      showMessage("This result carries no chart view.", "note");
+      return;
+    }
+    view = payload;
+    show();
+  }
+
+  async function download(kind) {
+    const file = view.files[kind];
+    try {
+      const result = await request("ui/download-file", {
+        contents: [{ type: "resource", resource: { uri: `file:///${file.name}`, mimeType: file.mimeType, text: file.text } }],
+      });
+      status.textContent = result?.isError ? `${file.name} was not downloaded.` : `${file.name} handed to the host for download.`;
+    } catch (error) {
+      status.textContent = `Download failed: ${error.message}`;
+    }
+  }
+
+  async function copySpec() {
+    try {
+      await navigator.clipboard.writeText(view.spec);
+      status.textContent = "Specification copied.";
+      return;
+    } catch {}
+    const area = document.createElement("textarea");
+    area.value = view.spec;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.append(area);
+    area.select();
+    let copied = false;
+    try {
+      copied = document.execCommand("copy");
+    } catch {}
+    area.remove();
+    status.textContent = copied ? "Specification copied." : "This host does not allow copying to the clipboard.";
+  }
+
+  actions.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button || view === null) return;
+    status.textContent = "";
+    if (button.dataset.action === "spec") {
+      copySpec();
+    } else {
+      download(button.dataset.action);
+    }
+  });
+
+  function reportSize() {
+    let scheduled = false;
+    let lastWidth = 0;
+    let lastHeight = 0;
+    const measure = () => {
+      if (scheduled) return;
+      scheduled = true;
+      requestAnimationFrame(() => {
+        scheduled = false;
+        const previous = root.style.height;
+        root.style.height = "max-content";
+        const height = Math.ceil(root.getBoundingClientRect().height);
+        root.style.height = previous;
+        const width = Math.ceil(window.innerWidth);
+        if (width !== lastWidth || height !== lastHeight) {
+          lastWidth = width;
+          lastHeight = height;
+          notify("ui/notifications/size-changed", { width, height });
+        }
+      });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(root);
+    observer.observe(document.body);
+  }
+
+  window.addEventListener("message", (event) => {
+    if (event.source !== host) return;
+    const message = event.data;
+    if (!message || message.jsonrpc !== "2.0") return;
+    if (message.method === undefined) {
+      const waiting = pending.get(message.id);
+      if (!waiting) return;
+      pending.delete(message.id);
+      if (message.error) {
+        waiting.reject(new Error(message.error.message));
+      } else {
+        waiting.resolve(message.result);
+      }
+      return;
+    }
+    if (message.id !== undefined) {
+      if (message.method === "ui/resource-teardown" || message.method === "ping") {
+        send({ id: message.id, result: {} });
+      } else {
+        send({ id: message.id, error: { code: -32601, message: `Method not found: ${message.method}` } });
+      }
+      return;
+    }
+    if (message.method === "ui/notifications/tool-result") {
+      onToolResult(message.params ?? {});
+    } else if (message.method === "ui/notifications/host-context-changed") {
+      context = { ...context, ...message.params };
+      show();
+    } else if (message.method === "ui/notifications/tool-cancelled") {
+      showMessage("The chart was cancelled.", "note");
+    }
+  });
+
+  request("ui/initialize", {
+    appInfo: { name: "chartlet-figure", version: "/*chartlet-version*/" },
+    appCapabilities: {},
+    protocolVersion: "2026-01-26",
+  }).then(
+    (result) => {
+      capabilities = result?.hostCapabilities ?? {};
+      context = result?.hostContext ?? {};
+      show();
+      notify("ui/notifications/initialized", {});
+      reportSize();
+    },
+    (error) => showMessage(`The host did not connect: ${error.message}`, "error"),
+  );
+})();
+</script>
+</body>
+</html>
