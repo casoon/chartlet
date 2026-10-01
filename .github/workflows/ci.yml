@@ -76,12 +76,13 @@ jobs:
           npm run build:wasm
           npm test
 
-      # Runs against the WebAssembly build of the previous step through `file:../chartlet`.
+      # Runs against the published @casoon/chartlet; the view test needs a browser.
       - name: MCP server
         if: matrix.os == 'ubuntu-latest'
         working-directory: packages/chartlet-mcp
         run: |
           npm ci
+          npx playwright install --with-deps chromium
           npm test
 
       - uses: pnpm/action-setup@v6

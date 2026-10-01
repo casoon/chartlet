@@ -19,7 +19,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@casoon/chartlet": "file:../chartlet",
+    "@casoon/chartlet": "^0.1.0",
     "@modelcontextprotocol/ext-apps": "^2.0.3",
     "@modelcontextprotocol/server": "^2.2.0",
     "zod": "^4.6.5"

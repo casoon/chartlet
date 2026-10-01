@@ -136,11 +136,9 @@ that is intended.
 cd packages/chartlet-mcp && npm install && npm test
 ```
 
-During development the package depends on the checked-out compiler (`file:../chartlet`), whose
-`styles: "external"` and `stylesheet()` the view needs. Build its WebAssembly renderer first:
-`cd packages/chartlet && npm run build:wasm` (needs cargo and the `wasm32-unknown-unknown`
-target). **Before publishing, switch the dependency to the released `@casoon/chartlet` (`^0.1.0`)**;
-both packages are released together. `npm test` and `npm pack` copy
+The package depends on the released `@casoon/chartlet`. To try it against a change in the
+compiler, point the dependency at the checkout for a while (`npm install ../chartlet`, after
+`cd packages/chartlet && npm run build:wasm`) and switch back before publishing. `npm test` and `npm pack` copy
 `schema/chartlet.schema.json` from the repository into the package first.
 
 `npm test` includes `test/view.e2e.test.mjs`, which opens the view in Chromium (Playwright)
