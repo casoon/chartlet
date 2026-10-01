@@ -82,6 +82,6 @@ mod tests {
                 "'sha256-ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0='".to_owned(),
             ]
         );
-        assert!(style_hashes("<svg></svg>").is_empty());
+        assert_eq!(style_hashes("<svg></svg>"), Vec::<String>::new());
     }
 }

@@ -527,7 +527,7 @@ impl ChartSpec {
         let mut spec = self.clone();
         for pane in &mut spec.panes {
             pane.layers
-                .retain(|layer| layer.time.as_ref().is_none_or(&inside));
+                .retain(|layer| layer.time.as_ref().is_none_or(inside));
             // A zone that misses the window is left out; one that reaches beyond it is cut at
             // the window's edges, so it cannot widen the time axis.
             pane.layers.retain(|layer| {

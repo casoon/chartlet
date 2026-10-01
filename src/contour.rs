@@ -287,7 +287,7 @@ mod tests {
 
     #[test]
     fn nothing_held_is_no_ring() {
-        assert!(square(4, 4, &[]).is_empty());
+        assert_eq!(square(4, 4, &[]), Vec::<Vec<(usize, usize)>>::new());
     }
 
     #[test]

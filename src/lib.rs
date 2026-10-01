@@ -1891,7 +1891,7 @@ mod tests {
 
         let anonymous = TIME.replace("\"name\": \"Orders\", ", "");
         let error = render_json(&anonymous, RenderFormat::Svg, &RenderOptions::default()).unwrap();
-        assert!(error.warnings.is_empty());
+        assert_eq!(error.warnings, []);
     }
 
     // --- Uncertainty bands, reference lines, stripes, calendars, range bars, small multiples ---
@@ -4062,7 +4062,7 @@ mod tests {
         // Time tick labels sit only below the bottom pane; value ticks at the left of both.
         let ticks = placed_texts(&svg, "chartlet-tick");
         let time_ticks: Vec<_> = ticks.iter().filter(|(x, _, _)| *x > 72.0).collect();
-        assert!(!time_ticks.is_empty());
+        assert_ne!(time_ticks.len(), 0);
         assert!(
             time_ticks.iter().all(|(_, y, _)| (*y - 418.0).abs() < 1e-9),
             "{time_ticks:?}"
@@ -4129,7 +4129,7 @@ mod tests {
             .map(|index| line(&format!("L{index}")))
             .collect::<Vec<_>>()
             .join(",");
-        assert!(render_ok(&stacked(&four, "")).warnings.is_empty());
+        assert_eq!(render_ok(&stacked(&four, "")).warnings, []);
         let tall = format!(
             "{}, {}",
             line("A"),
@@ -4503,7 +4503,7 @@ mod tests {
             .warnings;
         assert!(html.starts_with(&desktop));
         let added = &html[desktop.len()..];
-        assert!(!added.is_empty());
+        assert_ne!(added, []);
         for warning in added {
             assert!(
                 warning.message.starts_with("mobile variant: "),
