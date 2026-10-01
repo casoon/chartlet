@@ -25,8 +25,9 @@ the specification; a patch release never does.
 
 ## When chartlet is not the right tool
 
-- You need continuous zooming, panning, cross-filtering, live updates or keyboard-addressable
-  details for individual marks.
+- You need continuous zooming, panning, cross-filtering or live updates. A crosshair with
+  values, series toggles, scroll stations and step-by-step playback come from the optional
+  [`@casoon/chartlet/interactive`](guides/interaction/) module, which only reads the static output.
 - The data changes at runtime rather than at build time.
 - You need geographic maps, networks, 3D charts, scatter plots or pie charts.
 - You want to explore data rather than publish a finished chart.
