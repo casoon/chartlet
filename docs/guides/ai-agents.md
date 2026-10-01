@@ -43,6 +43,24 @@ For Claude Desktop and project configuration, see the
 The resource `chartlet://schema` holds the [specification](../reference/specification.md)
 schema.
 
+## In the chat
+
+In a client that supports [MCP Apps](https://github.com/modelcontextprotocol/ext-apps),
+`chartlet_render` also shows the chart in the conversation through the view
+`ui://chartlet/figure`: the HTML profile as the compiler renders it, with
+caption, source and the data table. The view draws nothing itself; its one script talks to the
+client. It follows the client's light or dark theme when the specification sets no `theme`,
+switches to a `mobile` layout when it is narrow, and offers "Download SVG", "Download HTML" and
+"Copy specification" as keyboard-reachable buttons. Styles come from the shared stylesheet
+(`styles: "external"`), which the view resource carries once; it loads nothing from the network.
+Clients without MCP Apps support get the same text result as before.
+
+## With opengrid
+
+`chartlet_inspect_data` takes the row objects of an opengrid selection or of opengrid's JSON
+export unchanged; decimals written as strings are read as numbers. The servers are not coupled:
+the chart is static, and a click in it does not filter the grid.
+
 ## What the server refuses
 
 - To guess: `1,234` is a string, not a number, and an unsorted time column is reported, not
