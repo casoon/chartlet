@@ -63,7 +63,7 @@ function failure(text) {
 function specFailure({ error, warnings }) {
   return failure(
     `chartlet rejected the specification: ${error.code}${error.path == null ? "" : ` at ${error.path}`}: ${error.message}\n` +
-      `Fix the field the path points to (validate_spec reports the same diagnostics; the schema is chartlet://schema).` +
+      `Fix the field the path points to (chartlet_validate_spec reports the same diagnostics; the schema is chartlet://schema).` +
       (warnings.length > 0 ? `\nWarnings: ${JSON.stringify(warnings)}` : ""),
   );
 }
@@ -72,7 +72,7 @@ export function createServer() {
   const server = new McpServer({ name: "chartlet", version: packageJson.version });
 
   server.registerTool(
-    "inspect_data",
+    "chartlet_inspect_data",
     {
       title: "Inspect tabular data",
       description: `Describe a table before charting it: row count, per column the inferred type, missing values and range, and which chartlet chart types fit the columns. Deterministic; values are read, never changed.
@@ -83,7 +83,7 @@ Pass exactly one of:
 
 Per column: type is number, integer, date-time, boolean, string or empty (no values). Missing means an absent key, null or "". Numbers get min/max. date-time columns get timeFormat (year, date or date-time), first/last as written, and monotonic (increasing, decreasing or none, strictly, in row order). A column of four-digit integers counts as years when its name contains "year"/"jahr" or the values strictly increase. Strings get the distinct count (capped at ${DISTINCT_CAP}). Numbers are recognised only in plain notation such as -1234.5 or 1e3; "1,234" stays a string.
 
-suggestions lists fitting chart types with the columns to use and a reason, by fixed rules: category + numbers -> bar; time + numbers -> time (line layers); time + open/high/low/close -> time with an ohlc layer; time + value + lower/upper -> line with uncertainty band; time + group + value -> multiples; category + low/high -> rangebar; year + one value -> stripes; dates within one year + one value -> calendar. Use them as starting points, then build the spec yourself and check it with validate_spec.`,
+suggestions lists fitting chart types with the columns to use and a reason, by fixed rules: category + numbers -> bar; time + numbers -> time (line layers); time + open/high/low/close -> time with an ohlc layer; time + value + lower/upper -> line with uncertainty band; time + group + value -> multiples; category + low/high -> rangebar; year + one value -> stripes; dates within one year + one value -> calendar. Use them as starting points, then build the spec yourself and check it with chartlet_validate_spec.`,
       inputSchema: z.object({
         csv: z.string().optional().describe("CSV text with a header row (RFC 4180)."),
         rows: z
@@ -129,12 +129,12 @@ suggestions lists fitting chart types with the columns to use and a reason, by f
   );
 
   server.registerTool(
-    "validate_spec",
+    "chartlet_validate_spec",
     {
       title: "Validate a chartlet specification",
       description: `Check a chartlet specification with the real compiler: it is rendered (HTML profile, which also lays out a mobile variant) and the output discarded. Returns ok, the first error with code, JSON Pointer path and message, and all layout warnings (e.g. text_truncated, label_overlap, dense_chart).
 
-Use after drafting or editing a spec and before render_chart. An invalid spec is a normal result with ok: false, not a tool error. Fix the field the error path points to and validate again.`,
+Use after drafting or editing a spec and before chartlet_render. An invalid spec is a normal result with ok: false, not a tool error. Fix the field the error path points to and validate again.`,
       inputSchema: z.object({ spec }),
       outputSchema: z.object({
         ok: z.boolean(),
@@ -147,14 +147,14 @@ Use after drafting or editing a spec and before render_chart. An invalid spec is
   );
 
   server.registerTool(
-    "render_chart",
+    "chartlet_render",
     {
       title: "Render a chartlet chart",
       description: `Compile a chartlet specification into static, accessible SVG or HTML. The same spec and options always give the same bytes; the manifest records the compiler version and SHA-256 of spec and output.
 
 Returns content (or, with outputPath, the written path and byte size instead), warnings, styleHashes (CSP 'sha256-…' sources for the inline styles) and manifest. Charts can be 10–200 KB: prefer outputPath when the content does not need to be read.
 
-outputPath writes the file relative to the server's working directory. Absolute paths, ".." segments and symbolic links leading outside it are refused; missing directories are created and an existing file is overwritten. An invalid spec returns a tool error with code, path and message; run validate_spec first.`,
+outputPath writes the file relative to the server's working directory. Absolute paths, ".." segments and symbolic links leading outside it are refused; missing directories are created and an existing file is overwritten. An invalid spec returns a tool error with code, path and message; run chartlet_validate_spec first.`,
       inputSchema: z.object({
         spec,
         format: z
@@ -205,7 +205,7 @@ outputPath writes the file relative to the server's working directory. Absolute 
   );
 
   server.registerTool(
-    "explain_chart",
+    "chartlet_explain",
     {
       title: "Compute facts about a chart",
       description: `Report facts about a chartlet chart, computed and not interpreted: the accessible description chartlet generates (as in the SVG <desc>; the spec's own description is returned separately), the chart type, and per data series or layer its count, missing values, min and max (with every label or time that has that value), and first and last value with label or time.

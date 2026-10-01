@@ -36,10 +36,10 @@ test("serves the tools and the schema over stdio", async (t) => {
 
   const { tools } = await client.listTools();
   assert.deepEqual(tools.map(({ name }) => name).sort(), [
-    "explain_chart",
-    "inspect_data",
-    "render_chart",
-    "validate_spec",
+    "chartlet_explain",
+    "chartlet_inspect_data",
+    "chartlet_render",
+    "chartlet_validate_spec",
   ]);
   for (const tool of tools) {
     assert.ok(tool.description.length > 100, tool.name);
@@ -47,17 +47,17 @@ test("serves the tools and the schema over stdio", async (t) => {
     assert.ok(tool.outputSchema, tool.name);
   }
   const annotations = Object.fromEntries(tools.map(({ name, annotations }) => [name, annotations]));
-  assert.equal(annotations.inspect_data.readOnlyHint, true);
-  assert.equal(annotations.render_chart.readOnlyHint, false);
+  assert.equal(annotations.chartlet_inspect_data.readOnlyHint, true);
+  assert.equal(annotations.chartlet_render.readOnlyHint, false);
 
-  const rendered = await client.callTool({ name: "render_chart", arguments: { spec, format: "svg" } });
+  const rendered = await client.callTool({ name: "chartlet_render", arguments: { spec, format: "svg" } });
   assert.equal(rendered.isError, undefined);
   assert.match(rendered.structuredContent.content, /^<svg/);
   assert.equal(rendered.structuredContent.manifest.format, "svg");
   assert.deepEqual(JSON.parse(rendered.content[0].text), rendered.structuredContent);
 
   const written = await client.callTool({
-    name: "render_chart",
+    name: "chartlet_render",
     arguments: { spec: JSON.stringify(spec), outputPath: "charts/revenue.html" },
   });
   assert.equal(written.structuredContent.path, join("charts", "revenue.html"));
@@ -67,35 +67,35 @@ test("serves the tools and the schema over stdio", async (t) => {
   );
 
   const escape = await client.callTool({
-    name: "render_chart",
+    name: "chartlet_render",
     arguments: { spec, outputPath: "../escape.html" },
   });
   assert.equal(escape.isError, true);
   assert.match(escape.content[0].text, /must not contain/);
 
   const invalid = await client.callTool({
-    name: "render_chart",
+    name: "chartlet_render",
     arguments: { spec: { ...spec, type: "pie" } },
   });
   assert.equal(invalid.isError, true);
   assert.match(invalid.content[0].text, /at \/type/);
 
   const validation = await client.callTool({
-    name: "validate_spec",
+    name: "chartlet_validate_spec",
     arguments: { spec: { ...spec, type: "pie" } },
   });
   assert.equal(validation.structuredContent.ok, false);
   assert.equal(validation.structuredContent.error.path, "/type");
 
   const inspected = await client.callTool({
-    name: "inspect_data",
+    name: "chartlet_inspect_data",
     arguments: { csv: "quarter,revenue\nQ1,12\nQ2,15\n" },
   });
   assert.equal(inspected.structuredContent.suggestions[0].type, "bar");
-  const badCsv = await client.callTool({ name: "inspect_data", arguments: { csv: 'a\n"open' } });
+  const badCsv = await client.callTool({ name: "chartlet_inspect_data", arguments: { csv: 'a\n"open' } });
   assert.equal(badCsv.isError, true);
 
-  const explained = await client.callTool({ name: "explain_chart", arguments: { spec } });
+  const explained = await client.callTool({ name: "chartlet_explain", arguments: { spec } });
   assert.deepEqual(explained.structuredContent.series[0].max, { value: 15, at: ["Q2"] });
 
   const { contents } = await client.readResource({ uri: "chartlet://schema" });
