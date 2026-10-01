@@ -53,6 +53,26 @@ fn strict_mode_rejects_layout_warnings() {
 }
 
 #[test]
+fn strict_mode_lets_allowed_warning_codes_through() {
+    let output = run_with_stdin(
+        &[
+            "render",
+            "-",
+            "--format",
+            "svg",
+            "--strict",
+            "--allow-warning",
+            "text_truncated",
+        ],
+        TRUNCATED,
+    );
+
+    assert!(output.status.success());
+    let stderr = String::from_utf8(output.stderr).expect("warnings should be UTF-8");
+    assert!(stderr.contains("warning[text_truncated]"));
+}
+
+#[test]
 fn help_exits_successfully() {
     let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
         .arg("--help")

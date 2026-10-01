@@ -104,6 +104,9 @@ function runCli(binary, input, options, extraArgs) {
   if (options.strict) {
     args.push("--strict");
   }
+  for (const code of options.allowWarnings ?? []) {
+    args.push("--allow-warning", code);
+  }
   args.push(...extraArgs);
   // The CLI writes the manifest to a file; it is read back and removed with its directory.
   const manifestDirectory = options.manifest

@@ -7,6 +7,7 @@ export interface Props {
   format?: 'svg' | 'html';
   table?: 'details' | 'visible';
   strict?: boolean;
+  allowWarnings?: string[];
   binary?: string;
 }
 
@@ -16,6 +17,7 @@ const {
   format = 'html',
   table = 'details',
   strict = false,
+  allowWarnings,
   binary,
 } = Astro.props;
 
@@ -27,6 +29,7 @@ const rendered = renderChart(spec, {
   format,
   table,
   strict,
+  allowWarnings,
   binary,
   idPrefix: id,
 });

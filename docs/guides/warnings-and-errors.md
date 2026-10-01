@@ -47,7 +47,9 @@ encloses no observation, so the collapsed time axis has no place for it.
 
 `missing_mobile` at `/mobile`: `--variant mobile` was asked for a specification without `mobile`.
 
-Pass `--strict` to fail on any warning, for example in CI.
+Pass `--strict` to fail on any warning, for example in CI. To accept a warning you have
+reviewed, such as `dense_chart` on a chart that really has 20 categories, let its code through
+with `--allow-warning dense_chart` (npm: `allowWarnings: ["dense_chart"]`); it is still reported.
 
 ## Provenance
 

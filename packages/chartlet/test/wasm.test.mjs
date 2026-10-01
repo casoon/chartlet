@@ -73,6 +73,7 @@ test("reports warnings and errors in the words of the CLI", () => {
   const cases = [
     [dense, { format: "svg" }],
     [dense, { format: "svg", strict: true }],
+    [dense, { format: "svg", strict: true, allowWarnings: ["dense_chart"] }],
     [spec, { format: "svg", variant: "mobile" }],
     [spec, { format: "html", variant: "print" }],
     [spec, { format: "html", table: "visible", idPrefix: "trend" }],
@@ -121,6 +122,17 @@ test("reports the outcome as structured diagnostics without throwing", () => {
       assert.deepEqual(Object.keys(fromWasm.error).sort(), ["code", "message", "path"]);
     }
   }
+
+  const allowed = renderChartDetailed(truncated, {
+    format: "svg",
+    strict: true,
+    allowWarnings: ["text_truncated"],
+  });
+  assert.equal(allowed.ok, true);
+  assert.deepEqual(
+    allowed.warnings.map(({ code }) => code),
+    ["text_truncated"],
+  );
 
   const pie = renderChartDetailed({ ...spec, type: "pie" });
   assert.equal(pie.ok, false);

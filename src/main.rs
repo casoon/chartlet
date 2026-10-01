@@ -75,6 +75,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut output = None;
     let mut id_prefix = None;
     let mut strict = false;
+    let mut allowed: Vec<String> = Vec::new();
     let mut table_mode = TableMode::Details;
     let mut variant = Variant::Desktop;
     let mut manifest = None;
@@ -97,6 +98,11 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                 );
             }
             "--strict" => strict = true,
+            "--allow-warning" => allowed.push(
+                arguments
+                    .next()
+                    .ok_or_else(|| "--allow-warning requires a warning code".to_owned())?,
+            ),
             "--table" => {
                 table_mode = match arguments.next().as_deref() {
                     Some("details") => TableMode::Details,
@@ -141,14 +147,10 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             );
         }
     }
-    let warning_count = rendered.warnings.len();
+    let rejected = strict.then(|| strict_failure(&rendered.warnings, &allowed));
     warnings.extend(rendered.warnings);
-    if strict && warning_count > 0 {
-        return Err(Failure {
-            code: "strict_warnings",
-            path: None,
-            message: format!("strict mode rejected {warning_count} warning(s)"),
-        });
+    if let Some(Some(failure)) = rejected {
+        return Err(failure);
     }
 
     if let Some(output) = output {
@@ -184,8 +186,21 @@ fn parse_variant(value: Option<&str>) -> Result<Variant, String> {
     }
 }
 
+/// The failure of strict mode: every warning counts except those whose code is allowed.
+fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failure> {
+    let count = warnings
+        .iter()
+        .filter(|warning| !allowed.iter().any(|code| code == warning.code))
+        .count();
+    (count > 0).then(|| Failure {
+        code: "strict_warnings",
+        path: None,
+        message: format!("strict mode rejected {count} warning(s)"),
+    })
+}
+
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print] [--manifest <path>] [--strict] [--diagnostics text|json]".to_owned()
+    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print] [--manifest <path>] [--strict [--allow-warning <code>]...] [--diagnostics text|json]".to_owned()
 }
 
 /// Writes to stdout. A reader that stops early, such as `chartlet render … | head`, closes the

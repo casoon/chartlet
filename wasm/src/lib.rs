@@ -5,7 +5,7 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "strict", "manifest" } }`. Response: `{ "ok": true, "content", "styleHashes",
+//! "variant", "strict", "allowWarnings", "manifest" } }`. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
 //! `{ "ok": false, "error": { "code", "path", "message" }, "warnings" }`, the same diagnostics
 //! the CLI reports with `--diagnostics json`. `styleHashes` are the CSP source expressions of the
@@ -123,7 +123,15 @@ fn run(
     )
     .map_err(|error| json!({ "code": error.code, "path": error.path, "message": error.message }))?;
 
-    let warning_count = rendered.warnings.len();
+    // Strict mode rejects every warning except those whose code is listed in `allowWarnings`.
+    let allowed = options["allowWarnings"].as_array();
+    let warning_count = rendered
+        .warnings
+        .iter()
+        .filter(|warning| {
+            allowed.is_none_or(|codes| !codes.iter().any(|code| code == warning.code))
+        })
+        .count();
     warnings.extend(rendered.warnings);
     if options["strict"].as_bool() == Some(true) && warning_count > 0 {
         return Err(json!({

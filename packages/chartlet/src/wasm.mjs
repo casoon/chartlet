@@ -20,6 +20,7 @@ export function createRenderer(module) {
           idPrefix: options.idPrefix || undefined,
           variant: options.variant,
           strict: options.strict ?? false,
+          allowWarnings: options.allowWarnings ?? [],
           manifest: options.manifest ?? false,
         },
       }),

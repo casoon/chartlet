@@ -11,7 +11,10 @@ export interface RenderChartOptions {
   table?: TableMode;
   idPrefix?: string;
   variant?: ChartVariant;
+  /** Fail on any warning, except those whose code is listed in `allowWarnings`. */
   strict?: boolean;
+  /** Warning codes that `strict` lets through, such as `"dense_chart"`. They are still reported. */
+  allowWarnings?: string[];
   /** Also return a provenance manifest of the render in `manifest`. */
   manifest?: boolean;
   /** A `chartlet` executable to render with instead of the bundled WebAssembly build. */

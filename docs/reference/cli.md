@@ -21,6 +21,7 @@ chartlet render <spec.json | -> [options]
 | `-o <path>` | Writes to a file instead of standard output. |
 | `--manifest <path>` | Also writes a provenance manifest of the render as JSON to `<path>`, see [Provenance](../guides/warnings-and-errors.md#provenance). |
 | `--strict` | Fails on any warning. Useful in CI. |
+| `--allow-warning <code>` | With `--strict`, lets warnings with this code through; they are still reported. Repeatable, for example `--allow-warning dense_chart`. |
 | `--diagnostics json` | Writes errors and warnings to standard error as one JSON document instead of text lines. |
 
 Pass `-` instead of a file name to read the specification from standard input.
