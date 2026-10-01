@@ -127,3 +127,46 @@ test("refuses outputPath when CHARTLET_MCP_ROOT is not set", async (t) => {
   const inline = await client.callTool({ name: "chartlet_render", arguments: { spec } });
   assert.match(inline.structuredContent.content, /^<figure/);
 });
+
+// Row objects as opengrid hands them over, from `exportRows(…, { format: "json" })` or the
+// opengrid-mcp selection: keys are the field names in column order, values in opengrid's wire
+// notation (decimals and timestamps as strings, null for missing). The rows follow the orders of
+// the web-opengrid demo data set.
+const orders = [
+  { id: 1, order_date: "2026-04-12", customer: "Yarrow Works", country: "CH", category: "Services", qty: 2, unit_price: "250.00", discount: 0, amount: "500.00", express: false, shipped_at: "2026-04-17T12:00:00.000000Z", note: null },
+  { id: 2, order_date: "2026-04-29", customer: "Alder Systems", country: "CH", category: "Services", qty: 1, unit_price: "890.00", discount: 0.1, amount: "801.00", express: true, shipped_at: "2026-05-01T16:00:00.000000Z", note: null },
+  { id: 3, order_date: "2026-02-01", customer: "Pinecrest Systems", country: "GB", category: "Software", qty: 2, unit_price: "119.00", discount: 0, amount: "238.00", express: false, shipped_at: null, note: "Gift" },
+];
+
+test("chartlet_inspect_data takes opengrid row objects unchanged", async (t) => {
+  const client = await connect({});
+  t.after(() => client.close());
+  const result = await client.callTool({ name: "chartlet_inspect_data", arguments: { rows: orders } });
+  assert.equal(result.isError, undefined);
+  const summary = result.structuredContent;
+  assert.equal(summary.rowCount, 3);
+  assert.deepEqual(summary.columns.map(({ name }) => name), Object.keys(orders[0]));
+  const byName = Object.fromEntries(summary.columns.map((column) => [column.name, column]));
+  assert.equal(byName.id.type, "integer");
+  assert.deepEqual([byName.amount.type, byName.amount.min, byName.amount.max], ["number", 238, 801]);
+  assert.equal(byName.unit_price.type, "number");
+  assert.equal(byName.discount.type, "number");
+  assert.equal(byName.express.type, "boolean");
+  assert.deepEqual(
+    [byName.order_date.type, byName.order_date.timeFormat, byName.order_date.monotonic],
+    ["date-time", "date", "none"],
+  );
+  assert.deepEqual(
+    [byName.shipped_at.type, byName.shipped_at.timeFormat, byName.shipped_at.missing],
+    ["date-time", "date-time", 1],
+  );
+  assert.deepEqual([byName.note.type, byName.note.missing], ["string", 2]);
+  assert.ok(summary.suggestions.some(({ type, columns }) => type === "time" && columns.time === "order_date"));
+
+  // opengrid writes non-finite floats as strings; they are not read as numbers.
+  const ratio = await client.callTool({
+    name: "chartlet_inspect_data",
+    arguments: { rows: [{ ratio: 1.5 }, { ratio: "Infinity" }, { ratio: null }] },
+  });
+  assert.equal(ratio.structuredContent.columns[0].type, "string");
+});
