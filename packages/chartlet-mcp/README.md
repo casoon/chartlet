@@ -19,7 +19,7 @@ It needs Node.js 22.12 or newer and talks over stdio.
 ### Claude Code
 
 ```sh
-claude mcp add chartlet -- npx -y @casoon/chartlet-mcp
+claude mcp add --env CHARTLET_MCP_ROOT="$PWD" chartlet -- npx -y @casoon/chartlet-mcp
 ```
 
 or in a project's `.mcp.json`:
@@ -29,13 +29,15 @@ or in a project's `.mcp.json`:
   "mcpServers": {
     "chartlet": {
       "command": "npx",
-      "args": ["-y", "@casoon/chartlet-mcp"]
+      "args": ["-y", "@casoon/chartlet-mcp"],
+      "env": { "CHARTLET_MCP_ROOT": "/path/to/project" }
     }
   }
 }
 ```
 
-Claude Code starts the server in the project directory, so `chartlet_render` can write into it.
+`CHARTLET_MCP_ROOT` is the only directory `chartlet_render` may write into (see
+[Safety](#safety)). Leave it out and the server never writes files; it returns the chart instead.
 
 ### Claude Desktop
 
@@ -52,8 +54,8 @@ In `claude_desktop_config.json`:
 }
 ```
 
-Claude Desktop may start servers in the file system root. The server then refuses `outputPath`
-and returns the chart content instead.
+Without `CHARTLET_MCP_ROOT` the server refuses `outputPath` and returns the chart content; add
+`"env": { "CHARTLET_MCP_ROOT": "/path/to/charts" }` to let it write there.
 
 ## Tools
 
@@ -72,10 +74,13 @@ and `chartlet_explain` when the chart needs to be described in words.
 
 ## Safety
 
-- `outputPath` must be relative to the server's working directory. Absolute paths, `..`
-  segments, symbolic links that lead outside the directory, and an existing symbolic link as the
-  target are refused. Missing directories are created; an existing file is overwritten. When the
-  working directory is the file system root, nothing is written.
+- Files are written only below `CHARTLET_MCP_ROOT`, an existing directory set in the client
+  configuration. Without it `outputPath` is disabled and the tool says how to enable it. The
+  working directory the client starts the server in plays no part.
+- `outputPath` must be relative to `CHARTLET_MCP_ROOT`. Absolute paths, any `..` segment,
+  symbolic links that lead outside the directory (checked on the real path), and an existing
+  symbolic link as the target are refused. Missing directories are created; an existing file is
+  overwritten. A root that is the file system root is refused.
 - No network access, no shell, no other file reads than the package's own schema.
 - `chartlet_inspect_data` recognises numbers only in plain notation (`-1234.5`, `1e3`); `1,234` stays a
   string rather than being guessed. Four-digit integers count as years only when the column name

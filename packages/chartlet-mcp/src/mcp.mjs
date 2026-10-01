@@ -68,7 +68,11 @@ function specFailure({ error, warnings }) {
   );
 }
 
-export function createServer() {
+/**
+ * @param {{ root?: string }} [options] `root`: the sandbox directory for `outputPath`; defaults to
+ *   the environment variable `CHARTLET_MCP_ROOT`. Without it, `outputPath` is refused.
+ */
+export function createServer({ root = process.env.CHARTLET_MCP_ROOT } = {}) {
   const server = new McpServer({ name: "chartlet", version: packageJson.version });
 
   server.registerTool(
@@ -154,7 +158,7 @@ Use after drafting or editing a spec and before chartlet_render. An invalid spec
 
 Returns content (or, with outputPath, the written path and byte size instead), warnings, styleHashes (CSP 'sha256-…' sources for the inline styles) and manifest. Charts can be 10–200 KB: prefer outputPath when the content does not need to be read.
 
-outputPath writes the file relative to the server's working directory. Absolute paths, ".." segments and symbolic links leading outside it are refused; missing directories are created and an existing file is overwritten. An invalid spec returns a tool error with code, path and message; run chartlet_validate_spec first.`,
+outputPath writes the file relative to the directory the server was given in CHARTLET_MCP_ROOT and is refused when that variable is not set. Absolute paths, ".." segments and symbolic links leading outside it are refused; missing directories are created and an existing file is overwritten. An invalid spec returns a tool error with code, path and message; run chartlet_validate_spec first.`,
       inputSchema: z.object({
         spec,
         format: z
@@ -176,7 +180,7 @@ outputPath writes the file relative to the server's working directory. Absolute 
         outputPath: z
           .string()
           .optional()
-          .describe('Relative file path to write to, e.g. "charts/revenue.html".'),
+          .describe('File path relative to CHARTLET_MCP_ROOT to write to, e.g. "charts/revenue.html". Only available when the server has CHARTLET_MCP_ROOT set.'),
       }),
       outputSchema: z.object({
         ok: z.literal(true),
@@ -196,7 +200,7 @@ outputPath writes the file relative to the server's working directory. Absolute 
     },
     async (input) => {
       try {
-        const result = renderSpec(input);
+        const result = renderSpec(input, root);
         return "error" in result ? specFailure(result) : success(result);
       } catch (error) {
         return failure(/** @type {Error} */ (error).message);

@@ -15,7 +15,7 @@ The server speaks the [Model Context Protocol](https://modelcontextprotocol.io) 
 Claude Code:
 
 ```sh
-claude mcp add chartlet -- npx -y @casoon/chartlet-mcp
+claude mcp add --env CHARTLET_MCP_ROOT="$PWD" chartlet -- npx -y @casoon/chartlet-mcp
 ```
 
 For Claude Desktop and project configuration, see the
@@ -34,7 +34,7 @@ For Claude Desktop and project configuration, see the
   field the path points to and try again.
 - `chartlet_render` returns the SVG or HTML with warnings, CSP `styleHashes` and the provenance
   [manifest](warnings-and-errors.md#provenance). With `outputPath` it writes the file below the
-  server's working directory instead and returns the path and size.
+  directory named by `CHARTLET_MCP_ROOT` instead and returns the path and size.
 - `chartlet_explain` returns the description chartlet generates for the chart and, per series or
   layer, count, missing values, minimum, maximum, first and last value with their labels or
   times. The result says that it is computed, not interpreted; conclusions about causes or
@@ -47,8 +47,8 @@ schema.
 
 - To guess: `1,234` is a string, not a number, and an unsorted time column is reported, not
   sorted. Suggestions name what has to change first, such as aggregating repeated categories.
-- To write outside its working directory: absolute paths, `..`, and symbolic links that lead out
-  are refused.
+- To write anywhere unless the client configuration names a directory in `CHARTLET_MCP_ROOT`.
+  Inside it, absolute paths, `..`, and symbolic links that lead out are refused.
 
 ## With the npm package
 

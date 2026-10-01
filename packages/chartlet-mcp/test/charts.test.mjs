@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -86,30 +86,67 @@ test("refuses output paths outside the root", () => {
   try {
     mkdirSync(join(root, "sub"));
     symlinkSync(outside, join(root, "link"));
+    symlinkSync(join(outside), join(root, "sub", "deeper"));
     writeFileSync(join(outside, "target.svg"), "");
     symlinkSync(join(outside, "target.svg"), join(root, "file.svg"));
 
     for (const [path, message] of [
-      ["/etc/passwd", /relative path/],
-      [join(root, "chart.svg"), /relative path/],
-      ["C:\\chart.svg", /relative path/],
-      ["", /relative path/],
+      ["/etc/passwd", /relative to CHARTLET_MCP_ROOT/],
+      [join(root, "chart.svg"), /relative to CHARTLET_MCP_ROOT/],
+      ["C:\\chart.svg", /relative to CHARTLET_MCP_ROOT/],
+      ["", /relative to CHARTLET_MCP_ROOT/],
       ["../chart.svg", /must not contain ".."/],
+      ["..", /must not contain ".."/],
       ["sub/../../chart.svg", /must not contain ".."/],
+      ["sub/../chart.svg", /must not contain ".."/],
       ["sub\\..\\..\\chart.svg", /must not contain ".."/],
-      [".", /inside/],
+      [".", /inside CHARTLET_MCP_ROOT/],
       ["link/chart.svg", /symbolic link/],
       ["link/new/dir/chart.svg", /symbolic link/],
+      ["sub/deeper/chart.svg", /symbolic link/],
       ["file.svg", /symbolic link/],
     ]) {
       assert.throws(() => resolveOutputPath(path, root), message, path);
     }
-    assert.throws(() => resolveOutputPath("chart.svg", "/"), /file system root/);
     assert.throws(() => renderSpec({ spec: bar, outputPath: "../x.svg" }, root), /must not contain/);
-    assert.equal(resolveOutputPath("sub/./chart.svg", root), join(resolveOutputPath("sub/chart.svg", root)));
+    assert.deepEqual(resolveOutputPath("sub/./chart.svg", root), resolveOutputPath("sub/chart.svg", root));
+    assert.deepEqual(readdirSync(outside), ["target.svg"]);
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test("refuses outputPath without a usable CHARTLET_MCP_ROOT", () => {
+  const root = mkdtempSync(join(tmpdir(), "chartlet-mcp-"));
+  try {
+    for (const missing of [undefined, ""]) {
+      assert.throws(
+        () => renderSpec({ spec: bar, outputPath: "chart.svg" }, missing),
+        /outputPath is disabled: .*CHARTLET_MCP_ROOT/,
+      );
+    }
+    assert.equal(renderSpec({ spec: bar, format: "svg" }).ok, true);
+    assert.throws(() => resolveOutputPath("chart.svg", join(root, "missing")), /does not exist/);
+    writeFileSync(join(root, "plain"), "");
+    assert.throws(() => resolveOutputPath("chart.svg", join(root, "plain")), /not a directory/);
+    assert.throws(() => resolveOutputPath("chart.svg", "/"), /file system root/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("resolves the root through symbolic links", () => {
+  const real = mkdtempSync(join(tmpdir(), "chartlet-mcp-real-"));
+  const alias = join(tmpdir(), `chartlet-mcp-alias-${process.pid}`);
+  try {
+    symlinkSync(real, alias);
+    const result = renderSpec({ spec: bar, format: "svg", outputPath: "chart.svg" }, alias);
+    assert.equal(result.path, "chart.svg");
+    assert.equal(readFileSync(join(real, "chart.svg")).length, result.bytes);
+  } finally {
+    rmSync(alias, { force: true });
+    rmSync(real, { recursive: true, force: true });
   }
 });
 

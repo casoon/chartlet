@@ -1,7 +1,7 @@
 // Validation, rendering and computed facts on top of `@casoon/chartlet`. Every result comes from
 // the compiler or from arithmetic on the specification's own values.
 
-import { lstatSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
 import { renderChartDetailed } from "@casoon/chartlet";
@@ -42,9 +42,10 @@ export function validateSpec(spec) {
  * `resolveOutputPath`) and returns the path and byte size instead of the content.
  *
  * @param {RenderInput} input
- * @param {string} [root] the directory `outputPath` is relative to
+ * @param {string} [root] the sandbox directory `outputPath` is relative to (`CHARTLET_MCP_ROOT`);
+ *   without it, `outputPath` is refused
  */
-export function renderSpec(input, root = process.cwd()) {
+export function renderSpec(input, root) {
   const target = input.outputPath === undefined ? undefined : resolveOutputPath(input.outputPath, root);
   const result = renderChartDetailed(input.spec, {
     format: input.format ?? "html",
@@ -60,11 +61,11 @@ export function renderSpec(input, root = process.cwd()) {
   if (target === undefined) {
     return { ok: true, content, warnings, styleHashes, manifest };
   }
-  mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, content);
+  mkdirSync(dirname(target.path), { recursive: true });
+  writeFileSync(target.path, content);
   return {
     ok: true,
-    path: relative(realpathSync(root), target),
+    path: relative(target.root, target.path),
     bytes: Buffer.byteLength(content),
     warnings,
     styleHashes,
@@ -73,32 +74,44 @@ export function renderSpec(input, root = process.cwd()) {
 }
 
 /**
- * Resolves a relative output path inside `root`. Refuses an absolute path, any `..` segment, a
- * path through a symbolic link that leaves `root`, an existing symbolic link as the target, and
- * the file system root as `root`.
+ * Resolves a relative output path inside the sandbox directory `root`. Refuses everything when
+ * there is no `root`, a `root` that is not a directory or is the file system root, an absolute
+ * path, any `..` segment, a path through a symbolic link that leaves `root`, and an existing
+ * symbolic link as the target.
  *
  * @param {string} outputPath
- * @param {string} root
- * @returns {string} the absolute target path
+ * @param {string | undefined} root
+ * @returns {{ root: string, path: string }} the real path of `root` and the absolute target path
  */
 export function resolveOutputPath(outputPath, root) {
+  if (root === undefined || root === "") {
+    throw new Error(
+      "outputPath is disabled: the server writes files only below the directory named by the environment variable CHARTLET_MCP_ROOT, and it is not set. Set it in the client configuration (for example \"env\": { \"CHARTLET_MCP_ROOT\": \"/path/to/project\" }), or omit outputPath to get the content back.",
+    );
+  }
+  let realRoot;
+  try {
+    realRoot = realpathSync(root);
+  } catch {
+    throw new Error(`CHARTLET_MCP_ROOT ${JSON.stringify(root)} does not exist; set it to an existing directory.`);
+  }
+  if (!statSync(realRoot).isDirectory()) {
+    throw new Error(`CHARTLET_MCP_ROOT ${JSON.stringify(root)} is not a directory.`);
+  }
+  if (dirname(realRoot) === realRoot) {
+    throw new Error("CHARTLET_MCP_ROOT is the file system root; set it to a project directory.");
+  }
   if (outputPath === "" || isAbsolute(outputPath) || /^[a-zA-Z]:/.test(outputPath)) {
     throw new Error(
-      `outputPath must be a relative path inside the server's working directory, got ${JSON.stringify(outputPath)}.`,
+      `outputPath must be a path relative to CHARTLET_MCP_ROOT (${realRoot}), got ${JSON.stringify(outputPath)}.`,
     );
   }
   if (outputPath.split(/[\\/]/).includes("..")) {
     throw new Error(`outputPath must not contain "..", got ${JSON.stringify(outputPath)}.`);
   }
-  const realRoot = realpathSync(root);
-  if (dirname(realRoot) === realRoot) {
-    throw new Error(
-      "The server's working directory is the file system root; start it in a project directory (for example with `cwd` in the client configuration) to write files.",
-    );
-  }
   const target = resolve(realRoot, outputPath);
   if (target === realRoot || !target.startsWith(realRoot + sep)) {
-    throw new Error(`outputPath must name a file inside ${realRoot}.`);
+    throw new Error(`outputPath must name a file inside CHARTLET_MCP_ROOT (${realRoot}).`);
   }
   // The deepest directory that exists must resolve inside the root, so a symbolic link cannot
   // lead the write elsewhere.
@@ -112,7 +125,7 @@ export function resolveOutputPath(outputPath, root) {
     }
   }
   if (existing !== realRoot && !existing.startsWith(realRoot + sep)) {
-    throw new Error(`outputPath leads outside ${realRoot} through a symbolic link.`);
+    throw new Error(`outputPath leads outside CHARTLET_MCP_ROOT (${realRoot}) through a symbolic link.`);
   }
   try {
     if (lstatSync(target).isSymbolicLink()) {
@@ -123,7 +136,7 @@ export function resolveOutputPath(outputPath, root) {
       throw error;
     }
   }
-  return target;
+  return { root: realRoot, path: target };
 }
 
 const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };

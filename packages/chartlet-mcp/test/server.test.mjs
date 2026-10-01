@@ -21,14 +21,27 @@ const spec = {
   ],
 };
 
-test("serves the tools and the schema over stdio", async (t) => {
-  const root = mkdtempSync(join(tmpdir(), "chartlet-mcp-e2e-"));
-  const env = { ...process.env };
+/**
+ * Starts the server over stdio with the bundled WebAssembly renderer and the given environment.
+ *
+ * @param {Record<string, string>} extra
+ */
+async function connect(extra) {
+  const env = { ...process.env, ...extra };
   delete env.CHARTLET_BIN;
+  if (!("CHARTLET_MCP_ROOT" in extra)) {
+    delete env.CHARTLET_MCP_ROOT;
+  }
   const client = new Client({ name: "chartlet-mcp-test", version: "0.0.0" });
   await client.connect(
-    new StdioClientTransport({ command: process.execPath, args: [server], cwd: root, env }),
+    new StdioClientTransport({ command: process.execPath, args: [server], cwd: tmpdir(), env }),
   );
+  return client;
+}
+
+test("serves the tools and the schema over stdio", async (t) => {
+  const root = mkdtempSync(join(tmpdir(), "chartlet-mcp-e2e-"));
+  const client = await connect({ CHARTLET_MCP_ROOT: root });
   t.after(async () => {
     await client.close();
     rmSync(root, { recursive: true, force: true });
@@ -100,4 +113,17 @@ test("serves the tools and the schema over stdio", async (t) => {
 
   const { contents } = await client.readResource({ uri: "chartlet://schema" });
   assert.equal(contents[0].text, schema);
+});
+
+test("refuses outputPath when CHARTLET_MCP_ROOT is not set", async (t) => {
+  const client = await connect({});
+  t.after(() => client.close());
+  const refused = await client.callTool({
+    name: "chartlet_render",
+    arguments: { spec, outputPath: "chart.html" },
+  });
+  assert.equal(refused.isError, true);
+  assert.match(refused.content[0].text, /outputPath is disabled.*CHARTLET_MCP_ROOT/);
+  const inline = await client.callTool({ name: "chartlet_render", arguments: { spec } });
+  assert.match(inline.structuredContent.content, /^<figure/);
 });
