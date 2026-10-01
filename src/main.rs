@@ -6,7 +6,8 @@ use std::{
 };
 
 use chartlet::{
-    ChartWarning, RenderFormat, RenderOptions, Styles, TableMode, Variant, render_json, stylesheet,
+    ChartType, ChartWarning, RenderFormat, RenderOptions, Styles, TableMode, Variant, render_json,
+    stylesheet, stylesheet_for,
 };
 use serde_json::{Value, json};
 
@@ -65,7 +66,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut arguments = env::args().skip(1);
     match arguments.next().as_deref() {
         Some("render") => {}
-        Some("stylesheet") => return Ok(write_stdout(&stylesheet())?),
+        Some("stylesheet") => return Ok(write_stdout(&shared_stylesheet(arguments)?)?),
         Some("-h" | "--help") => return Ok(write_stdout(&usage())?),
         _ => return Err(usage().into()),
     }
@@ -177,6 +178,28 @@ fn path_after(
         .ok_or_else(|| format!("{option} requires a path"))
 }
 
+/// `chartlet stylesheet [--types bar,time]`: the shared stylesheet, for every chart type or for
+/// the listed ones.
+fn shared_stylesheet(mut arguments: impl Iterator<Item = String>) -> Result<String, String> {
+    match arguments.next().as_deref() {
+        None => Ok(stylesheet()),
+        Some("--types") => {
+            let names = arguments
+                .next()
+                .ok_or_else(|| "--types requires a list such as bar,time".to_owned())?;
+            let types = names
+                .split(',')
+                .map(|name| {
+                    ChartType::from_name(name.trim())
+                        .ok_or_else(|| format!("unknown chart type {name:?}"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(stylesheet_for(&types))
+        }
+        Some(unknown) => Err(format!("unknown argument {unknown:?}\n\n{}", usage())),
+    }
+}
+
 fn parse_format(value: Option<&str>) -> Result<RenderFormat, String> {
     match value {
         Some("svg") => Ok(RenderFormat::Svg),
@@ -217,7 +240,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 
 fn usage() -> String {
     "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print] [--manifest <path>] [--styles inline|external] [--strict [--allow-warning <code>]...] [--diagnostics text|json]
-       chartlet stylesheet".to_owned()
+       chartlet stylesheet [--types bar,time,...]".to_owned()
 }
 
 /// Writes to stdout. A reader that stops early, such as `chartlet render … | head`, closes the

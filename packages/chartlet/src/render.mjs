@@ -36,10 +36,11 @@ function withAlternative(rendered, spec, options) {
   return rendered;
 }
 
-// The shared stylesheet that charts rendered with `styles: "external"` rely on. The package also
-// ships it as `@casoon/chartlet/chartlet.css`.
-export function stylesheet() {
-  return wasmRenderer().stylesheet();
+// The shared stylesheet that charts rendered with `styles: "external"` rely on, for every chart
+// type or for those in `options.types`. The package also ships the full one as
+// `@casoon/chartlet/chartlet.css`.
+export function stylesheet(options = {}) {
+  return wasmRenderer().stylesheet(options);
 }
 
 // Resolved by package name, not relative to this file: bundlers such as Vite copy this module

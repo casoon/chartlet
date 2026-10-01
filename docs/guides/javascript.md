@@ -128,6 +128,10 @@ The stylesheet is the same for every chart, so it caches across pages, and as a 
 CSP hash. `stylesheet()` returns it as a string; the CLI prints it with `chartlet stylesheet` and
 renders with `--styles external`. A chart looks the same either way.
 
+The full file covers every chart type. A site that renders only some of them can serve just
+those: `stylesheet({ types: ['bar', 'time'] })` or `chartlet stylesheet --types bar,time` keeps
+the common rules (about 4 KB) and the rules of the named types.
+
 ## Content Security Policy
 
 A chart carries its styles in inline `<style>` elements, which a strict `style-src` blocks unless

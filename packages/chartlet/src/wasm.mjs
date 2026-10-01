@@ -69,9 +69,14 @@ export function createRenderer(module) {
       return respond(typeof spec === "string" ? spec : JSON.stringify(spec), options);
     },
 
-    // The shared stylesheet that charts rendered with `styles: "external"` rely on.
-    stylesheet() {
-      return send({ stylesheet: true }).stylesheet;
+    // The shared stylesheet that charts rendered with `styles: "external"` rely on, for every
+    // chart type or for those in `options.types`.
+    stylesheet(options = {}) {
+      const response = send({ stylesheet: true, types: options.types });
+      if (!response.ok) {
+        throw new Error(`chartlet: ${response.error.message}`);
+      }
+      return response.stylesheet;
     },
   };
 }

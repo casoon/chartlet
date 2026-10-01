@@ -82,8 +82,13 @@ export interface ChartTextAlternative {
   };
 }
 
+export interface StylesheetOptions {
+  /** Only the rules of these chart types, such as `["bar", "time"]`; all types when absent. */
+  types?: string[];
+}
+
 /** The shared stylesheet that charts rendered with `styles: "external"` rely on. */
-export declare function stylesheet(): string;
+export declare function stylesheet(options?: StylesheetOptions): string;
 
 export declare function renderChart(
   spec: Record<string, unknown>,

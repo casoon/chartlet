@@ -209,6 +209,29 @@ pub enum ChartType {
     Multiples,
 }
 
+impl ChartType {
+    /// Every chart type, in the order of the specification's documentation.
+    pub const ALL: [Self; 9] = [
+        Self::Bar,
+        Self::Line,
+        Self::Time,
+        Self::Topicmap,
+        Self::Atlas,
+        Self::Stripes,
+        Self::Calendar,
+        Self::Rangebar,
+        Self::Multiples,
+    ];
+
+    /// The chart type that `type` names, such as `"bar"`.
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|chart_type| type_name(*chart_type) == name)
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Orientation {

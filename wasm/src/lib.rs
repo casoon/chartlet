@@ -6,7 +6,8 @@
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
 //! "variant", "strict", "allowWarnings", "manifest", "alternative", "styles" } }`, or
-//! `{ "stylesheet": true }` for the shared stylesheet of `"styles": "external"`. Response: `{ "ok": true, "content", "styleHashes",
+//! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
+//! `"styles": "external"`, for every chart type when `types` is absent. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
 //! `{ "ok": false, "error": { "code", "path", "message" }, "warnings" }`, the same diagnostics
 //! the CLI reports with `--diagnostics json`. `styleHashes` are the CSP source expressions of the
@@ -22,8 +23,8 @@ use std::{
 };
 
 use chartlet::{
-    ChartSpec, ChartWarning, Manifest, RenderFormat, RenderOptions, Styles, TableMode,
-    TextAlternative, Variant, render_json, stylesheet, text_alternative,
+    ChartSpec, ChartType, ChartWarning, Manifest, RenderFormat, RenderOptions, Styles, TableMode,
+    TextAlternative, Variant, render_json, stylesheet, stylesheet_for, text_alternative,
 };
 use serde_json::{Value, json};
 
@@ -66,8 +67,10 @@ pub extern "C" fn result_len() -> usize {
 }
 
 fn respond(request: &[u8]) -> Value {
-    if serde_json::from_slice::<Value>(request).is_ok_and(|request| request["stylesheet"] == true) {
-        return json!({ "ok": true, "stylesheet": stylesheet() });
+    if let Ok(request) = serde_json::from_slice::<Value>(request)
+        && request["stylesheet"] == true
+    {
+        return shared_stylesheet(&request["types"]);
     }
     let mut warnings = Vec::new();
     let result = run(request, &mut warnings);
@@ -185,6 +188,27 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
 
 fn error_json(error: &chartlet::ChartError) -> Value {
     json!({ "code": error.code, "path": error.path, "message": error.message })
+}
+
+/// The shared stylesheet, for every chart type or for the names in `types`.
+fn shared_stylesheet(types: &Value) -> Value {
+    let Some(names) = types.as_array() else {
+        return json!({ "ok": true, "stylesheet": stylesheet() });
+    };
+    let mut chart_types = Vec::new();
+    for name in names {
+        match name.as_str().and_then(ChartType::from_name) {
+            Some(chart_type) => chart_types.push(chart_type),
+            None => {
+                return json!({
+                    "ok": false,
+                    "error": failure(&format!("unknown chart type {name}")),
+                    "warnings": [],
+                });
+            }
+        }
+    }
+    json!({ "ok": true, "stylesheet": stylesheet_for(&chart_types) })
 }
 
 fn failure(message: &str) -> Value {

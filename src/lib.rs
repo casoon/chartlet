@@ -64,7 +64,14 @@ pub enum Styles {
 /// every chart, so a site serves it once as a cacheable file.
 #[must_use]
 pub fn stylesheet() -> String {
-    render::shared_stylesheet()
+    render::shared_stylesheet(&ChartType::ALL)
+}
+
+/// The shared stylesheet with only the rules of `chart_types`: enough for a site that renders no
+/// other types.
+#[must_use]
+pub fn stylesheet_for(chart_types: &[ChartType]) -> String {
+    render::shared_stylesheet(chart_types)
 }
 
 /// Which layout the SVG profile renders. The HTML profile always carries the chart and, when the

@@ -155,6 +155,14 @@ test("reports the outcome as structured diagnostics without throwing", () => {
   const css = stylesheet();
   assert.equal(css, execFileSync(binary, ["stylesheet"], { encoding: "utf8" }).trimEnd());
   assert.equal(readFileSync(join(packageDirectory, "src/chartlet.css"), "utf8").trimEnd(), css);
+  const someTypes = stylesheet({ types: ["bar", "time"] });
+  assert.ok(someTypes.length < css.length && someTypes.includes(".chartlet-type-time"));
+  assert.ok(!someTypes.includes(".chartlet-type-atlas"));
+  assert.equal(
+    someTypes,
+    execFileSync(binary, ["stylesheet", "--types", "bar,time"], { encoding: "utf8" }).trimEnd(),
+  );
+  assert.throws(() => stylesheet({ types: ["pie"] }), /unknown chart type/);
 
   const pie = renderChartDetailed({ ...spec, type: "pie" });
   assert.equal(pie.ok, false);

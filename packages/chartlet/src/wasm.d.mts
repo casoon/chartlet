@@ -2,6 +2,7 @@ import type {
   RenderChartDetailedResult,
   RenderChartOptions,
   RenderChartResult,
+  StylesheetOptions,
 } from "./render.mjs";
 
 export interface ChartRenderer {
@@ -13,7 +14,7 @@ export interface ChartRenderer {
     options?: RenderChartOptions,
   ): RenderChartDetailedResult;
   /** The shared stylesheet that charts rendered with `styles: "external"` rely on. */
-  stylesheet(): string;
+  stylesheet(options?: StylesheetOptions): string;
 }
 
 /** Instantiates the renderer from the compiled `@casoon/chartlet/chartlet.wasm` module. */

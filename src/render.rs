@@ -298,11 +298,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     )
 }
 
-/// Every style group for every chart type that can use it, in the order of [`base_style`]. The
-/// light palette and the dark theme apply to every chart; every other group is scoped to the
+/// Every style group for each of `chart_types` that can use it, in the order of [`base_style`].
+/// The light palette and the dark theme apply to every chart; every other group is scoped to the
 /// chart types that use it, so that two groups styling the same class, such as the hatching of a
 /// time chart and of a range bar chart, never meet.
-pub(crate) fn shared_stylesheet() -> String {
+pub(crate) fn shared_stylesheet(chart_types: &[ChartType]) -> String {
     use ChartType::{Atlas, Bar, Calendar, Multiples, Rangebar, Stripes, Time, Topicmap};
     let groups: [(&str, &[ChartType]); 16] = [
         (STYLE, &[]),
@@ -328,7 +328,10 @@ pub(crate) fn shared_stylesheet() -> String {
         if types.is_empty() {
             stylesheet.push_str(&scope_stylesheet(group, ".chartlet-root", false));
         }
-        for chart_type in types {
+        for chart_type in types
+            .iter()
+            .filter(|chart_type| chart_types.contains(chart_type))
+        {
             stylesheet.push_str(&scope_stylesheet(
                 group,
                 &format!(".{}", type_class(*chart_type)),
