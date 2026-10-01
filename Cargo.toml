@@ -2,7 +2,7 @@
 name = "chartlet"
 version = "0.1.0"
 edition = "2024"
-license = "MIT"
+license = "MIT AND OFL-1.1"
 description = "Compile structured data into deterministic, accessible static charts"
 repository = "https://github.com/casoon/chartlet"
 readme = "README.md"
@@ -14,6 +14,13 @@ exclude = ["packages/**", "plan/**", "site/**", "docs/**", "wasm/**"]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_path_to_error = "0.1"
+# PNG output, behind the `png` feature: text shaping and rasterizing without system fonts.
+resvg = { version = "0.48", default-features = false, features = ["text"], optional = true }
+
+[features]
+# Adds `render_png` and `chartlet render --format png`. Not part of the default build, the
+# WebAssembly build or the npm package.
+png = ["dep:resvg"]
 
 [lints.rust]
 unsafe_code = "forbid"

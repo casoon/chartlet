@@ -35,7 +35,8 @@ const { content, warnings } = renderChart(spec, { format: 'svg', idPrefix: 'reve
 ```
 
 Options: `format`, `table`, `idPrefix`, `variant` (`mobile` renders the mobile variant alone as
-SVG, `print` the chart as SVG with literal colors for PDF and print renderers), `strict` and `manifest` (`true` adds a provenance `manifest` to the result: chartlet
+SVG, `print` the chart as SVG with literal colors for PDF and print renderers, `social` the chart
+on a 1200 × 630 canvas for Open Graph images), `strict` and `manifest` (`true` adds a provenance `manifest` to the result: chartlet
 version, SHA-256 of the canonical specification and of `content`, format, variant, ID prefix and
 warnings, without a timestamp). `warnings` holds the lines the CLI would write; an invalid specification
 throws with the CLI's message. The output is byte-identical to the `chartlet` CLI.

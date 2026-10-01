@@ -33,12 +33,15 @@ jobs:
       - name: Lint
         run: |
           cargo clippy --all-targets -- -D warnings
+          cargo clippy --all-targets --features png -- -D warnings
           cargo clippy -p chartlet-wasm --target wasm32-unknown-unknown -- -D warnings
 
       # The golden tests compare against the committed SVGs, so this also checks that the
       # output is byte-identical on every platform.
       - name: Test
-        run: cargo test
+        run: |
+          cargo test
+          cargo test --features png
 
       - name: Examples are up to date
         run: |
@@ -52,6 +55,9 @@ jobs:
             fi
             if [ -f "$base.print.svg" ]; then
               ./target/debug/chartlet render "$spec" --variant print -o "$base.print.svg"
+            fi
+            if [ -f "$base.social.svg" ]; then
+              ./target/debug/chartlet render "$spec" --variant social -o "$base.social.svg"
             fi
           done
           git diff --exit-code -- examples/

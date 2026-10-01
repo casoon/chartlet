@@ -146,6 +146,13 @@ const PRINT_EXAMPLES: [(&str, &str, &str); 2] = [
     ),
 ];
 
+/// Examples with a reviewed social variant.
+const SOCIAL_EXAMPLES: [(&str, &str, &str); 1] = [(
+    "temperature-projection",
+    include_str!("../examples/temperature-projection.json"),
+    include_str!("../examples/temperature-projection.social.svg"),
+)];
+
 /// The committed SVGs are the reviewed reference output. Each example must render to exactly the
 /// bytes that are checked into `examples/`, on every supported platform.
 #[test]
@@ -219,6 +226,56 @@ fn every_print_variant_carries_literal_colors_only() {
             assert!(
                 !svg.contains(needle),
                 "{name}'s print variant contains {needle}"
+            );
+        }
+    }
+}
+
+/// The social variant is reference output too.
+#[test]
+fn every_social_variant_matches_its_reviewed_svg() {
+    for (name, specification, expected) in SOCIAL_EXAMPLES {
+        let actual = render_json(
+            specification,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: Variant::Social,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("{name} should render its social variant: {error}"));
+        assert_eq!(
+            actual.content, expected,
+            "{name} drifted from its reviewed social SVG"
+        );
+    }
+}
+
+/// Every example renders a social variant at 1200 × 630 with literal colors only and without the
+/// tooltips of its marks.
+#[test]
+fn every_social_variant_is_a_resolved_1200_by_630_canvas() {
+    for (name, specification, _) in EXAMPLES {
+        let svg = render_json(
+            specification,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: Variant::Social,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("{name} should render its social variant: {error}"))
+        .content;
+        assert!(
+            svg.starts_with(
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1200\" height=\"630\" viewBox=\"0 0 1200 630\""
+            ),
+            "{name}'s social variant is not 1200 × 630"
+        );
+        for needle in ["var(", "--chartlet", "currentColor", ":has(", "<title>"] {
+            assert!(
+                !svg.contains(needle),
+                "{name}'s social variant contains {needle}"
             );
         }
     }

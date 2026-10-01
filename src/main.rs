@@ -89,10 +89,13 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut manifest = None;
     let mut styles = Styles::Inline;
     let mut hooks = false;
+    let mut png = false;
+    let mut scale = None;
 
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
-            "--format" => format = parse_format(arguments.next().as_deref())?,
+            "--format" => (format, png) = parse_format(arguments.next().as_deref())?,
+            "--scale" => scale = Some(parse_scale(arguments.next().as_deref())?),
             "-o" | "--output" => output = Some(path_after(&mut arguments, "--output")?),
             "--id-prefix" => {
                 id_prefix = Some(
@@ -129,49 +132,136 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     }
 
     let input_content = read_input(&input)?;
-    let rendered = render_json(
-        &input_content,
-        format,
-        &RenderOptions {
-            id_prefix,
-            table_mode,
-            variant,
-            manifest: manifest.is_some(),
-            styles,
-            hooks,
-        },
-    )
-    .map_err(|error| Failure {
-        code: error.code,
-        path: Some(error.path),
-        message: error.message,
-    })?;
+    let (content, rendered_warnings, rendered_manifest) = if png {
+        let (png, warnings) = render_png(&input_content, variant, scale, manifest.is_some())?;
+        (Content::Png(png), warnings, None)
+    } else if scale.is_some() {
+        return Err("--scale requires --format png".to_owned().into());
+    } else {
+        let rendered = render_json(
+            &input_content,
+            format,
+            &RenderOptions {
+                id_prefix,
+                table_mode,
+                variant,
+                manifest: manifest.is_some(),
+                styles,
+                hooks,
+            },
+        )
+        .map_err(spec_failure)?;
+        (
+            Content::Text(rendered.content),
+            rendered.warnings,
+            rendered.manifest,
+        )
+    };
+    report_warnings(
+        rendered_warnings,
+        warnings,
+        json_diagnostics,
+        strict.then_some(&allowed),
+    )?;
 
+    content.write(output)?;
+    if let (Some(path), Some(manifest)) = (manifest, rendered_manifest) {
+        fs::write(&path, manifest.to_json() + "\n")
+            .map_err(|error| format!("could not write {}: {error}", path.display()))?;
+    }
+    Ok(())
+}
+
+/// Writes the warnings of a render to stderr as text lines, unless diagnostics are JSON, and adds
+/// them to `warnings`. In strict mode, with the allowed warning codes, a warning is a failure.
+fn report_warnings(
+    rendered: Vec<ChartWarning>,
+    warnings: &mut Vec<ChartWarning>,
+    json_diagnostics: bool,
+    strict: Option<&Vec<String>>,
+) -> Result<(), Failure> {
     if !json_diagnostics {
-        for warning in &rendered.warnings {
+        for warning in &rendered {
             eprintln!(
                 "warning[{}] at {}: {}",
                 warning.code, warning.path, warning.message
             );
         }
     }
-    let rejected = strict.then(|| strict_failure(&rendered.warnings, &allowed));
-    warnings.extend(rendered.warnings);
-    if let Some(Some(failure)) = rejected {
-        return Err(failure);
-    }
+    let rejected = strict.and_then(|allowed| strict_failure(&rendered, allowed));
+    warnings.extend(rendered);
+    rejected.map_or(Ok(()), Err)
+}
 
-    if let Some(output) = output {
-        fs::write(&output, rendered.content)
-            .map_err(|error| format!("could not write {}: {error}", output.display()))?;
-    } else {
-        write_stdout(&rendered.content)?;
+/// What `chartlet render` writes: SVG or HTML text, or the bytes of a PNG.
+enum Content {
+    Text(String),
+    Png(Vec<u8>),
+}
+
+impl Content {
+    /// Writes the content to `output`, or to stdout without one.
+    fn write(&self, output: Option<PathBuf>) -> Result<(), String> {
+        match (output, self) {
+            (Some(output), content) => {
+                let bytes = match content {
+                    Self::Text(text) => text.as_bytes(),
+                    Self::Png(png) => png,
+                };
+                fs::write(&output, bytes)
+                    .map_err(|error| format!("could not write {}: {error}", output.display()))
+            }
+            (None, Self::Text(text)) => write_stdout(text),
+            (None, Self::Png(png)) => write_stdout_bytes(png),
+        }
     }
-    if let (Some(path), Some(manifest)) = (manifest, rendered.manifest) {
-        fs::write(&path, manifest.to_json() + "\n")
-            .map_err(|error| format!("could not write {}: {error}", path.display()))?;
+}
+
+fn spec_failure(error: chartlet::ChartError) -> Failure {
+    Failure {
+        code: error.code,
+        path: Some(error.path),
+        message: error.message,
     }
-    Ok(())
+}
+
+#[cfg(feature = "png")]
+fn render_png(
+    input: &str,
+    variant: Variant,
+    scale: Option<f32>,
+    manifest: bool,
+) -> Result<(Vec<u8>, Vec<ChartWarning>), Failure> {
+    if manifest {
+        return Err("--manifest is not available with --format png"
+            .to_owned()
+            .into());
+    }
+    let scale = scale.unwrap_or(1.0);
+    let spec = chartlet::ChartSpec::from_json(input).map_err(spec_failure)?;
+    let output = chartlet::render_png(&spec, &chartlet::PngOptions { variant, scale })
+        .map_err(spec_failure)?;
+    Ok((output.png, output.warnings))
+}
+
+#[cfg(not(feature = "png"))]
+fn render_png(
+    _input: &str,
+    _variant: Variant,
+    _scale: Option<f32>,
+    _manifest: bool,
+) -> Result<(Vec<u8>, Vec<ChartWarning>), Failure> {
+    Err(
+        "--format png needs chartlet built with the png feature: cargo install chartlet --features png"
+            .to_owned()
+            .into(),
+    )
+}
+
+fn parse_scale(value: Option<&str>) -> Result<f32, String> {
+    value
+        .and_then(|value| value.parse::<f32>().ok())
+        .ok_or_else(|| "--scale requires a number such as 2".to_owned())
 }
 
 /// The path that follows `option` on the command line.
@@ -207,11 +297,13 @@ fn shared_stylesheet(mut arguments: impl Iterator<Item = String>) -> Result<Stri
     }
 }
 
-fn parse_format(value: Option<&str>) -> Result<RenderFormat, String> {
+/// The format, and whether it is a PNG, which is rasterized from an SVG.
+fn parse_format(value: Option<&str>) -> Result<(RenderFormat, bool), String> {
     match value {
-        Some("svg") => Ok(RenderFormat::Svg),
-        Some("html") => Ok(RenderFormat::Html),
-        _ => Err("--format must be svg or html".to_owned()),
+        Some("svg") => Ok((RenderFormat::Svg, false)),
+        Some("html") => Ok((RenderFormat::Html, false)),
+        Some("png") => Ok((RenderFormat::Svg, true)),
+        _ => Err("--format must be svg, html or png".to_owned()),
     }
 }
 
@@ -228,7 +320,8 @@ fn parse_variant(value: Option<&str>) -> Result<Variant, String> {
         Some("desktop") => Ok(Variant::Desktop),
         Some("mobile") => Ok(Variant::Mobile),
         Some("print") => Ok(Variant::Print),
-        _ => Err("--variant must be desktop, mobile or print".to_owned()),
+        Some("social") => Ok(Variant::Social),
+        _ => Err("--variant must be desktop, mobile, print or social".to_owned()),
     }
 }
 
@@ -246,8 +339,17 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json]
+    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json]
        chartlet stylesheet [--types bar,time,...]".to_owned()
+}
+
+/// Writes binary content, such as a PNG, to stdout as it is.
+fn write_stdout_bytes(content: &[u8]) -> Result<(), String> {
+    let mut stdout = io::stdout().lock();
+    match stdout.write_all(content).and_then(|()| stdout.flush()) {
+        Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
+        result => result.map_err(|error| format!("could not write to stdout: {error}")),
+    }
 }
 
 /// Writes to stdout. A reader that stops early, such as `chartlet render … | head`, closes the

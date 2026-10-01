@@ -136,7 +136,8 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
         Some("desktop") | None => Variant::Desktop,
         Some("mobile") => Variant::Mobile,
         Some("print") => Variant::Print,
-        _ => return Err(failure("variant must be desktop, mobile or print")),
+        Some("social") => Variant::Social,
+        _ => return Err(failure("variant must be desktop, mobile, print or social")),
     };
     let styles = match options["styles"].as_str() {
         Some("inline") | None => Styles::Inline,

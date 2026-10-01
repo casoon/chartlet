@@ -2,9 +2,10 @@ export type ChartFormat = "svg" | "html";
 export type TableMode = "details" | "visible";
 /**
  * Which layout the SVG profile renders; `mobile` needs a `mobile` field in the spec, `print`
- * draws the chart with literal colors for print and PDF renderers.
+ * draws the chart with literal colors for print and PDF renderers, `social` draws it on a
+ * 1200 × 630 canvas for link previews such as Open Graph images.
  */
-export type ChartVariant = "desktop" | "mobile" | "print";
+export type ChartVariant = "desktop" | "mobile" | "print" | "social";
 
 export interface RenderChartOptions {
   format?: ChartFormat;

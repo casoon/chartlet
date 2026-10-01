@@ -9,12 +9,15 @@ mod layout;
 mod metrics;
 mod noise;
 mod ohlc;
+#[cfg(feature = "png")]
+mod png;
 pub mod qr;
 mod rangebar;
 mod reference;
 mod render;
 mod scene;
 mod sha256;
+mod social;
 mod spec;
 mod stripes;
 mod text;
@@ -92,6 +95,10 @@ pub enum Variant {
     /// browser: its stylesheet carries the theme's colors as literal values instead of CSS
     /// custom properties, and no rule that needs a browser. Its IDs end in `-p`.
     Print,
+    /// The chart on a 1200 × 630 canvas for link previews such as Open Graph images: the title
+    /// drawn large, the source below, no tooltips, and the resolved stylesheet of
+    /// [`Variant::Print`]. Its IDs end in `-s`.
+    Social,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -125,7 +132,8 @@ pub struct Manifest {
     pub format: RenderFormat,
     pub variant: Variant,
     /// The ID prefix the chart was rendered with: the one passed in, or the one derived from the
-    /// specification. The mobile variant appends `-m` to it, the print variant `-p`.
+    /// specification. The mobile variant appends `-m` to it, the print variant `-p`, the social
+    /// variant `-s`.
     pub id_prefix: String,
     pub warnings: Vec<ChartWarning>,
 }
@@ -171,6 +179,7 @@ impl Manifest {
                 Variant::Desktop => "desktop",
                 Variant::Mobile => "mobile",
                 Variant::Print => "print",
+                Variant::Social => "social",
             },
             id_prefix: &self.id_prefix,
             warnings: self
@@ -322,6 +331,7 @@ fn render_content(
             );
         }
         Variant::Print => return render_print(spec, format, &id_prefix, warnings, metrics),
+        Variant::Social => return render_social(spec, format, &id_prefix, metrics),
     }
 
     // The HTML profile lays the chart out a second time at the mobile size; its warnings are
@@ -480,8 +490,60 @@ fn render_print(
         metrics,
         &mut warnings,
     );
-    // A print SVG cannot see the page that would define a `var()` color, so a layer without a
-    // fallback color is drawn in the text color; several of them would become indistinguishable.
+    warn_unresolved_colors(spec, "print", &mut warnings);
+    Ok(RenderOutput {
+        content,
+        warnings,
+        manifest: None,
+    })
+}
+
+/// The social variant, as SVG, with its IDs ending in `-s`. The chart is laid out without its
+/// title at the size the canvas leaves it, and validated at that size like a mobile variant.
+fn render_social(
+    spec: &ChartSpec,
+    format: RenderFormat,
+    id_prefix: &str,
+    metrics: &impl TextMetrics,
+) -> Result<RenderOutput, ChartError> {
+    if format == RenderFormat::Html {
+        return Err(ChartError::new(
+            "option_not_supported",
+            "/render/variant",
+            "the social variant is a standalone SVG; render it with the SVG format",
+        ));
+    }
+    let mut frame_warnings = Vec::new();
+    let frame = social::Frame::new(spec, metrics, &mut frame_warnings);
+    let chart = ChartSpec {
+        width: frame.chart_width,
+        height: frame.chart_height,
+        show_title: false,
+        mobile: None,
+        ..spec.clone()
+    };
+    let mut warnings = chart.validate_mobile_variant()?;
+    warnings.append(&mut frame_warnings);
+    let content = render_panel(
+        &chart,
+        format,
+        &format!("{id_prefix}-s"),
+        render::StyleMode::Print,
+        render::Hooks::Off,
+        metrics,
+        &mut warnings,
+    );
+    warn_unresolved_colors(spec, "social", &mut warnings);
+    Ok(RenderOutput {
+        content: frame.compose(&content),
+        warnings,
+        manifest: None,
+    })
+}
+
+/// A variant with a resolved stylesheet cannot see the page that would define a `var()` color, so
+/// such a layer is drawn in the text color; several of them would become indistinguishable.
+fn warn_unresolved_colors(spec: &ChartSpec, variant: &str, warnings: &mut Vec<ChartWarning>) {
     for entry in spec.indexed_layers() {
         if entry
             .layer
@@ -491,14 +553,81 @@ fn render_print(
             warnings.push(ChartWarning::new(
                 "color_not_resolved",
                 format!("/panes/{}/layers/{}/color", entry.pane, entry.local),
-                "the print variant cannot resolve a var() color and draws this layer in the text color; give it a fallback such as var(--name, #2563eb)",
+                format!("the {variant} variant cannot resolve a var() color and draws this layer in the text color; give it a fallback such as var(--name, #2563eb)"),
             ));
         }
     }
-    Ok(RenderOutput {
-        content,
-        warnings,
-        manifest: None,
+}
+
+/// Options of [`render_png`].
+#[cfg(feature = "png")]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PngOptions {
+    /// [`Variant::Print`] rasterizes the chart at `width` × `height`, [`Variant::Social`] the
+    /// 1200 × 630 canvas. [`Variant::Desktop`] is taken as [`Variant::Print`]: a PNG needs the
+    /// resolved stylesheet. [`Variant::Mobile`] is not supported.
+    pub variant: Variant,
+    /// Image pixels per SVG pixel, 0.25–4; 2 for a high-density screen.
+    pub scale: f32,
+}
+
+#[cfg(feature = "png")]
+impl Default for PngOptions {
+    fn default() -> Self {
+        Self {
+            variant: Variant::Print,
+            scale: 1.0,
+        }
+    }
+}
+
+/// A rendered PNG and the warnings of the SVG it was rasterized from.
+#[cfg(feature = "png")]
+#[derive(Debug, Clone)]
+pub struct PngOutput {
+    pub png: Vec<u8>,
+    pub warnings: Vec<ChartWarning>,
+}
+
+/// Validates a chart specification and renders it as PNG: the print or the social variant,
+/// rasterized with the bundled Inter font and no system fonts. The same specification, options
+/// and chartlet version yield the same bytes.
+///
+/// # Errors
+///
+/// Returns a structured error when the specification is invalid, the scale is out of range, or
+/// the variant is the mobile one.
+#[cfg(feature = "png")]
+pub fn render_png(spec: &ChartSpec, options: &PngOptions) -> Result<PngOutput, ChartError> {
+    if !(0.25..=png::MAX_SCALE).contains(&options.scale) {
+        return Err(ChartError::new(
+            "invalid_scale",
+            "/render/scale",
+            "scale must be between 0.25 and 4",
+        ));
+    }
+    let variant = match options.variant {
+        Variant::Desktop | Variant::Print => Variant::Print,
+        Variant::Social => Variant::Social,
+        Variant::Mobile => {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/render/variant",
+                "a PNG is rendered from the print or the social variant",
+            ));
+        }
+    };
+    let output = render(
+        spec,
+        RenderFormat::Svg,
+        &RenderOptions {
+            variant,
+            ..RenderOptions::default()
+        },
+    )?;
+    Ok(PngOutput {
+        png: png::rasterize(&output.content, options.scale)?,
+        warnings: output.warnings,
     })
 }
 
