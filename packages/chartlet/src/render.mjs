@@ -15,10 +15,25 @@ let renderer;
 export function renderChart(spec, options = {}) {
   const binary = options.binary ?? process.env.CHARTLET_BIN;
   if (!binary) {
-    renderer ??= createRenderer(new WebAssembly.Module(readWasm()));
-    return renderer.renderChart(spec, options);
+    return wasmRenderer().renderChart(spec, options);
   }
   return renderWithCli(binary, spec, options);
+}
+
+function wasmRenderer() {
+  renderer ??= createRenderer(new WebAssembly.Module(readWasm()));
+  return renderer;
+}
+
+// The CLI writes no text alternative; the bundled WebAssembly build derives the same one.
+function withAlternative(rendered, spec, options) {
+  if (options.alternative) {
+    rendered.alternative = wasmRenderer().renderChartDetailed(spec, {
+      format: "svg",
+      alternative: true,
+    }).alternative;
+  }
+  return rendered;
 }
 
 // Resolved by package name, not relative to this file: bundlers such as Vite copy this module
@@ -42,8 +57,7 @@ function readWasm() {
 export function renderChartDetailed(spec, options = {}) {
   const binary = options.binary ?? process.env.CHARTLET_BIN;
   if (!binary) {
-    renderer ??= createRenderer(new WebAssembly.Module(readWasm()));
-    return renderer.renderChartDetailed(spec, options);
+    return wasmRenderer().renderChartDetailed(spec, options);
   }
   const { result, manifest } = runCli(
     binary,
@@ -65,7 +79,7 @@ export function renderChartDetailed(spec, options = {}) {
   if (manifest) {
     rendered.manifest = manifest;
   }
-  return rendered;
+  return withAlternative(rendered, spec, options);
 }
 
 function renderWithCli(binary, spec, options) {
@@ -86,7 +100,7 @@ function renderWithCli(binary, spec, options) {
   if (manifest) {
     rendered.manifest = manifest;
   }
-  return rendered;
+  return withAlternative(rendered, spec, options);
 }
 
 // Runs `chartlet render` on `input` and returns the process result with the manifest it wrote.

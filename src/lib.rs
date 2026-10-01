@@ -153,6 +153,40 @@ impl Manifest {
     }
 }
 
+/// What a chart says without its graphic: the description its SVG carries and the data table of
+/// its HTML profile, as text, for hosts that build their own accessible wrapper around the SVG.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TextAlternative {
+    pub description: String,
+    pub table: DataTable,
+}
+
+/// A chart's data table as text, values written as the chart writes them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DataTable {
+    pub caption: String,
+    /// The column heads; the first names the categories.
+    pub columns: Vec<String>,
+    /// One row per category, starting with the category.
+    pub rows: Vec<Vec<String>>,
+}
+
+/// Validates a chart specification and returns its text alternative.
+///
+/// # Errors
+///
+/// Returns a structured error when the specification is invalid.
+pub fn text_alternative(spec: &ChartSpec) -> Result<TextAlternative, ChartError> {
+    spec.validate()?;
+    Ok(TextAlternative {
+        description: spec
+            .description
+            .clone()
+            .unwrap_or_else(|| automatic_description(spec)),
+        table: render::data_table(spec),
+    })
+}
+
 /// Parses and renders a chart specification.
 ///
 /// # Errors
@@ -508,7 +542,7 @@ fn default_id_prefix(spec: &ChartSpec) -> Result<String, ChartError> {
 mod tests {
     use super::{
         BuiltinMetrics, ChartSpec, RenderFormat, RenderOptions, TextMetrics, Variant, render_json,
-        render_with_metrics,
+        render_with_metrics, text_alternative,
     };
 
     const SPEC: &str = r#"{
@@ -1116,6 +1150,21 @@ mod tests {
         assert!(atlas.contains(
             "<th scope=\"col\">Region</th><th scope=\"col\">Einträge</th><th scope=\"col\">Orte</th>"
         ));
+    }
+
+    #[test]
+    fn the_text_alternative_matches_the_description_and_the_table() {
+        let spec = ChartSpec::from_json(&german(TIME, "time")).unwrap();
+        let alternative = text_alternative(&spec).unwrap();
+        let html = html_ok(&german(TIME, "time"));
+        assert!(html.contains(&crate::render::escape(&alternative.description)));
+        assert!(html.contains(&format!(
+            "<caption>{}</caption>",
+            crate::render::escape(&alternative.table.caption)
+        )));
+        assert_eq!(alternative.table.columns[0], "Zeit");
+        assert_eq!(alternative.table.rows.len(), 3);
+        assert!(alternative.table.rows.iter().all(|row| row.len() == 2));
     }
 
     #[test]

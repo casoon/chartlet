@@ -5,12 +5,13 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "strict", "allowWarnings", "manifest" } }`. Response: `{ "ok": true, "content", "styleHashes",
+//! "variant", "strict", "allowWarnings", "manifest", "alternative" } }`. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
 //! `{ "ok": false, "error": { "code", "path", "message" }, "warnings" }`, the same diagnostics
 //! the CLI reports with `--diagnostics json`. `styleHashes` are the CSP source expressions of the
 //! inline styles in `content`, see [`csp::style_hashes`]; `manifest` is the object the CLI writes
-//! with `--manifest`.
+//! with `--manifest`; `alternative`, when asked for, is the chart's text alternative,
+//! `{ "description", "table": { "caption", "columns", "rows" } }`.
 
 mod csp;
 
@@ -20,7 +21,8 @@ use std::{
 };
 
 use chartlet::{
-    ChartWarning, Manifest, RenderFormat, RenderOptions, TableMode, Variant, render_json,
+    ChartSpec, ChartWarning, Manifest, RenderFormat, RenderOptions, TableMode, TextAlternative,
+    Variant, render_json, text_alternative,
 };
 use serde_json::{Value, json};
 
@@ -67,7 +69,11 @@ fn respond(request: &[u8]) -> Value {
     let result = run(request, &mut warnings);
     let warnings: Vec<Value> = warnings.iter().map(warning_json).collect();
     match result {
-        Ok((content, manifest)) => {
+        Ok(Rendered {
+            content,
+            manifest,
+            alternative,
+        }) => {
             let mut response = json!({
                 "ok": true,
                 "styleHashes": csp::style_hashes(&content),
@@ -78,16 +84,30 @@ fn respond(request: &[u8]) -> Value {
                 response["manifest"] =
                     serde_json::from_str(&manifest.to_json()).expect("a manifest is valid JSON");
             }
+            if let Some(TextAlternative { description, table }) = alternative {
+                response["alternative"] = json!({
+                    "description": description,
+                    "table": {
+                        "caption": table.caption,
+                        "columns": table.columns,
+                        "rows": table.rows,
+                    },
+                });
+            }
             response
         }
         Err(error) => json!({ "ok": false, "error": error, "warnings": warnings }),
     }
 }
 
-fn run(
-    request: &[u8],
-    warnings: &mut Vec<ChartWarning>,
-) -> Result<(String, Option<Manifest>), Value> {
+/// A successful render: the content, and the manifest and text alternative when asked for.
+struct Rendered {
+    content: String,
+    manifest: Option<Manifest>,
+    alternative: Option<TextAlternative>,
+}
+
+fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Value> {
     let request: Value = serde_json::from_slice(request)
         .map_err(|error| failure(&format!("invalid render request: {error}")))?;
     let spec = match &request["spec"] {
@@ -121,7 +141,7 @@ fn run(
             manifest: options["manifest"].as_bool() == Some(true),
         },
     )
-    .map_err(|error| json!({ "code": error.code, "path": error.path, "message": error.message }))?;
+    .map_err(|error| error_json(&error))?;
 
     // Strict mode rejects every warning except those whose code is listed in `allowWarnings`.
     let allowed = options["allowWarnings"].as_array();
@@ -140,7 +160,21 @@ fn run(
             "message": format!("strict mode rejected {warning_count} warning(s)"),
         }));
     }
-    Ok((rendered.content, rendered.manifest))
+    let alternative = if options["alternative"].as_bool() == Some(true) {
+        let spec = ChartSpec::from_json(&spec).map_err(|error| error_json(&error))?;
+        Some(text_alternative(&spec).map_err(|error| error_json(&error))?)
+    } else {
+        None
+    };
+    Ok(Rendered {
+        content: rendered.content,
+        manifest: rendered.manifest,
+        alternative,
+    })
+}
+
+fn error_json(error: &chartlet::ChartError) -> Value {
+    json!({ "code": error.code, "path": error.path, "message": error.message })
 }
 
 fn failure(message: &str) -> Value {

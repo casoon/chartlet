@@ -134,6 +134,16 @@ test("reports the outcome as structured diagnostics without throwing", () => {
     ["text_truncated"],
   );
 
+  const described = renderChart(spec, { format: "svg", alternative: true });
+  assert.ok(described.content.includes(`<desc id="`));
+  assert.ok(described.content.includes(described.alternative.description));
+  assert.equal(described.alternative.table.columns.length, 2);
+  assert.equal(described.alternative.table.rows.length, spec.data.length);
+  assert.deepEqual(
+    renderChart(spec, { format: "svg", alternative: true, binary }).alternative,
+    described.alternative,
+  );
+
   const pie = renderChartDetailed({ ...spec, type: "pie" });
   assert.equal(pie.ok, false);
   assert.equal(pie.error.path, "/type");

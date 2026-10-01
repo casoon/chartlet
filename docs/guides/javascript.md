@@ -22,6 +22,22 @@ or `print`), `strict`, `allowWarnings` and `manifest`. When
 `options.binary` or the environment variable `CHARTLET_BIN` names a `chartlet` executable,
 `renderChart` calls that CLI instead.
 
+## Text alternative
+
+A page that wraps the SVG profile in its own accessible figure needs the words the chart would
+otherwise carry. `alternative: true` returns them as data, in the language of the
+specification's `locale`:
+
+```js
+const { content, alternative } = renderChart(spec, { format: 'svg', alternative: true });
+alternative.description; // the description the SVG carries in <desc>
+alternative.table; // { caption, columns, rows }: the data table of the HTML profile as text
+```
+
+Each row starts with its category; values are written as the chart writes them, including a
+declared `decimals` or `thousandsSeparator`. From Rust, `chartlet::text_alternative(&spec)`
+returns the same.
+
 ## Structured diagnostics
 
 `renderChart` throws on an invalid specification. `renderChartDetailed` takes the same arguments

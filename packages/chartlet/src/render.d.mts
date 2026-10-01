@@ -17,6 +17,8 @@ export interface RenderChartOptions {
   allowWarnings?: string[];
   /** Also return a provenance manifest of the render in `manifest`. */
   manifest?: boolean;
+  /** Also return the chart's text alternative in `alternative`. */
+  alternative?: boolean;
   /** A `chartlet` executable to render with instead of the bundled WebAssembly build. */
   binary?: string;
 }
@@ -56,6 +58,23 @@ export interface RenderChartResult {
   warnings: string[];
   /** Present when `options.manifest` is set. */
   manifest?: ChartManifest;
+  /** Present when `options.alternative` is set. */
+  alternative?: ChartTextAlternative;
+}
+
+/**
+ * What a chart says without its graphic: the description its SVG carries and its data table, as
+ * text, for a host that builds its own accessible wrapper around the SVG.
+ */
+export interface ChartTextAlternative {
+  description: string;
+  table: {
+    caption: string;
+    /** The column heads; the first names the categories. */
+    columns: string[];
+    /** One row per category, starting with the category; values as the chart writes them. */
+    rows: string[][];
+  };
 }
 
 export declare function renderChart(
@@ -78,6 +97,8 @@ export interface RenderChartDetailedSuccess {
   warnings: ChartDiagnostic[];
   /** Present when `options.manifest` is set. */
   manifest?: ChartManifest;
+  /** Present when `options.alternative` is set. */
+  alternative?: ChartTextAlternative;
 }
 
 export interface RenderChartDetailedFailure {

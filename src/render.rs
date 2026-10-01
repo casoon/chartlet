@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use crate::{
-    TableMode,
+    DataTable, TableMode,
     layout::format_value,
     scene::{Element, Scene, TextAnchor, TextStyle},
     spec::{ChartSpec, ChartType, Dash, Mark, Stroke, Theme},
@@ -850,50 +850,22 @@ fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMod
     } else {
         output.push_str("<div class=\"chartlet-data\">");
     }
-    let dataset = spec.table_dataset();
+    let table = data_table(spec);
     write!(
         output,
-        "<table><caption>{} {}</caption><thead><tr><th scope=\"col\">{}</th>",
-        spec.locale.words().data_for,
-        escape(&spec.title),
-        match spec.chart_type {
-            ChartType::Time | ChartType::Multiples => spec.locale.words().time,
-            ChartType::Topicmap => spec.locale.words().topic,
-            ChartType::Atlas => spec.locale.words().region,
-            ChartType::Stripes => spec.locale.words().year,
-            ChartType::Calendar => spec.locale.words().date,
-            ChartType::Bar | ChartType::Line | ChartType::Rangebar => {
-                spec.locale.words().category
-            }
-        }
+        "<table><caption>{}</caption><thead><tr>",
+        escape(&table.caption)
     )
     .expect("write");
-    for series in &dataset.series {
-        write!(
-            output,
-            "<th scope=\"col\">{}</th>",
-            escape(series.name.as_deref().unwrap_or(spec.locale.words().value))
-        )
-        .expect("write");
+    for column in &table.columns {
+        write!(output, "<th scope=\"col\">{}</th>", escape(column)).expect("write");
     }
     output.push_str("</tr></thead><tbody>");
-    for (index, category) in dataset.categories.iter().enumerate() {
-        write!(output, "<tr><th scope=\"row\">{}</th>", escape(category)).expect("write");
-        for series in &dataset.series {
-            write!(
-                output,
-                "<td>{}</td>",
-                series.values[index].map_or_else(
-                    || spec.locale.words().missing.to_owned(),
-                    |value| {
-                        escape(&format_value(
-                            value,
-                            series.style.unwrap_or_else(|| spec.number_style()),
-                        ))
-                    },
-                )
-            )
-            .expect("write");
+    for row in &table.rows {
+        let (head, cells) = row.split_first().expect("a row starts with its category");
+        write!(output, "<tr><th scope=\"row\">{}</th>", escape(head)).expect("write");
+        for cell in cells {
+            write!(output, "<td>{}</td>", escape(cell)).expect("write");
         }
         output.push_str("</tr>");
     }
@@ -902,6 +874,51 @@ fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMod
         output.push_str("</details>");
     } else {
         output.push_str("</div>");
+    }
+}
+
+/// The data table of a chart as text: its caption, the column heads and one row per category,
+/// each starting with the category, with values written as the chart writes them.
+pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
+    let words = spec.locale.words();
+    let dataset = spec.table_dataset();
+    let first = match spec.chart_type {
+        ChartType::Time | ChartType::Multiples => words.time,
+        ChartType::Topicmap => words.topic,
+        ChartType::Atlas => words.region,
+        ChartType::Stripes => words.year,
+        ChartType::Calendar => words.date,
+        ChartType::Bar | ChartType::Line | ChartType::Rangebar => words.category,
+    };
+    let columns = std::iter::once(first.to_owned())
+        .chain(
+            dataset
+                .series
+                .iter()
+                .map(|series| series.name.as_deref().unwrap_or(words.value).to_owned()),
+        )
+        .collect();
+    let rows = dataset
+        .categories
+        .iter()
+        .enumerate()
+        .map(|(index, category)| {
+            std::iter::once(category.clone())
+                .chain(dataset.series.iter().map(|series| {
+                    series.values[index].map_or_else(
+                        || words.missing.to_owned(),
+                        |value| {
+                            format_value(value, series.style.unwrap_or_else(|| spec.number_style()))
+                        },
+                    )
+                }))
+                .collect()
+        })
+        .collect();
+    DataTable {
+        caption: format!("{} {}", words.data_for, spec.title),
+        columns,
+        rows,
     }
 }
 

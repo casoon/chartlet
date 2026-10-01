@@ -22,6 +22,7 @@ export function createRenderer(module) {
           strict: options.strict ?? false,
           allowWarnings: options.allowWarnings ?? [],
           manifest: options.manifest ?? false,
+          alternative: options.alternative ?? false,
         },
       }),
     );
@@ -52,11 +53,14 @@ export function createRenderer(module) {
       if (response.manifest) {
         result.manifest = response.manifest;
       }
+      if (response.alternative) {
+        result.alternative = response.alternative;
+      }
       return result;
     },
 
-    // The renderer's response as it is: `ok`, `error` or `content`, `styleHashes` and
-    // `manifest`, and the warnings as `{ code, path, message }`. A string is taken as JSON text.
+    // The renderer's response as it is: `ok`, `error` or `content`, `styleHashes`, `manifest`
+    // and `alternative`, and the warnings as `{ code, path, message }`. A string is taken as JSON text.
     renderChartDetailed(spec, options = {}) {
       return respond(typeof spec === "string" ? spec : JSON.stringify(spec), options);
     },
