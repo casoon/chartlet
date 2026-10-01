@@ -9,7 +9,7 @@ JavaScript to the browser. It carries the renderer as a WebAssembly build, so th
 you install:
 
 ```sh
-npm install @casoon/chartlet@alpha
+npm install @casoon/chartlet
 ```
 
 To render with an installed `chartlet` CLI instead, set `CHARTLET_BIN` to its path or pass

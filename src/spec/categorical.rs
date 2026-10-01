@@ -41,7 +41,7 @@ impl ChartSpec {
             return Err(ChartError::new(
                 "option_not_supported",
                 "/series",
-                "series are only available for bar charts in this alpha; use data for a line chart",
+                "series are only available for bar charts; use data for a line chart",
             ));
         }
         if self.categories.is_empty() {

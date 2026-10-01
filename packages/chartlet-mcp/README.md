@@ -19,7 +19,7 @@ It needs Node.js 22.12 or newer and talks over stdio.
 ### Claude Code
 
 ```sh
-claude mcp add chartlet -- npx -y @casoon/chartlet-mcp@alpha
+claude mcp add chartlet -- npx -y @casoon/chartlet-mcp
 ```
 
 or in a project's `.mcp.json`:
@@ -29,7 +29,7 @@ or in a project's `.mcp.json`:
   "mcpServers": {
     "chartlet": {
       "command": "npx",
-      "args": ["-y", "@casoon/chartlet-mcp@alpha"]
+      "args": ["-y", "@casoon/chartlet-mcp"]
     }
   }
 }
@@ -46,7 +46,7 @@ In `claude_desktop_config.json`:
   "mcpServers": {
     "chartlet": {
       "command": "npx",
-      "args": ["-y", "@casoon/chartlet-mcp@alpha"]
+      "args": ["-y", "@casoon/chartlet-mcp"]
     }
   }
 }

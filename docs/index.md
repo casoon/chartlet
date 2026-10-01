@@ -1,6 +1,6 @@
 ---
 title: Overview
-description: What chartlet does, what the alpha supports, and when another tool is the better choice.
+description: What chartlet does, what it supports, and when another tool is the better choice.
 order: 0
 ---
 
@@ -8,11 +8,11 @@ chartlet compiles a small JSON chart specification into a finished, accessible c
 time: plain SVG, or an HTML figure with caption, source and data table. Nothing runs in the
 browser – no chart JavaScript, no hydration, no layout shift.
 
-**Status:** early alpha. Bar charts (single and grouped, vertical and horizontal), categorical
+**Status:** 0.1. Bar charts (single and grouped, vertical and horizontal), categorical
 line charts, time series with uncertainty bands and reference lines, small multiples, warming
 stripes, calendar heatmaps and range bars are supported, plus two map-like types
-(topic map and knowledge landscape). The specification may still change before the first stable
-release.
+(topic map and knowledge landscape). Until 1.0, a minor release (0.2, 0.3, …) may still change
+the specification; a patch release never does.
 
 ## Principles
 

@@ -15,7 +15,7 @@ The server speaks the [Model Context Protocol](https://modelcontextprotocol.io) 
 Claude Code:
 
 ```sh
-claude mcp add chartlet -- npx -y @casoon/chartlet-mcp@alpha
+claude mcp add chartlet -- npx -y @casoon/chartlet-mcp
 ```
 
 For Claude Desktop and project configuration, see the

@@ -15,18 +15,17 @@ the browser: no chart JavaScript, no hydration, no layout shift.
 - **Honest about problems:** invalid input is rejected with a code, a path and a fix; layout
   compromises such as shortened labels are reported as warnings instead of happening silently.
 
-> **Status:** early alpha. Bar charts (single and grouped, vertical and horizontal), categorical
+> **Status:** 0.1. Bar charts (single and grouped, vertical and horizontal), categorical
 > line charts, time series with uncertainty bands and reference lines, warming stripes, calendar
-> heatmaps, range bars and small multiples are supported. The specification may still change before the first
-> stable release.
+> heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.2, 0.3, …) may still change the specification; a
+> patch release never does.
 
 ## Quick start
 
-Install the CLI from crates.io (Rust 1.88 or newer). While chartlet is in alpha, name the version
-explicitly:
+Install the CLI from crates.io (Rust 1.88 or newer):
 
 ```sh
-cargo install chartlet --version 0.1.0-alpha.7
+cargo install chartlet
 ```
 
 Save a minimal specification as `spec.json`:
@@ -267,7 +266,7 @@ builds the site and ships no JavaScript to the browser. It carries the renderer 
 so the package is all you install:
 
 ```sh
-npm install @casoon/chartlet@alpha
+npm install @casoon/chartlet
 ```
 
 ```astro
@@ -291,7 +290,7 @@ No model runs in the server and the data is never changed. See [AI agents](docs/
 ## Rust
 
 ```sh
-cargo add chartlet@0.1.0-alpha.7
+cargo add chartlet
 ```
 
 ```rust

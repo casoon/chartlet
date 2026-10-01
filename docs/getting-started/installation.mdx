@@ -15,7 +15,7 @@ order: 1
 <div slot="cli">
 
 ```sh
-cargo install chartlet --version 0.1.0-alpha.7
+cargo install chartlet
 ```
 
 To build from a clone of the repository instead, run `cargo install --path .`.
@@ -24,7 +24,7 @@ To build from a clone of the repository instead, run `cargo install --path .`.
 <div slot="astro">
 
 ```sh
-npm install @casoon/chartlet@alpha
+npm install @casoon/chartlet
 ```
 
 The package carries the renderer as WebAssembly; it needs no Rust toolchain. To render with an
@@ -34,14 +34,15 @@ installed CLI instead, set `CHARTLET_BIN` to its path.
 <div slot="rust">
 
 ```sh
-cargo add chartlet@0.1.0-alpha.7
+cargo add chartlet
 ```
 
 </div>
 </Tabs>
 
 <Callout type="caution">
-  While chartlet is in alpha, name the version explicitly. On npm, use the `alpha` tag.
+  Until 1.0, a minor release (0.2, 0.3, …) may change the specification. Pin the minor version
+  (`chartlet = "0.1"`, `"@casoon/chartlet": "~0.1.0"`) to take only patch releases.
 </Callout>
 
 ## Requirements

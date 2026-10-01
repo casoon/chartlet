@@ -7,7 +7,7 @@ The package carries the renderer compiled to WebAssembly, so it is all you insta
 Node.js 22.12 or newer.
 
 ```sh
-npm install @casoon/chartlet@alpha
+npm install @casoon/chartlet
 ```
 
 ```astro

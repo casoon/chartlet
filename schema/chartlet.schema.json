@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://casoon.github.io/chartlet/schema/v1.json",
-  "title": "chartlet v1 alpha specification",
+  "title": "chartlet v1 specification",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "type", "title"],

@@ -4,7 +4,7 @@ description: What has been verified, what is designed but not yet tested, and wh
 order: 4
 ---
 
-chartlet is in early alpha. Statuses: **Verified**, **Designed, not yet verified**, **Planned**,
+chartlet is at 0.1; screen reader and user testing are still pending. Statuses: **Verified**, **Designed, not yet verified**, **Planned**,
 **Not supported**.
 
 ## Embedding
