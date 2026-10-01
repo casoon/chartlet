@@ -223,6 +223,7 @@ fn plot_hook(count: usize, plot: PlotArea, scale: &NumericScale) -> Element {
         pane: 0,
         x,
         y: [(min, y(min)), (max, y(max))],
+        log: scale.is_log(),
     })
 }
 

@@ -712,12 +712,13 @@ fn emit_hook(hook: &Hook, spec: &ChartSpec, output: &mut String) {
         (values.join(" "), pixels.join(" "))
     };
     match hook {
-        Hook::Plot { pane, x, y } => {
+        Hook::Plot { pane, x, y, log } => {
             let (x_domain, x_range) = pairs(x);
             let (y_domain, y_range) = pairs(y);
+            let scale = if *log { " data-y-scale=\"log\"" } else { "" };
             write!(
                 output,
-                "<g data-chartlet-plot=\"\" data-pane=\"{pane}\" data-x-domain=\"{x_domain}\" data-x-range=\"{x_range}\" data-y-domain=\"{y_domain}\" data-y-range=\"{y_range}\"/>"
+                "<g data-chartlet-plot=\"\" data-pane=\"{pane}\" data-x-domain=\"{x_domain}\" data-x-range=\"{x_range}\" data-y-domain=\"{y_domain}\" data-y-range=\"{y_range}\"{scale}/>"
             )
             .expect("write");
         }

@@ -1099,6 +1099,16 @@ mod tests {
         // SPEC has a negative value.
         assert_eq!(render_err(&log).0, "invalid_value");
         let positive = log.replace("-4", "4");
+        let hooked = render_json(
+            &positive.replace("\"type\": \"bar\"", "\"type\": \"line\""),
+            RenderFormat::Svg,
+            &RenderOptions {
+                hooks: true,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(hooked.content.contains(" data-y-scale=\"log\""));
         let svg = render_ok(&positive).content;
         assert!(
             svg.contains(">10</text>") || svg.contains(">1</text>"),

@@ -29,11 +29,13 @@ pub(crate) enum Element {
 #[derive(Debug, Clone)]
 pub(crate) enum Hook {
     /// The plot of one pane: `x` maps the time or category axis as `(value, pixel)` pairs, linear
-    /// between neighbours; `y` maps the value axis by its two ends.
+    /// between neighbours; `y` maps the value axis by its two ends, linear or, when `log`, linear
+    /// in the logarithm of the value.
     Plot {
         pane: usize,
         x: Vec<(f64, f64)>,
         y: [(f64, f64); 2],
+        log: bool,
     },
     /// Opens a group around what one layer draws, by its index among all layers of all panes.
     Layer(usize),

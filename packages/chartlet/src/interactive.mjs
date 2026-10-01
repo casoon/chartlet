@@ -58,11 +58,17 @@ export function readChart(root) {
   const plots = new Map(
     svgs.map((svg) => [
       svg,
-      [...svg.querySelectorAll("[data-chartlet-plot]")].map((plot) => ({
-        pane: Number(plot.dataset.pane),
-        x: [numbers(plot.dataset.xDomain), numbers(plot.dataset.xRange)],
-        y: [numbers(plot.dataset.yDomain), numbers(plot.dataset.yRange)],
-      })),
+      [...svg.querySelectorAll("[data-chartlet-plot]")].map((plot) => {
+        // A logarithmic value axis is linear in the logarithm of its values.
+        const log = plot.dataset.yScale === "log";
+        const yDomain = numbers(plot.dataset.yDomain);
+        return {
+          pane: Number(plot.dataset.pane),
+          x: [numbers(plot.dataset.xDomain), numbers(plot.dataset.xRange)],
+          y: [log ? yDomain.map(Math.log10) : yDomain, numbers(plot.dataset.yRange)],
+          log,
+        };
+      }),
     ]),
   );
   const listeners = [];
@@ -169,7 +175,7 @@ export function crosshair(chart) {
           const value = row.value[index];
           if (column.pane !== plot.pane || chart.hidden.has(column.series) || value == null) return;
           if (column.part !== "value" && column.part !== "close") return;
-          const y = toPixel(...plot.y, value);
+          const y = toPixel(...plot.y, plot.log ? Math.log10(value) : value);
           layer.append(element("circle", { cx: x, cy: y, r: 4, fill: "Canvas", stroke: "currentColor", "stroke-width": 2 }, SVG));
         });
       }

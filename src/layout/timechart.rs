@@ -459,6 +459,7 @@ impl TimeFrame {
             pane,
             x,
             y: [(min, self.y(min)), (max, self.y(max))],
+            log: self.scale.is_log(),
         })
     }
 }

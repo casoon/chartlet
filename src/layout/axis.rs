@@ -257,6 +257,11 @@ impl NumericScale {
         }
     }
 
+    /// Whether the scale spaces powers of ten evenly.
+    pub(crate) const fn is_log(self) -> bool {
+        self.log
+    }
+
     /// Where bars start: zero, or the bottom of a logarithmic axis.
     pub(crate) const fn base(self) -> f64 {
         if self.log { self.min } else { 0.0 }

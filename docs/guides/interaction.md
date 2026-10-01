@@ -114,7 +114,7 @@ they are taken out again.
 | Where | Hook |
 |---|---|
 | Root `<svg>` | `data-chartlet-type` (`time`, `multiples`, `line`, …) and `data-chartlet-id` (its ID prefix) |
-| Plot of each pane (time, multiples, line) | An empty `<g data-chartlet-plot="" data-pane>` with `data-x-domain`/`data-x-range` and `data-y-domain`/`data-y-range`: values and the pixels they map to, linear between neighbouring pairs. A time axis lists Unix seconds — both ends of the span, or every observation when gaps are collapsed; a line chart lists category indices. |
+| Plot of each pane (time, multiples, line) | An empty `<g data-chartlet-plot="" data-pane>` with `data-x-domain`/`data-x-range` and `data-y-domain`/`data-y-range`: values and the pixels they map to, linear between neighbouring pairs. A time axis lists Unix seconds — both ends of the span, or every observation when gaps are collapsed; a numeric time axis lists its numbers in millionths; a line chart lists category indices. A logarithmic value axis adds `data-y-scale="log"`: the mapping is then linear in the logarithm of the value. |
 | Data layers of a time chart or small multiples | `<g data-series data-pane data-name>` around a layer's line, area, band, candles and markers; `data-series` is the layer's index among all data layers |
 | Annotation layers | `<g data-annotation data-pane>` around a reference line, zone or point marker; `data-annotation` is its index among all layers |
 | HTML data table | `data-chartlet-table` (the ID prefix) on `<table>`; `data-series`, `data-pane` and `data-part` (`value`, `lower`, `upper`, `open`, `high`, `low`, `close`) on each value column; `data-x` on each row (Unix seconds, or the row index); `data-value` with the unformatted number on each cell that has one |
