@@ -20,7 +20,7 @@ Warnings are written to standard error, and the chart is still produced:
 | Code | Meaning |
 | --- | --- |
 | `text_truncated` | A label or title was shortened to fit. A title is drawn only in the SVG profile and wraps onto a second line first, as do the category labels of bar and range bar charts; only what does not fit on two lines, or a single word wider than the room, is shortened. The legend of a bar chart wraps into further rows and shortens only a name wider than a whole row. |
-| `value_labels_omitted` | Some value labels had no room next to their bars. |
+| `value_labels_omitted` | Some value labels had no room next to their bars. On a bar chart a category shows all of its value labels or none: none when one of them would overlap another value label or another bar of its own or a neighbouring category. |
 | `dense_chart` | More than 16 categories; the chart may be hard to read at this size. |
 | `topic_too_small_for_label` | A topic map area is too small to hold its own name; consider listing it as an island. |
 | `label_does_not_fit` | A region of a knowledge landscape has no room for its name; the area keeps its tooltip. |
@@ -28,6 +28,7 @@ Warnings are written to standard error, and the chart is still produced:
 | `realm_without_structure` | A realm holds a single region, so it has no inner structure to show. |
 | `more_places_than_value` | A region lists more places than its value; the two numbers come from different counts. |
 | `value_outside_band` | A line's value lies outside its own uncertainty band. |
+| `color_not_resolved` | Print variant only: a layer declares its color as `var(--name)`, which a print SVG cannot resolve; it is drawn in the text color. Declare a literal color so that layers stay distinguishable. |
 | `label_overlap` | The label of a zone, reference line or point marker overlaps the label of another annotation, the label of a zone or reference line crosses a data line, or a label reaches outside the plot. The path names the annotation layer; the label is still drawn. A point marker first tries its other sides before this is reported. |
 
 A chart with a [mobile variant](responsive.md) is laid out twice in the HTML profile. A warning
@@ -60,8 +61,8 @@ check in CI that a committed chart still matches its specification and the chart
 | `specHash` | `sha256:` and the hexadecimal SHA-256 of the canonical specification. |
 | `outputHash` | `sha256:` and the hexadecimal SHA-256 of the output as UTF-8, exactly as `-o` writes it (standard output adds a final line break). |
 | `format` | `svg` or `html`. |
-| `variant` | `desktop` or `mobile`. |
-| `idPrefix` | The ID prefix the chart was rendered with: `--id-prefix`, or the one derived from the specification. The mobile variant appends `-m` to it. |
+| `variant` | `desktop`, `mobile` or `print`. |
+| `idPrefix` | The ID prefix the chart was rendered with: `--id-prefix`, or the one derived from the specification. The mobile variant appends `-m` to it, the print variant `-p`. |
 | `warnings` | The warnings of the render, each with `code`, `path` and `message`. |
 
 The canonical specification is the parsed form, serialized again: key order, whitespace and

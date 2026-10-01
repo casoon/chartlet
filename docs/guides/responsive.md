@@ -28,8 +28,11 @@ composed for it rather than a smaller copy.
 The mobile variant is available for every chart type. It is laid out by the same rules as the chart
 itself, which already depend on the width: fewer ticks, a drawn title (SVG profile) and category
 labels that wrap onto a second line, legends that wrap into further rows, and labels shortened only where two lines do
-not suffice. A label that only the mobile layout has to shorten is reported with its
-usual code and path, and a message beginning with `mobile variant: `.
+not suffice. On a horizontal range bar chart the title and the hatching legend start at the left
+edge instead of above the plot when a wide gutter of category labels leaves them too little room.
+A bar chart's category shows all of its value labels or none, see `value_labels_omitted`. A label
+that only the mobile layout has to shorten is reported with its usual code and path, and a message
+beginning with `mobile variant: `.
 
 ## HTML output
 

@@ -135,7 +135,15 @@ fn root_id(svg: &str) -> Option<&str> {
     Some(&svg[start..end])
 }
 
-pub(crate) fn svg(scene: &Scene, spec: &ChartSpec, description: &str, id_prefix: &str) -> String {
+/// Serializes a laid-out chart. `print` resolves its stylesheet for renderers outside the
+/// browser, see [`print_stylesheet`].
+pub(crate) fn svg(
+    scene: &Scene,
+    spec: &ChartSpec,
+    description: &str,
+    id_prefix: &str,
+    print: bool,
+) -> String {
     let title_id = format!("{id_prefix}-title");
     let description_id = format!("{id_prefix}-description");
     let has_series = spec.series.len() > 1;
@@ -167,7 +175,11 @@ pub(crate) fn svg(scene: &Scene, spec: &ChartSpec, description: &str, id_prefix:
         "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
-        if has_series { FILTER_STYLE } else { "" },
+        if has_series && !print {
+            FILTER_STYLE
+        } else {
+            ""
+        },
         if is_time { LINE_SERIES_STYLE } else { "" },
         if is_time && needs_layer_extras(spec) {
             LAYER_EXTRA_STYLE
@@ -201,12 +213,17 @@ pub(crate) fn svg(scene: &Scene, spec: &ChartSpec, description: &str, id_prefix:
         },
         layer_style(spec),
     );
+    let stylesheet = if print {
+        print_stylesheet(&stylesheet, is_dark)
+    } else {
+        stylesheet
+    };
     write!(
         output,
         "<title id=\"{title_id}\">{}</title><desc id=\"{description_id}\">{}</desc><style>{}</style>",
         escape(&spec.title),
         escape(description),
-        scope_stylesheet(&stylesheet, id_prefix),
+        scope_stylesheet(&stylesheet, id_prefix, print),
     )
     .expect("writing to String cannot fail");
     emit_hatches(spec, id_prefix, &mut output);
@@ -227,13 +244,99 @@ pub(crate) fn svg(scene: &Scene, spec: &ChartSpec, description: &str, id_prefix:
     output
 }
 
+/// The stylesheet of the print variant. Renderers outside the browser, such as those of print and
+/// PDF pipelines, often support class selectors in `<style>` but not CSS custom properties, and
+/// would draw every mark that takes its color from one in black or not at all. This resolves
+/// every `var()` to the value the chart's theme gives it, and a color declared as a variable to
+/// its fallback, the chart's text color, and drops the declarations of the custom properties,
+/// together with the rules left empty by that. The attribute selector for the realms of a
+/// landscape, which resvg does not match, is written out as the classes it matches.
+fn print_stylesheet(stylesheet: &str, is_dark: bool) -> String {
+    let realms = crate::layout::REALM_CLASSES
+        .iter()
+        .chain(&["chartlet-atlas-realm-label"])
+        .map(|class| format!(".{class}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let stylesheet = &stylesheet.replace("[class^='chartlet-atlas-realm-']", &realms);
+    let mut properties: Vec<(&str, &str)> = Vec::new();
+    for rule in stylesheet.split_inclusive('}') {
+        let Some((selector, body)) = rule.split_once('{') else {
+            continue;
+        };
+        if selector != ".chartlet-root" && !(is_dark && selector == ".chartlet-theme-dark") {
+            continue;
+        }
+        for declaration in body.trim_end_matches('}').split(';') {
+            if let Some((name, value)) = declaration.split_once(':')
+                && name.starts_with("--")
+            {
+                properties.retain(|(known, _)| *known != name);
+                properties.push((name, value));
+            }
+        }
+    }
+    let lookup = |name: &str| {
+        properties
+            .iter()
+            .find(|(known, _)| *known == name)
+            .map(|(_, value)| *value)
+    };
+    let mut resolved = String::with_capacity(stylesheet.len());
+    for rule in stylesheet.split_inclusive('}') {
+        let Some((selector, body)) = rule.split_once('{') else {
+            resolved.push_str(rule);
+            continue;
+        };
+        let declarations: Vec<String> = body
+            .trim_end_matches('}')
+            .split(';')
+            .filter(|declaration| !declaration.starts_with("--"))
+            .map(|declaration| resolve_variables(declaration, &lookup))
+            .collect();
+        if declarations.is_empty() {
+            continue;
+        }
+        write!(resolved, "{selector}{{{}}}", declarations.join(";"))
+            .expect("writing to String cannot fail");
+    }
+    resolved
+}
+
+/// Replaces every `var(--name)` and `var(--name,fallback)` in a declaration by the value of the
+/// property, or by its fallback when the chart does not define it; `currentColor` as a fallback
+/// becomes the chart's text color.
+fn resolve_variables<'a>(declaration: &str, lookup: &impl Fn(&str) -> Option<&'a str>) -> String {
+    let mut output = String::new();
+    let mut rest = declaration;
+    while let Some(start) = rest.find("var(") {
+        output.push_str(&rest[..start]);
+        let end = start + rest[start..].find(')').expect("a var() is closed");
+        let (name, fallback) = match rest[start + 4..end].split_once(',') {
+            Some((name, fallback)) => (name, Some(fallback)),
+            None => (&rest[start + 4..end], None),
+        };
+        let value = lookup(name)
+            .or_else(|| match fallback {
+                Some("currentColor") => lookup("--chartlet-text"),
+                fallback => fallback,
+            })
+            .expect("every custom property chartlet uses is defined or has a fallback");
+        output.push_str(value);
+        rest = &rest[end + 1..];
+    }
+    output.push_str(rest);
+    output
+}
+
 /// Scopes a chart's stylesheet to its root element. An inline SVG's stylesheet applies to the
 /// whole page, so without this a later chart's rule such as `.chartlet-line` would recolor the
 /// series of an earlier one. Rules that only style the root keep their low specificity, because
 /// the `--chartlet-*` custom properties on it are what a host page overrides; the dark theme
 /// doubles its class so that a later light chart's defaults cannot win over it. Rules for the
-/// HTML controls around the SVG stay as they are.
-fn scope_stylesheet(stylesheet: &str, id_prefix: &str) -> String {
+/// HTML controls around the SVG stay as they are. The print variant has no custom properties to
+/// override, so its rules on the root are scoped by ID too.
+fn scope_stylesheet(stylesheet: &str, id_prefix: &str, print: bool) -> String {
     let mut scoped = String::with_capacity(stylesheet.len() * 2);
     for rule in stylesheet.split_inclusive('}') {
         let Some((selectors, body)) = rule.split_once('{') else {
@@ -242,7 +345,7 @@ fn scope_stylesheet(stylesheet: &str, id_prefix: &str) -> String {
         };
         let selectors: Vec<String> = selectors
             .split(',')
-            .map(|selector| scope_selector(selector, id_prefix))
+            .map(|selector| scope_selector(selector, id_prefix, print))
             .collect();
         scoped.push_str(&selectors.join(","));
         scoped.push('{');
@@ -251,7 +354,7 @@ fn scope_stylesheet(stylesheet: &str, id_prefix: &str) -> String {
     scoped
 }
 
-fn scope_selector(selector: &str, id_prefix: &str) -> String {
+fn scope_selector(selector: &str, id_prefix: &str, print: bool) -> String {
     const ROOT_CLASSES: [&str; 3] = [
         ".chartlet-root",
         ".chartlet-theme-dark",
@@ -268,6 +371,7 @@ fn scope_selector(selector: &str, id_prefix: &str) -> String {
         (true, false) if selector == ".chartlet-theme-dark" => {
             ".chartlet-root.chartlet-theme-dark".to_owned()
         }
+        (true, false) if print => format!("#{id_prefix}{selector}"),
         (true, false) => selector.to_owned(),
         (true, true) => format!("#{id_prefix}{selector}"),
         (false, _) => format!("#{id_prefix} {selector}"),

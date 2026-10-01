@@ -205,6 +205,7 @@ reported as `dense_chart`. Small multiples take 2 to 12 panes.
 | `--table visible` | Shows the data table permanently. |
 | `--id-prefix <prefix>` | Stable ID of the chart root and prefix for its other IDs; needed when the same chart appears twice on one page. |
 | `--variant mobile` | Renders the mobile variant alone as SVG, for a `<picture>` source; requires `mobile` in the specification (`missing_mobile`) and the SVG format. `desktop` (default) renders the chart at `width` × `height`. |
+| `--variant print` | Renders the chart as SVG with literal colors instead of CSS custom properties, for PDF pipelines and renderers outside the browser; IDs end in `-p`. SVG format only. See [Print and PDF](docs/guides/print.md). |
 | `-o <path>` | Writes to a file instead of standard output. |
 | `--manifest <path>` | Also writes a provenance manifest as JSON: chartlet version, SHA-256 of the canonical specification and of the output, format, variant, ID prefix and warnings; no timestamp. |
 | `--strict` | Fails on any warning. Useful in CI. |
@@ -248,9 +249,10 @@ Warnings are written to standard error, and the chart is still produced:
 | Code | Meaning |
 |---|---|
 | `text_truncated` | A label or title was shortened to fit. Titles (drawn only in the SVG profile) and the category labels of bar and range bar charts wrap onto a second line first; what does not fit on two lines is shortened. |
-| `value_labels_omitted` | Some value labels had no room next to their bars. |
+| `value_labels_omitted` | Some value labels had no room next to their bars. On a bar chart a category shows all of its value labels or none: none when one of them would overlap another value label or another bar of its own or a neighbouring category. |
 | `dense_chart` | More than 16 categories, or more observations in a time layer than the plot has horizontal pixels; the chart may be hard to read at this size. |
 | `color_not_supported` | A layer's `color` was outside the contract and replaced by the neutral gray. |
+| `color_not_resolved` | Print variant only: a layer declares its color as `var(--name)`, which a print SVG cannot resolve; it is drawn in the text color. Declare a literal color so that layers stay distinguishable. |
 | `topic_too_small_for_label` | A topic map area is too small to hold its own name. |
 | `label_does_not_fit` | A region of a knowledge landscape has no room for its name; the area keeps its tooltip. |
 | `places_did_not_fit` | A region declares more places than it has ground. |

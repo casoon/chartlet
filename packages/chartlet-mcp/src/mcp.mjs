@@ -162,9 +162,9 @@ outputPath writes the file relative to the server's working directory. Absolute 
           .default("html")
           .describe("html: figure with caption, source and data table (default); svg: the graphic alone."),
         variant: z
-          .enum(["desktop", "mobile"])
+          .enum(["desktop", "mobile", "print"])
           .optional()
-          .describe("SVG only: mobile renders the spec's mobile layout; needs a mobile field in the spec."),
+          .describe("SVG only: mobile renders the spec's mobile layout; needs a mobile field in the spec. print renders the chart with literal colors for PDF and print renderers (resvg, Typst, librsvg)."),
         idPrefix: z
           .string()
           .optional()

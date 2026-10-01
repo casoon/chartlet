@@ -17,8 +17,8 @@ import { renderChart } from '@casoon/chartlet';
 const { content, warnings } = renderChart(spec, { format: 'svg', idPrefix: 'revenue' });
 ```
 
-The options are those of the CLI: `format`, `table`, `idPrefix`, `variant`, `strict` and
-`manifest`. When
+The options are those of the CLI: `format`, `table`, `idPrefix`, `variant` (`desktop`, `mobile`
+or `print`), `strict` and `manifest`. When
 `options.binary` or the environment variable `CHARTLET_BIN` names a `chartlet` executable,
 `renderChart` calls that CLI instead.
 

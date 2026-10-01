@@ -55,6 +55,10 @@ pub enum Variant {
     Desktop,
     /// The chart at the size in `mobile`; its IDs end in `-m`.
     Mobile,
+    /// The chart at `width` × `height` for print and PDF pipelines and renderers outside the
+    /// browser: its stylesheet carries the theme's colors as literal values instead of CSS
+    /// custom properties, and no rule that needs a browser. Its IDs end in `-p`.
+    Print,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -88,7 +92,7 @@ pub struct Manifest {
     pub format: RenderFormat,
     pub variant: Variant,
     /// The ID prefix the chart was rendered with: the one passed in, or the one derived from the
-    /// specification. The mobile variant appends `-m` to it.
+    /// specification. The mobile variant appends `-m` to it, the print variant `-p`.
     pub id_prefix: String,
     pub warnings: Vec<ChartWarning>,
 }
@@ -133,6 +137,7 @@ impl Manifest {
             variant: match self.variant {
                 Variant::Desktop => "desktop",
                 Variant::Mobile => "mobile",
+                Variant::Print => "print",
             },
             id_prefix: &self.id_prefix,
             warnings: self
@@ -225,29 +230,12 @@ fn render_content(
     let mobile = spec.mobile_variant();
     let mobile_prefix = |prefix: &str| format!("{prefix}-m");
 
-    if options.variant == Variant::Mobile {
-        if format == RenderFormat::Html {
-            return Err(ChartError::new(
-                "option_not_supported",
-                "/render/variant",
-                "the HTML profile carries both variants; render the mobile variant alone as SVG",
-            ));
+    match options.variant {
+        Variant::Desktop => {}
+        Variant::Mobile => {
+            return render_mobile_alone(mobile, format, &mobile_prefix(&id_prefix), metrics);
         }
-        let Some(mobile) = mobile else {
-            return Err(ChartError::new(
-                "missing_mobile",
-                "/mobile",
-                "the specification has no mobile variant; add \"mobile\": { \"width\": 360 }",
-            ));
-        };
-        let mut warnings = mobile.validate_mobile_variant()?;
-        let prefix = mobile_prefix(&id_prefix);
-        let content = render_panel(&mobile, format, &prefix, metrics, &mut warnings);
-        return Ok(RenderOutput {
-            content,
-            warnings,
-            manifest: None,
-        });
+        Variant::Print => return render_print(spec, format, &id_prefix, warnings, metrics),
     }
 
     // The HTML profile lays the chart out a second time at the mobile size; its warnings are
@@ -264,12 +252,20 @@ fn render_content(
         for (index, step) in spec.zoom_steps.iter().enumerate() {
             let sliced = zoom_variant(spec, step);
             let panel_prefix = format!("{id_prefix}-z{index}");
-            let svg = render_panel(&sliced, format, &panel_prefix, metrics, &mut warnings);
+            let svg = render_panel(
+                &sliced,
+                format,
+                &panel_prefix,
+                false,
+                metrics,
+                &mut warnings,
+            );
             let mobile = mobile.as_ref().map(|mobile| {
                 render_panel(
                     &zoom_variant(mobile, step),
                     format,
                     &mobile_prefix(&panel_prefix),
+                    false,
                     metrics,
                     &mut mobile_warnings,
                 )
@@ -289,7 +285,7 @@ fn render_content(
         });
     }
 
-    let svg = render_panel(spec, format, &id_prefix, metrics, &mut warnings);
+    let svg = render_panel(spec, format, &id_prefix, false, metrics, &mut warnings);
     let content = match format {
         RenderFormat::Svg => svg,
         RenderFormat::Html => {
@@ -298,6 +294,7 @@ fn render_content(
                     mobile,
                     format,
                     &mobile_prefix(&id_prefix),
+                    false,
                     metrics,
                     &mut mobile_warnings,
                 )
@@ -343,13 +340,89 @@ fn zoom_variant(spec: &ChartSpec, step: &ZoomStep) -> ChartSpec {
     }
 }
 
+/// The mobile variant alone, as SVG, with its IDs under `prefix`.
+fn render_mobile_alone(
+    mobile: Option<ChartSpec>,
+    format: RenderFormat,
+    prefix: &str,
+    metrics: &impl TextMetrics,
+) -> Result<RenderOutput, ChartError> {
+    if format == RenderFormat::Html {
+        return Err(ChartError::new(
+            "option_not_supported",
+            "/render/variant",
+            "the HTML profile carries both variants; render the mobile variant alone as SVG",
+        ));
+    }
+    let Some(mobile) = mobile else {
+        return Err(ChartError::new(
+            "missing_mobile",
+            "/mobile",
+            "the specification has no mobile variant; add \"mobile\": { \"width\": 360 }",
+        ));
+    };
+    let mut warnings = mobile.validate_mobile_variant()?;
+    let content = render_panel(&mobile, format, prefix, false, metrics, &mut warnings);
+    Ok(RenderOutput {
+        content,
+        warnings,
+        manifest: None,
+    })
+}
+
+/// The print variant, as SVG, with its IDs ending in `-p`.
+fn render_print(
+    spec: &ChartSpec,
+    format: RenderFormat,
+    id_prefix: &str,
+    mut warnings: Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Result<RenderOutput, ChartError> {
+    if format == RenderFormat::Html {
+        return Err(ChartError::new(
+            "option_not_supported",
+            "/render/variant",
+            "the print variant is a standalone SVG; render it with the SVG format",
+        ));
+    }
+    let content = render_panel(
+        spec,
+        format,
+        &format!("{id_prefix}-p"),
+        true,
+        metrics,
+        &mut warnings,
+    );
+    // A print SVG cannot see the page that would define a `var()` color, so such a layer is drawn
+    // in the text color; several of them would become indistinguishable.
+    for entry in spec.indexed_layers() {
+        if entry
+            .layer
+            .resolved_color()
+            .is_some_and(|color| color.starts_with("var("))
+        {
+            warnings.push(ChartWarning::new(
+                "color_not_resolved",
+                format!("/panes/{}/layers/{}/color", entry.pane, entry.local),
+                "the print variant cannot resolve a var() color and draws this layer in the text color; declare a literal color to tell it apart",
+            ));
+        }
+    }
+    Ok(RenderOutput {
+        content,
+        warnings,
+        manifest: None,
+    })
+}
+
 /// Lays out and serializes one chart, using its explicit description or a generated one. The HTML
 /// profile captions the chart, so its SVGs leave the drawn title out (`format`); the title stays
-/// their accessible name either way.
+/// their accessible name either way. `print` draws it for print (see [`Variant::Print`]).
 fn render_panel(
     spec: &ChartSpec,
     format: RenderFormat,
     id_prefix: &str,
+    print: bool,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> String {
@@ -366,7 +439,7 @@ fn render_panel(
     } else {
         layout::layout(spec, warnings, metrics)
     };
-    render::svg(&scene, spec, &description, id_prefix)
+    render::svg(&scene, spec, &description, id_prefix, print)
 }
 
 /// Zoom panels repeat the same data, so identical warnings would otherwise appear once per panel.
@@ -4312,6 +4385,90 @@ mod tests {
         assert_eq!(
             (error.code, error.path.as_str()),
             ("option_not_supported", "/render/variant")
+        );
+    }
+
+    #[test]
+    fn the_print_variant_draws_the_chart_with_literal_colors() {
+        let print = |specification: &str, format| {
+            render_json(
+                specification,
+                format,
+                &RenderOptions {
+                    id_prefix: Some("costs".to_owned()),
+                    variant: Variant::Print,
+                    ..RenderOptions::default()
+                },
+            )
+        };
+        let desktop = render_json(
+            GROUPED,
+            RenderFormat::Svg,
+            &RenderOptions {
+                id_prefix: Some("costs".to_owned()),
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap()
+        .content;
+        let light = print(GROUPED, RenderFormat::Svg).unwrap().content;
+        let dark = print(
+            &GROUPED.replacen('{', r#"{"theme": "dark","#, 1),
+            RenderFormat::Svg,
+        )
+        .unwrap()
+        .content;
+
+        for svg in [&light, &dark] {
+            assert!(svg.contains(" id=\"costs-p\""));
+            assert!(!svg.contains("var("), "{svg}");
+            assert!(!svg.contains(":has("), "{svg}");
+            assert!(!svg.contains("currentColor"), "{svg}");
+            assert!(!svg.contains("--chartlet"), "{svg}");
+            assert!(svg.contains("font-family:Inter,ui-sans-serif,system-ui,sans-serif;"));
+        }
+        // The same scene as the chart on screen, only the stylesheet differs.
+        let body = |svg: &str| svg[svg.find("</style>").unwrap()..].replace("costs-p", "costs");
+        assert_eq!(body(&light), body(&desktop));
+        assert!(light.contains("<style>#costs-p.chartlet-root{max-width:100%;height:auto;font-family:Inter,ui-sans-serif,system-ui,sans-serif;color:#172033}"));
+        assert!(light.contains("#costs-p .chartlet-series-2{fill:#c2410c}"));
+        assert!(dark.contains("#costs-p .chartlet-series-2{fill:#ff9c72}"));
+        assert!(dark.contains("#costs-p .chartlet-background{fill:#0e131c}"));
+
+        let error = print(GROUPED, RenderFormat::Html).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("option_not_supported", "/render/variant")
+        );
+    }
+
+    #[test]
+    fn the_print_variant_resolves_a_declared_variable_color_to_the_text_color() {
+        let svg = render_json(
+            &TIME.replacen(
+                r#""name": "Orders""#,
+                r#""name": "Orders", "color": "var(--brand)""#,
+                1,
+            ),
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: Variant::Print,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(
+            svg.content.contains(".chartlet-style-0{stroke:#172033}"),
+            "{}",
+            svg.content
+        );
+        assert!(!svg.content.contains("var("), "{}", svg.content);
+        assert_eq!(
+            svg.warnings
+                .iter()
+                .map(|warning| (warning.code, warning.path.as_str()))
+                .collect::<Vec<_>>(),
+            [("color_not_resolved", "/panes/0/layers/0/color")]
         );
     }
 

@@ -18,7 +18,7 @@ chartlet is in early alpha. Statuses: **Verified**, **Designed, not yet verified
 | Mobile variant (`mobile`) | Verified | HTML profile: both variants in one wrapper, switched by a container query; the hidden one is `display:none`. Checked in Chromium at a narrow and a wide container, with zoom steps and series filter. Browsers without container queries keep the full-size chart. |
 | `<img src="chart.svg">` | Designed, not yet verified | Title and description survive; the figure wrapper and data table do not apply. |
 | Markdown | Planned | Not yet evaluated. |
-| PDF and print | Planned | Not yet evaluated. |
+| PDF and print (`--variant print`) | Verified | SVG with literal colors. Checked with resvg through Typst 0.15 (PNG and PDF) and with WebKit for bars, lines, a dark chart with declared colors, hatched bands, range bars, candlesticks, a calendar heatmap, a topic map and a landscape. librsvg, Inkscape, Prince and wkhtmltopdf not yet tested. |
 | E-mail clients | Planned | Not yet evaluated. |
 
 ## Browsers

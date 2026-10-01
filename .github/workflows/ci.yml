@@ -50,6 +50,9 @@ jobs:
             if [ -f "$base.mobile.svg" ]; then
               ./target/debug/chartlet render "$spec" --variant mobile -o "$base.mobile.svg"
             fi
+            if [ -f "$base.print.svg" ]; then
+              ./target/debug/chartlet render "$spec" --variant print -o "$base.print.svg"
+            fi
           done
           git diff --exit-code -- examples/
 

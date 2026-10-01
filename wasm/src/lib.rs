@@ -108,7 +108,8 @@ fn run(
     let variant = match options["variant"].as_str() {
         Some("desktop") | None => Variant::Desktop,
         Some("mobile") => Variant::Mobile,
-        _ => return Err(failure("variant must be desktop or mobile")),
+        Some("print") => Variant::Print,
+        _ => return Err(failure("variant must be desktop, mobile or print")),
     };
     let rendered = render_json(
         &spec,

@@ -179,12 +179,13 @@ fn parse_variant(value: Option<&str>) -> Result<Variant, String> {
     match value {
         Some("desktop") => Ok(Variant::Desktop),
         Some("mobile") => Ok(Variant::Mobile),
-        _ => Err("--variant must be desktop or mobile".to_owned()),
+        Some("print") => Ok(Variant::Print),
+        _ => Err("--variant must be desktop, mobile or print".to_owned()),
     }
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile] [--manifest <path>] [--strict] [--diagnostics text|json]".to_owned()
+    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print] [--manifest <path>] [--strict] [--diagnostics text|json]".to_owned()
 }
 
 /// Writes to stdout. A reader that stops early, such as `chartlet render … | head`, closes the

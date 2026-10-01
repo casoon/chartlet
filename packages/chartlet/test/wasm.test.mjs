@@ -38,6 +38,12 @@ for (const file of readdirSync(examples).filter((name) => name.endsWith(".json")
         readExample(`${base}.mobile.svg`),
       );
     }
+    if (existsSync(join(examples, `${base}.print.svg`))) {
+      assert.equal(
+        renderChart(spec, { format: "svg", variant: "print" }).content,
+        readExample(`${base}.print.svg`),
+      );
+    }
   });
 }
 
@@ -68,6 +74,7 @@ test("reports warnings and errors in the words of the CLI", () => {
     [dense, { format: "svg" }],
     [dense, { format: "svg", strict: true }],
     [spec, { format: "svg", variant: "mobile" }],
+    [spec, { format: "html", variant: "print" }],
     [spec, { format: "html", table: "visible", idPrefix: "trend" }],
     [{ ...spec, type: "pie" }, {}],
   ];

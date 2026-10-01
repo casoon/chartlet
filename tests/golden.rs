@@ -131,6 +131,21 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 1] = [(
     include_str!("../examples/mobile-revenue.mobile.svg"),
 )];
 
+/// Examples with a reviewed print variant: hatched bands and modeled lines on a light chart, and
+/// a dark chart with a color declared as a CSS variable.
+const PRINT_EXAMPLES: [(&str, &str, &str); 2] = [
+    (
+        "temperature-projection",
+        include_str!("../examples/temperature-projection.json"),
+        include_str!("../examples/temperature-projection.print.svg"),
+    ),
+    (
+        "revenue-vs-forecast",
+        include_str!("../examples/revenue-vs-forecast.json"),
+        include_str!("../examples/revenue-vs-forecast.print.svg"),
+    ),
+];
+
 /// The committed SVGs are the reviewed reference output. Each example must render to exactly the
 /// bytes that are checked into `examples/`, on every supported platform.
 #[test]
@@ -162,5 +177,49 @@ fn every_mobile_variant_matches_its_reviewed_svg() {
             actual.content, expected,
             "{name} drifted from its reviewed mobile SVG"
         );
+    }
+}
+
+fn print_options() -> RenderOptions {
+    RenderOptions {
+        variant: Variant::Print,
+        ..RenderOptions::default()
+    }
+}
+
+/// The print variant is reference output too.
+#[test]
+fn every_print_variant_matches_its_reviewed_svg() {
+    for (name, specification, expected) in PRINT_EXAMPLES {
+        let actual = render_json(specification, RenderFormat::Svg, &print_options())
+            .unwrap_or_else(|error| panic!("{name} should render its print variant: {error}"));
+        assert_eq!(
+            actual.content, expected,
+            "{name} drifted from its reviewed print SVG"
+        );
+    }
+}
+
+/// No example's print variant leaves a color to CSS custom properties, `currentColor` or a rule
+/// that needs a browser.
+#[test]
+fn every_print_variant_carries_literal_colors_only() {
+    for (name, specification, _) in EXAMPLES {
+        let svg = render_json(specification, RenderFormat::Svg, &print_options())
+            .unwrap_or_else(|error| panic!("{name} should render its print variant: {error}"))
+            .content;
+        for needle in [
+            "var(",
+            "--chartlet",
+            "currentColor",
+            ":has(",
+            "@container",
+            "[class",
+        ] {
+            assert!(
+                !svg.contains(needle),
+                "{name}'s print variant contains {needle}"
+            );
+        }
     }
 }

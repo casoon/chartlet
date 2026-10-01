@@ -26,7 +26,8 @@ order: 1
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
-one with a mobile variant also has its `.mobile.svg`.
+one with a mobile variant also has its `.mobile.svg`, and two have their [print variant](print.md)
+as `.print.svg`.
 The SVG files are also the reference output of the test suite.
 
 ## Several series

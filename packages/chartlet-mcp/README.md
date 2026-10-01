@@ -61,7 +61,7 @@ and returns the chart content instead.
 | --- | --- | --- |
 | `inspect_data` | Takes CSV (RFC 4180, header row) or an array of row objects. Returns the row count; per column the inferred type (number, integer, date-time, boolean, string), missing values, min/max, first/last and order of times, distinct count of strings; and the chart types that fit, with the columns to use and a reason. | No |
 | `validate_spec` | Renders the specification with the compiler and discards the output. Returns `ok`, the error with `code`, JSON Pointer `path` and `message`, and all warnings. | No |
-| `render_chart` | Renders SVG or HTML (`format`, `variant`, `idPrefix`, `table`). Returns the content, warnings, CSP `styleHashes` and the provenance `manifest`; with `outputPath`, writes the file and returns its path and byte size instead. | Writes `outputPath` |
+| `render_chart` | Renders SVG or HTML (`format`, `variant`: `desktop`, `mobile` or `print`, `idPrefix`, `table`). Returns the content, warnings, CSP `styleHashes` and the provenance `manifest`; with `outputPath`, writes the file and returns its path and byte size instead. | Writes `outputPath` |
 | `explain_chart` | Returns the accessible description chartlet generates, the chart type, and per series or layer the count, missing values, min, max, first and last value with their labels or times — computed, not interpreted. | No |
 
 Resource: `chartlet://schema` is the JSON Schema of the specification.

@@ -110,6 +110,22 @@ test("renders the mobile variant alone as SVG", () => {
   );
 });
 
+test("renders the print variant as SVG", () => {
+  const print = renderChart(mobileRevenue, {
+    binary,
+    format: "svg",
+    idPrefix: "revenue",
+    variant: "print",
+  });
+
+  assert.match(print.content, /^<svg[^>]* width="800"[^>]* id="revenue-p"/);
+  assert.doesNotMatch(print.content, /var\(/);
+  assert.throws(
+    () => renderChart(mobileRevenue, { binary, format: "html", variant: "print" }),
+    /option_not_supported at \/render\/variant/,
+  );
+});
+
 test("carries both variants in the HTML profile", () => {
   const result = renderChart(mobileRevenue, { binary, idPrefix: "revenue" });
 

@@ -1,7 +1,10 @@
 export type ChartFormat = "svg" | "html";
 export type TableMode = "details" | "visible";
-/** Which layout the SVG profile renders; `mobile` needs a `mobile` field in the spec. */
-export type ChartVariant = "desktop" | "mobile";
+/**
+ * Which layout the SVG profile renders; `mobile` needs a `mobile` field in the spec, `print`
+ * draws the chart with literal colors for print and PDF renderers.
+ */
+export type ChartVariant = "desktop" | "mobile" | "print";
 
 export interface RenderChartOptions {
   format?: ChartFormat;

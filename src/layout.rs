@@ -169,7 +169,23 @@ fn layout_vertical(
     };
     let mut elements = base_elements(spec, &scale, plot, warnings, metrics);
     add_legend(dataset, plot, head, &mut elements, warnings, metrics);
-    let mut labels_omitted = false;
+    let bar_and_label = |index: usize, series_index: usize, value: f64| {
+        let center = left + band * (count(index) + 0.5);
+        let (offset, thickness) = group.slot(series_index);
+        let x = center - group.width / 2.0 + offset;
+        let value_y = scale.map(value, top + plot_height, top);
+        let content = format_value(value, spec.number_style());
+        (
+            (
+                x,
+                baseline.min(value_y),
+                thickness,
+                (baseline - value_y).abs(),
+            ),
+            vertical_value_label(value, x + thickness / 2.0, value_y, content),
+        )
+    };
+    let crowded = crowded_groups(dataset, bar_and_label, metrics);
 
     for (index, category) in dataset.categories.iter().enumerate() {
         let center = left + band * (count(index) + 0.5);
@@ -177,15 +193,13 @@ fn layout_vertical(
             let Some(value) = series.values[index] else {
                 continue;
             };
-            let (offset, thickness) = group.slot(series_index);
-            let x = center - group.width / 2.0 + offset;
-            let value_y = scale.map(value, top + plot_height, top);
+            let ((x, y, width, height), label) = bar_and_label(index, series_index, value);
             if value != 0.0 {
                 elements.push(Element::Rect(Rect {
                     x,
-                    y: baseline.min(value_y),
-                    width: thickness,
-                    height: (baseline - value_y).abs(),
+                    y,
+                    width,
+                    height,
                     class: bar_class(dataset, series_index),
                     series_index: (dataset.series.len() > 1).then_some(series_index),
                     style_index: None,
@@ -198,14 +212,8 @@ fn layout_vertical(
                 }));
             }
 
-            if spec.show_values {
-                let content = format_value(value, spec.number_style());
-                if group.fits(metrics.width(&content, LABEL_SIZE)) {
-                    let label = vertical_value_label(value, x + thickness / 2.0, value_y, content);
-                    elements.push(series_text(label, dataset, series_index));
-                } else {
-                    labels_omitted = true;
-                }
+            if spec.show_values && !crowded[index] {
+                elements.push(series_text(label, dataset, series_index));
             }
         }
 
@@ -219,7 +227,7 @@ fn layout_vertical(
             &dataset.category_path(index),
         );
     }
-    warn_if_labels_omitted(labels_omitted, warnings);
+    warn_if_labels_omitted(spec.show_values && crowded.contains(&true), warnings);
 
     add_bottom_category_title(
         spec,
@@ -254,7 +262,8 @@ fn layout_horizontal(
     let left = (measured_label + 28.0).clamp(88.0, 210.0);
     let right = 68.0;
     let plot_width = width - left - right;
-    let head = title_extra(spec, plot_width, metrics);
+    let title = horizontal_title(spec, (left, plot_width), metrics);
+    let head = title_extra(spec, title.1, metrics);
     let top = 78.0 + head + legend_space(dataset, plot_width, metrics);
     let bottom = if spec.value_axis.title.is_some() {
         56.0
@@ -273,9 +282,31 @@ fn layout_horizontal(
         height: plot_height,
         vertical_bars: false,
     };
-    let mut elements = base_elements(spec, &scale, plot, warnings, metrics);
+    let mut elements = base_elements_with_title(spec, &scale, plot, title, warnings, metrics);
     add_legend(dataset, plot, head, &mut elements, warnings, metrics);
-    let mut labels_omitted = false;
+    let bar_and_label = |index: usize, series_index: usize, value: f64| {
+        let center = top + band * (count(index) + 0.5);
+        let (offset, thickness) = group.slot(series_index);
+        let y = center - group.width / 2.0 + offset;
+        let value_x = scale.map(value, left, left + plot_width);
+        (
+            (
+                baseline.min(value_x),
+                y,
+                (baseline - value_x).abs(),
+                thickness,
+            ),
+            horizontal_value_label(
+                value,
+                value_x,
+                baseline,
+                y + thickness / 2.0,
+                spec.number_style(),
+                metrics,
+            ),
+        )
+    };
+    let crowded = crowded_groups(dataset, bar_and_label, metrics);
 
     for (index, category) in dataset.categories.iter().enumerate() {
         let center = top + band * (count(index) + 0.5);
@@ -283,15 +314,13 @@ fn layout_horizontal(
             let Some(value) = series.values[index] else {
                 continue;
             };
-            let (offset, thickness) = group.slot(series_index);
-            let y = center - group.width / 2.0 + offset;
-            let value_x = scale.map(value, left, left + plot_width);
+            let ((x, y, width, height), label) = bar_and_label(index, series_index, value);
             if value != 0.0 {
                 elements.push(Element::Rect(Rect {
-                    x: baseline.min(value_x),
+                    x,
                     y,
-                    width: (baseline - value_x).abs(),
-                    height: thickness,
+                    width,
+                    height,
                     class: bar_class(dataset, series_index),
                     series_index: (dataset.series.len() > 1).then_some(series_index),
                     style_index: None,
@@ -304,20 +333,8 @@ fn layout_horizontal(
                 }));
             }
 
-            if spec.show_values {
-                if group.fits(LABEL_SIZE + 2.0) {
-                    let label = horizontal_value_label(
-                        value,
-                        value_x,
-                        baseline,
-                        y + thickness / 2.0,
-                        spec.number_style(),
-                        metrics,
-                    );
-                    elements.push(series_text(label, dataset, series_index));
-                } else {
-                    labels_omitted = true;
-                }
+            if spec.show_values && !crowded[index] {
+                elements.push(series_text(label, dataset, series_index));
             }
         }
 
@@ -331,7 +348,7 @@ fn layout_horizontal(
             &dataset.category_path(index),
         );
     }
-    warn_if_labels_omitted(labels_omitted, warnings);
+    warn_if_labels_omitted(spec.show_values && crowded.contains(&true), warnings);
 
     Scene {
         width: spec.width,
@@ -1604,7 +1621,7 @@ fn push_cartouche(elements: &mut Vec<Element>, cartouche: &Cartouche) {
 /// cartouche are not drawn yet; they arrive with their own step.
 /// One class per realm. `atlas` charts are capped at eight realms, so this covers every one of
 /// them, and a host page can address a whole landscape without counting polygons.
-const REALM_CLASSES: [&str; 8] = [
+pub(crate) const REALM_CLASSES: [&str; 8] = [
     "chartlet-atlas-realm-0",
     "chartlet-atlas-realm-1",
     "chartlet-atlas-realm-2",
@@ -2714,6 +2731,21 @@ fn label_box(text: &Text, metrics: &impl TextMetrics) -> LabelBox {
     (left, text.y - 9.0, left + width, text.y + 3.0)
 }
 
+/// The built-in widths follow Inter, the first font the chart's CSS asks for. A browser without
+/// Inter falls back to a system font, whose text can run up to about 8 % wider; the value labels
+/// of bar charts and the hatching legend of range bars measure with this reserve, so that such
+/// text still keeps clear of its neighbours.
+const FALLBACK_RESERVE: f64 = 1.08;
+
+/// Text metrics with [`FALLBACK_RESERVE`] added to every width.
+pub(crate) struct WithReserve<'a, M>(pub &'a M);
+
+impl<M: TextMetrics> TextMetrics for WithReserve<'_, M> {
+    fn width(&self, text: &str, font_size: f64) -> f64 {
+        self.0.width(text, font_size) * FALLBACK_RESERVE
+    }
+}
+
 fn boxes_overlap(a: LabelBox, b: LabelBox) -> bool {
     a.0 < b.2 && b.0 < a.2 && a.1 < b.3 && b.1 < a.3
 }
@@ -3785,12 +3817,32 @@ pub(crate) fn base_elements(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Vec<Element> {
+    base_elements_with_title(
+        spec,
+        scale,
+        plot,
+        (plot.left, plot.width),
+        warnings,
+        metrics,
+    )
+}
+
+/// [`base_elements`] with the title at `title_left` and up to `title_width` wide instead of
+/// above the plot.
+pub(crate) fn base_elements_with_title(
+    spec: &ChartSpec,
+    scale: &NumericScale,
+    plot: PlotArea,
+    (title_left, title_width): (f64, f64),
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Vec<Element> {
     let mut elements = Vec::new();
     push_title(
         &mut elements,
         spec,
-        plot.left,
-        plot.width,
+        title_left,
+        title_width,
         metrics,
         warnings,
     );
@@ -3976,7 +4028,6 @@ struct Group {
     width: f64,
     slot: f64,
     gap: f64,
-    single: bool,
 }
 
 impl Group {
@@ -3987,7 +4038,6 @@ impl Group {
                 width,
                 slot: width,
                 gap: 0.0,
-                single: true,
             };
         }
         let series = count(series_count);
@@ -3997,7 +4047,6 @@ impl Group {
             width,
             slot,
             gap: (slot * 0.15).min(4.0),
-            single: false,
         }
     }
 
@@ -4008,12 +4057,67 @@ impl Group {
             self.slot - self.gap,
         )
     }
+}
 
-    /// Whether a value label of the given extent fits without reaching into the neighbouring
-    /// series. A single bar always keeps its label.
-    fn fits(self, extent: f64) -> bool {
-        self.single || extent <= self.slot
-    }
+/// Room a value label keeps from other value labels and bars, beyond its measured box.
+const VALUE_LABEL_CLEARANCE: f64 = 2.0;
+
+/// Which categories leave out their value labels. `bar_and_label` gives the bar of one series in
+/// one category, as left, top, width and height, and its value label. A label is measured with
+/// [`FALLBACK_RESERVE`] and [`VALUE_LABEL_CLEARANCE`]; when it overlaps another value label or another bar of its own
+/// category or of a neighbouring one, its category shows none of its value labels. All or nothing
+/// per category, so that a gap in the labels never reads as a missing value; overlapping labels
+/// of two neighbouring categories leave out the labels of both.
+fn crowded_groups(
+    dataset: &Dataset,
+    bar_and_label: impl Fn(usize, usize, f64) -> ((f64, f64, f64, f64), Text),
+    metrics: &impl TextMetrics,
+) -> Vec<bool> {
+    let reserved = WithReserve(metrics);
+    let placed: Vec<Vec<(usize, Option<LabelBox>, LabelBox)>> = (0..dataset.categories.len())
+        .map(|index| {
+            dataset
+                .series
+                .iter()
+                .enumerate()
+                .filter_map(|(series_index, series)| {
+                    let value = series.values[index]?;
+                    let ((x, y, width, height), label) = bar_and_label(index, series_index, value);
+                    let bar = (x, y, x + width, y + height);
+                    let (left, top, right, bottom) = label_box(&label, &reserved);
+                    let label = (
+                        left - VALUE_LABEL_CLEARANCE,
+                        top - VALUE_LABEL_CLEARANCE,
+                        right + VALUE_LABEL_CLEARANCE,
+                        bottom + VALUE_LABEL_CLEARANCE,
+                    );
+                    // A zero value draws no bar.
+                    Some((series_index, (value != 0.0).then_some(bar), label))
+                })
+                .collect()
+        })
+        .collect();
+    (0..placed.len())
+        .map(|index| {
+            let neighbours = index.saturating_sub(1)..(index + 2).min(placed.len());
+            placed[index].iter().any(|&(series_index, _, label)| {
+                placed[neighbours.clone()]
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(offset, marks)| {
+                        let other = index.saturating_sub(1) + offset;
+                        marks.iter().map(move |mark| (other, mark))
+                    })
+                    .filter(|&(other, &(other_series, _, _))| {
+                        (other, other_series) != (index, series_index)
+                    })
+                    .any(|(_, &(_, bar, other_label))| {
+                        boxes_overlap(label, other_label)
+                            || bar.is_some_and(|bar| boxes_overlap(label, bar))
+                    })
+            })
+        })
+        .collect()
 }
 
 /// Where each series' entry of a bar chart's legend goes, as its offset from the left of the
@@ -4209,6 +4313,36 @@ pub(crate) fn title_extra(spec: &ChartSpec, max_width: f64, metrics: &impl TextM
     } else {
         0.0
     }
+}
+
+/// Left edge of the chart's content: where the category labels left of a horizontal plot may
+/// start.
+pub(crate) const CONTENT_LEFT: f64 = 16.0;
+
+/// Where the title of a horizontal chart goes, as its left and its width: above the plot, unless
+/// it would have to be shortened there, as it may after a wide gutter of category labels on a
+/// narrow chart; it then spans the chart from the left edge of the content to the right margin.
+pub(crate) fn horizontal_title(
+    spec: &ChartSpec,
+    (left, plot_width): (f64, f64),
+    metrics: &impl TextMetrics,
+) -> (f64, f64) {
+    if title_fits(spec, plot_width, metrics) {
+        (left, plot_width)
+    } else {
+        (
+            CONTENT_LEFT,
+            f64::from(spec.width) - CONTENT_LEFT - f64::from(PLOT_MARGIN),
+        )
+    }
+}
+
+/// Whether the title fits `max_width` on one line or two without being shortened.
+pub(crate) fn title_fits(spec: &ChartSpec, max_width: f64, metrics: &impl TextMetrics) -> bool {
+    let title = spec.title.as_str();
+    metrics.width(title, TITLE_SIZE) <= max_width
+        || two_lines(title, max_width, TITLE_SIZE, metrics)
+            .is_some_and(|(_, rest)| metrics.width(rest, TITLE_SIZE) <= max_width)
 }
 
 /// Draws the chart title at `x`: on one line if it fits `max_width`, otherwise on two, broken at
@@ -4942,5 +5076,202 @@ mod tests {
         assert_eq!(labels.len(), 3);
         assert!(warnings.is_empty(), "{warnings:?}");
         assert!((labels[2].0 - labels[1].0 - LABEL_LINE).abs() < 1e-9);
+    }
+
+    /// The value labels of a chart, as (x, content), in the order they are drawn.
+    fn value_labels(scene: &crate::scene::Scene) -> Vec<(f64, String)> {
+        scene
+            .elements
+            .iter()
+            .filter_map(|element| match element {
+                crate::scene::Element::Text(text) | crate::scene::Element::SeriesText(text, _)
+                    if text.class.starts_with("chartlet-value") =>
+                {
+                    Some((text.x, text.content.clone()))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_category_whose_value_labels_collide_shows_none_of_them() {
+        // Three categories of three series on a 360-pixel chart: 23-pixel slots. "1000" is 24
+        // pixels wide, 30 with reserve and clearance.
+        let json = |width: u32| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "bar", "title": "Costs", "width": {width},
+                    "categories": ["A", "B", "C"],
+                    "series": [
+                        {{"name": "X", "values": [1000, 5, 1000]}},
+                        {{"name": "Y", "values": [1000, 5, 5]}},
+                        {{"name": "Z", "values": [1000, 5, 5]}}
+                    ]}}"#
+            )
+        };
+        let (wide, wide_warnings) = lay_out(&json(800));
+        let (narrow, warnings) = lay_out(&json(360));
+
+        assert_eq!(value_labels(&wide).len(), 9);
+        assert!(wide_warnings.is_empty(), "{wide_warnings:?}");
+        // A's labels stand side by side at one height and overlap: A shows none. C's "1000" is
+        // wider than its slot, but the bars beside it end far below it: C keeps all three.
+        let contents: Vec<String> = value_labels(&narrow)
+            .into_iter()
+            .map(|(_, content)| content)
+            .collect();
+        assert_eq!(contents, ["5", "5", "5", "1000", "5", "5"]);
+        let codes: Vec<&str> = warnings.iter().map(|warning| warning.code).collect();
+        assert_eq!(codes, ["value_labels_omitted"]);
+    }
+
+    #[test]
+    fn a_value_label_reaching_over_a_taller_neighbouring_bar_drops_its_category() {
+        // B's "1000" on the short bar reaches over the taller bar beside it.
+        let json = r#"{"schemaVersion": 1, "type": "bar", "title": "Costs", "width": 360,
+            "categories": ["A", "B", "C"],
+            "series": [
+                {"name": "X", "values": [5, 1000, 5]},
+                {"name": "Y", "values": [5, 9000, 5]},
+                {"name": "Z", "values": [5, 5, 5]}
+            ]}"#;
+        let (scene, warnings) = lay_out(json);
+
+        assert_eq!(value_labels(&scene).len(), 6);
+        assert!(
+            value_labels(&scene)
+                .iter()
+                .all(|(_, content)| content == "5")
+        );
+        assert_eq!(warnings[0].code, "value_labels_omitted");
+    }
+
+    #[test]
+    fn a_rangebar_hatching_legend_moves_left_when_it_would_overflow_the_chart() {
+        // With HalfEm, "Schraffiert: modelliert" is 138 pixels wide, 149 with the reserve; the
+        // gutter for "Other human drivers" is 143 pixels.
+        let json = |width: u32| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "rangebar", "orientation": "horizontal",
+                    "locale": "de", "title": "Beiträge", "width": {width},
+                    "ranges": [
+                        {{"label": "Observed", "low": 0.9, "high": 1.2}},
+                        {{"label": "Other human drivers", "low": -0.8, "high": 0.0,
+                          "modeled": true}}
+                    ]}}"#
+            )
+        };
+        let legend = |scene: &crate::scene::Scene| {
+            scene
+                .elements
+                .iter()
+                .find_map(|element| match element {
+                    crate::scene::Element::Text(text) if text.class == "chartlet-legend" => {
+                        Some((text.x, text.content.clone()))
+                    }
+                    _ => None,
+                })
+                .expect("a modeled span has a legend")
+        };
+        let (wide, _) = lay_out(&json(800));
+        let (narrow, warnings) = lay_out(&json(320));
+
+        assert_eq!(
+            legend(&wide),
+            (143.0 + 16.0, "Schraffiert: modelliert".into())
+        );
+        assert_eq!(
+            legend(&narrow),
+            (16.0 + 16.0, "Schraffiert: modelliert".into())
+        );
+        assert!(
+            warnings.iter().all(|warning| warning.path != "/locale"),
+            "{warnings:?}"
+        );
+    }
+
+    #[test]
+    fn a_horizontal_rangebar_title_spans_the_chart_when_the_gutter_leaves_too_little_room() {
+        // With HalfEm the gutter for "Other human drivers" is 143 pixels; on a 320-pixel chart
+        // the plot is 153 pixels wide, too narrow for the title even on two lines.
+        let json = |width: u32| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "rangebar", "orientation": "horizontal",
+                    "title": "Contributions to global warming", "width": {width},
+                    "showValues": false,
+                    "ranges": [
+                        {{"label": "Observed", "low": 0.9, "high": 1.2}},
+                        {{"label": "Other human drivers", "low": -0.8, "high": 0.0}}
+                    ]}}"#
+            )
+        };
+        let title = |scene: &crate::scene::Scene| {
+            scene
+                .elements
+                .iter()
+                .filter_map(|element| match element {
+                    crate::scene::Element::Text(text) if text.class == "chartlet-title" => {
+                        Some((text.x, text.content.clone()))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        let (wide, _) = lay_out(&json(800));
+        let (narrow, warnings) = lay_out(&json(320));
+
+        assert_eq!(
+            title(&wide),
+            [(143.0, "Contributions to global warming".into())]
+        );
+        assert_eq!(
+            title(&narrow),
+            [
+                (16.0, "Contributions to global".into()),
+                (16.0, "warming".into())
+            ]
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    #[test]
+    fn a_horizontal_bar_title_spans_the_chart_when_the_gutter_leaves_too_little_room() {
+        // With HalfEm the gutter for "Other human drivers" is 142 pixels; on a 320-pixel chart
+        // the plot is 110 pixels wide, too narrow for the title even on two lines.
+        let json = |width: u32| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "bar", "orientation": "horizontal",
+                    "title": "Contributions to global warming", "width": {width},
+                    "categories": ["Observed", "Other human drivers"],
+                    "series": [{{"name": "Warming", "values": [1.2, 0.4]}}]}}"#
+            )
+        };
+        let title = |scene: &crate::scene::Scene| {
+            scene
+                .elements
+                .iter()
+                .filter_map(|element| match element {
+                    crate::scene::Element::Text(text) if text.class == "chartlet-title" => {
+                        Some((text.x, text.content.clone()))
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        let (wide, _) = lay_out(&json(800));
+        let (narrow, warnings) = lay_out(&json(320));
+
+        assert_eq!(
+            title(&wide),
+            [(142.0, "Contributions to global warming".into())]
+        );
+        assert_eq!(
+            title(&narrow),
+            [
+                (16.0, "Contributions to global".into()),
+                (16.0, "warming".into())
+            ]
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
     }
 }

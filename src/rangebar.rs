@@ -5,8 +5,10 @@
 use crate::{
     error::ChartWarning,
     layout::{
-        LABEL_SIZE, NumericScale, PlotArea, add_bottom_category_title, base_elements, count,
-        format_value, push_category_label, push_side_label, title_extra, warn_if_labels_omitted,
+        CONTENT_LEFT, LABEL_SIZE, NumericScale, PLOT_MARGIN, PlotArea, WithReserve,
+        add_bottom_category_title, base_elements, base_elements_with_title, count, fit_text,
+        format_value, horizontal_title, push_category_label, push_side_label, title_extra,
+        warn_if_labels_omitted,
     },
     metrics::TextMetrics,
     scene::{Element, Line, Rect, Scene, Text, TextAnchor},
@@ -16,6 +18,8 @@ use crate::{
 
 /// Extra top margin for the legend that explains the hatching.
 const LEGEND_HEIGHT: f64 = 24.0;
+/// Width of the legend swatch with the space before its text.
+const LEGEND_SWATCH: f64 = 16.0;
 /// A span of zero width is still drawn this wide, so that it does not vanish.
 const MIN_EXTENT: f64 = 2.0;
 /// How far the central mark reaches beyond the bar on either side.
@@ -67,29 +71,48 @@ pub(crate) fn layout(
     }
 }
 
-/// The top of the plot: below the title, which may take two lines, and below the legend that
-/// explains the hatching if any span is modeled.
-fn plot_top(spec: &ChartSpec, plot_width: f64, metrics: &impl TextMetrics) -> f64 {
+/// The top of the plot: below the title, which may take two lines of up to `title_width`, and
+/// below the legend that explains the hatching if any span is modeled.
+fn plot_top(spec: &ChartSpec, title_width: f64, metrics: &impl TextMetrics) -> f64 {
     let legend = if spec.ranges.iter().any(|range| range.modeled) {
         LEGEND_HEIGHT
     } else {
         0.0
     };
-    78.0 + title_extra(spec, plot_width, metrics) + legend
+    78.0 + title_extra(spec, title_width, metrics) + legend
 }
 
-/// One entry that says what the hatching means, if any span is modeled; `x` is the left of the
-/// plot.
+/// One entry that says what the hatching means, if any span is modeled, below a title up to
+/// `title_width` wide. It starts at `left`, the left of the plot, unless its text, measured with the fallback reserve, would then reach into
+/// the chart's right margin, as it does after a wide gutter of category labels on a narrow
+/// chart; it then starts at the left edge of the content. Shortened only if it does not fit even
+/// there.
 fn push_legend(
     elements: &mut Vec<Element>,
+    warnings: &mut Vec<ChartWarning>,
     spec: &ChartSpec,
-    (x, plot_width): (f64, f64),
+    (left, title_width): (f64, f64),
     metrics: &impl TextMetrics,
 ) {
     if !spec.ranges.iter().any(|range| range.modeled) {
         return;
     }
-    let y = 46.0 + title_extra(spec, plot_width, metrics);
+    let text = spec.locale.words().hatched_modeled;
+    let right = f64::from(spec.width) - f64::from(PLOT_MARGIN);
+    let x = if left + LEGEND_SWATCH + WithReserve(metrics).width(text, LABEL_SIZE) <= right {
+        left
+    } else {
+        CONTENT_LEFT
+    };
+    let content = fit_text(
+        text,
+        right - x - LEGEND_SWATCH,
+        LABEL_SIZE,
+        metrics,
+        warnings,
+        "/locale",
+    );
+    let y = 46.0 + title_extra(spec, title_width, metrics);
     for class in ["chartlet-range", "chartlet-range-hatch"] {
         elements.push(Element::Rect(Rect {
             x,
@@ -103,11 +126,11 @@ fn push_legend(
         }));
     }
     elements.push(Element::Text(Text {
-        x: x + 16.0,
+        x: x + LEGEND_SWATCH,
         y: y + 9.0,
         class: "chartlet-legend",
         anchor: TextAnchor::Start,
-        content: spec.locale.words().hatched_modeled.to_owned(),
+        content,
     }));
 }
 
@@ -199,7 +222,8 @@ fn layout_horizontal(
     } else {
         36.0
     };
-    let top = plot_top(spec, width - left - right, metrics);
+    let title = horizontal_title(spec, (left, width - left - right), metrics);
+    let top = plot_top(spec, title.1, metrics);
     let plot = PlotArea {
         left,
         top,
@@ -207,7 +231,7 @@ fn layout_horizontal(
         height: height - top - bottom,
         vertical_bars: false,
     };
-    let mut elements = base_elements(spec, scale, plot, warnings, metrics);
+    let mut elements = base_elements_with_title(spec, scale, plot, title, warnings, metrics);
     let band = plot.height / count(spec.ranges.len());
     let thickness = (band * 0.5).clamp(2.0, 28.0);
     let along = |value| scale.map(value, plot.left, plot.left + plot.width);
@@ -241,7 +265,7 @@ fn layout_horizontal(
             &format!("/ranges/{index}/label"),
         );
     }
-    push_legend(&mut elements, spec, (plot.left, plot.width), metrics);
+    push_legend(&mut elements, warnings, spec, (plot.left, title.1), metrics);
     elements
 }
 
@@ -318,7 +342,13 @@ fn layout_vertical(
         warnings,
         metrics,
     );
-    push_legend(&mut elements, spec, (plot.left, plot.width), metrics);
+    push_legend(
+        &mut elements,
+        warnings,
+        spec,
+        (plot.left, plot.width),
+        metrics,
+    );
     elements
 }
 
