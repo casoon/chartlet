@@ -1,8 +1,8 @@
 use std::fmt::Write as _;
 
 use super::{
-    AREA_CLASSES, AXIS_GUTTER, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PANEL_GUTTER, PANEL_MARGIN,
-    PLOT_MARGIN, PlotArea,
+    AREA_CLASSES, AXIS_GUTTER, LABEL_LINE, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PANEL_GUTTER,
+    PANEL_MARGIN, PLOT_MARGIN, PlotArea,
     annotation::{push_marker, push_marker_label, push_rule, push_zone},
     axis::{NumericScale, format_value},
     count, fit_text,
@@ -16,7 +16,10 @@ use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
     scene::{Circle, Element, Hook, Line, Polyline, Scene, Text, TextAnchor},
-    spec::{ChartSpec, ChartType, Dash, LayerRef, MAX_SERIES, Mark, NumberStyle, Stroke},
+    spec::{
+        ChartSpec, ChartType, Dash, LayerRef, LegendPlacement, MAX_SERIES, Mark, NumberStyle,
+        Stroke,
+    },
     time,
     time::{Precision, TimeZone},
 };
@@ -34,6 +37,8 @@ const fn time_tick_spacing(precision: Precision) -> u32 {
     }
 }
 
+/// Space between the end of the plot and the names at the ends of its lines.
+const END_LABEL_GAP: f64 = 8.0;
 /// Outer margin of a small-multiples grid, left and right.
 const MULTIPLES_MARGIN: f64 = 16.0;
 /// Inset that keeps the outermost points and their labels inside the plot.
@@ -77,14 +82,23 @@ pub(super) fn layout_time(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
+    if spec.sparkline {
+        return layout_sparkline(spec, warnings, metrics);
+    }
     let zone = spec.time_zone().unwrap_or_default();
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
     let left = f64::from(AXIS_GUTTER);
-    let right = f64::from(PLOT_MARGIN);
+    let end_labels = spec.legend == LegendPlacement::End;
+    let right = f64::from(PLOT_MARGIN)
+        + if end_labels {
+            end_label_room(spec, width, metrics)
+        } else {
+            0.0
+        };
     // Candles always take a legend entry: it says which body is rising and which is falling.
-    let layered =
-        spec.series_names().len() > 1 || spec.layers().any(|layer| layer.mark == Mark::Ohlc);
+    let layered = !end_labels
+        && (spec.series_names().len() > 1 || spec.layers().any(|layer| layer.mark == Mark::Ohlc));
     // Without a drawn title the legend and the plot move up into its place; a title on two lines
     // pushes them down.
     let head = -title_extra(spec, width - left - right, metrics);
@@ -153,24 +167,11 @@ pub(super) fn layout_time(
             metrics,
         );
     }
-
-    if let Some(title) = &spec.time_axis.title {
-        let title = fit_text(
-            title,
-            plot.width,
-            LABEL_SIZE,
-            metrics,
-            warnings,
-            "/timeAxis/title",
-        );
-        elements.push(Element::Text(Text {
-            x: plot.left + plot.width / 2.0,
-            y: height - 14.0,
-            class: "chartlet-axis-title",
-            anchor: TextAnchor::Middle,
-            content: title,
-        }));
+    if end_labels {
+        push_end_labels(spec, &frames, &mut elements, warnings, metrics);
     }
+
+    push_time_axis_title(spec, plot, height, &mut elements, warnings, metrics);
 
     Scene {
         width: spec.width,
@@ -233,6 +234,135 @@ fn multiples_header(
 
 /// Lays out small multiples: a grid of small time plots that share the value scale and the time
 /// span, so that the panels can be compared by position alone.
+/// A sparkline: the lines and areas of the one pane across the whole canvas, inset by the dot at
+/// the end of each line.
+fn layout_sparkline(
+    spec: &ChartSpec,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Scene {
+    let zone = spec.time_zone().unwrap_or_default();
+    let inset = 4.0;
+    let plot = PlotArea {
+        left: inset - TIME_INSET,
+        top: inset,
+        width: f64::from(spec.width) - 2.0 * (inset - TIME_INSET),
+        height: f64::from(spec.height) - 2.0 * inset,
+        vertical_bars: true,
+    };
+    let frames = pane_frames(spec, zone, plot, warnings);
+    let mut elements = Vec::new();
+    for (pane_index, frame) in frames.iter().enumerate() {
+        elements.push(frame.hook(pane_index));
+        draw_pane(
+            spec,
+            pane_index,
+            frame,
+            Detail::Spark,
+            &mut elements,
+            warnings,
+            metrics,
+        );
+    }
+    Scene {
+        width: spec.width,
+        height: spec.height,
+        elements,
+    }
+}
+
+/// The title of the time axis, centred below the plot.
+fn push_time_axis_title(
+    spec: &ChartSpec,
+    plot: PlotArea,
+    height: f64,
+    elements: &mut Vec<Element>,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
+    if let Some(title) = &spec.time_axis.title {
+        let title = fit_text(
+            title,
+            plot.width,
+            LABEL_SIZE,
+            metrics,
+            warnings,
+            "/timeAxis/title",
+        );
+        elements.push(Element::Text(Text {
+            x: plot.left + plot.width / 2.0,
+            y: height - 14.0,
+            class: "chartlet-axis-title",
+            anchor: TextAnchor::Middle,
+            content: title,
+        }));
+    }
+}
+
+/// The widest name a line takes at its end, with the gap before it, at most a third of the chart.
+fn end_label_room(spec: &ChartSpec, width: f64, metrics: &impl TextMetrics) -> f64 {
+    let widest = spec
+        .data_layers()
+        .map(|entry| metrics.width(&end_label(spec, entry), LABEL_SIZE))
+        .fold(0.0, f64::max);
+    (widest + END_LABEL_GAP).min(width / 3.0)
+}
+
+/// The name at the end of a line: its legend entry, so a modeled series says so.
+fn end_label(spec: &ChartSpec, entry: LayerRef) -> String {
+    let words = spec.locale.words();
+    let name = entry.layer.name.as_deref().unwrap_or(words.value);
+    if entry.layer.modeled {
+        format!("{name} ({})", words.modeled)
+    } else {
+        name.to_owned()
+    }
+}
+
+/// Names every line and area at its last observation, right of the plot. Names that would overlap
+/// move apart, at least a line of text from each other, and stay inside their pane.
+fn push_end_labels(
+    spec: &ChartSpec,
+    frames: &[TimeFrame],
+    elements: &mut Vec<Element>,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
+    let width = f64::from(spec.width);
+    for (pane_index, frame) in frames.iter().enumerate() {
+        let mut labels: Vec<(f64, String, String)> = spec
+            .data_layers()
+            .filter(|entry| entry.pane == pane_index)
+            .filter_map(|entry| {
+                let (_, value) = *entry.layer.resolved_points(frame.zone).last()?;
+                let path = format!("/panes/{}/layers/{}/name", entry.pane, entry.local);
+                Some((frame.y(value) + 4.0, end_label(spec, entry), path))
+            })
+            .collect();
+        labels.sort_by(|a, b| a.0.total_cmp(&b.0));
+        let plot = frame.plot;
+        let mut floor = plot.top + LABEL_SIZE;
+        for label in &mut labels {
+            label.0 = label.0.max(floor);
+            floor = label.0 + LABEL_LINE;
+        }
+        // Pushed past the bottom of the pane, the lowest names move back up together.
+        let overflow = labels
+            .last()
+            .map_or(0.0, |last| (last.0 - (plot.top + plot.height)).max(0.0));
+        let x = plot.left + plot.width + END_LABEL_GAP;
+        for (y, name, path) in labels {
+            elements.push(Element::Text(Text {
+                x,
+                y: y - overflow,
+                class: "chartlet-legend",
+                anchor: TextAnchor::Start,
+                content: fit_text(&name, width - x - 4.0, LABEL_SIZE, metrics, warnings, &path),
+            }));
+        }
+    }
+}
+
 /// The title above one panel of small multiples, in the panel's cell starting at `cell_top`.
 fn panel_title(
     pane: &crate::spec::PaneSpec,
@@ -470,6 +600,8 @@ impl TimeFrame {
 enum Detail {
     Full,
     Compact,
+    /// A sparkline: no markers, only a dot at the last observation of each line.
+    Spark,
 }
 
 /// The value scale of one pane of a time chart, or of all small multiples when `pane` is `None`:
@@ -657,10 +789,12 @@ fn push_area(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mu
             continue;
         }
         let (first, last) = (segment[0].0, segment[segment.len() - 1].0);
-        let mut outline: Vec<(f64, f64)> = segment
-            .iter()
-            .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
-            .collect();
+        let mut outline = entry.layer.curve.points(
+            segment
+                .iter()
+                .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
+                .collect(),
+        );
         outline.push((frame.x(last), base));
         outline.push((frame.x(first), base));
         elements.push(Element::Polyline(Polyline {
@@ -756,6 +890,34 @@ fn push_band_run(
     }
 }
 
+/// The tooltip of one observation: its time, value and layer, and its band if it has one.
+fn observation_tooltip(
+    spec: &ChartSpec,
+    frame: &TimeFrame,
+    (epoch, value): (i64, f64),
+    band: Option<(f64, f64)>,
+    name: Option<&str>,
+) -> String {
+    let mut text = tooltip(
+        &frame.precision.format(epoch, frame.zone),
+        value,
+        frame.style,
+        name,
+    );
+    if let Some((lower, upper)) = band {
+        write!(
+            text,
+            " ({} {} {} {})",
+            spec.locale.words().range,
+            format_value(lower, frame.style),
+            spec.locale.words().to,
+            format_value(upper, frame.style)
+        )
+        .expect("writing to String cannot fail");
+    }
+    text
+}
+
 /// One line, broken at every missing value, with its markers and, in a full-size chart, its
 /// value labels.
 fn push_line(
@@ -776,10 +938,12 @@ fn push_line(
             continue;
         }
         elements.push(Element::Polyline(Polyline {
-            points: segment
-                .iter()
-                .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
-                .collect(),
+            points: layer.curve.points(
+                segment
+                    .iter()
+                    .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
+                    .collect(),
+            ),
             class,
             topic: None,
             series_index: None,
@@ -791,62 +955,67 @@ fn push_line(
     // Markers and their labels are only drawn while the observations stay far enough apart
     // for them to be readable. Beyond that, an invisible target keeps the tooltip of each
     // observation, as long as the targets stay far enough apart to point at.
-    let markers = points.len() <= MAX_TIME_MARKERS;
-    if !markers {
+    let spark = detail == Detail::Spark;
+    let markers = !spark && points.len() <= MAX_TIME_MARKERS;
+    let hits = !markers && {
         let xs: Vec<f64> = points.iter().map(|(epoch, _)| frame.x(*epoch)).collect();
-        if !tooltips_fit(&xs) {
-            return;
-        }
+        tooltips_fit(&xs)
+    };
+    if !markers && !hits && !spark {
+        return;
     }
+    let last = points.len().saturating_sub(1);
     let band = layer.resolved_band(frame.zone);
     let name = tooltip_name(spec, entry);
     for (index, (epoch, value)) in points.iter().enumerate() {
         let x = frame.x(*epoch);
         let y = frame.y(*value);
-        let mut text = tooltip(
-            &frame.precision.format(*epoch, frame.zone),
-            *value,
-            frame.style,
+        let text = observation_tooltip(
+            spec,
+            frame,
+            (*epoch, *value),
+            band.get(index).map(|(_, lower, upper)| (*lower, *upper)),
             name.as_deref(),
         );
-        if let Some((_, lower, upper)) = band.get(index) {
-            write!(
-                text,
-                " ({} {} {} {})",
-                spec.locale.words().range,
-                format_value(*lower, frame.style),
-                spec.locale.words().to,
-                format_value(*upper, frame.style)
-            )
-            .expect("writing to String cannot fail");
-        }
-        if !markers {
-            elements.push(Element::Circle(Circle {
+        let point = |radius: f64, tooltip: Option<String>| {
+            Element::Circle(Circle {
                 cx: x,
                 cy: y,
-                radius: 4.0,
-                class: "chartlet-hit",
+                radius,
+                class: if explicit {
+                    "chartlet-point"
+                } else {
+                    POINT_CLASSES[palette]
+                },
                 topic: None,
                 series_index: None,
-                style_index: None,
-                tooltip: Some(text),
-            }));
+                style_index: explicit.then_some(entry.global),
+                tooltip,
+            })
+        };
+        if !markers {
+            // A sparkline marks where its line ends.
+            if spark && index == last {
+                elements.push(point(2.5, (!hits).then(|| text.clone())));
+            }
+            if hits {
+                elements.push(Element::Circle(Circle {
+                    cx: x,
+                    cy: y,
+                    radius: 4.0,
+                    class: "chartlet-hit",
+                    topic: None,
+                    series_index: None,
+                    style_index: None,
+                    tooltip: Some(text),
+                }));
+            }
             continue;
         }
-        elements.push(Element::Circle(Circle {
-            cx: x,
-            cy: y,
-            radius: if detail == Detail::Full { 4.0 } else { 2.5 },
-            class: if explicit {
-                "chartlet-point"
-            } else {
-                POINT_CLASSES[palette]
-            },
-            topic: None,
-            series_index: None,
-            style_index: explicit.then_some(entry.global),
-            tooltip: Some(text),
-        }));
+        elements.push(point(
+            if detail == Detail::Full { 4.0 } else { 2.5 },
+            Some(text),
+        ));
         if detail == Detail::Full && spec.show_values {
             elements.push(Element::Text(Text {
                 x,

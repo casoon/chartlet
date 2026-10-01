@@ -193,6 +193,44 @@ pub struct LayerSpec {
     /// Line pattern. Absent, a modeled line is dashed and every other line solid.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dash: Option<Dash>,
+    /// How a line runs between observations: straight, or as steps that hold each value until
+    /// the next, for values that apply to a whole period.
+    #[serde(default, skip_serializing_if = "Curve::is_linear")]
+    pub curve: Curve,
+}
+
+/// How a line or an area runs from one observation to the next.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Curve {
+    #[default]
+    Linear,
+    /// Holds each value until the next observation, then jumps.
+    Step,
+}
+
+impl Curve {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_linear(&self) -> bool {
+        matches!(self, Self::Linear)
+    }
+
+    /// The points of a line through `points` in this curve: for steps, a corner before every
+    /// jump.
+    pub(crate) fn points(self, points: Vec<(f64, f64)>) -> Vec<(f64, f64)> {
+        if self == Self::Linear {
+            return points;
+        }
+        let mut stepped = Vec::with_capacity(points.len() * 2);
+        for (index, point) in points.iter().enumerate() {
+            if index > 0 {
+                stepped.push((point.0, points[index - 1].1));
+            }
+            stepped.push(*point);
+        }
+        stepped
+    }
 }
 
 /// The weight of a line.
@@ -458,8 +496,65 @@ impl ChartSpec {
         Ok(())
     }
 
+    /// A sparkline draws one pane of lines and areas and nothing that needs a label or an axis.
+    fn validate_sparkline(&self) -> Result<(), ChartError> {
+        if !self.sparkline {
+            return Ok(());
+        }
+        let refuse = |path: String, reason: &str| {
+            Err(ChartError::new(
+                "option_not_supported",
+                path,
+                format!("a sparkline {reason}"),
+            ))
+        };
+        if self.panes.len() > 1 {
+            return refuse("/panes".to_owned(), "has one pane");
+        }
+        for (field, present) in [
+            ("/timeAxis/title", self.time_axis.title.is_some()),
+            ("/zoomSteps", !self.zoom_steps.is_empty()),
+            ("/mobile", self.mobile.is_some()),
+            ("/legend", self.legend != super::LegendPlacement::Top),
+        ] {
+            if present {
+                return refuse(
+                    field.to_owned(),
+                    "has no axes, legend, zoom or mobile variant",
+                );
+            }
+        }
+        for (pane_index, pane) in self.panes.iter().enumerate() {
+            if pane.value_axis.title.is_some() {
+                return refuse(
+                    format!("/panes/{pane_index}/valueAxis/title"),
+                    "has no axes",
+                );
+            }
+            for (index, layer) in pane.layers.iter().enumerate() {
+                if !matches!(layer.mark, Mark::Line | Mark::Area) {
+                    return refuse(
+                        format!("/panes/{pane_index}/layers/{index}/mark"),
+                        "draws lines and areas only",
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn validate_time(&self) -> Result<Vec<ChartWarning>, ChartError> {
         self.reject_bar_and_line_options("a time chart")?;
+        self.validate_sparkline()?;
+        if self.legend == super::LegendPlacement::End
+            && self.layers().any(|layer| layer.mark == Mark::Ohlc)
+        {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/legend",
+                "candles need the legend that says which bodies rise and which fall",
+            ));
+        }
         let zone = self.validate_time_axis()?;
         if self.panes.is_empty() {
             return Err(ChartError::new(
@@ -901,6 +996,11 @@ fn validate_annotation(
         ),
         ("dash", layer.dash.is_some(), "belongs to a line layer"),
         (
+            "curve",
+            layer.curve != Curve::Linear,
+            "belongs to a line or area layer",
+        ),
+        (
             "name",
             layer.name.is_some(),
             "is not used; an annotation is named by its label",
@@ -982,6 +1082,11 @@ fn validate_zone(
             "belongs to a line layer",
         ),
         ("dash", layer.dash.is_some(), "belongs to a line layer"),
+        (
+            "curve",
+            layer.curve != Curve::Linear,
+            "belongs to a line or area layer",
+        ),
         (
             "name",
             layer.name.is_some(),

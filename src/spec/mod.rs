@@ -22,8 +22,8 @@ pub use rangebar::RangeSpec;
 pub(crate) use stripes::Diverging;
 pub use stripes::StripesSpec;
 pub use timechart::{
-    Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimeAxisKind, TimeAxisSpec,
-    TimePoint,
+    Curve, Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimeAxisKind,
+    TimeAxisSpec, TimePoint,
 };
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
@@ -118,6 +118,14 @@ pub struct ChartSpec {
     /// Reference lines across a `type: "bar"` chart, such as an average or a target.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub references: Vec<ReferenceSpec>,
+    /// Draws a `type: "time"` chart as a sparkline: only its lines and areas, no axes, title or
+    /// legend, at a size down to 60 × 16. Title and description stay its accessible name.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub sparkline: bool,
+    /// Where a `type: "time"` chart names its series: in a legend above the plot, or at the end
+    /// of every line.
+    #[serde(default, skip_serializing_if = "LegendPlacement::is_top")]
+    pub legend: LegendPlacement,
     /// Gives every panel of a `type: "multiples"` chart its own value axis, for panels whose
     /// values differ in unit or size; they can then no longer be compared by height.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -146,6 +154,10 @@ pub struct MobileSpec {
     /// Container width in CSS pixels; the mobile variant shows below it.
     #[serde(default = "default_breakpoint")]
     pub breakpoint: u32,
+    /// Grid columns of small multiples in the mobile variant, usually fewer than on the wide
+    /// chart.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub columns: Option<u32>,
 }
 
 /// The palette a chart is rendered in. Both palettes are expressed as CSS custom properties, so a
@@ -245,6 +257,25 @@ impl ChartType {
         Self::ALL
             .into_iter()
             .find(|chart_type| type_name(*chart_type) == name)
+    }
+}
+
+/// Where a time chart names its series.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum LegendPlacement {
+    /// A legend above the plot.
+    #[default]
+    Top,
+    /// The name of each line at its last observation, right of the plot.
+    End,
+}
+
+impl LegendPlacement {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_top(&self) -> bool {
+        matches!(self, Self::Top)
     }
 }
 
@@ -464,6 +495,9 @@ impl ChartSpec {
         let mut spec = self.clone();
         spec.width = mobile.width;
         spec.height = mobile.height;
+        if mobile.columns.is_some() {
+            spec.columns = mobile.columns;
+        }
         spec.mobile = None;
         Some(spec)
     }
@@ -616,6 +650,26 @@ impl ChartSpec {
 
     /// The size of the chart and of its mobile variant.
     fn validate_size(&self) -> Result<(), ChartError> {
+        if self.sparkline && self.chart_type == ChartType::Time {
+            for (path, value, range) in [
+                ("/width", self.width, 60..=600),
+                ("/height", self.height, 16..=200),
+            ] {
+                if !range.contains(&value) {
+                    return Err(ChartError::new(
+                        "invalid_dimension",
+                        path,
+                        format!(
+                            "a sparkline's {} must be between {} and {}",
+                            &path[1..],
+                            range.start(),
+                            range.end()
+                        ),
+                    ));
+                }
+            }
+            return Ok(());
+        }
         if !(320..=2_400).contains(&self.width) {
             return Err(ChartError::new(
                 "invalid_dimension",
@@ -817,10 +871,23 @@ impl ChartSpec {
             ("/columns", self.columns.is_some(), ChartType::Multiples),
             ("/references", !self.references.is_empty(), ChartType::Bar),
             ("/stack", self.stack.is_some(), ChartType::Bar),
+            (
+                "/legend",
+                self.legend == LegendPlacement::End,
+                ChartType::Time,
+            ),
+            ("/sparkline", self.sparkline, ChartType::Time),
             ("/patterns", self.patterns, ChartType::Bar),
             (
                 "/independentAxes",
                 self.independent_axes,
+                ChartType::Multiples,
+            ),
+            (
+                "/mobile/columns",
+                self.mobile
+                    .as_ref()
+                    .is_some_and(|mobile| mobile.columns.is_some()),
                 ChartType::Multiples,
             ),
         ] {

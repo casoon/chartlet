@@ -1,6 +1,6 @@
 use super::{
-    AREA_CLASSES, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PlotArea, count, fit_text,
-    series_bar_class, timechart::line_class,
+    AREA_CLASSES, LABEL_LINE, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PlotArea, count, fit_text,
+    series_bar_class, timechart::line_class, title::two_lines,
 };
 use crate::{
     error::ChartWarning,
@@ -18,6 +18,8 @@ const LEGEND_SWATCH: f64 = 16.0;
 struct LegendEntry<'a> {
     entry: LayerRef<'a>,
     name: String,
+    /// The name on two lines, when it is wider than a whole row: the entry then takes two rows.
+    wrapped: Option<(String, String)>,
     x: f64,
     row: usize,
 }
@@ -53,20 +55,29 @@ fn legend_entries<'a>(
         } else {
             name.to_owned()
         };
-        let width = metrics
-            .width(&name, LABEL_SIZE)
-            .min(available_width - sample);
-        if x > left && x + sample + width > left + available_width {
+        let room = available_width - sample;
+        let wrapped = two_lines(&name, room, LABEL_SIZE, metrics)
+            .map(|(first, second)| (first.to_owned(), second.to_owned()));
+        let width = metrics.width(&name, LABEL_SIZE).min(room);
+        // A name that needs two lines starts a row of its own and fills it.
+        if x > left && (wrapped.is_some() || x + sample + width > left + available_width) {
             x = left;
             row += 1;
         }
+        let rows = if wrapped.is_some() { 2 } else { 1 };
         entries.push(LegendEntry {
             entry,
             name,
+            wrapped,
             x,
             row,
         });
-        x += sample + width + 20.0;
+        if rows == 2 {
+            x = left + available_width;
+            row += 1;
+        } else {
+            x += sample + width + 20.0;
+        }
     }
     entries
 }
@@ -79,7 +90,9 @@ pub(super) fn legend_rows(
 ) -> usize {
     legend_entries(spec, 0.0, available_width, metrics)
         .last()
-        .map_or(1, |entry| entry.row + 1)
+        .map_or(1, |entry| {
+            entry.row + if entry.wrapped.is_some() { 2 } else { 1 }
+        })
 }
 
 /// Draws the legend of a time chart or of small multiples, see [`legend_entries`]. Every sample is
@@ -96,6 +109,7 @@ pub(super) fn add_layer_legend(
     for LegendEntry {
         entry,
         name,
+        wrapped,
         x,
         row: line,
     } in legend_entries(spec, left, available_width, metrics)
@@ -132,21 +146,22 @@ pub(super) fn add_layer_legend(
                 tooltip: None,
             }));
         }
-        let label = fit_text(
-            &name,
-            left + available_width - x - LEGEND_LINE - 8.0,
-            LABEL_SIZE,
-            metrics,
-            warnings,
-            &format!("/panes/{}/layers/{}/name", entry.pane, entry.local),
-        );
-        elements.push(Element::Text(Text {
-            x: x + LEGEND_LINE + 8.0,
-            y: y + 9.0,
-            class: "chartlet-legend",
-            anchor: TextAnchor::Start,
-            content: label,
-        }));
+        let room = left + available_width - x - LEGEND_LINE - 8.0;
+        let path = format!("/panes/{}/layers/{}/name", entry.pane, entry.local);
+        let lines = match wrapped {
+            Some((first, second)) => vec![first, second],
+            None => vec![name],
+        };
+        for (index, line_text) in lines.iter().enumerate() {
+            let label = fit_text(line_text, room, LABEL_SIZE, metrics, warnings, &path);
+            elements.push(Element::Text(Text {
+                x: x + LEGEND_LINE + 8.0,
+                y: y + 9.0 + count(index) * LABEL_LINE,
+                class: "chartlet-legend",
+                anchor: TextAnchor::Start,
+                content: label,
+            }));
+        }
     }
 }
 
@@ -157,21 +172,29 @@ fn bar_legend_entries(
     dataset: &Dataset,
     available_width: f64,
     metrics: &impl TextMetrics,
-) -> Vec<(f64, usize)> {
+) -> Vec<SeriesEntry> {
     series_legend_entries(dataset, available_width, LEGEND_SWATCH, metrics)
 }
 
-/// Where the entries of a series legend sit, as offset and row, when each takes `swatch` before
-/// its name.
+/// One entry of a series legend: its offset from the left of the legend, its row, and its name
+/// on one line or, when it is wider than a whole row, on two, taking two rows.
+struct SeriesEntry {
+    offset: f64,
+    row: usize,
+    lines: Vec<String>,
+}
+
+/// Where the entries of a series legend sit when each takes `swatch` before its name.
 fn series_legend_entries(
     dataset: &Dataset,
     available_width: f64,
     swatch: f64,
     metrics: &impl TextMetrics,
-) -> Vec<(f64, usize)> {
+) -> Vec<SeriesEntry> {
     if dataset.series.len() < 2 {
         return Vec::new();
     }
+    let room = available_width - swatch;
     let (mut x, mut row) = (0.0, 0);
     let mut entries = Vec::new();
     for series in &dataset.series {
@@ -179,17 +202,37 @@ fn series_legend_entries(
             .name
             .as_deref()
             .expect("multi-series charts name every series");
-        let width = metrics
-            .width(name, LABEL_SIZE)
-            .min(available_width - swatch);
-        if x > 0.0 && x + swatch + width > available_width {
+        let lines = match two_lines(name, room, LABEL_SIZE, metrics) {
+            Some((first, second)) => vec![first.to_owned(), second.to_owned()],
+            None => vec![name.to_owned()],
+        };
+        let width = metrics.width(name, LABEL_SIZE).min(room);
+        // A name that needs two lines starts a row of its own and fills it.
+        if x > 0.0 && (lines.len() > 1 || x + swatch + width > available_width) {
             x = 0.0;
             row += 1;
         }
-        entries.push((x, row));
-        x += swatch + width + 20.0;
+        let rows = lines.len();
+        entries.push(SeriesEntry {
+            offset: x,
+            row,
+            lines,
+        });
+        if rows > 1 {
+            x = available_width;
+            row += rows - 1;
+        } else {
+            x += swatch + width + 20.0;
+        }
     }
     entries
+}
+
+/// The height of a series legend: one row height per row its entries take.
+fn series_legend_height(entries: &[SeriesEntry]) -> f64 {
+    entries.last().map_or(0.0, |entry| {
+        count(entry.row + entry.lines.len()) * LEGEND_HEIGHT
+    })
 }
 
 /// The height the legend of a multi-series bar chart takes above the plot.
@@ -198,9 +241,7 @@ pub(super) fn legend_space(
     available_width: f64,
     metrics: &impl TextMetrics,
 ) -> f64 {
-    bar_legend_entries(dataset, available_width, metrics)
-        .last()
-        .map_or(0.0, |(_, row)| count(row + 1) * LEGEND_HEIGHT)
+    series_legend_height(&bar_legend_entries(dataset, available_width, metrics))
 }
 
 /// The height the legend of a categorical line chart with several series takes above the plot.
@@ -209,9 +250,42 @@ pub(super) fn line_legend_space(
     available_width: f64,
     metrics: &impl TextMetrics,
 ) -> f64 {
-    series_legend_entries(dataset, available_width, LEGEND_LINE + 6.0, metrics)
-        .last()
-        .map_or(0.0, |(_, row)| count(row + 1) * LEGEND_HEIGHT)
+    series_legend_height(&series_legend_entries(
+        dataset,
+        available_width,
+        LEGEND_LINE + 6.0,
+        metrics,
+    ))
+}
+
+/// Writes the name of series `index` at `(x, y)`, line by line, each shortened only if it does
+/// not fit `room`.
+fn push_series_name(
+    elements: &mut Vec<Element>,
+    (x, y): (f64, f64),
+    lines: &[String],
+    room: f64,
+    index: usize,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
+    for (line, text) in lines.iter().enumerate() {
+        let label = fit_text(
+            text,
+            room,
+            LABEL_SIZE,
+            metrics,
+            warnings,
+            &format!("/series/{index}/name"),
+        );
+        elements.push(Element::Text(Text {
+            x,
+            y: y + 9.0 + count(line) * LABEL_LINE,
+            class: "chartlet-legend",
+            anchor: TextAnchor::Start,
+            content: label,
+        }));
+    }
 }
 
 /// Draws the legend of a categorical line chart with several series above `plot`: a sample of
@@ -228,12 +302,8 @@ pub(super) fn add_line_legend(
     let swatch = LEGEND_LINE + 6.0;
     let (left, top, available_width) = (plot.left, LEGEND_ROW + head, plot.width);
     let entries = series_legend_entries(dataset, available_width, swatch, metrics);
-    for (index, (series, (offset, row))) in dataset.series.iter().zip(entries).enumerate() {
-        let name = series
-            .name
-            .as_deref()
-            .expect("multi-series charts name every series");
-        let (x, y) = (left + offset, top + count(row) * LEGEND_HEIGHT);
+    for (index, entry) in entries.iter().enumerate() {
+        let (x, y) = (left + entry.offset, top + count(entry.row) * LEGEND_HEIGHT);
         elements.push(Element::Polyline(Polyline {
             points: vec![(x, y + 5.0), (x + LEGEND_LINE, y + 5.0)],
             class: classes[index],
@@ -242,21 +312,15 @@ pub(super) fn add_line_legend(
             style_index: None,
             tooltip: None,
         }));
-        let label = fit_text(
-            name,
+        push_series_name(
+            elements,
+            (x + swatch, y),
+            &entry.lines,
             available_width - swatch,
-            LABEL_SIZE,
-            metrics,
+            index,
             warnings,
-            &format!("/series/{index}/name"),
+            metrics,
         );
-        elements.push(Element::Text(Text {
-            x: x + swatch,
-            y: y + 9.0,
-            class: "chartlet-legend",
-            anchor: TextAnchor::Start,
-            content: label,
-        }));
     }
 }
 
@@ -273,12 +337,8 @@ pub(super) fn add_legend(
 ) {
     let (left, top, available_width) = (plot.left, LEGEND_ROW + head, plot.width);
     let entries = bar_legend_entries(dataset, available_width, metrics);
-    for (index, (series, (offset, row))) in dataset.series.iter().zip(entries).enumerate() {
-        let name = series
-            .name
-            .as_deref()
-            .expect("multi-series charts name every series");
-        let (x, y) = (left + offset, top + count(row) * LEGEND_HEIGHT);
+    for (index, entry) in entries.iter().enumerate() {
+        let (x, y) = (left + entry.offset, top + count(entry.row) * LEGEND_HEIGHT);
         elements.push(Element::Rect(Rect {
             x,
             y,
@@ -289,20 +349,14 @@ pub(super) fn add_legend(
             style_index: None,
             tooltip: None,
         }));
-        let label = fit_text(
-            name,
+        push_series_name(
+            elements,
+            (x + LEGEND_SWATCH, y),
+            &entry.lines,
             available_width - LEGEND_SWATCH,
-            LABEL_SIZE,
-            metrics,
+            index,
             warnings,
-            &format!("/series/{index}/name"),
+            metrics,
         );
-        elements.push(Element::Text(Text {
-            x: x + LEGEND_SWATCH,
-            y: y + 9.0,
-            class: "chartlet-legend",
-            anchor: TextAnchor::Start,
-            content: label,
-        }));
     }
 }

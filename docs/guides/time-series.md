@@ -260,6 +260,31 @@ the label of a zone or reference line crosses a data line, or when a label reach
 plot, the render reports a `label_overlap` warning with the path of the annotation layer. The
 label is never dropped; move the annotation or shorten its label.
 
+## Sparklines
+
+`"sparkline": true` turns a one-pane time chart into a word-sized graphic for a table cell or a
+dashboard tile: only its lines and areas, a dot at the end of each line, no axes, title or
+legend, down to 60 × 16 pixels. Its title and description still name and describe it, the
+tooltips still carry the values, and the HTML profile keeps the caption and the data table.
+
+```json
+{ "schemaVersion": 1, "type": "time", "title": "Visitors, last 30 days",
+  "sparkline": true, "width": 120, "height": 32, "panes": [{ "layers": [ … ] }] }
+```
+
+## Names at the end of the lines
+
+With a few lines that end apart, a name beside each line reads faster than a legend: `"legend":
+"end"` writes every series name at its last observation, right of the plot, and leaves out the
+legend. The plot makes room for the widest name; names that would overlap move apart.
+
+## Steps and areas between lines
+
+A value that stands for a whole period — an annual mean, a tariff, a quota — reads best as a step:
+`"curve": "step"` on a line or area layer holds each value until the next observation and then
+jumps. The area between two lines, such as a target and a projection, is a band: give the line
+its points with `lower` and `upper`, and `"modeled": true` hatches it.
+
 ## Numbers instead of dates
 
 Profiles and deep time have no calendar: elevation along a distance, temperature down a borehole,

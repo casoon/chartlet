@@ -81,6 +81,11 @@ pub(crate) fn validate(
             "belongs to a line layer",
         ),
         ("dash", layer.dash.is_some(), "belongs to a line layer"),
+        (
+            "curve",
+            layer.curve != crate::spec::Curve::Linear,
+            "belongs to a line or area layer",
+        ),
     ] {
         if present {
             return Err(ChartError::new(

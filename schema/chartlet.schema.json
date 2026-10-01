@@ -44,6 +44,16 @@
       "description": "The daily values of a type: \"calendar\" chart.",
       "$ref": "#/$defs/calendar"
     },
+    "sparkline": {
+      "description": "type: \"time\" only: draw only the lines and areas of one pane, without axes, title or legend, at 60–600 × 16–200 pixels.",
+      "type": "boolean",
+      "default": false
+    },
+    "legend": {
+      "description": "type: \"time\" only: top (default) names the series in a legend above the plot; end names each line at its last observation, right of the plot.",
+      "enum": ["top", "end"],
+      "default": "top"
+    },
     "independentAxes": {
       "description": "type: \"multiples\" only: every panel gets its own value axis instead of one shared one.",
       "type": "boolean",
@@ -103,6 +113,12 @@
           "minimum": 320,
           "maximum": 1600,
           "default": 640
+        },
+        "columns": {
+          "description": "type: \"multiples\" only: grid columns of the mobile variant.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
         }
       }
     },
@@ -633,6 +649,11 @@
         "dash": {
           "description": "Line pattern. Defaults to dashed for a modeled line and solid for any other.",
           "enum": ["solid", "dashed", "dotted"]
+        },
+        "curve": {
+          "description": "Line and area only: linear (default) joins observations directly; step holds each value until the next observation.",
+          "enum": ["linear", "step"],
+          "default": "linear"
         }
       },
       "allOf": [

@@ -29,10 +29,10 @@ pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
     AxisScale, CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec,
-    ChartSpec, ChartType, Corner, Dash, DataPoint, Gaps, LayerSpec, Mark, MobileSpec, OhlcPoint,
-    Orientation, PaneSpec, RangeSpec, ReferenceSpec, SeriesSpec, Shape, Stack, StripesSpec, Stroke,
-    Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TopicLinkSpec, TopicMapSpec, TopicSpec,
-    ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
+    ChartSpec, ChartType, Corner, Curve, Dash, DataPoint, Gaps, LayerSpec, LegendPlacement, Mark,
+    MobileSpec, OhlcPoint, Orientation, PaneSpec, RangeSpec, ReferenceSpec, SeriesSpec, Shape,
+    Stack, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TopicLinkSpec,
+    TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1060,6 +1060,75 @@ mod tests {
     }
 
     #[test]
+    fn a_sparkline_draws_only_its_line_at_a_small_size() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Visitors", "sparkline": true,
+            "width": 120, "height": 32, "panes": [{"layers": [{"mark": "line", "name": "Visitors",
+            "points": [{"time": "2026-03-01", "value": 3}, {"time": "2026-03-02", "value": 5},
+                       {"time": "2026-03-03", "value": 4}]}]}]}"#;
+        let svg = render_ok(spec).content;
+        assert!(svg.contains("width=\"120\" height=\"32\""));
+        assert!(svg.contains("<title id="));
+        assert!(!svg.contains("class=\"chartlet-tick\""));
+        assert!(!svg.contains("class=\"chartlet-grid\""));
+        // One visible dot where the line ends; every observation keeps an invisible tooltip.
+        assert_eq!(svg.matches("class=\"chartlet-point\"").count(), 1, "{svg}");
+        assert_eq!(svg.matches("class=\"chartlet-hit\"").count(), 3, "{svg}");
+        let wide = spec.replace("\"width\": 120", "\"width\": 800");
+        assert_eq!(
+            render_err(&wide),
+            ("invalid_dimension", "/width".to_owned())
+        );
+        let bar = SPEC.replacen('{', "{\"sparkline\": true,", 1);
+        assert_eq!(render_err(&bar).0, "option_not_supported");
+    }
+
+    #[test]
+    fn names_at_the_end_of_the_lines_replace_the_legend() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Two lines", "legend": "end",
+            "panes": [{"layers": [
+            {"mark": "line", "name": "North", "points": [{"time": "2020", "value": 1}, {"time": "2021", "value": 3}]},
+            {"mark": "line", "name": "South", "points": [{"time": "2020", "value": 2}, {"time": "2021", "value": 3}]}]}]}"#;
+        let svg = render_ok(spec).content;
+        let names: Vec<&str> = svg
+            .split("<text ")
+            .filter(|text| text.contains("class=\"chartlet-legend\""))
+            .collect();
+        assert_eq!(names.len(), 2, "{svg}");
+        // Both end at 3, so the names move apart.
+        let ys: Vec<f64> = names
+            .iter()
+            .filter_map(|text| text.split("y=\"").nth(1)?.split('"').next()?.parse().ok())
+            .collect();
+        assert!((ys[0] - ys[1]).abs() >= 14.0, "{ys:?}");
+        let bar = SPEC.replacen('{', "{\"legend\": \"end\",", 1);
+        assert_eq!(
+            render_err(&bar),
+            ("option_not_supported", "/legend".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_step_line_holds_each_value_until_the_next() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Steps", "panes": [{"layers": [
+            {"mark": "line", "name": "Mean", "curve": "step",
+             "points": [{"time": "2020", "value": 1}, {"time": "2021", "value": 3},
+                        {"time": "2022", "value": 2}]}]}]}"#;
+        let svg = render_ok(spec).content;
+        let points = svg
+            .split("<polyline points=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .unwrap_or_default();
+        // Three observations and a corner before each of the two jumps.
+        assert_eq!(points.split(' ').count(), 5, "{points}");
+        let annotation = spec.replace(
+            r#"{"mark": "line", "name": "Mean", "curve": "step","#,
+            r#"{"mark": "annotation", "label": "A", "value": 1, "curve": "step"}, {"mark": "line", "name": "Mean","#,
+        );
+        assert_eq!(render_err(&annotation).0, "option_not_supported");
+    }
+
+    #[test]
     fn a_numeric_axis_reads_plain_numbers_and_can_run_backwards() {
         let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Profile",
             "timeAxis": {"kind": "number", "reverse": true, "title": "Distance (km)"},
@@ -1086,6 +1155,39 @@ mod tests {
         assert_eq!(
             render_err(&spec.replace(r#""time": 2.5"#, r#""time": "2026-01-01""#)).0,
             "invalid_time"
+        );
+    }
+
+    #[test]
+    fn the_mobile_variant_of_small_multiples_takes_its_own_columns() {
+        let spec = r#"{"schemaVersion": 1, "type": "multiples", "title": "Panels", "columns": 2,
+            "mobile": {"width": 360, "height": 600, "columns": 1}, "panes": [
+            {"title": "A", "layers": [{"mark": "line", "name": "V",
+                "points": [{"time": "2020", "value": 1}, {"time": "2021", "value": 2}]}]},
+            {"title": "B", "layers": [{"mark": "line", "name": "V",
+                "points": [{"time": "2020", "value": 3}, {"time": "2021", "value": 4}]}]}]}"#;
+        let mobile = render_json(
+            spec,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: Variant::Mobile,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap()
+        .content;
+        // One column: both panel titles start at the same x.
+        let xs: Vec<&str> = mobile
+            .split("<text ")
+            .filter(|text| text.contains("class=\"chartlet-panel-title\""))
+            .filter_map(|text| text.split('"').nth(1))
+            .collect();
+        assert_eq!(xs.len(), 2, "{mobile}");
+        assert_eq!(xs[0], xs[1]);
+        let bar = SPEC.replacen('{', "{\"mobile\": {\"width\": 360, \"columns\": 1},", 1);
+        assert_eq!(
+            render_err(&bar),
+            ("option_not_supported", "/mobile/columns".to_owned())
         );
     }
 
