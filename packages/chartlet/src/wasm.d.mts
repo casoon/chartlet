@@ -1,8 +1,17 @@
-import type { RenderChartOptions, RenderChartResult } from "./render.mjs";
+import type {
+  RenderChartDetailedResult,
+  RenderChartOptions,
+  RenderChartResult,
+} from "./render.mjs";
 
 export interface ChartRenderer {
   /** Renders in WebAssembly; `options.binary` is ignored. */
   renderChart(spec: Record<string, unknown>, options?: RenderChartOptions): RenderChartResult;
+  /** Renders in WebAssembly and reports the outcome as data; see `renderChartDetailed`. */
+  renderChartDetailed(
+    spec: Record<string, unknown> | string,
+    options?: RenderChartOptions,
+  ): RenderChartDetailedResult;
 }
 
 /** Instantiates the renderer from the compiled `@casoon/chartlet/chartlet.wasm` module. */

@@ -35,11 +35,34 @@ const { content, warnings } = renderChart(spec, { format: 'svg', idPrefix: 'reve
 ```
 
 Options: `format`, `table`, `idPrefix`, `variant` (`mobile` renders the mobile variant alone as
-SVG) and `strict`. `warnings` holds the lines the CLI would write; an invalid specification
+SVG), `strict` and `manifest` (`true` adds a provenance `manifest` to the result: chartlet
+version, SHA-256 of the canonical specification and of `content`, format, variant, ID prefix and
+warnings, without a timestamp). `warnings` holds the lines the CLI would write; an invalid specification
 throws with the CLI's message. The output is byte-identical to the `chartlet` CLI.
+
+`renderChartDetailed(spec, options)` takes the same arguments but does not throw on an invalid
+specification: it returns `{ ok, error?, warnings }` with `{ code, path, message }` diagnostics,
+plus `content`, `styleHashes` and `manifest` when rendering succeeded. `spec` may also be JSON
+text.
 
 To render with an installed CLI instead of WebAssembly, set `CHARTLET_BIN` to its absolute path
 or pass `binary`.
+
+## Content Security Policy
+
+A chart styles itself with inline `<style>` elements. `styleHashes` lists their CSP source
+expressions (`'sha256-…'`), one per distinct element, in order of first appearance; a strict
+`style-src` allows exactly those:
+
+```js
+const { content, styleHashes } = renderChart(spec, { idPrefix: 'revenue' });
+
+headers.set('Content-Security-Policy', `style-src 'self' ${styleHashes.join(' ')}`);
+```
+
+Astro takes the hashes without quotes: per page through
+`Astro.csp?.insertStyleHash(hash.slice(1, -1))`, or for all pages in
+`security.csp.styleDirective.hashes`. `createRenderer` returns the same field.
 
 ## Cloudflare Workers and Vite
 

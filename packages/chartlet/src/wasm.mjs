@@ -9,27 +9,34 @@ export function createRenderer(module) {
   const { memory, alloc, dealloc, render, result_len } = new WebAssembly.Instance(module, {})
     .exports;
 
+  // Sends one request to the renderer and returns its parsed JSON response.
+  function respond(spec, options) {
+    const request = encoder.encode(
+      JSON.stringify({
+        spec,
+        options: {
+          format: options.format ?? "html",
+          table: options.table ?? "details",
+          idPrefix: options.idPrefix || undefined,
+          variant: options.variant,
+          strict: options.strict ?? false,
+          manifest: options.manifest ?? false,
+        },
+      }),
+    );
+    const input = alloc(request.length);
+    new Uint8Array(memory.buffer, input, request.length).set(request);
+    const output = render(input, request.length);
+    const length = result_len();
+    const response = JSON.parse(decoder.decode(new Uint8Array(memory.buffer, output, length)));
+    dealloc(input, request.length);
+    dealloc(output, length);
+    return response;
+  }
+
   return {
     renderChart(spec, options = {}) {
-      const request = encoder.encode(
-        JSON.stringify({
-          spec: JSON.stringify(spec),
-          options: {
-            format: options.format ?? "html",
-            table: options.table ?? "details",
-            idPrefix: options.idPrefix || undefined,
-            variant: options.variant,
-            strict: options.strict ?? false,
-          },
-        }),
-      );
-      const input = alloc(request.length);
-      new Uint8Array(memory.buffer, input, request.length).set(request);
-      const output = render(input, request.length);
-      const length = result_len();
-      const response = JSON.parse(decoder.decode(new Uint8Array(memory.buffer, output, length)));
-      dealloc(input, request.length);
-      dealloc(output, length);
+      const response = respond(JSON.stringify(spec), options);
 
       // The same lines the CLI writes to stderr.
       const warnings = response.warnings.map(
@@ -40,7 +47,17 @@ export function createRenderer(module) {
         const failure = path == null ? `chartlet: ${message}` : `chartlet: ${code} at ${path}: ${message}`;
         throw new Error([...warnings, failure].join("\n"));
       }
-      return { content: response.content, warnings };
+      const result = { content: response.content, styleHashes: response.styleHashes, warnings };
+      if (response.manifest) {
+        result.manifest = response.manifest;
+      }
+      return result;
+    },
+
+    // The renderer's response as it is: `ok`, `error` or `content`, `styleHashes` and
+    // `manifest`, and the warnings as `{ code, path, message }`. A string is taken as JSON text.
+    renderChartDetailed(spec, options = {}) {
+      return respond(typeof spec === "string" ? spec : JSON.stringify(spec), options);
     },
   };
 }

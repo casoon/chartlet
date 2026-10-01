@@ -17,9 +17,46 @@ import { renderChart } from '@casoon/chartlet';
 const { content, warnings } = renderChart(spec, { format: 'svg', idPrefix: 'revenue' });
 ```
 
-The options are those of the CLI: `format`, `table`, `idPrefix`, `variant` and `strict`. When
+The options are those of the CLI: `format`, `table`, `idPrefix`, `variant`, `strict` and
+`manifest`. When
 `options.binary` or the environment variable `CHARTLET_BIN` names a `chartlet` executable,
 `renderChart` calls that CLI instead.
+
+## Structured diagnostics
+
+`renderChart` throws on an invalid specification. `renderChartDetailed` takes the same arguments
+and reports the outcome as data, the document the CLI writes with `--diagnostics json`:
+
+```js
+import { renderChartDetailed } from '@casoon/chartlet';
+
+const result = renderChartDetailed(spec, { format: 'svg' });
+if (!result.ok) {
+  console.error(result.error.code, result.error.path, result.error.message);
+}
+for (const { code, path, message } of result.warnings) {
+  console.warn(code, path, message);
+}
+```
+
+A successful result also carries `content`, `styleHashes` and, with `manifest: true`, `manifest`.
+`spec` may be JSON text instead of an object; malformed text is reported as `invalid_json`. A
+missing WebAssembly build or CLI still throws. `createRenderer` returns `renderChartDetailed` too.
+
+## Provenance
+
+With `manifest: true`, the result also carries `manifest`, the object the CLI writes with
+`--manifest`: chartlet version, schema version, SHA-256 of the canonical specification and of
+`content`, format, variant, ID prefix and warnings, without a timestamp. See
+[Provenance](warnings-and-errors.md#provenance) for the fields.
+
+```js
+const { content, manifest } = renderChart(spec, { format: 'svg', manifest: true });
+// manifest.outputHash === `sha256:${sha256Hex(content)}`
+```
+
+The WebAssembly build and the CLI path return the same manifest; the CLI path reads it from a
+temporary file that it removes again.
 
 ## Runtimes that import WebAssembly
 
@@ -57,3 +94,62 @@ const { renderChart } = createRenderer(module);
 
 `renderChart` from `createRenderer` takes the same options and returns the same result as the
 Node.js entry; `binary` is ignored.
+
+## Content Security Policy
+
+A chart carries its styles in inline `<style>` elements, which a strict `style-src` blocks unless
+it names them by hash. Both entries return those hashes with the content: `styleHashes` holds the
+CSP source expression (`'sha256-<base64>'`) of every distinct `<style>` element in `content`, in
+order of first appearance. The hash is taken over the text between the tags, exactly as written.
+
+As a response header:
+
+```js
+const { content, styleHashes } = renderChart(spec, { idPrefix: 'revenue' });
+
+return new Response(content, {
+  headers: {
+    'content-type': 'text/html',
+    'content-security-policy': `default-src 'self'; style-src 'self' ${styleHashes.join(' ')}`,
+  },
+});
+```
+
+Astro (6 and newer, with `security.csp` enabled) writes the policy itself and takes hashes without
+the quotes. Add them per page:
+
+```astro
+---
+import { renderChart } from '@casoon/chartlet';
+import spec from '../data/monthly-revenue.json';
+
+const { content, styleHashes } = renderChart(spec, { idPrefix: 'monthly-revenue' });
+for (const hash of styleHashes) {
+  Astro.csp?.insertStyleHash(hash.slice(1, -1));
+}
+---
+
+<Fragment set:html={content} />
+```
+
+or for every page in `astro.config.mjs`:
+
+```js
+import { defineConfig } from 'astro/config';
+import { renderChart } from '@casoon/chartlet';
+import spec from './src/data/monthly-revenue.json' with { type: 'json' };
+
+const { styleHashes } = renderChart(spec, { idPrefix: 'monthly-revenue' });
+
+export default defineConfig({
+  security: {
+    csp: {
+      styleDirective: { hashes: styleHashes.map((hash) => hash.slice(1, -1)) },
+    },
+  },
+});
+```
+
+The styles depend on the specification, the format and the `idPrefix`, so hash the same render
+you embed. The WebAssembly build computes the hashes in the renderer, so `createRenderer` returns
+them synchronously in every runtime; the CLI path computes the same values with `node:crypto`.

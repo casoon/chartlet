@@ -5,16 +5,23 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "strict" } }`. Response: `{ "ok": true, "content", "warnings" }` or
+//! "variant", "strict", "manifest" } }`. Response: `{ "ok": true, "content", "styleHashes",
+//! "warnings" }`, with `"manifest"` when the request asks for it, or
 //! `{ "ok": false, "error": { "code", "path", "message" }, "warnings" }`, the same diagnostics
-//! the CLI reports with `--diagnostics json`.
+//! the CLI reports with `--diagnostics json`. `styleHashes` are the CSP source expressions of the
+//! inline styles in `content`, see [`csp::style_hashes`]; `manifest` is the object the CLI writes
+//! with `--manifest`.
+
+mod csp;
 
 use std::{
     borrow::Cow,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use chartlet::{ChartWarning, RenderFormat, RenderOptions, TableMode, Variant, render_json};
+use chartlet::{
+    ChartWarning, Manifest, RenderFormat, RenderOptions, TableMode, Variant, render_json,
+};
 use serde_json::{Value, json};
 
 static RESULT_LEN: AtomicUsize = AtomicUsize::new(0);
@@ -60,12 +67,27 @@ fn respond(request: &[u8]) -> Value {
     let result = run(request, &mut warnings);
     let warnings: Vec<Value> = warnings.iter().map(warning_json).collect();
     match result {
-        Ok(content) => json!({ "ok": true, "content": content, "warnings": warnings }),
+        Ok((content, manifest)) => {
+            let mut response = json!({
+                "ok": true,
+                "styleHashes": csp::style_hashes(&content),
+                "content": content,
+                "warnings": warnings,
+            });
+            if let Some(manifest) = manifest {
+                response["manifest"] =
+                    serde_json::from_str(&manifest.to_json()).expect("a manifest is valid JSON");
+            }
+            response
+        }
         Err(error) => json!({ "ok": false, "error": error, "warnings": warnings }),
     }
 }
 
-fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<String, Value> {
+fn run(
+    request: &[u8],
+    warnings: &mut Vec<ChartWarning>,
+) -> Result<(String, Option<Manifest>), Value> {
     let request: Value = serde_json::from_slice(request)
         .map_err(|error| failure(&format!("invalid render request: {error}")))?;
     let spec = match &request["spec"] {
@@ -95,6 +117,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<String, Value
             id_prefix: options["idPrefix"].as_str().map(str::to_owned),
             table_mode,
             variant,
+            manifest: options["manifest"].as_bool() == Some(true),
         },
     )
     .map_err(|error| json!({ "code": error.code, "path": error.path, "message": error.message }))?;
@@ -108,7 +131,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<String, Value
             "message": format!("strict mode rejected {warning_count} warning(s)"),
         }));
     }
-    Ok(rendered.content)
+    Ok((rendered.content, rendered.manifest))
 }
 
 fn failure(message: &str) -> Value {
