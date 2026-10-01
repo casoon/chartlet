@@ -24,8 +24,6 @@ export default defineConfig({
         guides: 'Guides',
         reference: 'Reference',
       },
-      // chartlet has no CHANGELOG.md yet.
-      changelog: false,
     }),
   ],
 });
