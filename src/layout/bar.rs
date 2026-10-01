@@ -35,7 +35,7 @@ pub(super) fn layout_vertical(
         62.0
     };
     let plot_height = height - top - bottom;
-    let scale = NumericScale::from_values(dataset.values(), true);
+    let scale = NumericScale::from_values(dataset.values(), true, spec.value_axis.bounds());
     let baseline = scale.map(0.0, top + plot_height, top);
     let band = plot_width / count(dataset.categories.len());
     let group = Group::new(band, dataset.series.len());
@@ -150,7 +150,7 @@ pub(super) fn layout_horizontal(
         36.0
     };
     let plot_height = height - top - bottom;
-    let scale = NumericScale::from_values(dataset.values(), true);
+    let scale = NumericScale::from_values(dataset.values(), true, spec.value_axis.bounds());
     let baseline = scale.map(0.0, left, left + plot_width);
     let band = plot_height / count(dataset.categories.len());
     let group = Group::new(band, dataset.series.len());

@@ -448,7 +448,11 @@ fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) -> NumericS
             .flatten(),
     );
     let area = layers().any(|layer| layer.mark == Mark::Area);
-    NumericScale::from_values(values.into_iter(), area)
+    let bounds = match pane {
+        Some(pane) => spec.panes[pane].value_axis.bounds(),
+        None => spec.value_axis.bounds(),
+    };
+    NumericScale::from_values(values.into_iter(), area, bounds)
 }
 
 /// The name a tooltip gives a layer: in small multiples the panel title comes first.

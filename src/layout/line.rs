@@ -29,7 +29,11 @@ pub(super) fn layout_line(
         62.0
     };
     let plot_height = height - top - bottom;
-    let scale = NumericScale::from_values(spec.data.iter().filter_map(|point| point.value), false);
+    let scale = NumericScale::from_values(
+        spec.data.iter().filter_map(|point| point.value),
+        false,
+        spec.value_axis.bounds(),
+    );
     let mut elements = base_elements(
         spec,
         &scale,

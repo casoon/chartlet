@@ -179,7 +179,14 @@ pub(crate) struct NumericScale {
 }
 
 impl NumericScale {
-    pub(crate) fn from_values(mut values: impl Iterator<Item = f64>, include_zero: bool) -> Self {
+    /// A scale over the values that also reaches the declared `(min, max)` of the value axis.
+    /// Without zero in the scale, the values get a margin, which neither crosses zero nor goes
+    /// beyond a declared bound; every end is then rounded outward to a tick.
+    pub(crate) fn from_values(
+        mut values: impl Iterator<Item = f64>,
+        include_zero: bool,
+        (declared_min, declared_max): (Option<f64>, Option<f64>),
+    ) -> Self {
         let first = values.next().expect("validated charts contain values");
         let mut min = if include_zero { first.min(0.0) } else { first };
         let mut max = if include_zero { first.max(0.0) } else { first };
@@ -187,6 +194,8 @@ impl NumericScale {
             min = min.min(value);
             max = max.max(value);
         }
+        min = declared_min.map_or(min, |bound| min.min(bound));
+        max = declared_max.map_or(max, |bound| max.max(bound));
         if (max - min).abs() < f64::EPSILON {
             if max.abs() < f64::EPSILON {
                 min = -1.0;
@@ -198,8 +207,20 @@ impl NumericScale {
             }
         } else if !include_zero {
             let padding = (max - min) * 0.05;
-            min -= padding;
-            max += padding;
+            if declared_min.is_none() {
+                min = if min >= 0.0 {
+                    (min - padding).max(0.0)
+                } else {
+                    min - padding
+                };
+            }
+            if declared_max.is_none() {
+                max = if max <= 0.0 {
+                    (max + padding).min(0.0)
+                } else {
+                    max + padding
+                };
+            }
         }
         let raw_step = (max - min) / 5.0;
         let magnitude = 10.0_f64.powf(raw_step.log10().floor());
@@ -242,12 +263,35 @@ mod tests {
 
     #[test]
     fn scale_includes_zero_and_uses_nice_ticks() {
-        let scale = NumericScale::from_values([12.0, 18.0, 15.0].into_iter(), true);
+        let scale = NumericScale::from_values([12.0, 18.0, 15.0].into_iter(), true, (None, None));
         assert!(scale.min.abs() < f64::EPSILON);
         assert!((scale.max - 20.0).abs() < f64::EPSILON);
         assert_eq!(
             scale.ticks().collect::<Vec<_>>(),
             vec![0.0, 5.0, 10.0, 15.0, 20.0]
+        );
+    }
+
+    #[test]
+    fn a_margin_never_crosses_zero() {
+        let scale = NumericScale::from_values([0.0, 40.0, 100.0].into_iter(), false, (None, None));
+        assert!(scale.min.abs() < f64::EPSILON);
+        let scale = NumericScale::from_values([-100.0, -3.0].into_iter(), false, (None, None));
+        assert!(scale.max.abs() < f64::EPSILON);
+        let scale = NumericScale::from_values([-10.0, 90.0].into_iter(), false, (None, None));
+        assert!(scale.min < -10.0 && scale.max > 90.0);
+    }
+
+    #[test]
+    fn a_declared_range_widens_the_scale_without_a_margin() {
+        let scale =
+            NumericScale::from_values([12.0, 48.0].into_iter(), false, (Some(10.0), Some(60.0)));
+        assert!((scale.min - 10.0).abs() < f64::EPSILON);
+        assert!((scale.max - 60.0).abs() < f64::EPSILON);
+        let scale = NumericScale::from_values([12.0, 48.0].into_iter(), true, (None, Some(100.0)));
+        assert_eq!(
+            scale.ticks().collect::<Vec<_>>(),
+            vec![0.0, 20.0, 40.0, 60.0, 80.0, 100.0]
         );
     }
 
@@ -298,12 +342,12 @@ mod tests {
 
     #[test]
     fn ticks_do_not_accumulate_rounding_errors() {
-        let scale = NumericScale::from_values([0.12, -0.04, 0.15].into_iter(), true);
+        let scale = NumericScale::from_values([0.12, -0.04, 0.15].into_iter(), true, (None, None));
         assert_eq!(
             scale.ticks().collect::<Vec<_>>(),
             vec![-0.05, 0.0, 0.05, 0.1, 0.15]
         );
-        let scale = NumericScale::from_values([0.07, -0.005, 0.3].into_iter(), true);
+        let scale = NumericScale::from_values([0.07, -0.005, 0.3].into_iter(), true, (None, None));
         assert_eq!(
             scale
                 .ticks()

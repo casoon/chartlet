@@ -228,6 +228,20 @@ pub struct ValueAxisSpec {
     /// data table. Axis ticks take theirs from the tick step.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub decimals: Option<u8>,
+    /// The axis reaches at least down to this value; without it, a line never pads below zero
+    /// when all values are zero or more.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min: Option<f64>,
+    /// The axis reaches at least up to this value.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max: Option<f64>,
+}
+
+impl ValueAxisSpec {
+    /// The declared lower and upper reach of the axis.
+    pub(crate) const fn bounds(&self) -> (Option<f64>, Option<f64>) {
+        (self.min, self.max)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -395,7 +409,7 @@ impl ChartSpec {
         Ok(warnings)
     }
 
-    /// Fixed decimals stay in a readable range.
+    /// Fixed decimals stay in a readable range; a declared axis range is finite and ordered.
     fn validate_decimals(&self) -> Result<(), ChartError> {
         let axes = std::iter::once(("/valueAxis/decimals".to_owned(), &self.value_axis)).chain(
             self.panes.iter().enumerate().map(|(index, pane)| {
@@ -406,6 +420,21 @@ impl ChartSpec {
             }),
         );
         for (path, axis) in axes {
+            let base = path.trim_end_matches("/decimals");
+            for (name, bound) in [("min", axis.min), ("max", axis.max)] {
+                if let Some(bound) = bound {
+                    validate_number(bound, &format!("{base}/{name}"))?;
+                }
+            }
+            if let (Some(min), Some(max)) = (axis.min, axis.max)
+                && min >= max
+            {
+                return Err(ChartError::new(
+                    "invalid_axis_range",
+                    format!("{base}/max"),
+                    "valueAxis.max must be greater than valueAxis.min",
+                ));
+            }
             if axis
                 .decimals
                 .is_some_and(|decimals| decimals > MAX_DECIMALS)
@@ -598,6 +627,13 @@ impl ChartSpec {
                 "a time chart sets the value format inside its pane",
             ));
         }
+        if self.value_axis.min.is_some() || self.value_axis.max.is_some() {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/valueAxis",
+                "a time chart sets the value axis range inside its pane",
+            ));
+        }
         Ok(())
     }
 
@@ -677,7 +713,11 @@ impl ChartSpec {
                 format!("{noun} has no category axis"),
             ));
         }
-        if self.value_axis.title.is_some() || self.value_axis.format != ValueFormat::Number {
+        if self.value_axis.title.is_some()
+            || self.value_axis.format != ValueFormat::Number
+            || self.value_axis.min.is_some()
+            || self.value_axis.max.is_some()
+        {
             return Err(ChartError::new(
                 "option_not_supported",
                 "/valueAxis",

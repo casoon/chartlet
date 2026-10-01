@@ -343,6 +343,14 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 6
+        },
+        "min": {
+          "description": "The axis reaches at least down to this value. Ends are rounded outward to a tick; bars always start at zero.",
+          "type": "number"
+        },
+        "max": {
+          "description": "The axis reaches at least up to this value.",
+          "type": "number"
         }
       }
     },

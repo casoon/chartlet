@@ -1119,6 +1119,23 @@ mod tests {
     }
 
     #[test]
+    fn a_value_axis_range_must_be_ordered_and_in_its_place() {
+        let reversed = TIME.replace(
+            "\"valueAxis\": {\"title\": \"Orders\"}",
+            "\"valueAxis\": {\"title\": \"Orders\", \"min\": 10, \"max\": 5}",
+        );
+        assert_eq!(
+            render_err(&reversed),
+            ("invalid_axis_range", "/panes/0/valueAxis/max".to_owned())
+        );
+        let top_level = TIME.replacen('{', "{\"valueAxis\": {\"min\": 0},", 1);
+        assert_eq!(
+            render_err(&top_level),
+            ("option_not_supported", "/valueAxis".to_owned())
+        );
+    }
+
+    #[test]
     fn too_many_decimals_are_refused() {
         let spec = TIME.replace(
             "\"valueAxis\": {\"title\": \"Orders\"}",

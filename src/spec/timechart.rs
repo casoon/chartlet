@@ -588,6 +588,8 @@ impl ChartSpec {
             if pane.value_axis.title.is_some()
                 || pane.value_axis.format != ValueFormat::Number
                 || pane.value_axis.decimals.is_some()
+                || pane.value_axis.min.is_some()
+                || pane.value_axis.max.is_some()
             {
                 return Err(ChartError::new(
                     "option_not_supported",

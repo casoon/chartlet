@@ -59,7 +59,7 @@ pub(crate) fn layout(
         .iter()
         .flat_map(|range| [Some(range.low), Some(range.high), range.mid])
         .flatten();
-    let scale = NumericScale::from_values(values, false);
+    let scale = NumericScale::from_values(values, false, spec.value_axis.bounds());
     let elements = match spec.orientation {
         Orientation::Horizontal => layout_horizontal(spec, &scale, warnings, metrics),
         Orientation::Vertical => layout_vertical(spec, &scale, warnings, metrics),
