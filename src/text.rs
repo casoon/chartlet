@@ -22,6 +22,8 @@ pub(crate) struct Words {
     pub show_data: &'static str,
     pub data_for: &'static str,
     pub time: &'static str,
+    /// The first column of a chart along a numeric axis without a title.
+    pub position: &'static str,
     pub missing: &'static str,
     pub series: &'static str,
     pub view: &'static str,
@@ -69,6 +71,7 @@ const EN: Words = Words {
     show_data: "Show chart data",
     data_for: "Data for",
     time: "Time",
+    position: "Position",
     missing: "Missing",
     series: "Series",
     view: "View",
@@ -118,6 +121,7 @@ const DE: Words = Words {
     show_data: "Diagrammdaten anzeigen",
     data_for: "Daten zu",
     time: "Zeit",
+    position: "Position",
     missing: "fehlt",
     series: "Reihen",
     view: "Ansicht",
@@ -227,21 +231,44 @@ pub(crate) fn time_opening(
     }
 }
 
+/// An opening sentence for a chart along a numeric axis, which is a line chart rather than a time
+/// chart: the noun is replaced, the rest stays.
+pub(crate) fn axis_noun(locale: Locale, zone: crate::time::TimeZone, opening: String) -> String {
+    if !zone.is_numeric() {
+        return opening;
+    }
+    let (time, line) = match locale {
+        Locale::En => ("Time chart", "Line chart"),
+        Locale::De => ("Zeitreihe", "Liniendiagramm"),
+    };
+    match opening.strip_prefix(time) {
+        Some(rest) => format!("{line}{rest}"),
+        None => opening,
+    }
+}
+
 /// The opening sentence of small multiples.
 pub(crate) fn multiples_opening(
     locale: Locale,
     panels: &[String],
     range: &str,
     names: &[String],
+    shared: bool,
 ) -> String {
+    let axis = match (locale, shared) {
+        (Locale::En, true) => "a shared value axis",
+        (Locale::En, false) => "a value axis of their own",
+        (Locale::De, true) => "gemeinsamer Werteachse",
+        (Locale::De, false) => "je eigener Werteachse",
+    };
     let mut text = match locale {
         Locale::En => format!(
-            "Small multiples of {} panels ({}) with a shared value axis, each {range}",
+            "Small multiples of {} panels ({}) with {axis}, each {range}",
             panels.len(),
             panels.join(", ")
         ),
         Locale::De => format!(
-            "Kleine Vielfache aus {} Feldern ({}) mit gemeinsamer Werteachse, jeweils {range}",
+            "Kleine Vielfache aus {} Feldern ({}) mit {axis}, jeweils {range}",
             panels.len(),
             panels.join(", ")
         ),
@@ -455,6 +482,30 @@ pub(crate) fn missing_values(locale: Locale, missing: usize) -> String {
         (Locale::En, missing) => format!(" {missing} values are missing."),
         (Locale::De, 1) => " 1 Wert fehlt.".to_owned(),
         (Locale::De, missing) => format!(" {missing} Werte fehlen."),
+    }
+}
+
+/// The sentence about a stack by value: its highest and lowest total, with their categories.
+pub(crate) fn stacked_totals(
+    locale: Locale,
+    (highest, highest_at): (&str, &str),
+    (lowest, lowest_at): (&str, &str),
+) -> String {
+    match locale {
+        Locale::En => format!(
+            " The series are stacked. Highest total: {highest} ({highest_at}). Lowest total: {lowest} ({lowest_at})."
+        ),
+        Locale::De => format!(
+            " Die Reihen sind gestapelt. Höchste Summe: {highest} ({highest_at}). Niedrigste Summe: {lowest} ({lowest_at})."
+        ),
+    }
+}
+
+/// The sentence about a percent stack: every bar shows shares of its category's total.
+pub(crate) const fn stacked_shares(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => " Each bar shows the shares of the series in its category's total.",
+        Locale::De => " Jeder Balken zeigt die Anteile der Reihen an der Summe seiner Kategorie.",
     }
 }
 

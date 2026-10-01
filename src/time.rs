@@ -7,6 +7,14 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::spec::{Locale, NumberStyle};
+
+/// A numeric axis keeps its values as whole millionths, so that it runs through the same integer
+/// arithmetic as timestamps: 0.0117 Ma becomes 11 700.
+pub(crate) const NUMERIC_UNITS: f64 = 1_000_000.0;
+/// The largest magnitude a numeric axis takes; with [`NUMERIC_UNITS`] it stays far inside `i64`.
+const MAX_NUMERIC: f64 = 1e9;
+
 /// Supported range, 1700-01-01 to 2200-01-01 as Unix seconds. Keeps the civil-date arithmetic
 /// and every tick label far away from the edges of `i64`. The lower bound reaches back before
 /// the instrumental climate record (1850) and the pre-industrial reference (1750).
@@ -31,6 +39,18 @@ pub enum TimeValue {
 impl TimeValue {
     /// Resolves the timestamp to Unix seconds. The error text names the accepted forms.
     pub(crate) fn resolve(&self, zone: TimeZone) -> Result<i64, &'static str> {
+        if zone.is_numeric() {
+            return match self {
+                Self::Number(number) if number.is_finite() && number.abs() <= MAX_NUMERIC => {
+                    // Bounded by MAX_NUMERIC, the product stays far inside i64.
+                    #[allow(clippy::cast_possible_truncation)]
+                    let units = (number * NUMERIC_UNITS).round() as i64;
+                    Ok(units)
+                }
+                Self::Number(_) => Err("a numeric axis takes numbers up to 1e9 in magnitude"),
+                Self::Text(_) => Err("a numeric axis takes numbers such as 66 or 0.0117"),
+            };
+        }
         let epoch = match self {
             Self::Number(number) => {
                 if !number.is_finite() || number.fract() != 0.0 {
@@ -53,15 +73,33 @@ impl TimeValue {
     }
 }
 
-/// A timezone as a fixed offset from UTC.
+/// How the positions of a time axis are read: as timestamps in a fixed offset from UTC, or as
+/// plain numbers on a numeric axis (distance, depth, millions of years), written in `numeric`'s
+/// locale.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) struct TimeZone {
     offset: i64,
+    numeric: Option<Locale>,
 }
 
 impl TimeZone {
     pub(crate) const fn utc() -> Self {
-        Self { offset: 0 }
+        Self {
+            offset: 0,
+            numeric: None,
+        }
+    }
+
+    /// A numeric axis whose numbers are written in `locale`.
+    pub(crate) const fn numeric(locale: Locale) -> Self {
+        Self {
+            offset: 0,
+            numeric: Some(locale),
+        }
+    }
+
+    pub(crate) const fn is_numeric(self) -> bool {
+        self.numeric.is_some()
     }
 
     pub(crate) const fn offset(self) -> i64 {
@@ -91,6 +129,7 @@ impl TimeZone {
         }
         Some(Self {
             offset: sign * (hours * SECONDS_PER_HOUR + minutes * 60),
+            numeric: None,
         })
     }
 }
@@ -141,11 +180,16 @@ pub(crate) enum Precision {
     Year,
     Day,
     Minute,
+    /// A numeric axis, with as many decimals as its most precise value needs.
+    Number(u8),
 }
 
 impl Precision {
     /// The precision that fits every timestamp in `zone`.
     pub(crate) fn of(timestamps: impl Iterator<Item = i64> + Clone, zone: TimeZone) -> Self {
+        if zone.is_numeric() {
+            return Self::Number(timestamps.map(numeric_decimals).max().unwrap_or(0));
+        }
         if any_has_time_of_day(timestamps.clone(), zone) {
             Self::Minute
         } else if timestamps.into_iter().all(|epoch| {
@@ -164,8 +208,68 @@ impl Precision {
             Self::Year => format_year(epoch, zone),
             Self::Day => format_date(epoch, zone),
             Self::Minute => format_datetime(epoch, zone),
+            Self::Number(decimals) => format_numeric(epoch, decimals, zone),
         }
     }
+}
+
+/// The decimals a numeric position needs: 11 700 millionths is 0.0117, four.
+fn numeric_decimals(units: i64) -> u8 {
+    let mut decimals = 6;
+    let mut rest = units;
+    while decimals > 0 && rest % 10 == 0 {
+        rest /= 10;
+        decimals -= 1;
+    }
+    decimals
+}
+
+/// A numeric position as text, in the locale of its axis.
+fn format_numeric(units: i64, decimals: u8, zone: TimeZone) -> String {
+    // A position is bounded by MAX_NUMERIC millionths, well inside f64's exact integers.
+    #[allow(clippy::cast_precision_loss)]
+    let value = units as f64 / NUMERIC_UNITS;
+    crate::layout::format_value(
+        value,
+        NumberStyle {
+            decimals: Some(decimals),
+            locale: zone.numeric.unwrap_or_default(),
+            ..NumberStyle::default()
+        },
+    )
+}
+
+/// Ticks of a numeric axis: round steps of 1, 2 or 5 times a power of ten, at most `max_ticks`.
+fn numeric_ticks(min: i64, max: i64, zone: TimeZone, max_ticks: usize) -> Vec<Tick> {
+    #[allow(clippy::cast_precision_loss)]
+    let (low, high) = (min as f64 / NUMERIC_UNITS, max as f64 / NUMERIC_UNITS);
+    #[allow(clippy::cast_precision_loss)]
+    let raw = (high - low).max(f64::MIN_POSITIVE) / max_ticks.max(1) as f64;
+    let magnitude = 10.0_f64.powf(raw.log10().floor());
+    let step = [1.0, 2.0, 5.0, 10.0]
+        .into_iter()
+        .map(|factor| factor * magnitude)
+        .find(|step| *step >= raw)
+        .unwrap_or(10.0 * magnitude);
+    let decimals = (0..=6_u8)
+        .find(|decimals| {
+            let scaled = step * 10.0_f64.powi(i32::from(*decimals));
+            (scaled - scaled.round()).abs() < 1e-9
+        })
+        .unwrap_or(6);
+    let mut ticks = Vec::new();
+    let mut index = (low / step).ceil();
+    while index * step <= high + step * 1e-9 && ticks.len() < 64 {
+        // Bounded by MAX_NUMERIC, the position stays far inside i64.
+        #[allow(clippy::cast_possible_truncation)]
+        let units = (index * step * NUMERIC_UNITS).round() as i64;
+        ticks.push(Tick {
+            epoch: units,
+            label: format_numeric(units, decimals, zone),
+        });
+        index += 1.0;
+    }
+    ticks
 }
 
 /// Whether any timestamp carries a time of day in `zone`, which decides if the data table and
@@ -307,6 +411,9 @@ pub(crate) fn ticks(
     max_ticks: usize,
     allow_sub_day: bool,
 ) -> Vec<Tick> {
+    if zone.is_numeric() {
+        return numeric_ticks(min, max, zone, max_ticks);
+    }
     let step = tick_step(min, max, zone, max_ticks, allow_sub_day);
     let mut ticks = Vec::new();
     let mut current = step.first(min, zone);

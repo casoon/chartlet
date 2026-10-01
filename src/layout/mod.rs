@@ -5,6 +5,7 @@ mod bar;
 mod labels;
 mod legend;
 mod line;
+mod stack;
 mod timechart;
 mod title;
 mod topicmap;
@@ -18,7 +19,6 @@ use crate::{
 pub(crate) use annotation::{marker_position, zone_extent};
 pub(crate) use atlas::REALM_CLASSES;
 use atlas::layout_atlas;
-use axis::format_tick;
 pub(crate) use axis::{
     NumericScale, add_bottom_category_title, format_value, push_category_label, push_side_label,
 };
@@ -101,6 +101,9 @@ pub(crate) fn layout(
 ) -> Scene {
     let dataset = spec.dataset();
     match (spec.chart_type, spec.orientation) {
+        (ChartType::Bar, _) if spec.stack.is_some() => {
+            stack::layout(spec, &dataset, warnings, metrics)
+        }
         (ChartType::Bar, Orientation::Vertical) => {
             layout_vertical(spec, &dataset, warnings, metrics)
         }
@@ -163,7 +166,7 @@ pub(crate) fn base_elements_with_title(
                 y1: y,
                 x2: plot.left + plot.width,
                 y2: y,
-                class: if value.abs() < scale.step / 100.0 {
+                class: if scale.is_zero(value) {
                     "chartlet-zero"
                 } else {
                     "chartlet-grid"
@@ -174,7 +177,7 @@ pub(crate) fn base_elements_with_title(
                 y: y + 4.0,
                 class: "chartlet-tick",
                 anchor: TextAnchor::End,
-                content: format_tick(value, scale.step, spec.number_style()),
+                content: scale.tick_label(value, spec.axis_style()),
             }));
         } else {
             let x = scale.map(value, plot.left, plot.left + plot.width);
@@ -183,7 +186,7 @@ pub(crate) fn base_elements_with_title(
                 y1: plot.top,
                 x2: x,
                 y2: plot.top + plot.height,
-                class: if value.abs() < scale.step / 100.0 {
+                class: if scale.is_zero(value) {
                     "chartlet-zero"
                 } else {
                     "chartlet-grid"
@@ -194,7 +197,7 @@ pub(crate) fn base_elements_with_title(
                 y: plot.top + plot.height + 22.0,
                 class: "chartlet-tick",
                 anchor: TextAnchor::Middle,
-                content: format_tick(value, scale.step, spec.number_style()),
+                content: scale.tick_label(value, spec.axis_style()),
             }));
         }
     }

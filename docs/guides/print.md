@@ -19,8 +19,8 @@ chartlet render revenue.json --variant print -o revenue.print.svg
 
 - The layout is that of the SVG profile at `width` × `height`; only the stylesheet differs.
 - Every `var(--chartlet-…)` is replaced by the value of the chart's theme, light or dark. A layer
-  color declared as `var(--name)` becomes the chart's text color, the value it falls back to on a
-  page that does not define the variable, and each such layer is reported as
+  color declared as `var(--name, #0f766e)` is drawn in its fallback color; one declared as
+  `var(--name)` without a fallback becomes the chart's text color and is reported as
   `color_not_resolved`.
 - The stylesheet keeps class selectors in a `<style>` element, scoped to the chart's root ID. It
   contains no custom properties, no `currentColor`, no `:has()` and no attribute selectors.

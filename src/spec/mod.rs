@@ -22,7 +22,8 @@ pub use rangebar::RangeSpec;
 pub(crate) use stripes::Diverging;
 pub use stripes::StripesSpec;
 pub use timechart::{
-    Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimeAxisSpec, TimePoint,
+    Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimeAxisKind, TimeAxisSpec,
+    TimePoint,
 };
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
@@ -44,6 +45,9 @@ pub struct ChartSpec {
     pub chart_type: ChartType,
     #[serde(default)]
     pub orientation: Orientation,
+    /// Stacks the series of a `type: "bar"` chart instead of setting them side by side.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stack: Option<Stack>,
     pub title: String,
     #[serde(default)]
     pub description: Option<String>,
@@ -106,6 +110,10 @@ pub struct ChartSpec {
     /// Reference lines across a `type: "bar"` chart, such as an average or a target.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub references: Vec<ReferenceSpec>,
+    /// Gives every panel of a `type: "multiples"` chart its own value axis, for panels whose
+    /// values differ in unit or size; they can then no longer be compared by height.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub independent_axes: bool,
     /// Number of grid columns of a `type: "multiples"` chart; defaults to up to three.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub columns: Option<u32>,
@@ -232,6 +240,15 @@ impl ChartType {
     }
 }
 
+/// How the series of a bar chart share a category: stacked by value, or as shares of the
+/// category's total.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Stack {
+    Normal,
+    Percent,
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum Orientation {
@@ -247,7 +264,7 @@ pub struct CategoryAxisSpec {
     pub title: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ValueAxisSpec {
     #[serde(default)]
@@ -269,6 +286,30 @@ pub struct ValueAxisSpec {
     /// default, because four digits are often years.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub thousands_separator: bool,
+    /// Linear by default; `log` spaces powers of ten evenly, for values across several orders of
+    /// magnitude.
+    #[serde(default, skip_serializing_if = "AxisScale::is_linear")]
+    pub scale: AxisScale,
+    /// Runs the axis the other way: larger values down (or left), as δ18O records are drawn.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub reverse: bool,
+}
+
+/// How a value axis spaces its values.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AxisScale {
+    #[default]
+    Linear,
+    Log,
+}
+
+impl AxisScale {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_linear(&self) -> bool {
+        matches!(self, Self::Linear)
+    }
 }
 
 /// A reference line across a bar chart: a value every bar is read against.
@@ -429,6 +470,7 @@ impl ChartSpec {
     fn validate_sized(&self, check_size: bool) -> Result<Vec<ChartWarning>, ChartError> {
         self.validate_metadata(check_size)?;
         self.reject_foreign_blocks()?;
+        self.validate_log_axes()?;
         match self.chart_type {
             ChartType::Time => return self.validate_time(),
             ChartType::Multiples => return self.validate_multiples(),
@@ -441,7 +483,9 @@ impl ChartSpec {
         }
         let warnings = self.validate_data()?;
         self.validate_references()?;
-        if self.chart_type == ChartType::Line && self.data.iter().all(|point| point.value.is_none())
+        if self.chart_type == ChartType::Line
+            && self.series.is_empty()
+            && self.data.iter().all(|point| point.value.is_none())
         {
             return Err(ChartError::new(
                 "empty_series",
@@ -450,6 +494,60 @@ impl ChartSpec {
             ));
         }
         Ok(warnings)
+    }
+
+    /// A logarithmic axis can only place values above zero: every value it carries, every edge of
+    /// a band or a zone, every reference line and a declared range have to be positive. A stack
+    /// and an area are measured from zero, so neither takes a logarithmic axis.
+    fn validate_log_axes(&self) -> Result<(), ChartError> {
+        let top_log = self.value_axis.scale == AxisScale::Log;
+        if top_log {
+            positive_bounds(&self.value_axis, "/valueAxis")?;
+            if self.stack.is_some() {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    "/valueAxis/scale",
+                    "a stack is measured from zero and takes no logarithmic axis",
+                ));
+            }
+            for (index, point) in self.data.iter().enumerate() {
+                if let Some(value) = point.value {
+                    positive(value, format!("/data/{index}/value"))?;
+                }
+            }
+            for (series_index, series) in self.series.iter().enumerate() {
+                for (index, value) in series.values.iter().enumerate() {
+                    if let Some(value) = value {
+                        positive(*value, format!("/series/{series_index}/values/{index}"))?;
+                    }
+                }
+            }
+            for (index, reference) in self.references.iter().enumerate() {
+                positive(reference.value, format!("/references/{index}/value"))?;
+            }
+            for (index, range) in self.ranges.iter().enumerate() {
+                for (name, value) in [
+                    ("low", Some(range.low)),
+                    ("high", Some(range.high)),
+                    ("mid", range.mid),
+                ] {
+                    if let Some(value) = value {
+                        positive(value, format!("/ranges/{index}/{name}"))?;
+                    }
+                }
+            }
+        }
+        for (pane_index, pane) in self.panes.iter().enumerate() {
+            let log = match self.chart_type {
+                ChartType::Multiples => top_log,
+                _ => pane.value_axis.scale == AxisScale::Log,
+            };
+            if !log {
+                continue;
+            }
+            validate_log_pane(pane, &format!("/panes/{pane_index}"))?;
+        }
+        Ok(())
     }
 
     /// Every reference line has a usable value and a label; a chart takes at most four.
@@ -689,6 +787,8 @@ impl ChartSpec {
         if self.value_axis.min.is_some()
             || self.value_axis.max.is_some()
             || self.value_axis.thousands_separator
+            || self.value_axis.scale != AxisScale::Linear
+            || self.value_axis.reverse
         {
             return Err(ChartError::new(
                 "option_not_supported",
@@ -708,6 +808,12 @@ impl ChartSpec {
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/columns", self.columns.is_some(), ChartType::Multiples),
             ("/references", !self.references.is_empty(), ChartType::Bar),
+            ("/stack", self.stack.is_some(), ChartType::Bar),
+            (
+                "/independentAxes",
+                self.independent_axes,
+                ChartType::Multiples,
+            ),
         ] {
             if present && own != owner {
                 return Err(ChartError::new(
@@ -781,6 +887,8 @@ impl ChartSpec {
             || self.value_axis.min.is_some()
             || self.value_axis.max.is_some()
             || self.value_axis.thousands_separator
+            || self.value_axis.scale != AxisScale::Linear
+            || self.value_axis.reverse
         {
             return Err(ChartError::new(
                 "option_not_supported",
@@ -831,6 +939,70 @@ fn json_pointer(path: &serde_path_to_error::Path) -> String {
     } else {
         pointer
     }
+}
+
+/// A value on a logarithmic axis: above zero.
+fn positive(value: f64, path: String) -> Result<(), ChartError> {
+    if value > 0.0 {
+        Ok(())
+    } else {
+        Err(ChartError::new(
+            "invalid_value",
+            path,
+            "a logarithmic axis takes values above zero only",
+        ))
+    }
+}
+
+/// The declared range of a logarithmic axis: above zero.
+fn positive_bounds(axis: &ValueAxisSpec, path: &str) -> Result<(), ChartError> {
+    for (name, bound) in [("min", axis.min), ("max", axis.max)] {
+        if let Some(bound) = bound {
+            positive(bound, format!("{path}/{name}"))?;
+        }
+    }
+    Ok(())
+}
+
+/// Every value of a pane on a logarithmic axis: observations and band edges, candles, reference
+/// lines, point markers and zone edges. An area is filled down to zero, so a pane with one takes
+/// no logarithmic axis.
+fn validate_log_pane(pane: &PaneSpec, pane_path: &str) -> Result<(), ChartError> {
+    positive_bounds(&pane.value_axis, &format!("{pane_path}/valueAxis"))?;
+    for (layer_index, layer) in pane.layers.iter().enumerate() {
+        let path = format!("{pane_path}/layers/{layer_index}");
+        if layer.mark == Mark::Area {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("{path}/mark"),
+                "an area is filled down to zero and takes no logarithmic axis",
+            ));
+        }
+        for (index, point) in layer.points.iter().enumerate() {
+            for (name, value) in [
+                ("value", point.value),
+                ("lower", point.lower),
+                ("upper", point.upper),
+            ] {
+                if let Some(value) = value {
+                    positive(value, format!("{path}/points/{index}/{name}"))?;
+                }
+            }
+        }
+        for (index, candle) in layer.data.iter().enumerate() {
+            positive(candle.low, format!("{path}/data/{index}/low"))?;
+        }
+        for (name, value) in [
+            ("value", layer.value),
+            ("bottom", layer.bottom),
+            ("top", layer.top),
+        ] {
+            if let Some(value) = value {
+                positive(value, format!("{path}/{name}"))?;
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn validate_number(value: f64, path: &str) -> Result<(), ChartError> {

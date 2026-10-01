@@ -9,7 +9,10 @@ order: 1
 | Bar, vertical | `"type": "bar"` with `data` | [Monthly revenue](../../../showcase/monthly-revenue/) |
 | Bar, horizontal, with negative values | `"orientation": "horizontal"` | [Quarterly change](../../../showcase/quarterly-change/) |
 | Bar with a reference line, thousands separated | `references` with `value` and `label`; `valueAxis.thousandsSeparator` | [Open support tickets](../../../showcase/ticket-backlog/) |
+| Stacked bar, by value or as 100 % | `"stack": "normal"` or `"percent"` with `series` | [Electricity generation](../../../showcase/energy-mix/), [Accessibility checks](../../../showcase/audit-outcomes/) |
 | Grouped bar, up to four series | `categories` and `series` instead of `data` | [Budget vs. actual](../../../showcase/budget-vs-actual/) |
+| Line with several series, color and pattern per series | `"type": "line"` with `categories` and `series` | [Weekly visitors](../../../showcase/visitors-by-channel/) |
+| Line on a logarithmic axis | `"valueAxis": { "scale": "log" }` | [Earthquakes per year](../../../showcase/quake-frequency/) |
 | Line with gaps for missing values | `"type": "line"`, `null` values | [Monthly trend](../../../showcase/monthly-trend/) |
 | Time series on a calendar axis | `"type": "time"` with `panes` and `layers` | [Daily orders](../../../showcase/daily-orders/) |
 | Time series, dark theme, declared colors | `"theme": "dark"`, `color` per layer | [Revenue vs. forecast](../../../showcase/revenue-vs-forecast/) |
@@ -20,6 +23,8 @@ order: 1
 | Time series with area, gaps and zoom | `"mark": "area"`, `null` values, `dash`, `zoomSteps` by time | [Data hall power draw](../../../showcase/sensor-readings/) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [Checkout API error rate](../../../showcase/release-incidents/) |
 | Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio`; `"gaps": "collapse"` | [Daily share price](../../../showcase/share-price/) |
+| Profile or deep time on a numeric axis, reversed | `"timeAxis": { "kind": "number", "reverse": true }` | [Deep-sea oxygen isotopes](../../../showcase/deep-sea-isotopes/) |
+| Small multiples, each panel on its own value axis | `"independentAxes": true` | [Indicators of growth](../../../showcase/acceleration-indicators/) |
 | Small multiples, shared value axis | `"type": "multiples"` with titled `panes` | [Emission pathways](../../../showcase/emission-pathways/) |
 | Warming stripes | `"type": "stripes"` with `stripes` | [Warming stripes](../../../showcase/warming-stripes/) |
 | Calendar heatmap, by month or week | `"type": "calendar"` with `calendar` | [Daily anomaly calendar](../../../showcase/daily-anomaly-calendar/) |
@@ -33,8 +38,10 @@ The SVG files are also the reference output of the test suite.
 
 ## Several series
 
-Replace `data` with `categories` and `series`. Every series needs exactly one value per category.
-A legend is added automatically, and the data table gets one column per series.
+For bars and lines, replace `data` with `categories` and `series`. Every series needs exactly one value per category.
+A legend is added automatically, and the data table gets one column per series. Lines tell their series apart by color and by pattern — solid, dashed, dotted, thin — so that
+color is never the only difference; with several lines, value labels are left out and the tooltips
+and the data table carry the values.
 
 ```json
 {
@@ -45,6 +52,29 @@ A legend is added automatically, and the data table gets one column per series.
   "series": [
     { "name": "Budget", "values": [120, 150, 140] },
     { "name": "Actual", "values": [130, 145, null] }
+  ]
+}
+```
+
+## Stacked bars
+
+With `categories` and `series`, `"stack": "normal"` stacks the series of each category into one
+bar instead of setting them side by side: positive values stack upward from zero, negative ones
+downward, and the total is written beyond each stack. `"stack": "percent"` shows each category as
+100 %, every segment a share of the category's total; its values must be zero or more. A segment
+carries its value or share inside when it fits, and every segment keeps its tooltip. The
+description names the highest and lowest total; the data table lists the values as given.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "stack": "percent",
+  "title": "Accessibility checks by page",
+  "categories": ["Home", "Search"],
+  "series": [
+    { "name": "Failed", "values": [4, 9] },
+    { "name": "Passed", "values": [38, 30] }
   ]
 }
 ```

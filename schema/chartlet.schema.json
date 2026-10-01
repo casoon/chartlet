@@ -44,6 +44,15 @@
       "description": "The daily values of a type: \"calendar\" chart.",
       "$ref": "#/$defs/calendar"
     },
+    "independentAxes": {
+      "description": "type: \"multiples\" only: every panel gets its own value axis instead of one shared one.",
+      "type": "boolean",
+      "default": false
+    },
+    "stack": {
+      "description": "Stacks the series of a type: \"bar\" chart: \"normal\" by value, \"percent\" as shares of each category's total.",
+      "enum": ["normal", "percent"]
+    },
     "references": {
       "description": "Reference lines across a type: \"bar\" chart, such as an average or a target.",
       "type": "array",
@@ -366,6 +375,16 @@
           "description": "The axis reaches at least up to this value.",
           "type": "number"
         },
+        "scale": {
+          "description": "linear (default) or log: powers of ten evenly spaced; every value must be above zero.",
+          "enum": ["linear", "log"],
+          "default": "linear"
+        },
+        "reverse": {
+          "description": "Run the axis the other way: larger values down or left.",
+          "type": "boolean",
+          "default": false
+        },
         "thousandsSeparator": {
           "description": "Separate thousands in every written value: 12,500 (en) or 12.500 (de).",
           "type": "boolean",
@@ -389,7 +408,17 @@
           "enum": ["show", "collapse"],
           "default": "show"
         },
-        "title": { "type": "string", "minLength": 1, "maxLength": 100 }
+        "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "kind": {
+          "description": "calendar (default): timestamps. number: every time is a plain number, such as a distance or an age in millions of years.",
+          "enum": ["calendar", "number"],
+          "default": "calendar"
+        },
+        "reverse": {
+          "description": "Run the axis from right to left, the largest position at the left.",
+          "type": "boolean",
+          "default": false
+        }
       }
     },
     "timeValue": {
@@ -506,7 +535,7 @@
         },
         "name": { "type": "string", "minLength": 1, "maxLength": 100 },
         "color": {
-          "description": "#rgb, #rrggbb, #rrggbbaa or var(--name). Anything else is reported and replaced by the neutral tone.",
+          "description": "#rgb, #rrggbb, #rrggbbaa, var(--name) or var(--name, #hex); the print variant draws the hex fallback. Anything else is reported and replaced by the neutral tone.",
           "type": "string",
           "minLength": 1,
           "maxLength": 100

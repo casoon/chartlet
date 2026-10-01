@@ -68,6 +68,18 @@ const catalogue = [
     blurb: 'Open tickets per region against a target line, with thousands separated.',
   },
   {
+    slug: 'energy-mix',
+    chart: 'Bar (stacked)',
+    useCase: 'Show a total and its parts',
+    blurb: 'Electricity generation by source, stacked by value, with the total above each bar.',
+  },
+  {
+    slug: 'audit-outcomes',
+    chart: 'Bar (100 % stacked)',
+    useCase: 'Compare shares',
+    blurb: 'Outcomes of accessibility checks per page as shares of all checks.',
+  },
+  {
     slug: 'budget-vs-actual',
     chart: 'Grouped bar',
     useCase: 'Plan versus actual',
@@ -91,6 +103,18 @@ const catalogue = [
     chart: 'Line',
     useCase: 'Show a trend',
     blurb: 'Monthly active users, with a gap where a month has no data.',
+  },
+  {
+    slug: 'visitors-by-channel',
+    chart: 'Line (several series)',
+    useCase: 'Compare trends',
+    blurb: 'Three channels over six weeks, told apart by color and line pattern, one value missing.',
+  },
+  {
+    slug: 'quake-frequency',
+    chart: 'Line (logarithmic axis)',
+    useCase: 'Show values across orders of magnitude',
+    blurb: 'Earthquakes per year by magnitude, from thousands to one, on a logarithmic axis.',
   },
   {
     slug: 'support-volume',
@@ -181,6 +205,18 @@ const catalogue = [
     useCase: 'Compare the same measure across groups',
     blurb:
       'One small time chart per sector on a shared value axis, with one legend for all panels. Illustrative values.',
+  },
+  {
+    slug: 'deep-sea-isotopes',
+    chart: 'Time series (numeric axis)',
+    useCase: 'Show deep time or a profile',
+    blurb: 'Oxygen isotopes over 66 million years, oldest on the left, warmer up.',
+  },
+  {
+    slug: 'acceleration-indicators',
+    chart: 'Small multiples (own axes)',
+    useCase: 'Compare shapes across units',
+    blurb: 'Four indicators in different units, each panel on its own value axis.',
   },
   {
     slug: 'mobile-revenue',

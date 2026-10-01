@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "type": "line",
+  "title": "Weekly visitors by channel",
+  "source": "Sample data",
+  "valueAxis": { "title": "Visitors", "thousandsSeparator": true },
+  "categories": ["Week 1", "Week 2", "Week 3", "Week 4", "Week 5", "Week 6"],
+  "series": [
+    { "name": "Search", "values": [4200, 4650, 4400, 5100, 5350, 5600] },
+    { "name": "Direct", "values": [2600, 2550, 2800, 2750, null, 3050] },
+    { "name": "Social", "values": [1300, 1900, 1650, 1500, 2100, 2400] }
+  ]
+}

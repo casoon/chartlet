@@ -4,7 +4,7 @@ use super::{
     AREA_CLASSES, AXIS_GUTTER, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PANEL_GUTTER, PANEL_MARGIN,
     PLOT_MARGIN, PlotArea,
     annotation::{push_marker, push_marker_label, push_rule, push_zone},
-    axis::{NumericScale, format_tick, format_value},
+    axis::{NumericScale, format_value},
     count, fit_text,
     labels::LabelSpace,
     legend::{add_layer_legend, legend_rows},
@@ -29,7 +29,7 @@ const YEAR_TICK_SPACING: u32 = 64;
 /// The tick spacing that fits the labels an axis of this precision writes.
 const fn time_tick_spacing(precision: Precision) -> u32 {
     match precision {
-        Precision::Year => YEAR_TICK_SPACING,
+        Precision::Year | Precision::Number(_) => YEAR_TICK_SPACING,
         Precision::Day | Precision::Minute => TIME_TICK_SPACING,
     }
 }
@@ -233,6 +233,31 @@ fn multiples_header(
 
 /// Lays out small multiples: a grid of small time plots that share the value scale and the time
 /// span, so that the panels can be compared by position alone.
+/// The title above one panel of small multiples, in the panel's cell starting at `cell_top`.
+fn panel_title(
+    pane: &crate::spec::PaneSpec,
+    pane_index: usize,
+    plot: PlotArea,
+    cell_top: f64,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Element {
+    Element::Text(Text {
+        x: plot.left,
+        y: cell_top + 18.0,
+        class: "chartlet-panel-title",
+        anchor: TextAnchor::Start,
+        content: fit_text(
+            pane.title.as_deref().unwrap_or_default(),
+            plot.width,
+            13.0,
+            metrics,
+            warnings,
+            &format!("/panes/{pane_index}/title"),
+        ),
+    })
+}
+
 pub(super) fn layout_multiples(
     spec: &ChartSpec,
     warnings: &mut Vec<ChartWarning>,
@@ -258,7 +283,7 @@ pub(super) fn layout_multiples(
 
     let (span, slots) = time_axis(spec, zone);
     let precision = spec.time_precision(zone);
-    let scale = time_scale(spec, zone, None);
+    let shared = time_scale(spec, zone, None);
     let max_ticks = usize::try_from(
         (panel_plot_pixels(spec.width, columns) / time_tick_spacing(precision)).max(2),
     )
@@ -282,25 +307,18 @@ pub(super) fn layout_multiples(
             slots: slots.clone(),
             zone,
             precision,
-            scale,
+            scale: if spec.independent_axes {
+                time_scale(spec, zone, Some(pane_index))
+            } else {
+                shared
+            },
             style: spec.number_style(),
+            reversed: spec.time_axis.reverse,
         };
 
-        let panel_title = pane.title.as_deref().unwrap_or_default();
-        elements.push(Element::Text(Text {
-            x: plot.left,
-            y: cell_top + 18.0,
-            class: "chartlet-panel-title",
-            anchor: TextAnchor::Start,
-            content: fit_text(
-                panel_title,
-                plot.width,
-                13.0,
-                metrics,
-                warnings,
-                &format!("/panes/{pane_index}/title"),
-            ),
-        }));
+        elements.push(panel_title(
+            pane, pane_index, plot, cell_top, warnings, metrics,
+        ));
         push_value_grid(&frame, &mut elements);
         push_time_ticks(&frame, max_ticks, true, width, metrics, &mut elements);
         elements.push(frame.hook(pane_index));
@@ -363,19 +381,41 @@ pub(crate) struct TimeFrame {
     /// How the pane writes its values: its own value axis on a time chart, the shared one in
     /// small multiples.
     pub(crate) style: NumberStyle,
+    /// The axis runs from right to left: the largest value, such as the oldest age in millions of
+    /// years, at the left.
+    reversed: bool,
 }
 
 impl TimeFrame {
     /// The position of a timestamp. With gaps collapsed, a time between two observations takes
     /// the slot of the next one.
     pub(crate) fn x(&self, epoch: i64) -> f64 {
-        match &self.slots {
+        self.oriented(match &self.slots {
             Some(slots) => slot_x(
                 slots.partition_point(|slot| *slot < epoch),
                 slots.len(),
                 self.plot,
             ),
             None => time_x(epoch, self.span, self.plot),
+        })
+    }
+
+    /// A position mirrored across the plot when the axis runs from right to left.
+    fn oriented(&self, x: f64) -> f64 {
+        if self.reversed {
+            2.0 * self.plot.left + self.plot.width - x
+        } else {
+            x
+        }
+    }
+
+    /// The edge of the plot where the axis starts, and the one where it ends.
+    pub(super) fn edges(&self) -> (f64, f64) {
+        let (left, right) = (self.plot.left, self.plot.left + self.plot.width);
+        if self.reversed {
+            (right, left)
+        } else {
+            (left, right)
         }
     }
 
@@ -383,7 +423,7 @@ impl TimeFrame {
     /// observations takes the slot of the previous one, so a zone covers only the observations
     /// between its edges.
     pub(super) fn x_until(&self, epoch: i64) -> f64 {
-        match &self.slots {
+        self.oriented(match &self.slots {
             Some(slots) => slot_x(
                 slots
                     .partition_point(|slot| *slot <= epoch)
@@ -392,7 +432,7 @@ impl TimeFrame {
                 self.plot,
             ),
             None => time_x(epoch, self.span, self.plot),
-        }
+        })
     }
 
     pub(crate) fn y(&self, value: f64) -> f64 {
@@ -472,11 +512,12 @@ fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) -> NumericS
             .flatten(),
     );
     let area = layers().any(|layer| layer.mark == Mark::Area);
-    let bounds = match pane {
-        Some(pane) => spec.panes[pane].value_axis.bounds(),
-        None => spec.value_axis.bounds(),
+    // Small multiples share the top-level value axis, even when every panel gets its own scale.
+    let axis = match pane {
+        Some(pane) if spec.chart_type != ChartType::Multiples => &spec.panes[pane].value_axis,
+        _ => &spec.value_axis,
     };
-    NumericScale::from_values(values.into_iter(), area, bounds)
+    NumericScale::for_axis(values.into_iter(), area, axis)
 }
 
 /// The name a tooltip gives a layer: in small multiples the panel title comes first.
@@ -866,7 +907,7 @@ fn push_value_grid(frame: &TimeFrame, elements: &mut Vec<Element>) {
             y1: y,
             x2: plot.left + plot.width,
             y2: y,
-            class: if value.abs() < frame.scale.step / 100.0 {
+            class: if frame.scale.is_zero(value) {
                 "chartlet-zero"
             } else {
                 "chartlet-grid"
@@ -877,7 +918,7 @@ fn push_value_grid(frame: &TimeFrame, elements: &mut Vec<Element>) {
             y: y + 4.0,
             class: "chartlet-tick",
             anchor: TextAnchor::End,
-            content: format_tick(value, frame.scale.step, frame.style),
+            content: frame.scale.tick_label(value, frame.style),
         }));
     }
 }
@@ -968,6 +1009,7 @@ fn pane_frames(
             precision,
             scale: time_scale(spec, zone, Some(pane_index)),
             style: spec.pane_style(pane_index),
+            reversed: spec.time_axis.reverse,
         });
         top += height + PANE_GAP;
     }

@@ -2,7 +2,9 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
-use super::{ChartSpec, ChartType, MAX_DATA_POINTS, MAX_SERIES, validate_number, validate_text};
+use super::{
+    ChartSpec, ChartType, MAX_DATA_POINTS, MAX_SERIES, Stack, validate_number, validate_text,
+};
 use crate::error::{ChartError, ChartWarning};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -22,6 +24,7 @@ pub struct SeriesSpec {
 
 impl ChartSpec {
     pub(super) fn validate_data(&self) -> Result<Vec<ChartWarning>, ChartError> {
+        self.validate_stack()?;
         if self.categories.is_empty() && self.series.is_empty() {
             self.validate_points()
         } else {
@@ -35,13 +38,6 @@ impl ChartSpec {
                 "conflicting_data_shape",
                 "/data",
                 "use either data or categories with series, not both",
-            ));
-        }
-        if self.chart_type == ChartType::Line {
-            return Err(ChartError::new(
-                "option_not_supported",
-                "/series",
-                "series are only available for bar charts; use data for a line chart",
             ));
         }
         if self.categories.is_empty() {
@@ -71,6 +67,37 @@ impl ChartSpec {
                 "/series",
                 format!("at most {MAX_SERIES} series are supported"),
             ));
+        }
+        Ok(())
+    }
+
+    /// A stack needs several series; a percent stack takes no negative values, since a share of
+    /// a total cannot be negative.
+    fn validate_stack(&self) -> Result<(), ChartError> {
+        if self.stack.is_none() {
+            return Ok(());
+        }
+        if self.series.len() < 2 {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/stack",
+                "stacking needs categories with at least two series",
+            ));
+        }
+        if self.stack == Some(Stack::Percent) {
+            for (series_index, series) in self.series.iter().enumerate() {
+                if let Some(value_index) = series
+                    .values
+                    .iter()
+                    .position(|value| value.is_some_and(|value| value < 0.0))
+                {
+                    return Err(ChartError::new(
+                        "invalid_value",
+                        format!("/series/{series_index}/values/{value_index}"),
+                        "a percent stack shows shares of a total and takes no negative values",
+                    ));
+                }
+            }
         }
         Ok(())
     }

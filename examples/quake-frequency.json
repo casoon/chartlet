@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "type": "line",
+  "title": "Earthquakes per year by magnitude",
+  "source": "Sample data, rounded",
+  "categoryAxis": { "title": "Magnitude" },
+  "valueAxis": { "title": "Earthquakes per year", "scale": "log", "thousandsSeparator": true },
+  "data": [
+    { "label": "4–4.9", "value": 13000 },
+    { "label": "5–5.9", "value": 1300 },
+    { "label": "6–6.9", "value": 130 },
+    { "label": "7–7.9", "value": 15 },
+    { "label": "8+", "value": 1 }
+  ]
+}

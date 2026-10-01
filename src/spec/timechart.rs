@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, MAX_SERIES, ValueAxisSpec, ValueFormat, ZoomBound, is_false, validate_number,
+    ChartSpec, MAX_SERIES, ValueAxisSpec, ZoomBound, is_false, validate_number,
     validate_optional_text, validate_text,
 };
 use crate::{
@@ -29,6 +29,16 @@ pub(crate) const MIN_PANELS: usize = 2;
 pub(crate) const MAX_PANELS: usize = 12;
 pub(crate) const MAX_COLUMNS: u32 = 6;
 
+/// What the positions of a time axis are: calendar timestamps, or plain numbers such as a
+/// distance, a depth or an age in millions of years.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TimeAxisKind {
+    #[default]
+    Calendar,
+    Number,
+}
+
 /// Whether the time axis leaves a gap where an observation is missing, or collapses it.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -51,11 +61,31 @@ pub struct TimeAxisSpec {
     pub gaps: Gaps,
     #[serde(default)]
     pub title: Option<String>,
+    /// `calendar` (default): timestamps. `number`: every `time` is a plain number, for profiles
+    /// along a distance or ages in millions of years.
+    #[serde(default, skip_serializing_if = "TimeAxisKind::is_calendar")]
+    pub kind: TimeAxisKind,
+    /// Runs the axis from right to left, the largest position at the left: ages before present
+    /// read from the oldest on the left to today on the right.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub reverse: bool,
+}
+
+impl TimeAxisKind {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_calendar(&self) -> bool {
+        matches!(self, Self::Calendar)
+    }
 }
 
 impl TimeAxisSpec {
     pub(super) fn is_default(&self) -> bool {
-        self.timezone == default_timezone() && self.gaps == Gaps::Show && self.title.is_none()
+        self.timezone == default_timezone()
+            && self.gaps == Gaps::Show
+            && self.title.is_none()
+            && self.kind == TimeAxisKind::Calendar
+            && !self.reverse
     }
 }
 
@@ -65,6 +95,8 @@ impl Default for TimeAxisSpec {
             timezone: default_timezone(),
             gaps: Gaps::default(),
             title: None,
+            kind: TimeAxisKind::default(),
+            reverse: false,
         }
     }
 }
@@ -362,6 +394,26 @@ impl ChartSpec {
     fn validate_time_axis(&self) -> Result<crate::time::TimeZone, ChartError> {
         let zone = self.time_zone()?;
         validate_optional_text(self.time_axis.title.as_ref(), "/timeAxis/title", 100)?;
+        if self.time_axis.kind == TimeAxisKind::Number {
+            // A numeric axis has no calendar: no timezone, no calendar gaps to close, and zoom
+            // steps name dates.
+            for (field, present) in [
+                (
+                    "/timeAxis/timezone",
+                    self.time_axis.timezone != default_timezone(),
+                ),
+                ("/timeAxis/gaps", self.time_axis.gaps != Gaps::Show),
+                ("/zoomSteps", !self.zoom_steps.is_empty()),
+            ] {
+                if present {
+                    return Err(ChartError::new(
+                        "option_not_supported",
+                        field,
+                        "a numeric axis takes no timezone, gap collapsing or zoom steps",
+                    ));
+                }
+            }
+        }
         Ok(zone)
     }
 
@@ -585,13 +637,7 @@ impl ChartSpec {
                     "panel titles must be unique",
                 ));
             }
-            if pane.value_axis.title.is_some()
-                || pane.value_axis.format != ValueFormat::Number
-                || pane.value_axis.decimals.is_some()
-                || pane.value_axis.min.is_some()
-                || pane.value_axis.max.is_some()
-                || pane.value_axis.thousands_separator
-            {
+            if pane.value_axis != ValueAxisSpec::default() {
                 return Err(ChartError::new(
                     "option_not_supported",
                     format!("{pane_path}/valueAxis"),
@@ -902,8 +948,8 @@ fn validate_annotation(
 }
 
 /// A zone: a shaded area between `bottom` and `top`, between `from` and `to`, or both. A missing
-/// edge is the edge of the plot, but at least one pair has to be complete, and the zone needs a
-/// label.
+/// edge is the edge of the plot, so a zone with only `bottom` covers every value above it; at
+/// least one edge has to be given, and the zone needs a label.
 fn validate_zone(
     layer: &LayerSpec,
     path: &str,
@@ -966,13 +1012,17 @@ fn validate_zone(
     if let Some(top) = layer.top {
         validate_number(top, &format!("{path}/top"))?;
     }
-    let values = layer.bottom.is_some() && layer.top.is_some();
-    let times = from.is_some() && to.is_some();
-    if !values && !times {
+    let edges = [
+        layer.bottom.is_some(),
+        layer.top.is_some(),
+        from.is_some(),
+        to.is_some(),
+    ];
+    if !edges.contains(&true) {
         return Err(ChartError::new(
             "missing_position",
             path,
-            "give bottom and top for a range of values, from and to for a span of time, or both",
+            "give bottom and/or top for a range of values, from and/or to for a span of time",
         ));
     }
     if let (Some(bottom), Some(top)) = (layer.bottom, layer.top)

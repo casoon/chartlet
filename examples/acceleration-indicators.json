@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "type": "multiples",
+  "title": "Indicators of growth since 1900",
+  "source": "Sample data, rounded",
+  "independentAxes": true,
+  "columns": 2,
+  "height": 520,
+  "valueAxis": { "thousandsSeparator": true },
+  "panes": [
+    { "title": "Population (millions)", "layers": [{ "mark": "line", "name": "Value", "points": [
+      { "time": "1900", "value": 1650 }, { "time": "1925", "value": 2000 }, { "time": "1950", "value": 2500 },
+      { "time": "1975", "value": 4060 }, { "time": "2000", "value": 6150 }, { "time": "2025", "value": 8100 } ] }] },
+    { "title": "Primary energy (PWh)", "layers": [{ "mark": "line", "name": "Value", "points": [
+      { "time": "1900", "value": 12 }, { "time": "1925", "value": 20 }, { "time": "1950", "value": 28 },
+      { "time": "1975", "value": 75 }, { "time": "2000", "value": 117 }, { "time": "2025", "value": 180 } ] }] },
+    { "title": "Water withdrawal (km³)", "layers": [{ "mark": "line", "name": "Value", "points": [
+      { "time": "1900", "value": 580 }, { "time": "1925", "value": 800 }, { "time": "1950", "value": 1300 },
+      { "time": "1975", "value": 2600 }, { "time": "2000", "value": 3700 }, { "time": "2025", "value": 4100 } ] }] },
+    { "title": "Fertilizer use (Mt)", "layers": [{ "mark": "line", "name": "Value", "points": [
+      { "time": "1900", "value": 1 }, { "time": "1925", "value": 3 }, { "time": "1950", "value": 14 },
+      { "time": "1975", "value": 95 }, { "time": "2000", "value": 135 }, { "time": "2025", "value": 190 } ] }] }
+  ]
+}

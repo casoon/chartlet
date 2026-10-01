@@ -87,8 +87,11 @@ pub(super) fn push_zone(
     let resolve = |time: &Option<crate::time::TimeValue>| {
         time.as_ref().and_then(|time| time.resolve(frame.zone).ok())
     };
-    let left = resolve(&layer.from).map_or(plot.left, |epoch| frame.x(epoch));
-    let right = resolve(&layer.to).map_or(plot.left + plot.width, |epoch| frame.x_until(epoch));
+    let (start, end) = frame.edges();
+    let from = resolve(&layer.from).map_or(start, |epoch| frame.x(epoch));
+    let to = resolve(&layer.to).map_or(end, |epoch| frame.x_until(epoch));
+    // On an axis that runs from right to left, the zone starts at its right edge.
+    let (left, right) = (from.min(to), from.max(to));
     let top = layer.top.map_or(plot.top, |value| frame.y(value));
     let bottom = layer
         .bottom

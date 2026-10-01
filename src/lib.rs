@@ -25,11 +25,11 @@ pub use error::{ChartError, ChartWarning};
 pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
-    CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec,
-    ChartType, Corner, Dash, DataPoint, Gaps, LayerSpec, Mark, MobileSpec, OhlcPoint, Orientation,
-    PaneSpec, RangeSpec, ReferenceSpec, SeriesSpec, Shape, StripesSpec, Stroke, Theme,
-    TimeAxisSpec, TimePoint, TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat,
-    ZoomBound, ZoomStep,
+    AxisScale, CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec,
+    ChartSpec, ChartType, Corner, Dash, DataPoint, Gaps, LayerSpec, Mark, MobileSpec, OhlcPoint,
+    Orientation, PaneSpec, RangeSpec, ReferenceSpec, SeriesSpec, Shape, Stack, StripesSpec, Stroke,
+    Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TopicLinkSpec, TopicMapSpec, TopicSpec,
+    ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -480,18 +480,18 @@ fn render_print(
         metrics,
         &mut warnings,
     );
-    // A print SVG cannot see the page that would define a `var()` color, so such a layer is drawn
-    // in the text color; several of them would become indistinguishable.
+    // A print SVG cannot see the page that would define a `var()` color, so a layer without a
+    // fallback color is drawn in the text color; several of them would become indistinguishable.
     for entry in spec.indexed_layers() {
         if entry
             .layer
             .resolved_color()
-            .is_some_and(|color| color.starts_with("var("))
+            .is_some_and(color::lacks_fallback)
         {
             warnings.push(ChartWarning::new(
                 "color_not_resolved",
                 format!("/panes/{}/layers/{}/color", entry.pane, entry.local),
-                "the print variant cannot resolve a var() color and draws this layer in the text color; declare a literal color to tell it apart",
+                "the print variant cannot resolve a var() color and draws this layer in the text color; give it a fallback such as var(--name, #2563eb)",
             ));
         }
     }
@@ -887,11 +887,94 @@ mod tests {
     }
 
     #[test]
-    fn line_charts_do_not_accept_series_yet() {
+    fn line_charts_draw_several_series_apart_by_color_and_pattern() {
         let line = GROUPED.replace("\"bar\"", "\"line\"");
-        let error = render_json(&line, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
-        assert_eq!(error.code, "option_not_supported");
-        assert_eq!(error.path, "/series");
+        let svg = render_ok(&line).content;
+        assert!(svg.contains("chartlet-line chartlet-line-series-1\""));
+        assert!(svg.contains("chartlet-line chartlet-line-series-2 chartlet-line-dashed"));
+        assert!(svg.contains("class=\"chartlet-legend\""));
+        assert!(!svg.contains("class=\"chartlet-value\""));
+    }
+
+    #[test]
+    fn stacks_add_up_and_a_percent_stack_takes_no_negative_values() {
+        let stacked = GROUPED.replacen('{', "{\"stack\": \"normal\",", 1);
+        let svg = render_ok(&stacked).content;
+        assert!(
+            svg.contains("The series are stacked. Highest total:"),
+            "{svg}"
+        );
+        let percent = GROUPED.replacen('{', "{\"stack\": \"percent\",", 1);
+        assert!(render_ok(&percent).content.contains("shares of the series"));
+        assert_eq!(
+            render_err(&percent.replace("120", "-120")),
+            ("invalid_value", "/series/0/values/0".to_owned())
+        );
+        let single = SPEC.replacen('{', "{\"stack\": \"normal\",", 1);
+        assert_eq!(
+            render_err(&single),
+            ("option_not_supported", "/stack".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_numeric_axis_reads_plain_numbers_and_can_run_backwards() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Profile",
+            "timeAxis": {"kind": "number", "reverse": true, "title": "Distance (km)"},
+            "panes": [{"layers": [{"mark": "line", "name": "Height",
+                "points": [{"time": 0, "value": 10}, {"time": 2.5, "value": 30},
+                           {"time": 10, "value": 20}]}]}]}"#;
+        let html = html_ok(spec);
+        assert!(
+            html.contains("Line chart with 3 points from 0.0 to 10.0."),
+            "{html}"
+        );
+        assert!(html.contains("<th scope=\"col\">Distance (km)</th>"));
+        let svg = render_ok(spec).content;
+        // Reversed: the first position, 0, sits at the right end of the plot.
+        let first = svg.find("<title>0.0 – ").map(|_| ()).is_some();
+        assert!(first, "{svg}");
+        assert_eq!(
+            render_err(&spec.replace(
+                r#""kind": "number""#,
+                r#""kind": "number", "timezone": "+02:00""#
+            )),
+            ("option_not_supported", "/timeAxis/timezone".to_owned())
+        );
+        assert_eq!(
+            render_err(&spec.replace(r#""time": 2.5"#, r#""time": "2026-01-01""#)).0,
+            "invalid_time"
+        );
+    }
+
+    #[test]
+    fn panels_on_axes_of_their_own_are_not_compared() {
+        let spec = r#"{"schemaVersion": 1, "type": "multiples", "title": "Two units",
+            "independentAxes": true, "panes": [
+            {"title": "Small", "layers": [{"mark": "line", "name": "V",
+                "points": [{"time": "2020", "value": 1}, {"time": "2021", "value": 2}]}]},
+            {"title": "Large", "layers": [{"mark": "line", "name": "V",
+                "points": [{"time": "2020", "value": 1000}, {"time": "2021", "value": 2000}]}]}]}"#;
+        let svg = render_ok(spec).content;
+        assert!(svg.contains("with a value axis of their own"), "{svg}");
+        assert!(!svg.contains("Highest:"));
+        assert!(
+            svg.contains(">2.0</text>") || svg.contains(">2</text>"),
+            "{svg}"
+        );
+    }
+
+    #[test]
+    fn a_logarithmic_axis_takes_positive_values_only() {
+        let log = SPEC.replacen('{', "{\"valueAxis\": {\"scale\": \"log\"},", 1);
+        // SPEC has a negative value.
+        assert_eq!(render_err(&log).0, "invalid_value");
+        let positive = log.replace("-4", "4");
+        let svg = render_ok(&positive).content;
+        assert!(
+            svg.contains(">10</text>") || svg.contains(">1</text>"),
+            "{svg}"
+        );
     }
 
     #[test]
@@ -1872,7 +1955,7 @@ mod tests {
                 "/panes/0/layers/0/label",
             ),
             (
-                r#"{"mark": "band", "label": "Z", "top": 1, "from": "2026-03-01"}"#,
+                r#"{"mark": "band", "label": "Z"}"#,
                 "missing_position",
                 "/panes/0/layers/0",
             ),
@@ -2087,9 +2170,12 @@ mod tests {
             "\"schemaVersion\": 1,",
             "\"schemaVersion\": 1, \"locale\": \"de\",",
         );
-        // A value zone needs both edges unless it spans a time.
+        // A zone with one edge covers everything above it, up to the edge of the plot.
+        let open = render_ok(&spec).content;
+        assert!(open.contains("Ziel, Werte über 2,5."), "{open}");
+        let bare = spec.replace(r#", "bottom": 2.5}"#, "}");
         assert_eq!(
-            render_err(&spec),
+            render_err(&bare),
             ("missing_position", "/panes/0/layers/1".to_owned())
         );
         let spec = spec.replace(

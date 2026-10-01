@@ -59,9 +59,10 @@ chart has more than one, and keep the names unique across all panes: they label 
 and the data table. A legend that does not fit one
 row wraps into a second.
 A layer may name its own `color` in the same forms chartlet accepts anywhere — `#rgb`,
-`#rrggbb`, `#rrggbbaa`, or `var(--your-variable)`. A `var()` reference keeps the host page in
-charge of the value and falls back to the chart's text color when the page defines nothing, so a
-series never disappears silently. A value outside the contract becomes the neutral gray `#667085`
+`#rrggbb`, `#rrggbbaa`, or `var(--your-variable)`, optionally with a hex fallback:
+`var(--your-variable, #0f766e)`. A `var()` reference keeps the host page in charge of the value
+and falls back to its fallback, or else to the chart's text color, when the page defines nothing,
+so a series never disappears silently. The print variant draws the fallback. A value outside the contract becomes the neutral gray `#667085`
 and is reported as a `color_not_supported` warning.
 
 `"stroke": "thin"` draws a line at one pixel instead of three, for example single years under
@@ -259,12 +260,32 @@ the label of a zone or reference line crosses a data line, or when a label reach
 plot, the render reports a `label_overlap` warning with the path of the annotation layer. The
 label is never dropped; move the annotation or shorten its label.
 
+## Numbers instead of dates
+
+Profiles and deep time have no calendar: elevation along a distance, temperature down a borehole,
+an isotope record over millions of years. `"timeAxis": { "kind": "number" }` reads every `time`
+as a plain number and keeps everything else of a time chart — bands, zones, reference lines,
+point markers, panes. Ticks fall on round numbers, values are written in the chart's `locale`,
+and the axis `title` names the first column of the data table. `"reverse": true` runs the axis
+from right to left, so that ages before present read from the oldest on the left; the value axis
+takes `"reverse": true` too, for records drawn with larger values downward.
+
+```json
+"timeAxis": { "kind": "number", "reverse": true, "title": "Million years ago" }
+```
+
 ## Small multiples
 
 `"type": "multiples"` draws 2 to 12 panes as small time charts in a grid of `columns`. Every panel
 needs a unique `title`; the panels share the top-level `valueAxis`, the time span and one legend,
 in which a layer name keeps its color across all panels. Panels draw smaller markers and no value
 labels; the tooltips and the table (one column per panel and layer) carry the values.
+
+When the panels measure different things — population, energy use and water withdrawal, say —
+one shared axis flattens all but the largest. `"independentAxes": true` gives every panel its own
+value axis, scaled to its own values; the top-level `valueAxis` still sets format, decimals,
+thousands separator and a logarithmic `scale` for all of them. Heights can then no longer be
+compared across panels, and the description says that each panel has a value axis of its own.
 
 ## Theme
 

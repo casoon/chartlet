@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "stack": "normal",
+  "title": "Electricity generation by source",
+  "source": "Sample data",
+  "valueAxis": { "title": "TWh" },
+  "categories": ["2019", "2020", "2021", "2022", "2023"],
+  "series": [
+    { "name": "Wind", "values": [126, 132, 114, 125, 139] },
+    { "name": "Solar", "values": [46, 50, 49, 60, 62] },
+    { "name": "Gas", "values": [90, 95, 89, 79, 76] },
+    { "name": "Coal", "values": [171, 134, 163, 181, 130] }
+  ]
+}

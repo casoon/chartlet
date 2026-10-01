@@ -73,6 +73,7 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
             .count();
         description.push_str(&text::missing_values(locale, missing));
     }
+    description.push_str(&describe_stack(spec, &dataset, &show));
     if !spec.references.is_empty() {
         let references = spec
             .references
@@ -88,6 +89,43 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         .expect("writing to String cannot fail");
     }
     description
+}
+
+/// The sentence about a stack: its highest and lowest total, or that it shows shares.
+fn describe_stack(spec: &ChartSpec, dataset: &Dataset, show: &impl Fn(f64) -> String) -> String {
+    let locale = spec.locale;
+    match spec.stack {
+        Some(spec::Stack::Percent) => text::stacked_shares(locale).to_owned(),
+        Some(spec::Stack::Normal) => {
+            let totals: Vec<(f64, &str)> = dataset
+                .categories
+                .iter()
+                .enumerate()
+                .map(|(index, category)| {
+                    let total = dataset
+                        .series
+                        .iter()
+                        .filter_map(|series| series.values[index])
+                        .sum::<f64>();
+                    (total, category.as_str())
+                })
+                .collect();
+            let highest = totals
+                .iter()
+                .max_by(|a, b| a.0.total_cmp(&b.0))
+                .expect("validated charts contain categories");
+            let lowest = totals
+                .iter()
+                .min_by(|a, b| a.0.total_cmp(&b.0))
+                .expect("validated charts contain categories");
+            text::stacked_totals(
+                locale,
+                (&show(highest.0), highest.1),
+                (&show(lowest.0), lowest.1),
+            )
+        }
+        None => String::new(),
+    }
 }
 
 fn labels_at_value(dataset: &Dataset, value: f64, locale: spec::Locale) -> String {
@@ -163,7 +201,7 @@ fn time_description(spec: &ChartSpec) -> String {
             .iter()
             .filter_map(|pane| pane.title.clone())
             .collect::<Vec<_>>();
-        text::multiples_opening(locale, &panels, &range, &names)
+        text::multiples_opening(locale, &panels, &range, &names, !spec.independent_axes)
     } else {
         // A single series names itself only through the title; several are listed.
         let listed = if dataset.series.len() > 1 {
@@ -171,15 +209,25 @@ fn time_description(spec: &ChartSpec) -> String {
         } else {
             &[]
         };
-        text::time_opening(
+        text::axis_noun(
             locale,
-            points,
-            &range,
-            listed,
-            names.len() == 1 && spec.data_layers().any(|entry| entry.layer.modeled),
+            zone,
+            text::time_opening(
+                locale,
+                points,
+                &range,
+                listed,
+                names.len() == 1 && spec.data_layers().any(|entry| entry.layer.modeled),
+            ),
         )
     };
 
+    // Panels on axes of their own measure different things; one highest value across them would
+    // compare what cannot be compared.
+    if spec.independent_axes {
+        describe_additions(spec, zone, &mut description);
+        return description;
+    }
     let highest_value = dataset
         .values()
         .max_by(f64::total_cmp)
@@ -264,12 +312,16 @@ fn stacked_description(spec: &ChartSpec) -> String {
         })
         .collect::<Vec<_>>();
     let layered = spec.data_layers().count() > 1;
-    let mut description = text::time_opening(
+    let mut description = text::axis_noun(
         locale,
-        dataset.categories.len(),
-        &range,
-        if layered { names.as_slice() } else { &[] },
-        !layered && spec.data_layers().any(|entry| entry.layer.modeled),
+        zone,
+        text::time_opening(
+            locale,
+            dataset.categories.len(),
+            &range,
+            if layered { names.as_slice() } else { &[] },
+            !layered && spec.data_layers().any(|entry| entry.layer.modeled),
+        ),
     );
     let labels: Vec<String> = spec
         .panes

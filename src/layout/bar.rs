@@ -37,7 +37,7 @@ pub(super) fn layout_vertical(
     };
     let plot_height = height - top - bottom;
     let scale = value_scale(spec, dataset);
-    let baseline = scale.map(0.0, top + plot_height, top);
+    let baseline = scale.map(scale.base(), top + plot_height, top);
     let band = plot_width / count(dataset.categories.len());
     let group = Group::new(band, dataset.series.len());
     let plot = PlotArea {
@@ -63,7 +63,7 @@ pub(super) fn layout_vertical(
                 thickness,
                 (baseline - value_y).abs(),
             ),
-            vertical_value_label(value, x + thickness / 2.0, value_y, content),
+            vertical_value_label(value_y <= baseline, x + thickness / 2.0, value_y, content),
         )
     };
     let crowded = crowded_groups(dataset, bar_and_label, metrics);
@@ -149,7 +149,7 @@ pub(super) fn layout_horizontal(
     };
     let plot_height = height - top - bottom;
     let scale = value_scale(spec, dataset);
-    let baseline = scale.map(0.0, left, left + plot_width);
+    let baseline = scale.map(scale.base(), left, left + plot_width);
     let band = plot_height / count(dataset.categories.len());
     let group = Group::new(band, dataset.series.len());
     let plot = PlotArea {
@@ -236,11 +236,11 @@ pub(super) fn layout_horizontal(
     }
 }
 
-/// Places a value label above a positive bar or below a negative one.
-fn vertical_value_label(value: f64, center_x: f64, value_y: f64, content: String) -> Text {
+/// Places a value label above a bar that rises from its baseline, below one that hangs from it.
+fn vertical_value_label(rising: bool, center_x: f64, value_y: f64, content: String) -> Text {
     Text {
         x: center_x,
-        y: if value >= 0.0 {
+        y: if rising {
             value_y - 8.0
         } else {
             value_y + 16.0
@@ -263,7 +263,7 @@ fn horizontal_value_label(
     // Inverse text is only readable on the bar itself; a short negative bar gets its label
     // outside, left of the bar end.
     let fits_inside = metrics.width(&content, LABEL_SIZE) + 16.0 <= (baseline - value_x).abs();
-    let (x, class, anchor) = if value >= 0.0 {
+    let (x, class, anchor) = if value_x >= baseline {
         (value_x + 8.0, "chartlet-value", TextAnchor::Start)
     } else if fits_inside {
         (value_x + 8.0, "chartlet-value-inverse", TextAnchor::Start)
@@ -394,7 +394,7 @@ fn bar_class(dataset: &Dataset, series_index: usize) -> &'static str {
 }
 
 /// The left of the plot of horizontal bars: room for the widest category label.
-fn label_gutter(dataset: &Dataset, metrics: &impl TextMetrics) -> f64 {
+pub(super) fn label_gutter(dataset: &Dataset, metrics: &impl TextMetrics) -> f64 {
     let measured_label = dataset
         .categories
         .iter()
@@ -403,12 +403,13 @@ fn label_gutter(dataset: &Dataset, metrics: &impl TextMetrics) -> f64 {
     (measured_label + 28.0).clamp(88.0, 210.0)
 }
 
-/// The value scale of a bar chart: it starts at zero and reaches every bar, every reference line
+/// The value scale of a bar chart: it starts at zero, or at a power of ten on a logarithmic
+/// axis, and reaches every bar, every reference line
 /// and the declared range of the value axis.
 fn value_scale(spec: &ChartSpec, dataset: &Dataset) -> NumericScale {
-    NumericScale::from_values(
+    NumericScale::for_axis(
         dataset.values().chain(reference::values(spec)),
         true,
-        spec.value_axis.bounds(),
+        &spec.value_axis,
     )
 }

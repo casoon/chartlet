@@ -258,6 +258,9 @@ fn type_class(chart_type: ChartType) -> String {
 fn base_style(spec: &ChartSpec, print: bool) -> String {
     let has_series = spec.series.len() > 1;
     let is_time = matches!(spec.chart_type, ChartType::Time | ChartType::Multiples);
+    // A categorical line chart with several series draws its lines in the palette and patterns of
+    // a time chart's lines.
+    let several_lines = spec.chart_type == ChartType::Line && has_series;
     let is_multiples = spec.chart_type == ChartType::Multiples;
     let is_diverging = matches!(spec.chart_type, ChartType::Stripes | ChartType::Calendar);
     let is_calendar = spec.chart_type == ChartType::Calendar;
@@ -274,13 +277,17 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         } else {
             ""
         },
-        if is_time { LINE_SERIES_STYLE } else { "" },
-        if is_time && needs_layer_extras(spec) {
+        if is_time || several_lines {
+            LINE_SERIES_STYLE
+        } else {
+            ""
+        },
+        if (is_time && needs_layer_extras(spec)) || several_lines {
             LAYER_EXTRA_STYLE
         } else {
             ""
         },
-        if is_time && needs_mark_extras(spec) {
+        if (is_time && needs_mark_extras(spec)) || several_lines {
             MARK_EXTRA_STYLE
         } else {
             ""
@@ -318,15 +325,15 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// chart types that use it, so that two groups styling the same class, such as the hatching of a
 /// time chart and of a range bar chart, never meet.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType]) -> String {
-    use ChartType::{Atlas, Bar, Calendar, Multiples, Rangebar, Stripes, Time, Topicmap};
+    use ChartType::{Atlas, Bar, Calendar, Line, Multiples, Rangebar, Stripes, Time, Topicmap};
     let groups: [(&str, &[ChartType]); 16] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SERIES_STYLE, &[Bar]),
         (FILTER_STYLE, &[Bar]),
-        (LINE_SERIES_STYLE, &[Time, Multiples]),
-        (LAYER_EXTRA_STYLE, &[Time, Multiples]),
-        (MARK_EXTRA_STYLE, &[Time, Multiples]),
+        (LINE_SERIES_STYLE, &[Line, Time, Multiples]),
+        (LAYER_EXTRA_STYLE, &[Line, Time, Multiples]),
+        (MARK_EXTRA_STYLE, &[Line, Time, Multiples]),
         (ANNOTATION_EXTRA_STYLE, &[Time, Multiples]),
         (MULTIPLES_STYLE, &[Multiples]),
         (crate::diverging::STYLE, &[Stripes, Calendar]),
@@ -1024,7 +1031,8 @@ fn html_document(
     hooks: bool,
 ) -> String {
     let mut output = String::new();
-    let has_series = spec.series.len() > 1;
+    // A stack shows every series as part of a whole; hiding one would leave a gap in it.
+    let has_series = spec.series.len() > 1 && spec.stack.is_none();
     let zoom = zoomable && panels.len() > 1;
     let breakpoint = spec.mobile.as_ref().map(|mobile| mobile.breakpoint);
     // One area cannot be picked from, and islands are not what the map is about.
@@ -1208,7 +1216,12 @@ fn render_data_table(
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let words = spec.locale.words();
     let dataset = spec.table_dataset();
+    // A numeric axis is named by its title; it holds no times.
+    let numeric = spec.time_axis.kind == crate::spec::TimeAxisKind::Number;
     let first = match spec.chart_type {
+        ChartType::Time | ChartType::Multiples if numeric => {
+            spec.time_axis.title.as_deref().unwrap_or(words.position)
+        }
         ChartType::Time | ChartType::Multiples => words.time,
         ChartType::Topicmap => words.topic,
         ChartType::Atlas => words.region,

@@ -3,7 +3,7 @@ use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
     scene::{Element, Text, TextAnchor},
-    spec::{ChartSpec, Locale, NumberStyle, ValueFormat},
+    spec::{AxisScale, ChartSpec, Locale, NumberStyle, ValueAxisSpec, ValueFormat},
 };
 
 /// Centers the category axis title below a plot whose categories run horizontally.
@@ -208,9 +208,86 @@ pub(crate) struct NumericScale {
     min: f64,
     max: f64,
     pub step: f64,
+    /// Powers of ten evenly spaced instead of values; `min` and `max` are then powers of ten.
+    log: bool,
+    /// Larger values toward the start of the axis instead of its end.
+    reversed: bool,
 }
 
 impl NumericScale {
+    /// The scale of `axis`: linear over the values, or logarithmic when the axis says so. A
+    /// logarithmic scale never includes zero.
+    pub(crate) fn for_axis(
+        values: impl Iterator<Item = f64>,
+        include_zero: bool,
+        axis: &ValueAxisSpec,
+    ) -> Self {
+        let scale = match axis.scale {
+            AxisScale::Linear => Self::from_values(values, include_zero, axis.bounds()),
+            AxisScale::Log => Self::logarithmic(values, axis.bounds()),
+        };
+        Self {
+            reversed: axis.reverse,
+            ..scale
+        }
+    }
+
+    /// A logarithmic scale from the power of ten at or below the smallest value to the one at or
+    /// above the largest; validated values are all above zero.
+    fn logarithmic(
+        values: impl Iterator<Item = f64>,
+        (declared_min, declared_max): (Option<f64>, Option<f64>),
+    ) -> Self {
+        let (mut min, mut max) = values.fold((f64::INFINITY, 0.0_f64), |(min, max), value| {
+            (min.min(value), max.max(value))
+        });
+        min = declared_min.map_or(min, |bound| min.min(bound));
+        max = declared_max.map_or(max, |bound| max.max(bound));
+        let low = min.log10().floor();
+        let mut high = max.log10().ceil();
+        if high <= low {
+            high = low + 1.0;
+        }
+        Self {
+            min: tidy(10.0_f64.powf(low)),
+            max: tidy(10.0_f64.powf(high)),
+            step: 1.0,
+            log: true,
+            reversed: false,
+        }
+    }
+
+    /// Where bars start: zero, or the bottom of a logarithmic axis.
+    pub(crate) const fn base(self) -> f64 {
+        if self.log { self.min } else { 0.0 }
+    }
+
+    /// Whether a tick is the zero line, which is drawn stronger.
+    pub(crate) fn is_zero(self, value: f64) -> bool {
+        !self.log && value.abs() < self.step / 100.0
+    }
+
+    /// The text of a tick: as many decimals as the step on a linear axis, as many as the power
+    /// of ten needs on a logarithmic one.
+    pub(crate) fn tick_label(self, value: f64, style: NumberStyle) -> String {
+        if !self.log {
+            return format_tick(value, self.step, style);
+        }
+        // A power of ten below one needs a decimal for each step down: 0.1, 0.01.
+        let mut decimals = 0_u8;
+        let mut scaled = value;
+        while scaled < 1.0 - 1e-9 && decimals < 6 {
+            scaled *= 10.0;
+            decimals += 1;
+        }
+        format_value(
+            value,
+            NumberStyle {
+                decimals: Some(decimals),
+                ..style
+            },
+        )
+    }
     /// A scale over the values that also reaches the declared `(min, max)` of the value axis.
     /// Without zero in the scale, the values get a margin, which neither crosses zero nor goes
     /// beyond a declared bound; every end is then rounded outward to a tick.
@@ -271,11 +348,18 @@ impl NumericScale {
             min: tidy(tidy(min / step).floor() * step),
             max: tidy(tidy(max / step).ceil() * step),
             step,
+            log: false,
+            reversed: false,
         }
     }
 
     pub(crate) fn map(self, value: f64, output_min: f64, output_max: f64) -> f64 {
-        let ratio = (value - self.min) / (self.max - self.min);
+        let ratio = if self.log {
+            (value.log10() - self.min.log10()) / (self.max.log10() - self.min.log10())
+        } else {
+            (value - self.min) / (self.max - self.min)
+        };
+        let ratio = if self.reversed { 1.0 - ratio } else { ratio };
         output_min + ratio * (output_max - output_min)
     }
 
@@ -285,11 +369,29 @@ impl NumericScale {
     }
 
     /// Ticks are computed from their index instead of by repeated addition, so rounding errors
-    /// do not accumulate along the axis.
-    pub(crate) fn ticks(self) -> impl Iterator<Item = f64> {
-        std::iter::successors(Some(0.0_f64), |index| Some(index + 1.0))
-            .map(move |index| tidy(self.min + index * self.step))
-            .take_while(move |tick| *tick <= self.max + self.step / 2.0)
+    /// do not accumulate along the axis. A logarithmic axis ticks every power of ten, and over
+    /// two decades or fewer also 2 and 5 times each.
+    pub(crate) fn ticks(self) -> Box<dyn Iterator<Item = f64>> {
+        if self.log {
+            let multiples: &[f64] = if self.max / self.min <= 100.0 * (1.0 + 1e-9) {
+                &[1.0, 2.0, 5.0]
+            } else {
+                &[1.0]
+            };
+            let top = self.max * (1.0 + 1e-9);
+            let ticks: Vec<f64> =
+                std::iter::successors(Some(self.min), |power| Some(tidy(power * 10.0)))
+                    .take_while(|power| *power <= top)
+                    .flat_map(|power| multiples.iter().map(move |multiple| tidy(power * multiple)))
+                    .filter(|tick| *tick <= top)
+                    .collect();
+            return Box::new(ticks.into_iter());
+        }
+        Box::new(
+            std::iter::successors(Some(0.0_f64), |index| Some(index + 1.0))
+                .map(move |index| tidy(self.min + index * self.step))
+                .take_while(move |tick| *tick <= self.max + self.step / 2.0),
+        )
     }
 }
 

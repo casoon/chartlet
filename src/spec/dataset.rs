@@ -201,6 +201,9 @@ impl ChartSpec {
 
     /// The time axis as configured, or its default when the specification omitted it.
     pub(crate) fn time_zone(&self) -> Result<crate::time::TimeZone, ChartError> {
+        if self.time_axis.kind == super::TimeAxisKind::Number {
+            return Ok(crate::time::TimeZone::numeric(self.locale));
+        }
         crate::time::TimeZone::parse(&self.time_axis.timezone).ok_or_else(|| {
             ChartError::new(
                 "invalid_timezone",
@@ -339,6 +342,21 @@ impl ChartSpec {
             decimals: axis.and_then(|axis| axis.decimals),
             locale: self.locale,
             thousands: axis.is_some_and(|axis| axis.thousands_separator),
+        }
+    }
+
+    /// How the value axis writes its ticks: a percent stack measures shares, whatever format its
+    /// values have.
+    pub(crate) fn axis_style(&self) -> NumberStyle {
+        let style = self.number_style();
+        if self.stack == Some(super::Stack::Percent) {
+            NumberStyle {
+                format: ValueFormat::Percent,
+                decimals: None,
+                ..style
+            }
+        } else {
+            style
         }
     }
 

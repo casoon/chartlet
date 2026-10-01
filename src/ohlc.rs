@@ -167,7 +167,10 @@ fn validate_candles(layer: &LayerSpec, path: &str, zone: TimeZone) -> Result<(),
 /// The width of every body: a share of the median distance between neighbouring candles, at
 /// least one pixel and at most [`MAX_BODY`].
 fn body_width(xs: &[f64]) -> f64 {
-    let mut distances: Vec<f64> = xs.windows(2).map(|pair| pair[1] - pair[0]).collect();
+    let mut distances: Vec<f64> = xs
+        .windows(2)
+        .map(|pair| (pair[1] - pair[0]).abs())
+        .collect();
     if distances.is_empty() {
         return MAX_BODY;
     }

@@ -158,6 +158,17 @@ fn bar_legend_entries(
     available_width: f64,
     metrics: &impl TextMetrics,
 ) -> Vec<(f64, usize)> {
+    series_legend_entries(dataset, available_width, LEGEND_SWATCH, metrics)
+}
+
+/// Where the entries of a series legend sit, as offset and row, when each takes `swatch` before
+/// its name.
+fn series_legend_entries(
+    dataset: &Dataset,
+    available_width: f64,
+    swatch: f64,
+    metrics: &impl TextMetrics,
+) -> Vec<(f64, usize)> {
     if dataset.series.len() < 2 {
         return Vec::new();
     }
@@ -170,13 +181,13 @@ fn bar_legend_entries(
             .expect("multi-series charts name every series");
         let width = metrics
             .width(name, LABEL_SIZE)
-            .min(available_width - LEGEND_SWATCH);
-        if x > 0.0 && x + LEGEND_SWATCH + width > available_width {
+            .min(available_width - swatch);
+        if x > 0.0 && x + swatch + width > available_width {
             x = 0.0;
             row += 1;
         }
         entries.push((x, row));
-        x += LEGEND_SWATCH + width + 20.0;
+        x += swatch + width + 20.0;
     }
     entries
 }
@@ -190,6 +201,63 @@ pub(super) fn legend_space(
     bar_legend_entries(dataset, available_width, metrics)
         .last()
         .map_or(0.0, |(_, row)| count(row + 1) * LEGEND_HEIGHT)
+}
+
+/// The height the legend of a categorical line chart with several series takes above the plot.
+pub(super) fn line_legend_space(
+    dataset: &Dataset,
+    available_width: f64,
+    metrics: &impl TextMetrics,
+) -> f64 {
+    series_legend_entries(dataset, available_width, LEGEND_LINE + 6.0, metrics)
+        .last()
+        .map_or(0.0, |(_, row)| count(row + 1) * LEGEND_HEIGHT)
+}
+
+/// Draws the legend of a categorical line chart with several series above `plot`: a sample of
+/// each line, in its color and pattern, before its name.
+pub(super) fn add_line_legend(
+    dataset: &Dataset,
+    classes: &[&'static str],
+    plot: PlotArea,
+    head: f64,
+    elements: &mut Vec<Element>,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
+    let swatch = LEGEND_LINE + 6.0;
+    let (left, top, available_width) = (plot.left, LEGEND_ROW + head, plot.width);
+    let entries = series_legend_entries(dataset, available_width, swatch, metrics);
+    for (index, (series, (offset, row))) in dataset.series.iter().zip(entries).enumerate() {
+        let name = series
+            .name
+            .as_deref()
+            .expect("multi-series charts name every series");
+        let (x, y) = (left + offset, top + count(row) * LEGEND_HEIGHT);
+        elements.push(Element::Polyline(Polyline {
+            points: vec![(x, y + 5.0), (x + LEGEND_LINE, y + 5.0)],
+            class: classes[index],
+            topic: None,
+            series_index: None,
+            style_index: None,
+            tooltip: None,
+        }));
+        let label = fit_text(
+            name,
+            available_width - swatch,
+            LABEL_SIZE,
+            metrics,
+            warnings,
+            &format!("/series/{index}/name"),
+        );
+        elements.push(Element::Text(Text {
+            x: x + swatch,
+            y: y + 9.0,
+            class: "chartlet-legend",
+            anchor: TextAnchor::Start,
+            content: label,
+        }));
+    }
 }
 
 /// Draws the legend of a multi-series bar chart above `plot`, below a title that takes `head`
