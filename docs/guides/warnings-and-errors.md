@@ -28,7 +28,7 @@ Warnings are written to standard error, and the chart is still produced:
 | `realm_without_structure` | A realm holds a single region, so it has no inner structure to show. |
 | `more_places_than_value` | A region lists more places than its value; the two numbers come from different counts. |
 | `value_outside_band` | A line's value lies outside its own uncertainty band. |
-| `color_not_resolved` | Print variant only: a layer declares its color as `var(--name)`, which a print SVG cannot resolve; it is drawn in the text color. Give it a fallback, `var(--name, #2563eb)`, or a literal color so that layers stay distinguishable. |
+| `color_not_resolved` | Print and social variants only: a layer declares its color as `var(--name)` without a fallback, which they cannot resolve; it is drawn in the text color. Give it a fallback, `var(--name, #2563eb)`, or a literal color so that layers stay distinguishable. |
 | `label_overlap` | The label of a zone, reference line or point marker overlaps the label of another annotation, the label of a zone or reference line crosses a data line, or a label reaches outside the plot. The path names the annotation layer; the label is still drawn. A point marker first tries its other sides before this is reported. |
 
 A chart with a [mobile variant](responsive.md) is laid out twice in the HTML profile. A warning
