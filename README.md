@@ -71,8 +71,8 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Line with gaps for missing values | `"type": "line"`, `null` values | [monthly-trend](examples/monthly-trend.json) |
 | Time series on a calendar axis | `"type": "time"` with `panes` and `layers` | [daily-orders](examples/daily-orders.json) |
 | Time series, dark theme, declared colors | `"theme": "dark"`, `color` per layer | [revenue-vs-forecast](examples/revenue-vs-forecast.json) |
-| Topic map: separate landmasses, area by value | `"type": "topicmap"` with `topics` | [topicmap-sample](examples/topicmap-sample.json) |
-| Knowledge landscape: one land, position by kinship | `"type": "atlas"` with `realms` | [knowledge-landscape](examples/knowledge-landscape.json) |
+| Topic map: separate landmasses, area by value (experimental) | `"type": "topicmap"` with `topics` | [topicmap-sample](examples/topicmap-sample.json) |
+| Knowledge landscape: one land, position by kinship (experimental) | `"type": "atlas"` with `realms` | [knowledge-landscape](examples/knowledge-landscape.json) |
 | Time series with uncertainty band, modeled (hatched, dashed) | `lower`/`upper` per point, `"modeled": true` per layer | [temperature-projection](examples/temperature-projection.json) |
 | Reference lines: threshold and date marker | `"mark": "annotation"` with `value` or `time` and `label` | [annual-mean-threshold](examples/annual-mean-threshold.json) |
 | Time series with area, gaps, line patterns and zoom | `"mark": "area"`, `null` values, `dash`, `"stroke": "bold"`, `zoomSteps` by time | [sensor-readings](examples/sensor-readings.json) |

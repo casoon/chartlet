@@ -13,8 +13,8 @@ order: 1
 | Line with gaps for missing values | `"type": "line"`, `null` values | [Monthly trend](../../../showcase/monthly-trend/) |
 | Time series on a calendar axis | `"type": "time"` with `panes` and `layers` | [Daily orders](../../../showcase/daily-orders/) |
 | Time series, dark theme, declared colors | `"theme": "dark"`, `color` per layer | [Revenue vs. forecast](../../../showcase/revenue-vs-forecast/) |
-| Separate landmasses, area by value | `"type": "topicmap"` with `topics` | [Insights themes](../../../showcase/topicmap-sample/) |
-| One continuous land, position by kinship | `"type": "atlas"` with `realms` | [Documentation by area](../../../showcase/knowledge-landscape/) |
+| Separate landmasses, area by value (experimental) | `"type": "topicmap"` with `topics` | [Insights themes](../../../showcase/topicmap-sample/) |
+| One continuous land, position by kinship (experimental) | `"type": "atlas"` with `realms` | [Documentation by area](../../../showcase/knowledge-landscape/) |
 | Time series with uncertainty band, modeled | `lower`/`upper` per point, `"modeled": true` | [Temperature projection](../../../showcase/temperature-projection/) |
 | Threshold and date marker | `"mark": "annotation"` with `value` or `time` | [Annual mean and threshold](../../../showcase/annual-mean-threshold/) |
 | Time series with area, gaps and zoom | `"mark": "area"`, `null` values, `dash`, `zoomSteps` by time | [Data hall power draw](../../../showcase/sensor-readings/) |
@@ -69,6 +69,9 @@ category.
 ## Maps
 
 Two chart types draw subjects as land, and they answer different questions.
+
+Both map types are **experimental**: their layout is tuned to one production site so far and may
+change more between minor releases than the other types do.
 
 A **topic map** (`"type": "topicmap"`) packs one landmass per subject, with the area of each
 proportional to its value. It answers *how much is there of what*. Subjects sit where they fit, so

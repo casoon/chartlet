@@ -11,7 +11,7 @@ browser – no chart JavaScript, no hydration, no layout shift.
 **Status:** 0.1. Bar charts (single and grouped, vertical and horizontal), categorical
 line charts, time series with uncertainty bands and reference lines, small multiples, warming
 stripes, calendar heatmaps and range bars are supported, plus two map-like types
-(topic map and knowledge landscape). Until 1.0, a minor release (0.2, 0.3, …) may still change
+(topic map and knowledge landscape, both experimental). Until 1.0, a minor release (0.2, 0.3, …) may still change
 the specification; a patch release never does.
 
 ## Principles

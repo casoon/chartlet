@@ -553,7 +553,7 @@ pub(crate) fn rangebar_opening(
             highest.1,
         ),
         Locale::De => format!(
-            "Spannendiagramm mit {categories} {}, jeweils eine Spanne vom unteren zum oberen Wert{}. Niedrigster unterer Wert: {} ({}). Höchster oberer Wert: {} ({}).",
+            "Spannweitendiagramm mit {categories} {}, jeweils eine Spanne vom unteren zum oberen Wert{}. Niedrigster unterer Wert: {} ({}). Höchster oberer Wert: {} ({}).",
             plural(categories, "Kategorie", "Kategorien"),
             if mid { " mit einem mittleren Wert" } else { "" },
             lowest.0,
@@ -652,7 +652,7 @@ pub(crate) fn atlas_sentence(
         ),
         Locale::De => format!(
             "Wissenslandschaft aus {realms} {} und {regions} {}; die größte ist {} mit {}.{}",
-            plural(realms, "Reich", "Reichen"),
+            plural(realms, "Bereich", "Bereichen"),
             plural(regions, "Region", "Regionen"),
             largest.0,
             largest.1,

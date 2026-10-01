@@ -1194,7 +1194,7 @@ mod tests {
         assert!(html.contains("<title>Natural: \u{2212}0,1 bis 0,1, modelliert</title>"));
         assert!(html.contains(">Schraffiert: modelliert<"));
         assert!(html.contains(
-            "Spannendiagramm mit 2 Kategorien, jeweils eine Spanne vom unteren zum oberen Wert mit einem mittleren Wert. Niedrigster unterer Wert: \u{2212}0,1 (Natural). Höchster oberer Wert: 1,2 (Observed). Modelliert, schraffiert gezeichnet: Natural."
+            "Spannweitendiagramm mit 2 Kategorien, jeweils eine Spanne vom unteren zum oberen Wert mit einem mittleren Wert. Niedrigster unterer Wert: \u{2212}0,1 (Natural). Höchster oberer Wert: 1,2 (Observed). Modelliert, schraffiert gezeichnet: Natural."
         ));
         assert!(html.contains(
             "<th scope=\"col\">Kategorie</th><th scope=\"col\">Unterer Wert</th><th scope=\"col\">Mittlerer Wert</th><th scope=\"col\">Oberer Wert</th>"
@@ -1214,7 +1214,7 @@ mod tests {
         ));
         let atlas = html_ok(&german(ATLAS, "atlas"));
         assert!(atlas.contains(
-            "Wissenslandschaft aus 2 Reichen und 4 Regionen; die größte ist Models mit 40. 1 Ort ist markiert."
+            "Wissenslandschaft aus 2 Bereichen und 4 Regionen; die größte ist Models mit 40. 1 Ort ist markiert."
         ));
         assert!(atlas.contains(
             "<th scope=\"col\">Region</th><th scope=\"col\">Einträge</th><th scope=\"col\">Orte</th>"

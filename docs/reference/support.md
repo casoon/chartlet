@@ -4,7 +4,7 @@ description: What has been verified, what is designed but not yet tested, and wh
 order: 4
 ---
 
-chartlet is at 0.1; screen reader and user testing are still pending. Statuses: **Verified**, **Designed, not yet verified**, **Planned**,
+chartlet is at 0.1; screen reader and user testing are still pending. Statuses: **Verified**, **Experimental** (works, but may change between minor releases), **Designed, not yet verified**, **Planned**,
 **Not supported**.
 
 ## Embedding
@@ -74,7 +74,7 @@ chartlet is at 0.1; screen reader and user testing are still pending. Statuses: 
 | --- | --- | --- |
 | Warming stripes, calendar heatmap | Verified | Shared diverging scale of 17 colors as CSS custom properties; covered by unit and golden-file tests. |
 | Range bars | Verified | Vertical and horizontal, optional central value and hatched modeled ranges. |
-| Topic map, knowledge landscape | Verified | Rendered and tested like every other type; the layout is tuned to one production site so far. |
+| Topic map, knowledge landscape | Experimental | Rendered and tested like every other type; the layout is tuned to one production site so far and may change between minor releases. |
 
 ## Distribution and interactions
 
