@@ -19,7 +19,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@casoon/chartlet": "file:../chartlet",
+    "@casoon/chartlet": "0.1.0-alpha.7",
     "@modelcontextprotocol/sdk": "^1.31.0",
     "zod": "^4.6.5"
   },

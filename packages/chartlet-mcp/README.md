@@ -84,15 +84,13 @@ and `explain_chart` when the chart needs to be described in words.
 ## Development
 
 ```sh
-cd packages/chartlet && npm run build:wasm
-cd ../chartlet-mcp && npm install && npm test
+cd packages/chartlet-mcp && npm install && npm test
 ```
 
-In this repository the package depends on `@casoon/chartlet` through `file:../chartlet`, so it
-always runs against the checked-out compiler (its `chartlet.wasm` has to be built first). Before
-publishing, that dependency is replaced by the released version that provides
-`renderChartDetailed`, e.g. `"@casoon/chartlet": "0.1.0-alpha.7"`, and both packages are
-released together. `npm test` and `npm pack` copy `schema/chartlet.schema.json` from the
+The package depends on the published `@casoon/chartlet` release. To run it against the
+checked-out compiler instead, build its `chartlet.wasm` and install it without saving:
+`npm install ../chartlet --no-save`. Both packages are released together.
+`npm test` and `npm pack` copy `schema/chartlet.schema.json` from the
 repository into the package first.
 
 ## License
