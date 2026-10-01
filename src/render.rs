@@ -3,7 +3,7 @@ use std::fmt::Write;
 use crate::{
     DataTable, Styles, TableMode,
     layout::format_value,
-    scene::{Element, Scene, TextAnchor, TextStyle},
+    scene::{Element, Hook, Scene, TextAnchor, TextStyle},
     spec::{ChartSpec, ChartType, Dash, Mark, Stroke, Theme},
 };
 
@@ -164,6 +164,7 @@ pub(crate) fn svg(
     description: &str,
     id_prefix: &str,
     styles: StyleMode,
+    hooks: Hooks,
 ) -> String {
     let title_id = format!("{id_prefix}-title");
     let description_id = format!("{id_prefix}-description");
@@ -172,7 +173,7 @@ pub(crate) fn svg(
     let mut output = String::new();
     write!(
         output,
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}{}\">",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}{}\"{}>",
         scene.width,
         scene.height,
         scene.width,
@@ -188,6 +189,14 @@ pub(crate) fn svg(
             format!(" {}", type_class(spec.chart_type))
         } else {
             String::new()
+        },
+        if hooks == Hooks::Off {
+            String::new()
+        } else {
+            format!(
+                " data-chartlet-type=\"{}\" data-chartlet-id=\"{id_prefix}\"",
+                crate::spec::type_name(spec.chart_type)
+            )
         }
     )
     .expect("writing to String cannot fail");
@@ -214,6 +223,9 @@ pub(crate) fn svg(
         )
         .expect("writing to String cannot fail");
     }
+    if hooks == Hooks::WithData {
+        emit_data_block(spec, &mut output);
+    }
     emit_hatches(spec, id_prefix, &mut output);
 
     // A dark chart cannot know the color of the page behind it, so it paints its own surface.
@@ -225,8 +237,9 @@ pub(crate) fn svg(
         )
         .expect("writing to String cannot fail");
     }
+    let hook_spec = (hooks != Hooks::Off).then_some(spec);
     for element in &scene.elements {
-        emit_element(element, id_prefix, &mut output);
+        emit_element(element, id_prefix, hook_spec, &mut output);
     }
     output.push_str("</svg>");
     output
@@ -601,7 +614,12 @@ fn hatch_fill(class: &str, style_index: Option<usize>, id_prefix: &str) -> Strin
     }
 }
 
-fn emit_element(element: &Element, id_prefix: &str, output: &mut String) {
+fn emit_element(
+    element: &Element,
+    id_prefix: &str,
+    hooks: Option<&ChartSpec>,
+    output: &mut String,
+) {
     match element {
         Element::Circle(circle) => {
             open("circle", circle.series_index, output);
@@ -653,7 +671,171 @@ fn emit_element(element: &Element, id_prefix: &str, output: &mut String) {
             emit_polyline(polyline, Some(*center), id_prefix, output);
         }
         Element::Text(text) => emit_text(text, None, TextStyle::default(), output),
+        Element::Hook(hook) => {
+            if let Some(spec) = hooks {
+                emit_hook(hook, spec, output);
+            }
+        }
     }
+}
+
+/// Which `data-*` hooks of the interactive module a chart carries: none, the hooks alone (the
+/// HTML profile, whose data table carries the values), or the hooks with the values in a JSON
+/// data block (the SVG profile).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Hooks {
+    Off,
+    Attributes,
+    WithData,
+}
+
+/// Writes a hook: the plot of a pane as an empty group, or the group around one layer.
+fn emit_hook(hook: &Hook, spec: &ChartSpec, output: &mut String) {
+    let pairs = |pairs: &[(f64, f64)]| {
+        let (values, pixels): (Vec<String>, Vec<String>) = pairs
+            .iter()
+            .map(|(value, pixel)| (number(*value), number(*pixel)))
+            .unzip();
+        (values.join(" "), pixels.join(" "))
+    };
+    match hook {
+        Hook::Plot { pane, x, y } => {
+            let (x_domain, x_range) = pairs(x);
+            let (y_domain, y_range) = pairs(y);
+            write!(
+                output,
+                "<g data-chartlet-plot=\"\" data-pane=\"{pane}\" data-x-domain=\"{x_domain}\" data-x-range=\"{x_range}\" data-y-domain=\"{y_domain}\" data-y-range=\"{y_range}\"/>"
+            )
+            .expect("write");
+        }
+        Hook::Layer(global) => {
+            let entry = spec
+                .indexed_layers()
+                .nth(*global)
+                .expect("a hook names an existing layer");
+            if entry.layer.is_data() {
+                let series = spec
+                    .data_layers()
+                    .position(|data| data.global == *global)
+                    .expect("a data layer is among the data layers");
+                write!(
+                    output,
+                    "<g data-series=\"{series}\" data-pane=\"{}\"",
+                    entry.pane
+                )
+                .expect("write");
+                if let Some(name) = &entry.layer.name {
+                    write!(output, " data-name=\"{}\"", escape(name)).expect("write");
+                }
+                output.push('>');
+            } else {
+                write!(
+                    output,
+                    "<g data-annotation=\"{global}\" data-pane=\"{}\">",
+                    entry.pane
+                )
+                .expect("write");
+            }
+        }
+        Hook::End => output.push_str("</g>"),
+    }
+}
+
+/// What the interactive module needs to know about the data table beyond its text: per value
+/// column the series it belongs to (its index among the data layers, or among the series of a
+/// category chart), the pane and which part of the series it holds; per row its position on the
+/// axis (Unix seconds on a time axis, the row index otherwise); and every value unformatted.
+struct TableHooks {
+    columns: Vec<(usize, usize, &'static str)>,
+    x: Vec<f64>,
+    values: Vec<Vec<Option<f64>>>,
+}
+
+fn table_hooks(spec: &ChartSpec) -> TableHooks {
+    let dataset = spec.table_dataset();
+    let rows = dataset.categories.len();
+    let values = (0..rows)
+        .map(|row| {
+            dataset
+                .series
+                .iter()
+                .map(|series| series.values[row])
+                .collect()
+        })
+        .collect();
+    if !matches!(spec.chart_type, ChartType::Time | ChartType::Multiples) {
+        return TableHooks {
+            columns: (0..dataset.series.len())
+                .map(|index| (index, 0, "value"))
+                .collect(),
+            x: (0..rows)
+                .map(|row| f64::from(u32::try_from(row).expect("rows are limited")))
+                .collect(),
+            values,
+        };
+    }
+    let zone = spec.time_zone().unwrap_or_default();
+    let mut epochs: Vec<i64> = spec
+        .data_layers()
+        .flat_map(|entry| entry.layer.resolved_times(zone))
+        .collect();
+    epochs.sort_unstable();
+    epochs.dedup();
+    let mut columns = Vec::new();
+    for (series, entry) in spec.data_layers().enumerate() {
+        let parts: &[&'static str] = if entry.layer.mark == Mark::Ohlc {
+            &["open", "high", "low", "close"]
+        } else if entry.layer.has_band() {
+            &["value", "lower", "upper"]
+        } else {
+            &["value"]
+        };
+        columns.extend(parts.iter().map(|part| (series, entry.pane, *part)));
+    }
+    // The specification allows 1700 to 2200, well within the integers an f64 holds exactly.
+    #[allow(clippy::cast_precision_loss)]
+    let x = epochs.iter().map(|epoch| *epoch as f64).collect();
+    TableHooks { columns, x, values }
+}
+
+/// The data table as a JSON data block for the SVG profile, which has no table to read: the
+/// columns with their hooks, and per row its position, its text and its unformatted values. A
+/// script element of type `application/json` is never executed, so a strict CSP allows it.
+fn emit_data_block(spec: &ChartSpec, output: &mut String) {
+    let table = data_table(spec);
+    let hooks = table_hooks(spec);
+    let columns: Vec<serde_json::Value> = table
+        .columns
+        .iter()
+        .skip(1)
+        .zip(&hooks.columns)
+        .map(|(name, (series, pane, part))| {
+            serde_json::json!({ "name": name, "series": series, "pane": pane, "part": part })
+        })
+        .collect();
+    let rows: Vec<serde_json::Value> = table
+        .rows
+        .iter()
+        .zip(hooks.x.iter().zip(&hooks.values))
+        .map(|(row, (x, values))| {
+            serde_json::json!({ "x": x, "label": row[0], "text": row[1..], "value": values })
+        })
+        .collect();
+    let block = serde_json::json!({ "columns": columns, "rows": rows });
+    write!(
+        output,
+        "<script type=\"application/json\" data-chartlet-data=\"\">{}</script>",
+        escape_text(&block.to_string())
+    )
+    .expect("write");
+}
+
+/// Escapes text content for XML and HTML alike; quotes may stay as they are.
+fn escape_text(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// Writes a polyline; `center`, when given, becomes its `data-cx`/`data-cy`.
@@ -763,8 +945,9 @@ pub(crate) fn html(
     spec: &ChartSpec,
     table_mode: TableMode,
     id_prefix: &str,
+    hooks: bool,
 ) -> String {
-    html_document(&[panel], spec, table_mode, id_prefix, false)
+    html_document(&[panel], spec, table_mode, id_prefix, false, hooks)
 }
 
 pub(crate) fn html_zoom(
@@ -772,8 +955,9 @@ pub(crate) fn html_zoom(
     spec: &ChartSpec,
     table_mode: TableMode,
     id_prefix: &str,
+    hooks: bool,
 ) -> String {
-    html_document(panels, spec, table_mode, id_prefix, true)
+    html_document(panels, spec, table_mode, id_prefix, true, hooks)
 }
 
 /// Switches between the chart and its mobile variant by the width of the wrapper. The mobile
@@ -835,6 +1019,7 @@ fn html_document(
     table_mode: TableMode,
     id_prefix: &str,
     zoomable: bool,
+    hooks: bool,
 ) -> String {
     let mut output = String::new();
     let has_series = spec.series.len() > 1;
@@ -909,7 +1094,7 @@ fn html_document(
         )
         .expect("write");
     }
-    render_data_table(&mut output, spec, table_mode);
+    render_data_table(&mut output, spec, table_mode, hooks.then_some(id_prefix));
     output.push_str("</figure>");
     if wrapped {
         output.push_str("</div>");
@@ -939,7 +1124,14 @@ fn emit_panels(panels: &[Panel], zoom: bool, output: &mut String) {
     }
 }
 
-fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMode) {
+/// Writes the data table; with `hooks`, the chart's ID prefix, it also carries the
+/// [`TableHooks`] as `data-*` attributes.
+fn render_data_table(
+    output: &mut String,
+    spec: &ChartSpec,
+    table_mode: TableMode,
+    hooks: Option<&str>,
+) {
     if table_mode == TableMode::Details {
         write!(
             output,
@@ -951,21 +1143,53 @@ fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMod
         output.push_str("<div class=\"chartlet-data\" data-viz-text>");
     }
     let table = data_table(spec);
+    let table_hooks = hooks.map(|_| table_hooks(spec));
+    let table_id = hooks.map_or_else(String::new, |id_prefix| {
+        format!(" data-chartlet-table=\"{id_prefix}\"")
+    });
     write!(
         output,
-        "<table><caption>{}</caption><thead><tr>",
+        "<table{table_id}><caption>{}</caption><thead><tr>",
         escape(&table.caption)
     )
     .expect("write");
-    for column in &table.columns {
-        write!(output, "<th scope=\"col\">{}</th>", escape(column)).expect("write");
+    for (index, column) in table.columns.iter().enumerate() {
+        let column_hooks = match (&table_hooks, index.checked_sub(1)) {
+            (Some(table_hooks), Some(index)) => {
+                let (series, pane, part) = table_hooks.columns[index];
+                format!(" data-series=\"{series}\" data-pane=\"{pane}\" data-part=\"{part}\"")
+            }
+            _ => String::new(),
+        };
+        write!(
+            output,
+            "<th scope=\"col\"{column_hooks}>{}</th>",
+            escape(column)
+        )
+        .expect("write");
     }
     output.push_str("</tr></thead><tbody>");
-    for row in &table.rows {
+    for (row_index, row) in table.rows.iter().enumerate() {
         let (head, cells) = row.split_first().expect("a row starts with its category");
-        write!(output, "<tr><th scope=\"row\">{}</th>", escape(head)).expect("write");
-        for cell in cells {
-            write!(output, "<td>{}</td>", escape(cell)).expect("write");
+        match &table_hooks {
+            Some(table_hooks) => write!(
+                output,
+                "<tr data-x=\"{}\"><th scope=\"row\">{}</th>",
+                number(table_hooks.x[row_index]),
+                escape(head)
+            ),
+            None => write!(output, "<tr><th scope=\"row\">{}</th>", escape(head)),
+        }
+        .expect("write");
+        for (column, cell) in cells.iter().enumerate() {
+            match table_hooks
+                .as_ref()
+                .and_then(|table_hooks| table_hooks.values[row_index][column])
+            {
+                Some(value) => write!(output, "<td data-value=\"{value}\">{}</td>", escape(cell)),
+                None => write!(output, "<td>{}</td>", escape(cell)),
+            }
+            .expect("write");
         }
         output.push_str("</tr>");
     }

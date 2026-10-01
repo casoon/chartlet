@@ -23,6 +23,7 @@ chartlet render <spec.json | -> [options]
 | `--strict` | Fails on any warning. Useful in CI. |
 | `--allow-warning <code>` | With `--strict`, lets warnings with this code through; they are still reported. Repeatable, for example `--allow-warning dense_chart`. |
 | `--styles inline\|external` | `inline` (default): the chart carries its whole stylesheet. `external`: only its own declared colors; the page loads the output of `chartlet stylesheet` once. |
+| `--hooks` | Adds the `data-*` hooks that the optional `@casoon/chartlet/interactive` module reads; see [Interaction](../guides/interaction.md#optional-javascript). Without it the output is unchanged. |
 | `--diagnostics json` | Writes errors and warnings to standard error as one JSON document instead of text lines. |
 
 Pass `-` instead of a file name to read the specification from standard input.

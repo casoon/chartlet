@@ -62,6 +62,10 @@ fn warning_json(warning: &ChartWarning) -> Value {
     json!({ "code": warning.code, "path": warning.path, "message": warning.message })
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one match arm per command-line option"
+)]
 fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), Failure> {
     let mut arguments = env::args().skip(1);
     match arguments.next().as_deref() {
@@ -84,6 +88,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut variant = Variant::Desktop;
     let mut manifest = None;
     let mut styles = Styles::Inline;
+    let mut hooks = false;
 
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
@@ -111,6 +116,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             }
             "--variant" => variant = parse_variant(arguments.next().as_deref())?,
             "--styles" => styles = parse_styles(arguments.next().as_deref())?,
+            "--hooks" => hooks = true,
             "--manifest" => manifest = Some(path_after(&mut arguments, "--manifest")?),
             "--diagnostics" => match arguments.next().as_deref() {
                 Some("json" | "text") => {}
@@ -132,6 +138,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             variant,
             manifest: manifest.is_some(),
             styles,
+            hooks,
         },
     )
     .map_err(|error| Failure {
@@ -239,7 +246,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print] [--manifest <path>] [--styles inline|external] [--strict [--allow-warning <code>]...] [--diagnostics text|json]
+    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json]
        chartlet stylesheet [--types bar,time,...]".to_owned()
 }
 

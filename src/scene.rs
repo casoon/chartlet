@@ -20,6 +20,25 @@ pub(crate) enum Element {
     /// name by how much room that area has, and ties it to the area it names.
     StyledText(Text, TextStyle),
     Text(Text),
+    /// Draws nothing: a `data-*` hook for the optional interactive module, written only with the
+    /// `hooks` render option.
+    Hook(Hook),
+}
+
+/// The geometry and grouping the interactive module reads from a chart, see [`Element::Hook`].
+#[derive(Debug, Clone)]
+pub(crate) enum Hook {
+    /// The plot of one pane: `x` maps the time or category axis as `(value, pixel)` pairs, linear
+    /// between neighbours; `y` maps the value axis by its two ends.
+    Plot {
+        pane: usize,
+        x: Vec<(f64, f64)>,
+        y: [(f64, f64); 2],
+    },
+    /// Opens a group around what one layer draws, by its index among all layers of all panes.
+    Layer(usize),
+    /// Closes the group of the last [`Hook::Layer`].
+    End,
 }
 
 /// What the layout knows about a piece of text beyond its class.

@@ -47,6 +47,11 @@ pub struct RenderOptions {
     pub manifest: bool,
     /// Where the chart's styles live. The print variant always carries its own.
     pub styles: Styles,
+    /// Adds the `data-*` hooks that the optional interactive module of the npm package reads:
+    /// chart type and ID on the root, the plot geometry of every pane, a group around what each
+    /// layer draws, and the unformatted values on the data table, or in a JSON data block in
+    /// the SVG profile. The print variant carries none.
+    pub hooks: bool,
 }
 
 /// Where a chart's styles live.
@@ -291,12 +296,14 @@ fn render_content(
 
     let mobile = spec.mobile_variant();
     let mobile_prefix = |prefix: &str| format!("{prefix}-m");
+    let hooks = hook_mode(options.hooks, format);
     let panel = |spec: &ChartSpec, prefix: &str, warnings: &mut Vec<ChartWarning>| {
         render_panel(
             spec,
             format,
             prefix,
             options.styles.into(),
+            hooks,
             metrics,
             warnings,
         )
@@ -310,6 +317,7 @@ fn render_content(
                 format,
                 &mobile_prefix(&id_prefix),
                 options.styles,
+                hooks,
                 metrics,
             );
         }
@@ -347,7 +355,13 @@ fn render_content(
         dedupe_warnings(&mut warnings);
         merge_mobile_warnings(&mut warnings, mobile_warnings);
         return Ok(RenderOutput {
-            content: render::html_zoom(&panels, spec, options.table_mode, &id_prefix),
+            content: render::html_zoom(
+                &panels,
+                spec,
+                options.table_mode,
+                &id_prefix,
+                options.hooks,
+            ),
             warnings,
             manifest: None,
         });
@@ -370,6 +384,7 @@ fn render_content(
                 spec,
                 options.table_mode,
                 &id_prefix,
+                options.hooks,
             )
         }
     };
@@ -407,6 +422,7 @@ fn render_mobile_alone(
     format: RenderFormat,
     prefix: &str,
     styles: Styles,
+    hooks: render::Hooks,
     metrics: &impl TextMetrics,
 ) -> Result<RenderOutput, ChartError> {
     if format == RenderFormat::Html {
@@ -429,6 +445,7 @@ fn render_mobile_alone(
         format,
         prefix,
         styles.into(),
+        hooks,
         metrics,
         &mut warnings,
     );
@@ -459,6 +476,7 @@ fn render_print(
         format,
         &format!("{id_prefix}-p"),
         render::StyleMode::Print,
+        render::Hooks::Off,
         metrics,
         &mut warnings,
     );
@@ -492,6 +510,7 @@ fn render_panel(
     format: RenderFormat,
     id_prefix: &str,
     styles: render::StyleMode,
+    hooks: render::Hooks,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> String {
@@ -508,7 +527,17 @@ fn render_panel(
     } else {
         layout::layout(spec, warnings, metrics)
     };
-    render::svg(&scene, spec, &description, id_prefix, styles)
+    render::svg(&scene, spec, &description, id_prefix, styles, hooks)
+}
+
+/// Which hooks a chart's SVGs carry: the HTML profile has its data table to read the values
+/// from, the SVG profile carries them itself.
+const fn hook_mode(hooks: bool, format: RenderFormat) -> render::Hooks {
+    match (hooks, format) {
+        (false, _) => render::Hooks::Off,
+        (true, RenderFormat::Html) => render::Hooks::Attributes,
+        (true, RenderFormat::Svg) => render::Hooks::WithData,
+    }
 }
 
 /// Zoom panels repeat the same data, so identical warnings would otherwise appear once per panel.

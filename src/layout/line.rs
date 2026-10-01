@@ -8,7 +8,7 @@ use super::{
 use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
-    scene::{Circle, Element, Polyline, Scene, Text, TextAnchor},
+    scene::{Circle, Element, Hook, Polyline, Scene, Text, TextAnchor},
     spec::ChartSpec,
 };
 
@@ -47,6 +47,17 @@ pub(super) fn layout_line(
         warnings,
         metrics,
     );
+    elements.push(plot_hook(
+        spec.data.len(),
+        PlotArea {
+            left,
+            top,
+            width: plot_width,
+            height: plot_height,
+            vertical_bars: true,
+        },
+        &scale,
+    ));
     add_line_data(
         spec,
         PlotArea {
@@ -147,6 +158,24 @@ fn add_line_data(
         }));
     }
     flush_line_segment(elements, &mut segment);
+}
+
+/// The plot hook of a line chart: category indices along the axis, as [`add_line_data`] places
+/// them, and both ends of the value scale.
+fn plot_hook(count: usize, plot: PlotArea, scale: &NumericScale) -> Element {
+    let last = f64::from(u32::try_from(count.saturating_sub(1)).expect("data count is limited"));
+    let x = if count <= 1 {
+        vec![(0.0, plot.left + plot.width / 2.0)]
+    } else {
+        vec![(0.0, plot.left + 6.0), (last, plot.left + plot.width - 6.0)]
+    };
+    let (min, max) = scale.ends();
+    let y = |value| scale.map(value, plot.top + plot.height, plot.top);
+    Element::Hook(Hook::Plot {
+        pane: 0,
+        x,
+        y: [(min, y(min)), (max, y(max))],
+    })
 }
 
 fn flush_line_segment(elements: &mut Vec<Element>, segment: &mut Vec<(f64, f64)>) {

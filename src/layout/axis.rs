@@ -279,6 +279,11 @@ impl NumericScale {
         output_min + ratio * (output_max - output_min)
     }
 
+    /// The lowest and the highest value of the scale.
+    pub(crate) const fn ends(self) -> (f64, f64) {
+        (self.min, self.max)
+    }
+
     /// Ticks are computed from their index instead of by repeated addition, so rounding errors
     /// do not accumulate along the axis.
     pub(crate) fn ticks(self) -> impl Iterator<Item = f64> {

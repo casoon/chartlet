@@ -15,7 +15,7 @@ use super::{
 use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
-    scene::{Circle, Element, Line, Polyline, Scene, Text, TextAnchor},
+    scene::{Circle, Element, Hook, Line, Polyline, Scene, Text, TextAnchor},
     spec::{ChartSpec, ChartType, Dash, LayerRef, MAX_SERIES, Mark, NumberStyle, Stroke},
     time,
     time::{Precision, TimeZone},
@@ -142,6 +142,7 @@ pub(super) fn layout_time(
     }
 
     for (pane_index, frame) in frames.iter().enumerate() {
+        elements.push(frame.hook(pane_index));
         draw_pane(
             spec,
             pane_index,
@@ -302,6 +303,7 @@ pub(super) fn layout_multiples(
         }));
         push_value_grid(&frame, &mut elements);
         push_time_ticks(&frame, max_ticks, true, width, metrics, &mut elements);
+        elements.push(frame.hook(pane_index));
         draw_pane(
             spec,
             pane_index,
@@ -396,6 +398,28 @@ impl TimeFrame {
     pub(crate) fn y(&self, value: f64) -> f64 {
         self.scale
             .map(value, self.plot.top + self.plot.height, self.plot.top)
+    }
+
+    /// The plot hook of this pane: every slot with collapsed gaps, otherwise both ends of the
+    /// span, and both ends of the value scale.
+    fn hook(&self, pane: usize) -> Element {
+        #[allow(clippy::cast_precision_loss)]
+        let x = match &self.slots {
+            Some(slots) => slots
+                .iter()
+                .map(|slot| (*slot as f64, self.x(*slot)))
+                .collect(),
+            None => vec![
+                (self.span.0 as f64, self.x(self.span.0)),
+                (self.span.1 as f64, self.x(self.span.1)),
+            ],
+        };
+        let (min, max) = self.scale.ends();
+        Element::Hook(Hook::Plot {
+            pane,
+            x,
+            y: [(min, self.y(min)), (max, self.y(max))],
+        })
     }
 }
 
@@ -492,6 +516,7 @@ fn draw_pane(
         .iter()
         .filter(|entry| entry.layer.mark == Mark::Band)
     {
+        elements.push(Element::Hook(Hook::Layer(entry.global)));
         push_zone(
             spec,
             *entry,
@@ -502,21 +527,27 @@ fn draw_pane(
             warnings,
             metrics,
         );
+        elements.push(Element::Hook(Hook::End));
     }
     for entry in entries
         .iter()
         .filter(|entry| entry.layer.mark == Mark::Area)
     {
+        elements.push(Element::Hook(Hook::Layer(entry.global)));
         push_area(spec, *entry, frame, elements);
+        elements.push(Element::Hook(Hook::End));
     }
     for entry in entries
         .iter()
         .filter(|entry| entry.layer.is_data() && entry.layer.has_band())
     {
+        elements.push(Element::Hook(Hook::Layer(entry.global)));
         push_band(spec, *entry, frame, elements);
+        elements.push(Element::Hook(Hook::End));
     }
 
     for entry in entries.iter().filter(|entry| entry.layer.is_rule()) {
+        elements.push(Element::Hook(Hook::Layer(entry.global)));
         push_rule(
             *entry,
             frame,
@@ -526,6 +557,7 @@ fn draw_pane(
             warnings,
             metrics,
         );
+        elements.push(Element::Hook(Hook::End));
     }
 
     // Candles go below the lines, so that a moving average stays readable across them.
@@ -533,13 +565,17 @@ fn draw_pane(
         .iter()
         .filter(|entry| entry.layer.mark == Mark::Ohlc)
     {
+        elements.push(Element::Hook(Hook::Layer(entry.global)));
         crate::ohlc::push_candles(spec, *entry, frame, elements);
+        elements.push(Element::Hook(Hook::End));
     }
     for entry in entries
         .iter()
         .filter(|entry| entry.layer.is_data() && entry.layer.mark != Mark::Ohlc)
     {
+        elements.push(Element::Hook(Hook::Layer(entry.global)));
         push_line(spec, *entry, frame, detail, elements);
+        elements.push(Element::Hook(Hook::End));
     }
 
     let markers: Vec<LayerRef> = entries
@@ -549,7 +585,9 @@ fn draw_pane(
         .collect();
     let radius = if detail == Detail::Full { 6.0 } else { 4.5 };
     for entry in &markers {
+        elements.push(Element::Hook(Hook::Layer(entry.global)));
         push_marker(*entry, frame, radius, elements, &mut space);
+        elements.push(Element::Hook(Hook::End));
     }
     for entry in &markers {
         push_marker_label(
