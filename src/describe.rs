@@ -73,6 +73,20 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
             .count();
         description.push_str(&text::missing_values(locale, missing));
     }
+    if !spec.references.is_empty() {
+        let references = spec
+            .references
+            .iter()
+            .map(|reference| format!("{} {} {}", reference.label, words.at, show(reference.value)))
+            .collect::<Vec<_>>();
+        write!(
+            description,
+            " {}: {}.",
+            words.reference_lines,
+            references.join("; ")
+        )
+        .expect("writing to String cannot fail");
+    }
     description
 }
 

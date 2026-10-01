@@ -39,6 +39,7 @@ is the complete contract and can be used for editor validation.
 | `stripes` | stripes | `{ "firstYear": 1850, "values": [..], "reference": 0, "min": .., "max": .., "yearLabels": true }`; `null` leaves a year empty. |
 | `calendar` | calendar | `{ "year": 2024, "layout": "months" \| "weeks", "days": [{ "date": "2024-03-01", "value": 1 }], "reference", "min", "max" }`. |
 | `ranges` | rangebar | `[{ "label": "…", "low": 0, "high": 1, "mid": 0.5, "modeled": false }]`; `orientation` applies. |
+| `references` | no | `bar` only: up to four reference lines across the bars, `[{ "value": 48, "label": "EU average" }]`. A line widens the value axis to reach its value; the description names it. |
 | `panes[].layers[].color` | no | `#rgb`, `#rrggbb`, `#rrggbbaa`, or `var(--name)` without a fallback. |
 | `description` | no | Replaces the generated description. |
 | `source` | no | Shown below the chart in the HTML output. |

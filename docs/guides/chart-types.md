@@ -8,6 +8,7 @@ order: 1
 | --- | --- | --- |
 | Bar, vertical | `"type": "bar"` with `data` | [Monthly revenue](../../../showcase/monthly-revenue/) |
 | Bar, horizontal, with negative values | `"orientation": "horizontal"` | [Quarterly change](../../../showcase/quarterly-change/) |
+| Bar with a reference line, thousands separated | `references` with `value` and `label`; `valueAxis.thousandsSeparator` | [Open support tickets](../../../showcase/ticket-backlog/) |
 | Grouped bar, up to four series | `categories` and `series` instead of `data` | [Budget vs. actual](../../../showcase/budget-vs-actual/) |
 | Line with gaps for missing values | `"type": "line"`, `null` values | [Monthly trend](../../../showcase/monthly-trend/) |
 | Time series on a calendar axis | `"type": "time"` with `panes` and `layers` | [Daily orders](../../../showcase/daily-orders/) |
@@ -46,6 +47,16 @@ A legend is added automatically, and the data table gets one column per series.
     { "name": "Actual", "values": [130, 145, null] }
   ]
 }
+```
+
+## Reference lines
+
+A bar chart takes up to four reference lines, such as an average or a target. Each runs across
+the plot at its value, behind the bars, with its label on top; the value axis widens to reach it,
+and the description names it.
+
+```json
+"references": [{ "value": 2500, "label": "Target" }]
 ```
 
 ## Missing values

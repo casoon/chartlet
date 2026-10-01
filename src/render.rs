@@ -28,6 +28,9 @@ const LINE_SERIES_STYLE: &str = ".chartlet-legend{font-size:12px;fill:var(--char
 /// Bands, modeled lines, reference lines and further palette markers of time charts and small
 /// multiples. Only included when a chart uses one of them, so that existing charts keep their
 /// bytes.
+/// The reference lines of a bar chart, drawn like the reference lines of a time chart in
+/// [`LAYER_EXTRA_STYLE`].
+const REFERENCE_STYLE: &str = ".chartlet-rule{fill:none;stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-rule-label{font-size:12px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
 const LAYER_EXTRA_STYLE: &str = ".chartlet-band{stroke:none;fill-opacity:.18}.chartlet-band-series-1{fill:var(--chartlet-color-1)}.chartlet-band-series-2{fill:var(--chartlet-color-2)}.chartlet-band-series-3{fill:var(--chartlet-color-3)}.chartlet-band-series-4{fill:var(--chartlet-color-4)}.chartlet-hatch{stroke:none}.chartlet-hatch-line{stroke-width:1.2;opacity:.75}.chartlet-line-modeled{stroke-dasharray:7 5}.chartlet-line-thin{stroke-width:1}.chartlet-point-series-2{fill:var(--chartlet-color-2)}.chartlet-point-series-3{fill:var(--chartlet-color-3)}.chartlet-point-series-4{fill:var(--chartlet-color-4)}.chartlet-rule{fill:none;stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-rule-label{font-size:12px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
 
 /// Areas, line patterns other than the modeled dash, and bold lines. Only included when a chart
@@ -172,7 +175,7 @@ pub(crate) fn svg(
     )
     .expect("writing to String cannot fail");
     let stylesheet = format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -204,6 +207,11 @@ pub(crate) fn svg(
         },
         if is_calendar { CALENDAR_STYLE } else { "" },
         if is_rangebar { RANGEBAR_STYLE } else { "" },
+        if spec.references.is_empty() {
+            ""
+        } else {
+            REFERENCE_STYLE
+        },
         if is_topicmap { TOPICMAP_STYLE } else { "" },
         if is_atlas { ATLAS_STYLE } else { "" },
         if is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc) {

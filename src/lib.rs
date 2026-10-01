@@ -11,6 +11,7 @@ mod noise;
 mod ohlc;
 pub mod qr;
 mod rangebar;
+mod reference;
 mod render;
 mod scene;
 mod sha256;
@@ -26,8 +27,9 @@ pub use sha256::sha256;
 pub use spec::{
     CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec,
     ChartType, Corner, Dash, DataPoint, Gaps, LayerSpec, Mark, MobileSpec, OhlcPoint, Orientation,
-    PaneSpec, RangeSpec, SeriesSpec, Shape, StripesSpec, Stroke, Theme, TimeAxisSpec, TimePoint,
-    TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
+    PaneSpec, RangeSpec, ReferenceSpec, SeriesSpec, Shape, StripesSpec, Stroke, Theme,
+    TimeAxisSpec, TimePoint, TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat,
+    ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1169,6 +1171,30 @@ mod tests {
         assert_eq!(alternative.table.columns[0], "Zeit");
         assert_eq!(alternative.table.rows.len(), 3);
         assert!(alternative.table.rows.iter().all(|row| row.len() == 2));
+    }
+
+    #[test]
+    fn a_reference_line_crosses_the_bars_and_is_described() {
+        let spec = SPEC.replacen(
+            '{',
+            "{\"references\": [{\"value\": 20, \"label\": \"Target\"}],",
+            1,
+        );
+        let output = render_json(&spec, RenderFormat::Svg, &RenderOptions::default()).unwrap();
+        assert!(output.content.contains("class=\"chartlet-rule\""));
+        assert!(output.content.contains(">Target</text>"));
+        assert!(output.content.contains("Reference lines: Target at 20."));
+        let line = SPEC
+            .replace("\"type\": \"bar\"", "\"type\": \"line\"")
+            .replacen(
+                '{',
+                "{\"references\": [{\"value\": 1, \"label\": \"T\"}],",
+                1,
+            );
+        assert_eq!(
+            render_err(&line),
+            ("option_not_supported", "/references".to_owned())
+        );
     }
 
     #[test]

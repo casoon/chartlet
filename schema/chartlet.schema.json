@@ -44,6 +44,20 @@
       "description": "The daily values of a type: \"calendar\" chart.",
       "$ref": "#/$defs/calendar"
     },
+    "references": {
+      "description": "Reference lines across a type: \"bar\" chart, such as an average or a target.",
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["value", "label"],
+        "properties": {
+          "value": { "type": "number" },
+          "label": { "type": "string", "minLength": 1, "maxLength": 60 }
+        }
+      }
+    },
     "ranges": {
       "description": "The spans of a type: \"rangebar\" chart, one per category.",
       "type": "array",

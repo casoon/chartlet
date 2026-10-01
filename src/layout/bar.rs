@@ -12,6 +12,7 @@ use super::{
 use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
+    reference,
     scene::{Element, Rect, Scene, Text, TextAnchor},
     spec::{ChartSpec, Dataset, NumberStyle},
 };
@@ -35,7 +36,7 @@ pub(super) fn layout_vertical(
         62.0
     };
     let plot_height = height - top - bottom;
-    let scale = NumericScale::from_values(dataset.values(), true, spec.value_axis.bounds());
+    let scale = value_scale(spec, dataset);
     let baseline = scale.map(0.0, top + plot_height, top);
     let band = plot_width / count(dataset.categories.len());
     let group = Group::new(band, dataset.series.len());
@@ -48,6 +49,7 @@ pub(super) fn layout_vertical(
     };
     let mut elements = base_elements(spec, &scale, plot, warnings, metrics);
     add_legend(dataset, plot, head, &mut elements, warnings, metrics);
+    let bars = elements.len();
     let bar_and_label = |index: usize, series_index: usize, value: f64| {
         let center = left + band * (count(index) + 0.5);
         let (offset, thickness) = group.slot(series_index);
@@ -107,6 +109,7 @@ pub(super) fn layout_vertical(
         );
     }
     warn_if_labels_omitted(spec.show_values && crowded.contains(&true), warnings);
+    reference::push(spec, scale, plot, bars, &mut elements, warnings, metrics);
 
     add_bottom_category_title(
         spec,
@@ -133,12 +136,7 @@ pub(super) fn layout_horizontal(
 ) -> Scene {
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
-    let measured_label = dataset
-        .categories
-        .iter()
-        .map(|category| metrics.width(category, LABEL_SIZE))
-        .fold(0.0, f64::max);
-    let left = (measured_label + 28.0).clamp(88.0, 210.0);
+    let left = label_gutter(dataset, metrics);
     let right = 68.0;
     let plot_width = width - left - right;
     let title = horizontal_title(spec, (left, plot_width), metrics);
@@ -150,7 +148,7 @@ pub(super) fn layout_horizontal(
         36.0
     };
     let plot_height = height - top - bottom;
-    let scale = NumericScale::from_values(dataset.values(), true, spec.value_axis.bounds());
+    let scale = value_scale(spec, dataset);
     let baseline = scale.map(0.0, left, left + plot_width);
     let band = plot_height / count(dataset.categories.len());
     let group = Group::new(band, dataset.series.len());
@@ -163,6 +161,7 @@ pub(super) fn layout_horizontal(
     };
     let mut elements = base_elements_with_title(spec, &scale, plot, title, warnings, metrics);
     add_legend(dataset, plot, head, &mut elements, warnings, metrics);
+    let bars = elements.len();
     let bar_and_label = |index: usize, series_index: usize, value: f64| {
         let center = top + band * (count(index) + 0.5);
         let (offset, thickness) = group.slot(series_index);
@@ -228,6 +227,7 @@ pub(super) fn layout_horizontal(
         );
     }
     warn_if_labels_omitted(spec.show_values && crowded.contains(&true), warnings);
+    reference::push(spec, scale, plot, bars, &mut elements, warnings, metrics);
 
     Scene {
         width: spec.width,
@@ -391,4 +391,24 @@ fn bar_class(dataset: &Dataset, series_index: usize) -> &'static str {
     } else {
         SERIES_BAR_CLASSES[series_index]
     }
+}
+
+/// The left of the plot of horizontal bars: room for the widest category label.
+fn label_gutter(dataset: &Dataset, metrics: &impl TextMetrics) -> f64 {
+    let measured_label = dataset
+        .categories
+        .iter()
+        .map(|category| metrics.width(category, LABEL_SIZE))
+        .fold(0.0, f64::max);
+    (measured_label + 28.0).clamp(88.0, 210.0)
+}
+
+/// The value scale of a bar chart: it starts at zero and reaches every bar, every reference line
+/// and the declared range of the value axis.
+fn value_scale(spec: &ChartSpec, dataset: &Dataset) -> NumericScale {
+    NumericScale::from_values(
+        dataset.values().chain(reference::values(spec)),
+        true,
+        spec.value_axis.bounds(),
+    )
 }

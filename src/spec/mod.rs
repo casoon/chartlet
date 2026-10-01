@@ -31,6 +31,8 @@ const MAX_DATA_POINTS: usize = 100;
 /// Limited so that every series keeps a color that stays distinguishable for common
 /// color-vision deficiencies.
 pub(crate) const MAX_SERIES: usize = 4;
+/// Reference lines on a bar chart; beyond this the lines crowd the bars they explain.
+pub(crate) const MAX_REFERENCES: usize = 4;
 /// Fixed decimal places; beyond this a value stops being readable as a number.
 pub(crate) const MAX_DECIMALS: u8 = 6;
 
@@ -101,6 +103,9 @@ pub struct ChartSpec {
     /// The spans of a `type: "rangebar"` chart, one per category.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ranges: Vec<RangeSpec>,
+    /// Reference lines across a `type: "bar"` chart, such as an average or a target.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<ReferenceSpec>,
     /// Number of grid columns of a `type: "multiples"` chart; defaults to up to three.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub columns: Option<u32>,
@@ -241,6 +246,14 @@ pub struct ValueAxisSpec {
     /// default, because four digits are often years.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub thousands_separator: bool,
+}
+
+/// A reference line across a bar chart: a value every bar is read against.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ReferenceSpec {
+    pub value: f64,
+    pub label: String,
 }
 
 impl ValueAxisSpec {
@@ -404,6 +417,7 @@ impl ChartSpec {
             ChartType::Bar | ChartType::Line => {}
         }
         let warnings = self.validate_data()?;
+        self.validate_references()?;
         if self.chart_type == ChartType::Line && self.data.iter().all(|point| point.value.is_none())
         {
             return Err(ChartError::new(
@@ -413,6 +427,22 @@ impl ChartSpec {
             ));
         }
         Ok(warnings)
+    }
+
+    /// Every reference line has a usable value and a label; a chart takes at most four.
+    fn validate_references(&self) -> Result<(), ChartError> {
+        if self.references.len() > MAX_REFERENCES {
+            return Err(ChartError::new(
+                "too_many_references",
+                "/references",
+                format!("use at most {MAX_REFERENCES} reference lines"),
+            ));
+        }
+        for (index, reference) in self.references.iter().enumerate() {
+            validate_number(reference.value, &format!("/references/{index}/value"))?;
+            validate_text(&reference.label, &format!("/references/{index}/label"), 60)?;
+        }
+        Ok(())
     }
 
     /// Fixed decimals stay in a readable range; a declared axis range is finite and ordered.
@@ -654,6 +684,7 @@ impl ChartSpec {
             ("/calendar", self.calendar.is_some(), ChartType::Calendar),
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/columns", self.columns.is_some(), ChartType::Multiples),
+            ("/references", !self.references.is_empty(), ChartType::Bar),
         ] {
             if present && own != owner {
                 return Err(ChartError::new(

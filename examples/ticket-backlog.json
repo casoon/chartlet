@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "orientation": "horizontal",
+  "title": "Open support tickets by region",
+  "source": "Sample data",
+  "valueAxis": { "title": "Open tickets", "thousandsSeparator": true },
+  "references": [{ "value": 2500, "label": "Target" }],
+  "data": [
+    { "label": "North America", "value": 4860 },
+    { "label": "Europe", "value": 3125 },
+    { "label": "Latin America", "value": 2210 },
+    { "label": "Asia Pacific", "value": 1875 },
+    { "label": "Middle East & Africa", "value": 1240 }
+  ]
+}

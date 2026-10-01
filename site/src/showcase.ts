@@ -62,6 +62,12 @@ const catalogue = [
     blurb: 'Signup conversion per landing page, sorted from lowest to highest.',
   },
   {
+    slug: 'ticket-backlog',
+    chart: 'Bar (horizontal)',
+    useCase: 'Compare against a target',
+    blurb: 'Open tickets per region against a target line, with thousands separated.',
+  },
+  {
     slug: 'budget-vs-actual',
     chart: 'Grouped bar',
     useCase: 'Plan versus actual',
