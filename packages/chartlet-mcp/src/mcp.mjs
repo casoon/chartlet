@@ -172,9 +172,9 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
           .default("html")
           .describe("html: figure with caption, source and data table (default); svg: the graphic alone."),
         variant: z
-          .enum(["desktop", "mobile", "print"])
+          .enum(["desktop", "mobile", "print", "social"])
           .optional()
-          .describe("SVG only: mobile renders the spec's mobile layout; needs a mobile field in the spec. print renders the chart with literal colors for PDF and print renderers (resvg, Typst, librsvg)."),
+          .describe("SVG only: mobile renders the spec's mobile layout; needs a mobile field in the spec. print renders the chart with literal colors for PDF and print renderers (resvg, Typst, librsvg). social renders a 1200×630 image for Open Graph previews, with literal colors."),
         idPrefix: z
           .string()
           .optional()

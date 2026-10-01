@@ -31,10 +31,7 @@ pub(crate) fn rasterize(svg: &str, scale: f32) -> Result<Vec<u8>, ChartError> {
         fontdb: Arc::new(fonts),
         ..usvg::Options::default()
     };
-    // resvg reads only the hundreds as font weights and would draw 650 regular; the bundled
-    // faces have 600 as their heaviest weight anyway.
-    let svg = svg.replace("font-weight:650", "font-weight:600");
-    let tree = usvg::Tree::from_str(&svg, &options).map_err(|error| {
+    let tree = usvg::Tree::from_str(svg, &options).map_err(|error| {
         ChartError::new(
             "png_failed",
             "/render/format",

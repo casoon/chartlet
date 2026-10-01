@@ -30,7 +30,7 @@ export function validateSpec(spec) {
  * @typedef {{
  *   spec: SpecInput,
  *   format?: "svg" | "html",
- *   variant?: "desktop" | "mobile" | "print",
+ *   variant?: "desktop" | "mobile" | "print" | "social",
  *   idPrefix?: string,
  *   table?: "details" | "visible",
  *   outputPath?: string,

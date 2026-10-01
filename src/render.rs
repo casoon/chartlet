@@ -378,7 +378,11 @@ fn print_stylesheet(stylesheet: &str, is_dark: bool) -> String {
         .map(|class| format!(".{class}"))
         .collect::<Vec<_>>()
         .join(",");
-    let stylesheet = &stylesheet.replace("[class^='chartlet-atlas-realm-']", &realms);
+    // Renderers outside the browser read font weights in hundreds only and would draw 650 as
+    // regular.
+    let stylesheet = &stylesheet
+        .replace("[class^='chartlet-atlas-realm-']", &realms)
+        .replace("font-weight:650", "font-weight:600");
     let mut properties: Vec<(&str, &str)> = Vec::new();
     for rule in stylesheet.split_inclusive('}') {
         let Some((selector, body)) = rule.split_once('{') else {
