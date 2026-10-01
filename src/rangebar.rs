@@ -6,7 +6,7 @@ use crate::{
     error::ChartWarning,
     layout::{
         LABEL_SIZE, NumericScale, PlotArea, add_bottom_category_title, base_elements, count,
-        fit_text, format_value, warn_if_labels_omitted,
+        format_value, push_category_label, push_side_label, title_extra, warn_if_labels_omitted,
     },
     metrics::TextMetrics,
     scene::{Element, Line, Rect, Scene, Text, TextAnchor},
@@ -56,15 +56,10 @@ pub(crate) fn layout(
         .flat_map(|range| [Some(range.low), Some(range.high), range.mid])
         .flatten();
     let scale = NumericScale::from_values(values, false);
-    let legend = spec.ranges.iter().any(|range| range.modeled);
-    let top = 78.0 + if legend { LEGEND_HEIGHT } else { 0.0 };
-    let mut elements = match spec.orientation {
-        Orientation::Horizontal => layout_horizontal(spec, &scale, top, warnings, metrics),
-        Orientation::Vertical => layout_vertical(spec, &scale, top, warnings, metrics),
+    let elements = match spec.orientation {
+        Orientation::Horizontal => layout_horizontal(spec, &scale, warnings, metrics),
+        Orientation::Vertical => layout_vertical(spec, &scale, warnings, metrics),
     };
-    if legend {
-        push_legend(&mut elements, spec.orientation, spec, metrics);
-    }
     Scene {
         width: spec.width,
         height: spec.height,
@@ -72,21 +67,33 @@ pub(crate) fn layout(
     }
 }
 
-/// One entry that says what the hatching means.
+/// The top of the plot: below the title, which may take two lines, and below the legend that
+/// explains the hatching if any span is modeled.
+fn plot_top(spec: &ChartSpec, plot_width: f64, metrics: &impl TextMetrics) -> f64 {
+    let legend = if spec.ranges.iter().any(|range| range.modeled) {
+        LEGEND_HEIGHT
+    } else {
+        0.0
+    };
+    78.0 + title_extra(&spec.title, plot_width, metrics) + legend
+}
+
+/// One entry that says what the hatching means, if any span is modeled; `x` is the left of the
+/// plot.
 fn push_legend(
     elements: &mut Vec<Element>,
-    orientation: Orientation,
     spec: &ChartSpec,
+    (x, plot_width): (f64, f64),
     metrics: &impl TextMetrics,
 ) {
-    let x = match orientation {
-        Orientation::Vertical => f64::from(crate::layout::AXIS_GUTTER),
-        Orientation::Horizontal => horizontal_gutter(spec, metrics),
-    };
+    if !spec.ranges.iter().any(|range| range.modeled) {
+        return;
+    }
+    let y = 46.0 + title_extra(&spec.title, plot_width, metrics);
     for class in ["chartlet-range", "chartlet-range-hatch"] {
         elements.push(Element::Rect(Rect {
             x,
-            y: 46.0,
+            y,
             width: 10.0,
             height: 10.0,
             class,
@@ -97,7 +104,7 @@ fn push_legend(
     }
     elements.push(Element::Text(Text {
         x: x + 16.0,
-        y: 55.0,
+        y: y + 9.0,
         class: "chartlet-legend",
         anchor: TextAnchor::Start,
         content: spec.locale.words().hatched_modeled.to_owned(),
@@ -171,7 +178,6 @@ fn horizontal_gutter(spec: &ChartSpec, metrics: &impl TextMetrics) -> f64 {
 fn layout_horizontal(
     spec: &ChartSpec,
     scale: &NumericScale,
-    top: f64,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Vec<Element> {
@@ -193,6 +199,7 @@ fn layout_horizontal(
     } else {
         36.0
     };
+    let top = plot_top(spec, width - left - right, metrics);
     let plot = PlotArea {
         left,
         top,
@@ -224,28 +231,23 @@ fn layout_horizontal(
                 content: span_label(spec, range),
             }));
         }
-        elements.push(Element::Text(Text {
-            x: plot.left - 12.0,
-            y: center + 4.0,
-            class: "chartlet-label",
-            anchor: TextAnchor::End,
-            content: fit_text(
-                &range.label,
-                plot.left - 28.0,
-                LABEL_SIZE,
-                metrics,
-                warnings,
-                &format!("/ranges/{index}/label"),
-            ),
-        }));
+        push_side_label(
+            &mut elements,
+            &range.label,
+            (plot.left - 12.0, center),
+            (plot.left - 28.0, band),
+            metrics,
+            warnings,
+            &format!("/ranges/{index}/label"),
+        );
     }
+    push_legend(&mut elements, spec, (plot.left, plot.width), metrics);
     elements
 }
 
 fn layout_vertical(
     spec: &ChartSpec,
     scale: &NumericScale,
-    top: f64,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Vec<Element> {
@@ -258,6 +260,7 @@ fn layout_vertical(
     } else {
         62.0
     };
+    let top = plot_top(spec, width - left - right, metrics);
     let plot = PlotArea {
         left,
         top,
@@ -295,20 +298,15 @@ fn layout_vertical(
                 omitted = true;
             }
         }
-        elements.push(Element::Text(Text {
-            x: center,
-            y: plot.top + plot.height + 24.0,
-            class: "chartlet-label",
-            anchor: TextAnchor::Middle,
-            content: fit_text(
-                &range.label,
-                (band - 8.0).max(20.0),
-                LABEL_SIZE,
-                metrics,
-                warnings,
-                &format!("/ranges/{index}/label"),
-            ),
-        }));
+        push_category_label(
+            &mut elements,
+            &range.label,
+            (center, plot.top + plot.height + 24.0),
+            (band - 8.0).max(20.0),
+            metrics,
+            warnings,
+            &format!("/ranges/{index}/label"),
+        );
     }
     warn_if_labels_omitted(omitted, warnings);
     add_bottom_category_title(
@@ -320,6 +318,7 @@ fn layout_vertical(
         warnings,
         metrics,
     );
+    push_legend(&mut elements, spec, (plot.left, plot.width), metrics);
     elements
 }
 

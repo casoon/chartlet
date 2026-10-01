@@ -77,6 +77,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut strict = false;
     let mut table_mode = TableMode::Details;
     let mut variant = Variant::Desktop;
+    let mut manifest = None;
 
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
@@ -87,13 +88,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                     _ => return Err("--format must be svg or html".to_owned().into()),
                 };
             }
-            "-o" | "--output" => {
-                output = Some(PathBuf::from(
-                    arguments
-                        .next()
-                        .ok_or_else(|| "--output requires a path".to_owned())?,
-                ));
-            }
+            "-o" | "--output" => output = Some(path_after(&mut arguments, "--output")?),
             "--id-prefix" => {
                 id_prefix = Some(
                     arguments
@@ -110,6 +105,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                 };
             }
             "--variant" => variant = parse_variant(arguments.next().as_deref())?,
+            "--manifest" => manifest = Some(path_after(&mut arguments, "--manifest")?),
             "--diagnostics" => match arguments.next().as_deref() {
                 Some("json" | "text") => {}
                 _ => return Err("--diagnostics must be text or json".to_owned().into()),
@@ -128,6 +124,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             id_prefix,
             table_mode,
             variant,
+            manifest: manifest.is_some(),
         },
     )
     .map_err(|error| Failure {
@@ -160,7 +157,22 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     } else {
         write_stdout(&rendered.content)?;
     }
+    if let (Some(path), Some(manifest)) = (manifest, rendered.manifest) {
+        fs::write(&path, manifest.to_json() + "\n")
+            .map_err(|error| format!("could not write {}: {error}", path.display()))?;
+    }
     Ok(())
+}
+
+/// The path that follows `option` on the command line.
+fn path_after(
+    arguments: &mut impl Iterator<Item = String>,
+    option: &str,
+) -> Result<PathBuf, String> {
+    arguments
+        .next()
+        .map(PathBuf::from)
+        .ok_or_else(|| format!("{option} requires a path"))
 }
 
 fn parse_variant(value: Option<&str>) -> Result<Variant, String> {
@@ -172,7 +184,7 @@ fn parse_variant(value: Option<&str>) -> Result<Variant, String> {
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile] [--strict] [--diagnostics text|json]".to_owned()
+    "usage: chartlet render <spec.json|-> [--format svg|html] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile] [--manifest <path>] [--strict] [--diagnostics text|json]".to_owned()
 }
 
 /// Writes to stdout. A reader that stops early, such as `chartlet render … | head`, closes the

@@ -78,6 +78,35 @@ between two gaps keeps its marker but has no line to draw. The data table shows 
 “Missing”, and the description counts the missing values. A point without a value carries no
 `lower` or `upper` (`invalid_band`).
 
+## Gaps in time
+
+By default the time axis keeps the distances in time: a weekend between two trading days takes
+two days of room, with nothing drawn in it. `"timeAxis": { "gaps": "collapse" }` closes those gaps.
+Every distinct timestamp that an observation uses — in any layer of any pane, a missing value and a
+candle included — becomes one slot, and the slots sit at equal distances, so Friday and Monday are
+neighbours and a holiday takes no space.
+
+```json
+"timeAxis": { "title": "Trading day", "gaps": "collapse" }
+```
+
+The ticks still mark calendar boundaries, chosen as on any time axis: each sits on the first
+observation on or after its boundary and is labelled with that observation's date — a weekly tick
+after a holiday Monday reads Tuesday. Boundaries that fall into one gap give a single tick.
+
+Reference lines, point markers and zones are not observations, so they take the slot of one: a
+reference line or a point marker the first observation at or after its `time`, a zone the
+observations from the first at or after `from` to the last at or before `to`. A reference line or
+marker before the first or after the last observation, and a zone that encloses no observation,
+have no slot and are refused with `time_out_of_range` at their path; a zone that reaches beyond the
+observations is cut at the first and the last of them. Zoom windows work the same way and close the
+gaps of the observations inside them; an annotation that has no observation to stand on in a
+window is left out of it.
+
+Tooltips, data table and description keep the real timestamps; the description adds “Gaps in time
+are closed up.” Small multiples share one set of slots across their panels. The density limits
+below still count observations per layer.
+
 ## Areas
 
 `"mark": "area"` is a line whose region down to zero is filled in the line's color at low

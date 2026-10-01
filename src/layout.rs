@@ -15,6 +15,12 @@ use crate::{
 };
 
 pub(crate) const LABEL_SIZE: f64 = 12.0;
+/// Distance between the baselines of a category label wrapped onto two lines.
+const LABEL_LINE: f64 = 14.0;
+const TITLE_SIZE: f64 = 22.0;
+/// Distance between the baselines of a title wrapped onto two lines; what a wrapped title adds to
+/// the height above the plot.
+const TITLE_LINE: f64 = 28.0;
 /// Extra top margin that makes room for the legend of a multi-series chart.
 const LEGEND_HEIGHT: f64 = 24.0;
 /// Top of the legend row below a drawn title.
@@ -23,6 +29,8 @@ const LEGEND_ROW: f64 = 46.0;
 const TITLE_BLOCK: f64 = 44.0;
 /// Length of the line sample in a time chart's legend.
 const LEGEND_LINE: f64 = 24.0;
+/// Width of a bar chart's legend swatch with the space before its name.
+const LEGEND_SWATCH: f64 = 16.0;
 /// Gutter left of the plot for the value-axis ticks, and the margin right of it.
 pub(crate) const AXIS_GUTTER: u32 = 72;
 pub(crate) const PLOT_MARGIN: u32 = 24;
@@ -139,32 +147,28 @@ fn layout_vertical(
     let height = f64::from(spec.height);
     let left = f64::from(AXIS_GUTTER);
     let right = f64::from(PLOT_MARGIN);
-    let top = 78.0 + legend_space(dataset);
+    let plot_width = width - left - right;
+    let head = title_extra(&spec.title, plot_width, metrics);
+    let top = 78.0 + head + legend_space(dataset, plot_width, metrics);
     let bottom = if spec.category_axis.title.is_some() {
         82.0
     } else {
         62.0
     };
-    let plot_width = width - left - right;
     let plot_height = height - top - bottom;
     let scale = NumericScale::from_values(dataset.values(), true);
     let baseline = scale.map(0.0, top + plot_height, top);
     let band = plot_width / count(dataset.categories.len());
     let group = Group::new(band, dataset.series.len());
-    let mut elements = base_elements(
-        spec,
-        &scale,
-        PlotArea {
-            left,
-            top,
-            width: plot_width,
-            height: plot_height,
-            vertical_bars: true,
-        },
-        warnings,
-        metrics,
-    );
-    add_legend(dataset, left, plot_width, &mut elements, warnings, metrics);
+    let plot = PlotArea {
+        left,
+        top,
+        width: plot_width,
+        height: plot_height,
+        vertical_bars: true,
+    };
+    let mut elements = base_elements(spec, &scale, plot, warnings, metrics);
+    add_legend(dataset, plot, head, &mut elements, warnings, metrics);
     let mut labels_omitted = false;
 
     for (index, category) in dataset.categories.iter().enumerate() {
@@ -205,22 +209,15 @@ fn layout_vertical(
             }
         }
 
-        let max_label_width = (band - 8.0).max(20.0);
-        let label = fit_text(
+        push_category_label(
+            &mut elements,
             category,
-            max_label_width,
-            LABEL_SIZE,
+            (center, top + plot_height + 24.0),
+            (band - 8.0).max(20.0),
             metrics,
             warnings,
             &dataset.category_path(index),
         );
-        elements.push(Element::Text(Text {
-            x: center,
-            y: top + plot_height + 24.0,
-            class: "chartlet-label",
-            anchor: TextAnchor::Middle,
-            content: label,
-        }));
     }
     warn_if_labels_omitted(labels_omitted, warnings);
 
@@ -256,32 +253,28 @@ fn layout_horizontal(
         .fold(0.0, f64::max);
     let left = (measured_label + 28.0).clamp(88.0, 210.0);
     let right = 68.0;
-    let top = 78.0 + legend_space(dataset);
+    let plot_width = width - left - right;
+    let head = title_extra(&spec.title, plot_width, metrics);
+    let top = 78.0 + head + legend_space(dataset, plot_width, metrics);
     let bottom = if spec.value_axis.title.is_some() {
         56.0
     } else {
         36.0
     };
-    let plot_width = width - left - right;
     let plot_height = height - top - bottom;
     let scale = NumericScale::from_values(dataset.values(), true);
     let baseline = scale.map(0.0, left, left + plot_width);
     let band = plot_height / count(dataset.categories.len());
     let group = Group::new(band, dataset.series.len());
-    let mut elements = base_elements(
-        spec,
-        &scale,
-        PlotArea {
-            left,
-            top,
-            width: plot_width,
-            height: plot_height,
-            vertical_bars: false,
-        },
-        warnings,
-        metrics,
-    );
-    add_legend(dataset, left, plot_width, &mut elements, warnings, metrics);
+    let plot = PlotArea {
+        left,
+        top,
+        width: plot_width,
+        height: plot_height,
+        vertical_bars: false,
+    };
+    let mut elements = base_elements(spec, &scale, plot, warnings, metrics);
+    add_legend(dataset, plot, head, &mut elements, warnings, metrics);
     let mut labels_omitted = false;
 
     for (index, category) in dataset.categories.iter().enumerate() {
@@ -328,21 +321,15 @@ fn layout_horizontal(
             }
         }
 
-        let label = fit_text(
+        push_side_label(
+            &mut elements,
             category,
-            left - 28.0,
-            LABEL_SIZE,
+            (left - 12.0, center),
+            (left - 28.0, band),
             metrics,
             warnings,
             &dataset.category_path(index),
         );
-        elements.push(Element::Text(Text {
-            x: left - 12.0,
-            y: center + 4.0,
-            class: "chartlet-label",
-            anchor: TextAnchor::End,
-            content: label,
-        }));
     }
     warn_if_labels_omitted(labels_omitted, warnings);
 
@@ -362,13 +349,13 @@ fn layout_line(
     let height = f64::from(spec.height);
     let left = f64::from(AXIS_GUTTER);
     let right = f64::from(PLOT_MARGIN);
-    let top = 78.0;
+    let plot_width = width - left - right;
+    let top = 78.0 + title_extra(&spec.title, plot_width, metrics);
     let bottom = if spec.category_axis.title.is_some() {
         82.0
     } else {
         62.0
     };
-    let plot_width = width - left - right;
     let plot_height = height - top - bottom;
     let scale = NumericScale::from_values(spec.data.iter().filter_map(|point| point.value), false);
     let mut elements = base_elements(
@@ -431,8 +418,13 @@ fn layout_time(
     // Candles always take a legend entry: it says which body is rising and which is falling.
     let layered =
         spec.series_names().len() > 1 || spec.layers().any(|layer| layer.mark == Mark::Ohlc);
-    // Without a drawn title the legend and the plot move up into its place.
-    let head = if spec.show_title { 0.0 } else { TITLE_BLOCK };
+    // Without a drawn title the legend and the plot move up into its place; a title on two lines
+    // pushes them down.
+    let head = if spec.show_title {
+        -title_extra(&spec.title, width - left - right, metrics)
+    } else {
+        TITLE_BLOCK
+    };
     let legend = if layered {
         count(legend_rows(spec, width - left - right, metrics)) * LEGEND_HEIGHT
     } else {
@@ -455,14 +447,14 @@ fn layout_time(
     let frames = pane_frames(spec, zone, plot, warnings);
     let mut elements = Vec::new();
     if spec.show_title {
-        let title = fit_text(&spec.title, plot.width, 22.0, metrics, warnings, "/title");
-        elements.push(Element::Text(Text {
-            x: plot.left,
-            y: 30.0,
-            class: "chartlet-title",
-            anchor: TextAnchor::Start,
-            content: title,
-        }));
+        push_title(
+            &mut elements,
+            &spec.title,
+            plot.left,
+            plot.width,
+            metrics,
+            warnings,
+        );
     }
     for (pane_index, frame) in frames.iter().enumerate() {
         let bottom_pane = pane_index + 1 == frames.len();
@@ -534,27 +526,21 @@ fn multiples_header(
     metrics: &impl TextMetrics,
 ) -> f64 {
     let width = f64::from(spec.width);
-    let title = fit_text(
+    push_title(
+        elements,
         &spec.title,
+        MULTIPLES_MARGIN,
         width - 2.0 * MULTIPLES_MARGIN,
-        22.0,
         metrics,
         warnings,
-        "/title",
     );
-    elements.push(Element::Text(Text {
-        x: MULTIPLES_MARGIN,
-        y: 30.0,
-        class: "chartlet-title",
-        anchor: TextAnchor::Start,
-        content: title,
-    }));
 
-    let mut cursor = 46.0;
+    let head = title_extra(&spec.title, width - 2.0 * MULTIPLES_MARGIN, metrics);
+    let mut cursor = LEGEND_ROW + head;
     if spec.series_names().len() > 1 {
         add_layer_legend(
             spec,
-            LEGEND_ROW,
+            LEGEND_ROW + head,
             MULTIPLES_MARGIN,
             width - 2.0 * MULTIPLES_MARGIN,
             elements,
@@ -608,7 +594,7 @@ fn layout_multiples(
     let cell_width = (width - 2.0 * MULTIPLES_MARGIN) / f64::from(columns);
     let cell_height = (grid_bottom - grid_top) / count(rows);
 
-    let span = time_span(spec, zone);
+    let (span, slots) = time_axis(spec, zone);
     let precision = spec.time_precision(zone);
     let scale = time_scale(spec, zone, None);
     let max_ticks = usize::try_from(
@@ -631,6 +617,7 @@ fn layout_multiples(
         let frame = TimeFrame {
             plot,
             span,
+            slots: slots.clone(),
             zone,
             precision,
             scale,
@@ -1846,8 +1833,13 @@ fn push_names(
             "places_did_not_fit",
             "/atlas/realms",
             format!(
-                "{} of {declared} places were drawn; a region has more places than it has ground",
-                landscape.spots.len()
+                "{} of {declared} places {} drawn; a region has more places than it has ground",
+                landscape.spots.len(),
+                if landscape.spots.len() == 1 {
+                    "was"
+                } else {
+                    "were"
+                }
             ),
         ));
     }
@@ -1968,8 +1960,8 @@ fn layout_topicmap(
         .as_ref()
         .expect("validated topicmap charts carry a topicmap block");
     let margin = f64::from(PLOT_MARGIN);
-    let top = 78.0;
     let plot_width = f64::from(spec.width) - margin * 2.0;
+    let top = 78.0 + title_extra(&spec.title, plot_width, metrics);
     let plot_height = f64::from(spec.height) - top - margin;
 
     let mut ordered: Vec<(usize, &TopicSpec)> = topicmap.topics.iter().enumerate().collect();
@@ -2007,13 +1999,15 @@ fn layout_topicmap(
     }
     let outside = settle_outside_labels(outside, plot, warnings);
 
-    let mut elements = vec![Element::Text(Text {
-        x: margin,
-        y: 30.0,
-        class: "chartlet-title",
-        anchor: TextAnchor::Start,
-        content: fit_text(&spec.title, plot_width, 22.0, metrics, warnings, "/title"),
-    })];
+    let mut elements = Vec::new();
+    push_title(
+        &mut elements,
+        &spec.title,
+        margin,
+        plot_width,
+        metrics,
+        warnings,
+    );
     push_sea(&mut elements, plot, topicmap.graticule);
     for area in &areas {
         push_depth_lines(&mut elements, area, topicmap.depth_bands);
@@ -2087,14 +2081,17 @@ fn push_coast(elements: &mut Vec<Element>, area: &Area) {
         style_index: None,
         tooltip: None,
     }));
-    elements.push(Element::Polyline(Polyline {
-        points,
-        class: "chartlet-topic-area",
-        topic: area.index,
-        series_index: None,
-        style_index: None,
-        tooltip: Some(area.tooltip()),
-    }));
+    elements.push(Element::TopicArea(
+        Polyline {
+            points,
+            class: "chartlet-topic-area",
+            topic: area.index,
+            series_index: None,
+            style_index: None,
+            tooltip: Some(area.tooltip()),
+        },
+        area.center(),
+    ));
 }
 
 /// One point per path through the topic, spread over the inner disc by the same golden angle the
@@ -2395,6 +2392,9 @@ fn push_outside_labels(elements: &mut Vec<Element>, labels: &[OutsideLabel]) {
 pub(crate) struct TimeFrame {
     plot: PlotArea,
     span: (i64, i64),
+    /// With gaps collapsed, the observed timestamps in order, each placed at the same distance
+    /// from the next; `None` while the axis keeps the distances in time.
+    slots: Option<Vec<i64>>,
     pub(crate) zone: TimeZone,
     pub(crate) precision: Precision,
     scale: NumericScale,
@@ -2404,8 +2404,33 @@ pub(crate) struct TimeFrame {
 }
 
 impl TimeFrame {
+    /// The position of a timestamp. With gaps collapsed, a time between two observations takes
+    /// the slot of the next one.
     pub(crate) fn x(&self, epoch: i64) -> f64 {
-        time_x(epoch, self.span, self.plot)
+        match &self.slots {
+            Some(slots) => slot_x(
+                slots.partition_point(|slot| *slot < epoch),
+                slots.len(),
+                self.plot,
+            ),
+            None => time_x(epoch, self.span, self.plot),
+        }
+    }
+
+    /// The position of the end of a span of time. With gaps collapsed, a time between two
+    /// observations takes the slot of the previous one, so a zone covers only the observations
+    /// between its edges.
+    fn x_until(&self, epoch: i64) -> f64 {
+        match &self.slots {
+            Some(slots) => slot_x(
+                slots
+                    .partition_point(|slot| *slot <= epoch)
+                    .saturating_sub(1),
+                slots.len(),
+                self.plot,
+            ),
+            None => time_x(epoch, self.span, self.plot),
+        }
     }
 
     pub(crate) fn y(&self, value: f64) -> f64 {
@@ -2828,7 +2853,7 @@ fn push_zone(
         time.as_ref().and_then(|time| time.resolve(frame.zone).ok())
     };
     let left = resolve(&layer.from).map_or(plot.left, |epoch| frame.x(epoch));
-    let right = resolve(&layer.to).map_or(plot.left + plot.width, |epoch| frame.x(epoch));
+    let right = resolve(&layer.to).map_or(plot.left + plot.width, |epoch| frame.x_until(epoch));
     let top = layer.top.map_or(plot.top, |value| frame.y(value));
     let bottom = layer
         .bottom
@@ -3376,13 +3401,12 @@ fn push_time_ticks(
     elements: &mut Vec<Element>,
 ) {
     let plot = frame.plot;
-    for tick in time::ticks(
-        frame.span.0,
-        frame.span.1,
-        frame.zone,
-        max_ticks,
-        frame.precision == Precision::Minute,
-    ) {
+    let sub_day = frame.precision == Precision::Minute;
+    let ticks = match &frame.slots {
+        Some(slots) => time::collapsed_ticks(slots, frame.zone, max_ticks, sub_day),
+        None => time::ticks(frame.span.0, frame.span.1, frame.zone, max_ticks, sub_day),
+    };
+    for tick in ticks {
         let x = frame.x(tick.epoch);
         elements.push(Element::Line(Line {
             x1: x,
@@ -3419,7 +3443,7 @@ fn pane_frames(
     plot: PlotArea,
     warnings: &mut Vec<ChartWarning>,
 ) -> Vec<TimeFrame> {
-    let span = time_span(spec, zone);
+    let (span, slots) = time_axis(spec, zone);
     let precision = spec.time_precision(zone);
     let panes = spec.panes.len();
     let ratios: u32 = spec.panes.iter().map(|pane| pane.height_ratio).sum();
@@ -3446,6 +3470,7 @@ fn pane_frames(
                 ..plot
             },
             span,
+            slots: slots.clone(),
             zone,
             precision,
             scale: time_scale(spec, zone, Some(pane_index)),
@@ -3652,6 +3677,24 @@ fn time_span(spec: &ChartSpec, zone: TimeZone) -> (i64, i64) {
     (min, max)
 }
 
+/// The span of the time axis and, with gaps collapsed, its slots. A collapsed axis runs from the
+/// first observation to the last, since nothing else has a place on it.
+fn time_axis(spec: &ChartSpec, zone: TimeZone) -> ((i64, i64), Option<Vec<i64>>) {
+    let slots = spec.time_slots(zone);
+    let span = match slots.as_deref() {
+        Some([first, .., last]) => (*first, *last),
+        _ => time_span(spec, zone),
+    };
+    (span, slots)
+}
+
+/// Maps the slot at `index` of `total` evenly spaced slots onto the time axis.
+fn slot_x(index: usize, total: usize, plot: PlotArea) -> f64 {
+    let last = total.saturating_sub(1);
+    let ratio = count(index.min(last)) / count(last.max(1));
+    plot.left + TIME_INSET + ratio * (plot.width - 2.0 * TIME_INSET)
+}
+
 /// Maps a timestamp onto the time axis.
 fn time_x(epoch: i64, span: (i64, i64), plot: PlotArea) -> f64 {
     // The specification allows 1700 to 2200, so a span stays below 2^53 seconds and the ratio
@@ -3755,14 +3798,15 @@ pub(crate) fn base_elements(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Vec<Element> {
-    let title = fit_text(&spec.title, plot.width, 22.0, metrics, warnings, "/title");
-    let mut elements = vec![Element::Text(Text {
-        x: plot.left,
-        y: 30.0,
-        class: "chartlet-title",
-        anchor: TextAnchor::Start,
-        content: title,
-    })];
+    let mut elements = Vec::new();
+    push_title(
+        &mut elements,
+        &spec.title,
+        plot.left,
+        plot.width,
+        metrics,
+        warnings,
+    );
 
     for value in scale.ticks() {
         if plot.vertical_bars {
@@ -3985,35 +4029,65 @@ impl Group {
     }
 }
 
-fn legend_space(dataset: &Dataset) -> f64 {
-    if dataset.series.len() > 1 {
-        LEGEND_HEIGHT
-    } else {
-        0.0
-    }
-}
-
-fn add_legend(
+/// Where each series' entry of a bar chart's legend goes, as its offset from the left of the
+/// legend and its row: an entry that would reach past `available_width` starts a new row, as in
+/// [`legend_entries`]. Empty for a single series, which has no legend.
+fn bar_legend_entries(
     dataset: &Dataset,
-    left: f64,
     available_width: f64,
-    elements: &mut Vec<Element>,
-    warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
-) {
+) -> Vec<(f64, usize)> {
     if dataset.series.len() < 2 {
-        return;
+        return Vec::new();
     }
-    let entry_width = available_width / count(dataset.series.len());
-    let mut x = left;
-    for (index, series) in dataset.series.iter().enumerate() {
+    let (mut x, mut row) = (0.0, 0);
+    let mut entries = Vec::new();
+    for series in &dataset.series {
         let name = series
             .name
             .as_deref()
             .expect("multi-series charts name every series");
+        let width = metrics
+            .width(name, LABEL_SIZE)
+            .min(available_width - LEGEND_SWATCH);
+        if x > 0.0 && x + LEGEND_SWATCH + width > available_width {
+            x = 0.0;
+            row += 1;
+        }
+        entries.push((x, row));
+        x += LEGEND_SWATCH + width + 20.0;
+    }
+    entries
+}
+
+/// The height the legend of a multi-series bar chart takes above the plot.
+fn legend_space(dataset: &Dataset, available_width: f64, metrics: &impl TextMetrics) -> f64 {
+    bar_legend_entries(dataset, available_width, metrics)
+        .last()
+        .map_or(0.0, |(_, row)| count(row + 1) * LEGEND_HEIGHT)
+}
+
+/// Draws the legend of a multi-series bar chart above `plot`, below a title that takes `head`
+/// more than one line.
+fn add_legend(
+    dataset: &Dataset,
+    plot: PlotArea,
+    head: f64,
+    elements: &mut Vec<Element>,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
+    let (left, top, available_width) = (plot.left, LEGEND_ROW + head, plot.width);
+    let entries = bar_legend_entries(dataset, available_width, metrics);
+    for (index, (series, (offset, row))) in dataset.series.iter().zip(entries).enumerate() {
+        let name = series
+            .name
+            .as_deref()
+            .expect("multi-series charts name every series");
+        let (x, y) = (left + offset, top + count(row) * LEGEND_HEIGHT);
         elements.push(Element::Rect(Rect {
             x,
-            y: 46.0,
+            y,
             width: 10.0,
             height: 10.0,
             class: SERIES_BAR_CLASSES[index],
@@ -4023,21 +4097,19 @@ fn add_legend(
         }));
         let label = fit_text(
             name,
-            entry_width - 36.0,
+            available_width - LEGEND_SWATCH,
             LABEL_SIZE,
             metrics,
             warnings,
             &format!("/series/{index}/name"),
         );
-        let label_width = metrics.width(&label, LABEL_SIZE);
         elements.push(Element::Text(Text {
-            x: x + 16.0,
-            y: 55.0,
+            x: x + LEGEND_SWATCH,
+            y: y + 9.0,
             class: "chartlet-legend",
             anchor: TextAnchor::Start,
             content: label,
         }));
-        x += 16.0 + label_width + 20.0;
     }
 }
 
@@ -4119,6 +4191,139 @@ pub(crate) fn fit_text(
         ));
     }
     output
+}
+
+/// Breaks `text` that is wider than `max_width` into two lines at a space: the longest run of
+/// whole words that fits, and the rest, which may still be too wide. `None` when the text fits as
+/// it is, or when not even its first word fits; such a text stays on one line.
+fn two_lines<'a>(
+    text: &'a str,
+    max_width: f64,
+    font_size: f64,
+    metrics: &impl TextMetrics,
+) -> Option<(&'a str, &'a str)> {
+    if metrics.width(text, font_size) <= max_width {
+        return None;
+    }
+    text.match_indices(' ')
+        .map(|(index, _)| (text[..index].trim_end(), text[index + 1..].trim_start()))
+        .filter(|(first, rest)| !first.is_empty() && !rest.is_empty())
+        .take_while(|(first, _)| metrics.width(first, font_size) <= max_width)
+        .last()
+}
+
+/// The height a title gains when it wraps onto a second line, see [`push_title`].
+pub(crate) fn title_extra(title: &str, max_width: f64, metrics: &impl TextMetrics) -> f64 {
+    if two_lines(title, max_width, TITLE_SIZE, metrics).is_some() {
+        TITLE_LINE
+    } else {
+        0.0
+    }
+}
+
+/// Draws the chart title at `x`: on one line if it fits `max_width`, otherwise on two, broken at
+/// a space. Only a second line that is still too wide, or a first word wider than the chart, is
+/// shortened. Whatever sits below the title moves down by [`title_extra`].
+pub(crate) fn push_title(
+    elements: &mut Vec<Element>,
+    title: &str,
+    x: f64,
+    max_width: f64,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) {
+    let lines = match two_lines(title, max_width, TITLE_SIZE, metrics) {
+        Some((first, rest)) => vec![
+            first.to_owned(),
+            fit_text(rest, max_width, TITLE_SIZE, metrics, warnings, "/title"),
+        ],
+        None => vec![fit_text(
+            title, max_width, TITLE_SIZE, metrics, warnings, "/title",
+        )],
+    };
+    for (index, content) in lines.into_iter().enumerate() {
+        elements.push(Element::Text(Text {
+            x,
+            y: 30.0 + count(index) * TITLE_LINE,
+            class: "chartlet-title",
+            anchor: TextAnchor::Start,
+            content,
+        }));
+    }
+}
+
+/// The lines of a category label: one if it fits `max_width`, otherwise two, broken at a space,
+/// before anything is shortened.
+fn label_lines(
+    label: &str,
+    max_width: f64,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+    path: &str,
+) -> Vec<String> {
+    match two_lines(label, max_width, LABEL_SIZE, metrics) {
+        Some((first, rest)) => vec![
+            first.to_owned(),
+            fit_text(rest, max_width, LABEL_SIZE, metrics, warnings, path),
+        ],
+        None => vec![fit_text(
+            label, max_width, LABEL_SIZE, metrics, warnings, path,
+        )],
+    }
+}
+
+/// Draws the label of a category below a plot whose categories run horizontally, centered at
+/// `x` with its first baseline at `y`, on up to two lines, see [`label_lines`].
+pub(crate) fn push_category_label(
+    elements: &mut Vec<Element>,
+    label: &str,
+    (x, y): (f64, f64),
+    max_width: f64,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+    path: &str,
+) {
+    let lines = label_lines(label, max_width, metrics, warnings, path);
+    for (index, content) in lines.into_iter().enumerate() {
+        elements.push(Element::Text(Text {
+            x,
+            y: y + count(index) * LABEL_LINE,
+            class: "chartlet-label",
+            anchor: TextAnchor::Middle,
+            content,
+        }));
+    }
+}
+
+/// Draws the label of a category left of a plot whose categories run vertically, ending at `x`
+/// and centered on the band around `center`. A band too narrow for two lines keeps the label on
+/// one, shortened if need be; otherwise see [`label_lines`].
+pub(crate) fn push_side_label(
+    elements: &mut Vec<Element>,
+    label: &str,
+    (x, center): (f64, f64),
+    (max_width, band): (f64, f64),
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+    path: &str,
+) {
+    let lines = if band >= 2.0 * LABEL_LINE + 4.0 {
+        label_lines(label, max_width, metrics, warnings, path)
+    } else {
+        vec![fit_text(
+            label, max_width, LABEL_SIZE, metrics, warnings, path,
+        )]
+    };
+    let first = center + 4.0 - count(lines.len() - 1) * LABEL_LINE / 2.0;
+    for (index, content) in lines.into_iter().enumerate() {
+        elements.push(Element::Text(Text {
+            x,
+            y: first + count(index) * LABEL_LINE,
+            class: "chartlet-label",
+            anchor: TextAnchor::End,
+            content,
+        }));
+    }
 }
 
 /// Writes a value for reading: percent scaled and suffixed, fixed decimals if the style asks for
@@ -4250,9 +4455,9 @@ impl NumericScale {
 #[cfg(test)]
 mod tests {
     use super::{
-        DEPTH_BAND_STEP, HALO_WIDTH, MAX_WOBBLE, MIN_WOBBLE, NumericScale, PLOT_MARGIN, cap_links,
-        coastline_profile, count, distance_to, format_tick, format_value, plan_furniture,
-        topicmap_positions, unit_polygon_area,
+        DEPTH_BAND_STEP, HALO_WIDTH, LABEL_LINE, LEGEND_HEIGHT, MAX_WOBBLE, MIN_WOBBLE,
+        NumericScale, PLOT_MARGIN, cap_links, coastline_profile, count, distance_to, format_tick,
+        format_value, plan_furniture, topicmap_positions, unit_polygon_area,
     };
     use crate::{
         metrics::BuiltinMetrics,
@@ -4564,5 +4769,183 @@ mod tests {
             default_corner.0 < moved.0,
             "the rose gave up the left corner"
         );
+    }
+
+    /// Every character is half as wide as the font is high: easy widths to reason about.
+    struct HalfEm;
+
+    impl crate::metrics::TextMetrics for HalfEm {
+        fn width(&self, text: &str, font_size: f64) -> f64 {
+            count(text.chars().count()) * font_size / 2.0
+        }
+    }
+
+    /// The texts of a class, as (y, content), in the order they are drawn.
+    fn texts(scene: &crate::scene::Scene, class: &str) -> Vec<(f64, String)> {
+        scene
+            .elements
+            .iter()
+            .filter_map(|element| match element {
+                crate::scene::Element::Text(text) if text.class == class => {
+                    Some((text.y, text.content.clone()))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn lay_out(json: &str) -> (crate::scene::Scene, Vec<crate::error::ChartWarning>) {
+        let spec = crate::spec::ChartSpec::from_json(json).expect("valid specification");
+        let mut warnings = Vec::new();
+        let scene = super::layout(&spec, &mut warnings, &HalfEm);
+        (scene, warnings)
+    }
+
+    /// The top of the plot, as the highest value grid line or zero line.
+    fn plot_top(scene: &crate::scene::Scene) -> f64 {
+        scene
+            .elements
+            .iter()
+            .filter_map(|element| match element {
+                crate::scene::Element::Line(line) => Some(line.y1),
+                _ => None,
+            })
+            .fold(f64::INFINITY, f64::min)
+    }
+
+    fn bar_chart(title: &str, width: u32) -> String {
+        format!(
+            r#"{{"schemaVersion": 1, "type": "bar", "title": "{title}", "width": {width},
+                "data": [{{"label": "A", "value": 1}}, {{"label": "B", "value": 2}}]}}"#
+        )
+    }
+
+    #[test]
+    fn a_title_too_wide_for_one_line_wraps_onto_two_and_moves_the_plot_down() {
+        // The plot of a 360-pixel chart is 264 pixels wide: 24 characters of the title.
+        let (short, _) = lay_out(&bar_chart("Revenue by channel", 360));
+        let (long, warnings) = lay_out(&bar_chart("Monthly revenue by sales channel", 360));
+
+        assert_eq!(
+            texts(&short, "chartlet-title"),
+            [(30.0, "Revenue by channel".into())]
+        );
+        assert_eq!(
+            texts(&long, "chartlet-title"),
+            [
+                (30.0, "Monthly revenue by sales".into()),
+                (58.0, "channel".into())
+            ]
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!((plot_top(&long) - plot_top(&short) - super::TITLE_LINE).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_title_too_long_for_two_lines_shortens_the_second() {
+        let title = "Monthly revenue by sales channel and region compared with the previous year";
+        let (scene, warnings) = lay_out(&bar_chart(title, 360));
+        let lines = texts(&scene, "chartlet-title");
+
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0].1, "Monthly revenue by sales");
+        assert!(lines[1].1.ends_with('…'));
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            (warnings[0].code, warnings[0].path.as_str()),
+            ("text_truncated", "/title")
+        );
+    }
+
+    #[test]
+    fn a_title_word_wider_than_the_chart_stays_on_one_shortened_line() {
+        let (scene, warnings) = lay_out(&bar_chart(&"W".repeat(40), 360));
+        let lines = texts(&scene, "chartlet-title");
+
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].1.ends_with('…'));
+        assert_eq!(warnings[0].code, "text_truncated");
+    }
+
+    #[test]
+    fn a_bar_legend_wraps_into_rows_instead_of_shortening_names() {
+        let json = |width: u32| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "bar", "title": "Costs", "width": {width},
+                    "categories": ["A", "B"],
+                    "series": [
+                        {{"name": "Budget for the year", "values": [1, 2]}},
+                        {{"name": "Actual spending", "values": [2, 1]}},
+                        {{"name": "Forecast from planning", "values": [1, 1]}}
+                    ]}}"#
+            )
+        };
+        let (wide, _) = lay_out(&json(800));
+        let (narrow, warnings) = lay_out(&json(360));
+
+        let rows = |scene: &crate::scene::Scene| {
+            texts(scene, "chartlet-legend")
+                .into_iter()
+                .map(|(y, _)| y)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(rows(&wide), [55.0, 55.0, 55.0]);
+        assert_eq!(rows(&narrow), [55.0, 55.0, 79.0]);
+        assert!(
+            texts(&narrow, "chartlet-legend")
+                .iter()
+                .all(|(_, name)| !name.ends_with('…'))
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!((plot_top(&narrow) - plot_top(&wide) - LEGEND_HEIGHT).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_category_label_wraps_onto_two_lines_before_it_is_shortened() {
+        // Four categories on a 360-pixel chart: 66-pixel bands, 58 pixels or 9 characters of
+        // label.
+        let json = r#"{"schemaVersion": 1, "type": "bar", "title": "Costs", "width": 360,
+            "data": [
+                {"label": "Sales team", "value": 1},
+                {"label": "Product development", "value": 2},
+                {"label": "Logistics", "value": 3},
+                {"label": "Administration", "value": 4}
+            ]}"#;
+        let (scene, warnings) = lay_out(json);
+        let labels = texts(&scene, "chartlet-label");
+        let contents: Vec<&str> = labels.iter().map(|(_, text)| text.as_str()).collect();
+
+        assert_eq!(
+            contents,
+            [
+                "Sales",
+                "team",
+                "Product",
+                "developm…",
+                "Logistics",
+                "Administ…"
+            ]
+        );
+        assert!((labels[1].0 - labels[0].0 - LABEL_LINE).abs() < 1e-9);
+        let truncated: Vec<&str> = warnings
+            .iter()
+            .map(|warning| warning.path.as_str())
+            .collect();
+        assert_eq!(truncated, ["/data/1/label", "/data/3/label"]);
+    }
+
+    #[test]
+    fn a_side_label_wraps_onto_two_lines_centered_on_its_band() {
+        let json = r#"{"schemaVersion": 1, "type": "bar", "orientation": "horizontal",
+            "title": "Change", "data": [
+                {"label": "First", "value": 1},
+                {"label": "Third quarter with a deliberately long label", "value": 2}
+            ]}"#;
+        let (scene, warnings) = lay_out(json);
+        let labels = texts(&scene, "chartlet-label");
+
+        assert_eq!(labels.len(), 3);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!((labels[2].0 - labels[1].0 - LABEL_LINE).abs() < 1e-9);
     }
 }

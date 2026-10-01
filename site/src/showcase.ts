@@ -146,7 +146,7 @@ const catalogue = [
     chart: 'Candlesticks with stacked panes',
     useCase: 'Show prices and trading volume on one time axis',
     blurb:
-      'Daily candles with a 20-day average and a marker for quarterly results, above a volume pane filled down to zero. Both panes share one time axis and have their own value axis; a rising candle is hollow and a falling one filled, so the direction never rests on color alone. Illustrative values for a fictional company.',
+      'Daily candles with a 20-day average and a marker for quarterly results, above a volume pane filled down to zero. Both panes share one time axis, on which weekends and holidays take no space, and have their own value axis; a rising candle is hollow and a falling one filled, so the direction never rests on color alone. Illustrative values for a fictional company.',
   },
   {
     slug: 'warming-stripes',
@@ -181,7 +181,7 @@ const catalogue = [
     chart: 'Mobile variant',
     useCase: 'Stay readable on a phone',
     blurb:
-      'Three sales channels over eighteen months, laid out twice: at 800 × 450 and at 360 × 420 for containers narrower than 640 pixels, where the legend wraps into two rows. A container query switches between them; caption, source and data table appear once. The output panel on this page is narrower than 640 pixels at every window size, so it shows the mobile variant. Illustrative values.',
+      'Three sales channels over eighteen months, laid out twice: at 800 × 450 and at 360 × 420 for containers narrower than 640 pixels, where the title wraps onto two lines and the legend into two rows. A container query switches between them; caption, source and data table appear once. The output panel on this page is narrower than 640 pixels at every window size, so it shows the mobile variant. Illustrative values.',
   },
   {
     slug: 'topicmap-sample',

@@ -16,7 +16,7 @@ pub(crate) const MAX_TIMESTAMP: i64 = 7_258_118_400;
 const SECONDS_PER_DAY: i64 = 86_400;
 const SECONDS_PER_HOUR: i64 = 3_600;
 /// 1969-12-29 was a Monday, so weekly ticks start on Mondays instead of on 1970-01-01.
-const MONDAY_EPOCH: i64 = -4 * SECONDS_PER_DAY;
+const MONDAY_EPOCH: i64 = -3 * SECONDS_PER_DAY;
 
 /// One timestamp as written in a specification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -307,12 +307,7 @@ pub(crate) fn ticks(
     max_ticks: usize,
     allow_sub_day: bool,
 ) -> Vec<Tick> {
-    let limit = i64::try_from(max_ticks.max(2)).expect("tick counts are small");
-    let step = STEPS
-        .into_iter()
-        .filter(|step| allow_sub_day || !step.is_sub_day())
-        .find(|step| step.tick_count(min, max, zone) <= limit)
-        .unwrap_or(Step::Months(1200));
+    let step = tick_step(min, max, zone, max_ticks, allow_sub_day);
     let mut ticks = Vec::new();
     let mut current = step.first(min, zone);
     // The chosen step always terminates; the bound only keeps a rounding surprise from spinning.
@@ -324,6 +319,46 @@ pub(crate) fn ticks(
         current = step.next(current, zone);
     }
     ticks
+}
+
+/// Ticks for a time axis whose gaps are collapsed into evenly spaced `slots`, the observed
+/// timestamps in order. The step is chosen as for [`ticks`] across the observed span; each
+/// calendar boundary moves to the first observation on or after it and is labelled with that
+/// observation's date at the step's resolution, so a label never names a day without an
+/// observation. Boundaries that fall into one gap give a single tick.
+pub(crate) fn collapsed_ticks(
+    slots: &[i64],
+    zone: TimeZone,
+    max_ticks: usize,
+    allow_sub_day: bool,
+) -> Vec<Tick> {
+    let (Some(&min), Some(&max)) = (slots.first(), slots.last()) else {
+        return Vec::new();
+    };
+    let step = tick_step(min, max, zone, max_ticks, allow_sub_day);
+    let mut ticks: Vec<Tick> = Vec::new();
+    let mut current = step.first(min, zone);
+    while current <= max && ticks.len() < 64 {
+        let epoch = slots[slots.partition_point(|slot| *slot < current)];
+        if ticks.last().is_none_or(|tick| tick.epoch != epoch) {
+            ticks.push(Tick {
+                epoch,
+                label: step.label(epoch, zone),
+            });
+        }
+        current = step.next(current, zone);
+    }
+    ticks
+}
+
+/// The finest step that keeps the ticks across `min..=max` within about `max_ticks`.
+fn tick_step(min: i64, max: i64, zone: TimeZone, max_ticks: usize, allow_sub_day: bool) -> Step {
+    let limit = i64::try_from(max_ticks.max(2)).expect("tick counts are small");
+    STEPS
+        .into_iter()
+        .filter(|step| allow_sub_day || !step.is_sub_day())
+        .find(|step| step.tick_count(min, max, zone) <= limit)
+        .unwrap_or(Step::Months(1200))
 }
 
 fn month_index(epoch: i64, zone: TimeZone) -> i64 {

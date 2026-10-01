@@ -78,7 +78,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Reference lines: threshold and date marker | `"mark": "annotation"` with `value` or `time` and `label` | [annual-mean-threshold](examples/annual-mean-threshold.json) |
 | Time series with area, gaps, line patterns and zoom | `"mark": "area"`, `null` values, `dash`, `"stroke": "bold"`, `zoomSteps` by time | [sensor-readings](examples/sensor-readings.json) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [release-incidents](examples/release-incidents.json) |
-| Candlesticks with a volume pane on one time axis | `"mark": "ohlc"` with `data`; up to four `panes` with `heightRatio` | [share-price](examples/share-price.json) |
+| Candlesticks with a volume pane on one time axis, weekends closed up | `"mark": "ohlc"` with `data`; up to four `panes` with `heightRatio`; `"gaps": "collapse"` | [share-price](examples/share-price.json) |
 | Warming stripes on a diverging scale | `"type": "stripes"` with `stripes` | [warming-stripes](examples/warming-stripes.json) |
 | Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
@@ -206,6 +206,7 @@ reported as `dense_chart`. Small multiples take 2 to 12 panes.
 | `--id-prefix <prefix>` | Stable ID of the chart root and prefix for its other IDs; needed when the same chart appears twice on one page. |
 | `--variant mobile` | Renders the mobile variant alone as SVG, for a `<picture>` source; requires `mobile` in the specification (`missing_mobile`) and the SVG format. `desktop` (default) renders the chart at `width` × `height`. |
 | `-o <path>` | Writes to a file instead of standard output. |
+| `--manifest <path>` | Also writes a provenance manifest as JSON: chartlet version, SHA-256 of the canonical specification and of the output, format, variant, ID prefix and warnings; no timestamp. |
 | `--strict` | Fails on any warning. Useful in CI. |
 | `--diagnostics json` | Writes errors and warnings to standard error as one JSON document instead of text lines. |
 
@@ -244,7 +245,7 @@ Warnings are written to standard error, and the chart is still produced:
 
 | Code | Meaning |
 |---|---|
-| `text_truncated` | A label or title was shortened to fit. |
+| `text_truncated` | A label or title was shortened to fit. Titles and the category labels of bar and range bar charts wrap onto a second line first; what does not fit on two lines is shortened. |
 | `value_labels_omitted` | Some value labels had no room next to their bars. |
 | `dense_chart` | More than 16 categories, or more observations in a time layer than the plot has horizontal pixels; the chart may be hard to read at this size. |
 | `color_not_supported` | A layer's `color` was outside the contract and replaced by the neutral gray. |
@@ -276,6 +277,12 @@ import revenue from '../data/monthly-revenue.json';
 
 To render with an installed CLI instead, set `CHARTLET_BIN` to its path. For Node.js without
 Astro, Cloudflare Workers and Vite, see [JavaScript runtimes](docs/guides/javascript.md).
+
+## AI agents
+
+[`@casoon/chartlet-mcp`](packages/chartlet-mcp/README.md) is an MCP server for AI assistants:
+the assistant inspects the data and drafts a specification, chartlet validates and compiles it.
+No model runs in the server and the data is never changed. See [AI agents](docs/guides/ai-agents.md).
 
 ## Rust
 

@@ -446,28 +446,42 @@ fn emit_element(element: &Element, id_prefix: &str, output: &mut String) {
             emit_text(text, Some(*series_index), TextStyle::default(), output);
         }
         Element::StyledText(text, style) => emit_text(text, None, *style, output),
-        Element::Polyline(polyline) => {
-            open("polyline", polyline.series_index, output);
-            let points = polyline
-                .points
-                .iter()
-                .map(|(x, y)| format!("{},{}", number(*x), number(*y)))
-                .collect::<Vec<_>>()
-                .join(" ");
-            write!(
-                output,
-                " points=\"{}\"{} class=\"{}{}{}\"",
-                points,
-                hatch_fill(polyline.class, polyline.style_index, id_prefix),
-                polyline.class,
-                style_class(polyline.style_index),
-                topic_class(polyline.topic),
-            )
-            .expect("write");
-            close("polyline", polyline.tooltip.as_deref(), output);
+        Element::Polyline(polyline) => emit_polyline(polyline, None, id_prefix, output),
+        Element::TopicArea(polyline, center) => {
+            emit_polyline(polyline, Some(*center), id_prefix, output);
         }
         Element::Text(text) => emit_text(text, None, TextStyle::default(), output),
     }
+}
+
+/// Writes a polyline; `center`, when given, becomes its `data-cx`/`data-cy`.
+fn emit_polyline(
+    polyline: &crate::scene::Polyline,
+    center: Option<(f64, f64)>,
+    id_prefix: &str,
+    output: &mut String,
+) {
+    open("polyline", polyline.series_index, output);
+    let points = polyline
+        .points
+        .iter()
+        .map(|(x, y)| format!("{},{}", number(*x), number(*y)))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let center = center.map_or_else(String::new, |(cx, cy)| {
+        format!(" data-cx=\"{}\" data-cy=\"{}\"", number(cx), number(cy))
+    });
+    write!(
+        output,
+        " points=\"{}\"{} class=\"{}{}{}\"{center}",
+        points,
+        hatch_fill(polyline.class, polyline.style_index, id_prefix),
+        polyline.class,
+        style_class(polyline.style_index),
+        topic_class(polyline.topic),
+    )
+    .expect("write");
+    close("polyline", polyline.tooltip.as_deref(), output);
 }
 
 fn emit_text(

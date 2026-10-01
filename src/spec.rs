@@ -1434,6 +1434,21 @@ impl ChartSpec {
         self.indexed_layers().filter(|entry| entry.layer.is_data())
     }
 
+    /// With `gaps: "collapse"`, the slots of the time axis in order: every distinct timestamp an
+    /// observation of a data layer uses in any pane, a missing value and a candle included. Each
+    /// slot takes the same share of the axis. `None` while the axis keeps the distances in time.
+    pub(crate) fn time_slots(&self, zone: crate::time::TimeZone) -> Option<Vec<i64>> {
+        (self.time_axis.gaps == Gaps::Collapse).then(|| {
+            let mut slots: Vec<i64> = self
+                .data_layers()
+                .flat_map(|entry| entry.layer.resolved_times(zone))
+                .collect();
+            slots.sort_unstable();
+            slots.dedup();
+            slots
+        })
+    }
+
     /// The names of the data layers, once each in order of first appearance. In small multiples
     /// a name is one series across every panel, so it keeps one color and one legend entry.
     pub(crate) fn series_names(&self) -> Vec<Option<String>> {
@@ -1709,6 +1724,26 @@ impl ChartSpec {
                     clamp(&mut layer.from);
                     clamp(&mut layer.to);
                 }
+            }
+        }
+        // With gaps collapsed, an annotation needs an observation of the window to stand on: a
+        // reference line or marker the first one at or after its time, a zone one between its
+        // edges.
+        if let Some(slots) = spec.time_slots(zone) {
+            let resolve =
+                |time: &Option<TimeValue>| time.as_ref().and_then(|time| time.resolve(zone).ok());
+            for pane in &mut spec.panes {
+                pane.layers.retain(|layer| match layer.mark {
+                    Mark::Annotation => {
+                        resolve(&layer.time).is_none_or(|time| slots.last() >= Some(&time))
+                    }
+                    Mark::Band if layer.from.is_some() || layer.to.is_some() => {
+                        let start = resolve(&layer.from).unwrap_or(i64::MIN);
+                        let end = resolve(&layer.to).unwrap_or(i64::MAX);
+                        slots.iter().any(|slot| (start..=end).contains(slot))
+                    }
+                    _ => true,
+                });
             }
         }
         spec
@@ -2007,14 +2042,48 @@ impl ChartSpec {
     fn validate_time_axis(&self) -> Result<crate::time::TimeZone, ChartError> {
         let zone = self.time_zone()?;
         validate_optional_text(self.time_axis.title.as_ref(), "/timeAxis/title", 100)?;
-        if self.time_axis.gaps == Gaps::Collapse {
-            return Err(ChartError::new(
-                "option_not_supported",
-                "/timeAxis/gaps",
-                "collapsing gaps is not supported yet; omit gaps to keep the distances",
-            ));
-        }
         Ok(zone)
+    }
+
+    /// With gaps collapsed, the time axis has a place only for observations: a reference line or
+    /// point marker takes the first observation at or after its time, so its time has to lie
+    /// between the first and the last observation, and a zone covers the observations between
+    /// its edges, so it has to hold at least one.
+    fn validate_collapsed_times(&self, zone: crate::time::TimeZone) -> Result<(), ChartError> {
+        let Some(slots) = self.time_slots(zone) else {
+            return Ok(());
+        };
+        let (Some(&first), Some(&last)) = (slots.first(), slots.last()) else {
+            return Ok(());
+        };
+        let resolve =
+            |time: &Option<TimeValue>| time.as_ref().and_then(|time| time.resolve(zone).ok());
+        for entry in self.indexed_layers() {
+            let layer = entry.layer;
+            let path = format!("/panes/{}/layers/{}", entry.pane, entry.local);
+            if layer.mark == Mark::Annotation
+                && let Some(time) = resolve(&layer.time)
+                && !(first..=last).contains(&time)
+            {
+                return Err(ChartError::new(
+                    "time_out_of_range",
+                    format!("{path}/time"),
+                    "with gaps collapsed the time axis only has room for observations; give a time between the first and the last observation",
+                ));
+            }
+            if layer.mark == Mark::Band && (layer.from.is_some() || layer.to.is_some()) {
+                let from = resolve(&layer.from).unwrap_or(i64::MIN);
+                let to = resolve(&layer.to).unwrap_or(i64::MAX);
+                if !slots.iter().any(|slot| (from..=to).contains(slot)) {
+                    return Err(ChartError::new(
+                        "time_out_of_range",
+                        path,
+                        "with gaps collapsed a zone covers observations; from and to must enclose at least one",
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 
     fn validate_time(&self) -> Result<Vec<ChartWarning>, ChartError> {
@@ -2085,6 +2154,7 @@ impl ChartSpec {
                 ),
             ));
         }
+        self.validate_collapsed_times(zone)?;
         self.validate_time_zoom(zone)?;
         Ok(warnings)
     }
@@ -2246,6 +2316,7 @@ impl ChartSpec {
                 ),
             ));
         }
+        self.validate_collapsed_times(zone)?;
         Ok(warnings)
     }
 

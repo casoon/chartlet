@@ -1,4 +1,5 @@
 use std::{
+    fmt::Write as _,
     io::Write,
     process::{Command, Stdio},
 };
@@ -16,18 +17,34 @@ fn cli_renders_svg_to_stdout() {
     assert!(stdout.contains("Monthly revenue"));
 }
 
+/// A bar chart whose first label is one word wider than its band, so that it is shortened.
+const TRUNCATED: &str = r#"{"schemaVersion": 1, "type": "bar", "title": "Quarterly change",
+    "data": [
+        {"label": "Antidisestablishmentarianism-Antidisestablishmentarianism", "value": 1},
+        {"label": "B", "value": 2}, {"label": "C", "value": 3}, {"label": "D", "value": 4}
+    ]}"#;
+
+/// Runs the CLI with `args`, passing `input` on standard input.
+fn run_with_stdin(args: &[&str], input: &str) -> std::process::Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("chartlet CLI should start");
+    child
+        .stdin
+        .take()
+        .expect("stdin should be piped")
+        .write_all(input.as_bytes())
+        .expect("stdin should accept the specification");
+    child.wait_with_output().expect("chartlet should finish")
+}
+
 #[test]
 fn strict_mode_rejects_layout_warnings() {
-    let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
-        .args([
-            "render",
-            "examples/quarterly-change.json",
-            "--format",
-            "svg",
-            "--strict",
-        ])
-        .output()
-        .expect("chartlet CLI should start");
+    let output = run_with_stdin(&["render", "-", "--format", "svg", "--strict"], TRUNCATED);
 
     assert!(!output.status.success());
     let stderr = String::from_utf8(output.stderr).expect("warnings should be UTF-8");
@@ -181,16 +198,10 @@ fn strict_mode_rejects_a_series_that_outnumbers_the_plot_pixels() {
 
 #[test]
 fn json_diagnostics_report_warnings_and_strict_failure() {
-    let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
-        .args([
-            "render",
-            "examples/quarterly-change.json",
-            "--strict",
-            "--diagnostics",
-            "json",
-        ])
-        .output()
-        .expect("chartlet CLI should start");
+    let output = run_with_stdin(
+        &["render", "-", "--strict", "--diagnostics", "json"],
+        TRUNCATED,
+    );
 
     assert!(!output.status.success());
     let report: serde_json::Value =
@@ -271,4 +282,62 @@ fn cli_renders_the_mobile_variant_alone() {
     let stderr = String::from_utf8(output.stderr).expect("diagnostics should be UTF-8");
     assert!(stderr.contains("\"code\":\"missing_mobile\""), "{stderr}");
     assert!(stderr.contains("\"path\":\"/mobile\""), "{stderr}");
+}
+
+#[test]
+fn manifest_records_the_provenance_of_the_render() {
+    let directory = std::env::temp_dir().join(format!("chartlet-cli-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory should be writable");
+    let (svg, manifest) = (directory.join("chart.svg"), directory.join("manifest.json"));
+    let render = |input: &str| {
+        let output = run_with_stdin(
+            &[
+                "render",
+                "-",
+                "--id-prefix",
+                "change",
+                "-o",
+                svg.to_str().expect("UTF-8 path"),
+                "--manifest",
+                manifest.to_str().expect("UTF-8 path"),
+            ],
+            input,
+        );
+        assert!(output.status.success(), "{output:?}");
+        let content = std::fs::read(&svg).expect("the SVG should be written");
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(&manifest).expect("the manifest should be written"),
+        )
+        .expect("the manifest should be JSON");
+        (content, manifest)
+    };
+
+    let (content, first) = render(TRUNCATED);
+    assert_eq!(first["chartlet"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(first["schemaVersion"], 1);
+    assert_eq!(first["format"], "svg");
+    assert_eq!(first["variant"], "desktop");
+    assert_eq!(first["idPrefix"], "change");
+    assert_eq!(first["warnings"][0]["code"], "text_truncated");
+    assert_eq!(first["warnings"][0]["path"], "/data/0/label");
+    let hash = chartlet::sha256(&content)
+        .iter()
+        .fold(String::new(), |mut hex, byte| {
+            write!(hex, "{byte:02x}").expect("writing to String cannot fail");
+            hex
+        });
+    assert_eq!(first["outputHash"], format!("sha256:{hash}"));
+    assert!(
+        first["specHash"]
+            .as_str()
+            .is_some_and(|hash| hash.starts_with("sha256:") && hash.len() == 71)
+    );
+    assert!(first.get("timestamp").is_none());
+
+    // The same specification with other whitespace and key order hashes the same.
+    let reordered: serde_json::Value = serde_json::from_str(TRUNCATED).expect("valid JSON");
+    let (_, second) = render(&serde_json::to_string_pretty(&reordered).expect("serializes"));
+    assert_eq!(first, second);
+
+    std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
 }

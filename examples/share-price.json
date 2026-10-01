@@ -5,7 +5,8 @@
   "source": "Illustrative values, chartlet",
   "height": 560,
   "timeAxis": {
-    "title": "Trading day"
+    "title": "Trading day",
+    "gaps": "collapse"
   },
   "panes": [
     {

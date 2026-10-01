@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use crate::{
     diverging,
     error::ChartWarning,
-    layout::{count, fit_text, format_value},
+    layout::{count, format_value, push_title, title_extra},
     metrics::TextMetrics,
     scene::{Element, Rect, Scene, Text, TextAnchor},
     spec::{CalendarLayout, CalendarSpec, ChartSpec, Diverging, NumberStyle, calendar_date},
@@ -54,28 +54,24 @@ pub(crate) fn layout(
         .expect("validated calendar charts carry a calendar block");
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
-    let mut elements = vec![Element::Text(Text {
-        x: MARGIN,
-        y: 30.0,
-        class: "chartlet-title",
-        anchor: TextAnchor::Start,
-        content: fit_text(
-            &spec.title,
-            width - 2.0 * MARGIN,
-            22.0,
-            metrics,
-            warnings,
-            "/title",
-        ),
-    })];
+    let mut elements = Vec::new();
+    push_title(
+        &mut elements,
+        &spec.title,
+        MARGIN,
+        width - 2.0 * MARGIN,
+        metrics,
+        warnings,
+    );
+    let top = 72.0 + title_extra(&spec.title, width - 2.0 * MARGIN, metrics);
     let (values, length) = values_by_day(calendar);
     let year = i64::from(calendar.year);
     let cells = Cells {
         grid: Grid {
             left: MARGIN + GUTTER,
-            top: 72.0,
+            top,
             width: width - 2.0 * MARGIN - GUTTER,
-            height: height - 72.0 - KEY_SPACE,
+            height: height - top - KEY_SPACE,
         },
         scale: calendar.diverging(),
         values,

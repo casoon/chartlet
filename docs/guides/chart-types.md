@@ -18,7 +18,7 @@ order: 1
 | Threshold and date marker | `"mark": "annotation"` with `value` or `time` | [Annual mean and threshold](../../../showcase/annual-mean-threshold/) |
 | Time series with area, gaps and zoom | `"mark": "area"`, `null` values, `dash`, `zoomSteps` by time | [Data hall power draw](../../../showcase/sensor-readings/) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [Checkout API error rate](../../../showcase/release-incidents/) |
-| Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio` | [Daily share price](../../../showcase/share-price/) |
+| Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio`; `"gaps": "collapse"` | [Daily share price](../../../showcase/share-price/) |
 | Small multiples, shared value axis | `"type": "multiples"` with titled `panes` | [Emission pathways](../../../showcase/emission-pathways/) |
 | Warming stripes | `"type": "stripes"` with `stripes` | [Warming stripes](../../../showcase/warming-stripes/) |
 | Calendar heatmap, by month or week | `"type": "calendar"` with `calendar` | [Daily anomaly calendar](../../../showcase/daily-anomaly-calendar/) |
@@ -133,6 +133,22 @@ needs to do that without re-deriving anything from the geometry.
 
 A region whose area has no room for its own name at a readable size is left unnamed, and
 `label_does_not_fit` says which one. The area keeps its tooltip either way.
+
+### What a host page can address on a topic map
+
+A topic map numbers its areas the same way: the topics in the order the specification lists
+them, then the islands.
+
+| Class or attribute | On |
+| --- | --- |
+| `chartlet-topic-area` + `chartlet-topic-N` | the filled outline of area *N* |
+| `data-cx`, `data-cy` | on that outline: the center the area was placed around, in viewBox units |
+| `chartlet-topic-label`, `chartlet-topic-value` + `chartlet-topic-N` | the name and value inside area *N* |
+| `chartlet-topic-outside`, `chartlet-topic-outside-value` + `chartlet-topic-N` | the same, set beside the map when the area has no room |
+| `chartlet-topic-link` | a line between two related areas |
+
+The center is where a route between areas should start and end: it is rounded like every other
+coordinate in the SVG, and reading it saves recomputing it from the wobbling outline.
 
 ## Time series
 

@@ -203,25 +203,27 @@ pub(crate) fn time_opening(
     names: &[String],
     modeled: bool,
 ) -> String {
+    let point = plural(points, "point", "points");
+    let punkt = plural(points, "Punkt", "Punkten");
     match (locale, names.len() > 1) {
         (Locale::En, true) => format!(
-            "Time chart with {points} points {range} and {} series ({}).",
+            "Time chart with {points} {point} {range} and {} series ({}).",
             names.len(),
             names.join(", ")
         ),
         (Locale::De, true) => format!(
-            "Zeitreihe mit {points} Punkten {range} und {} Reihen ({}).",
+            "Zeitreihe mit {points} {punkt} {range} und {} Reihen ({}).",
             names.len(),
             names.join(", ")
         ),
         (Locale::En, false) if modeled => {
-            format!("Time chart with {points} points {range}, modeled.")
+            format!("Time chart with {points} {point} {range}, modeled.")
         }
         (Locale::De, false) if modeled => {
-            format!("Zeitreihe mit {points} Punkten {range}, modelliert.")
+            format!("Zeitreihe mit {points} {punkt} {range}, modelliert.")
         }
-        (Locale::En, false) => format!("Time chart with {points} points {range}."),
-        (Locale::De, false) => format!("Zeitreihe mit {points} Punkten {range}."),
+        (Locale::En, false) => format!("Time chart with {points} {point} {range}."),
+        (Locale::De, false) => format!("Zeitreihe mit {points} {punkt} {range}."),
     }
 }
 
@@ -408,7 +410,9 @@ const fn chart_name(locale: Locale, line: bool) -> &'static str {
 pub(crate) fn equal_values(locale: Locale, line: bool, categories: usize, value: &str) -> String {
     let chart = chart_name(locale, line);
     match locale {
+        Locale::En if categories == 1 => format!("{chart} with 1 value: {value}."),
         Locale::En => format!("{chart} with {categories} equal values: {value} each."),
+        Locale::De if categories == 1 => format!("{chart} mit 1 Wert: {value}."),
         Locale::De => format!("{chart} mit {categories} gleichen Werten: jeweils {value}."),
     }
 }
@@ -423,14 +427,18 @@ pub(crate) fn categories_opening(
 ) -> String {
     let chart = chart_name(locale, line);
     match (locale, series > 1) {
-        (Locale::En, true) => {
-            format!("{chart} with {categories} categories and {series} series ({names}).")
-        }
+        (Locale::En, true) => format!(
+            "{chart} with {categories} {} and {series} series ({names}).",
+            plural(categories, "category", "categories")
+        ),
         (Locale::De, true) => format!(
             "{chart} mit {categories} {} und {series} Reihen ({names}).",
             plural(categories, "Kategorie", "Kategorien")
         ),
-        (Locale::En, false) => format!("{chart} with {categories} categories."),
+        (Locale::En, false) => format!(
+            "{chart} with {categories} {}.",
+            plural(categories, "category", "categories")
+        ),
         (Locale::De, false) => format!(
             "{chart} mit {categories} {}.",
             plural(categories, "Kategorie", "Kategorien")
@@ -447,6 +455,15 @@ pub(crate) fn missing_values(locale: Locale, missing: usize) -> String {
         (Locale::En, missing) => format!(" {missing} values are missing."),
         (Locale::De, 1) => " 1 Wert fehlt.".to_owned(),
         (Locale::De, missing) => format!(" {missing} Werte fehlen."),
+    }
+}
+
+/// The sentence of a time axis whose gaps are collapsed: observations sit side by side, so the
+/// distance between them no longer stands for time.
+pub(crate) const fn gaps_collapsed(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => " Gaps in time are closed up.",
+        Locale::De => " Zeiträume ohne Beobachtung sind ausgelassen.",
     }
 }
 
@@ -496,12 +513,13 @@ pub(crate) fn calendar_opening(
 ) -> String {
     match locale {
         Locale::En => format!(
-            "Calendar of {year} with {}, {scale}. {days} of {length} days have a value.",
+            "Calendar of {year} with {}, {scale}. {days} of {length} days {} a value.",
             if weeks {
                 "one row per weekday and one column per week"
             } else {
                 "one row per month"
-            }
+            },
+            plural(days, "has", "have")
         ),
         Locale::De => format!(
             "Kalender {year} mit {}, {scale}. {days} von {length} Tagen {} einen Wert.",
@@ -621,13 +639,15 @@ pub(crate) fn atlas_sentence(
 ) -> String {
     match locale {
         Locale::En => format!(
-            "Knowledge landscape of {realms} realms and {regions} regions; largest is {} with {}.{}",
+            "Knowledge landscape of {realms} {} and {regions} {}; largest is {} with {}.{}",
+            plural(realms, "realm", "realms"),
+            plural(regions, "region", "regions"),
             largest.0,
             largest.1,
-            if places > 0 {
-                format!(" {places} places are marked.")
-            } else {
-                String::new()
+            match places {
+                0 => String::new(),
+                1 => " 1 place is marked.".to_owned(),
+                places => format!(" {places} places are marked."),
             }
         ),
         Locale::De => format!(
@@ -642,5 +662,98 @@ pub(crate) fn atlas_sentence(
                 places => format!(" {places} Orte sind markiert."),
             }
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        atlas_sentence, calendar_opening, categories_opening, equal_values, missing_values,
+        time_opening, topicmap_opening, years_without_value,
+    };
+    use crate::spec::Locale;
+
+    #[test]
+    fn german_counts_of_one_are_singular() {
+        assert_eq!(
+            equal_values(Locale::De, false, 1, "5"),
+            "Balkendiagramm mit 1 Wert: 5."
+        );
+        assert_eq!(
+            time_opening(Locale::De, 1, "2024", &[], false),
+            "Zeitreihe mit 1 Punkt 2024."
+        );
+        assert_eq!(
+            time_opening(Locale::De, 2, "2024", &[], false),
+            "Zeitreihe mit 2 Punkten 2024."
+        );
+    }
+
+    #[test]
+    fn english_counts_of_one_are_singular() {
+        assert_eq!(
+            equal_values(Locale::En, false, 1, "5"),
+            "Bar chart with 1 value: 5."
+        );
+        assert_eq!(
+            categories_opening(Locale::En, false, 1, 1, ""),
+            "Bar chart with 1 category."
+        );
+        assert_eq!(
+            categories_opening(Locale::En, true, 1, 2, "A, B"),
+            "Line chart with 1 category and 2 series (A, B)."
+        );
+        assert_eq!(
+            time_opening(Locale::En, 1, "in 2024", &[], false),
+            "Time chart with 1 point in 2024."
+        );
+        assert_eq!(
+            time_opening(Locale::En, 1, "in 2024", &[], true),
+            "Time chart with 1 point in 2024, modeled."
+        );
+        assert_eq!(
+            time_opening(
+                Locale::En,
+                1,
+                "in 2024",
+                &["A".to_owned(), "B".to_owned()],
+                false
+            ),
+            "Time chart with 1 point in 2024 and 2 series (A, B)."
+        );
+        assert!(
+            calendar_opening(Locale::En, 2024, true, "scale", 1, 366)
+                .ends_with(" 1 of 366 days has a value.")
+        );
+        assert_eq!(
+            atlas_sentence(Locale::En, 1, 1, ("A", "3"), 1),
+            "Knowledge landscape of 1 realm and 1 region; largest is A with 3. 1 place is marked."
+        );
+        assert!(
+            topicmap_opening(Locale::En, 1, 1, ("A", "3"), ("A", "3"))
+                .starts_with("Topic map with 1 area and one island.")
+        );
+        assert_eq!(missing_values(Locale::En, 1), " 1 value is missing.");
+        assert_eq!(years_without_value(Locale::En, 1), " 1 year has no value.");
+    }
+
+    #[test]
+    fn english_counts_of_many_stay_plural() {
+        assert_eq!(
+            categories_opening(Locale::En, false, 3, 1, ""),
+            "Bar chart with 3 categories."
+        );
+        assert_eq!(
+            time_opening(Locale::En, 3, "in 2024", &[], false),
+            "Time chart with 3 points in 2024."
+        );
+        assert!(
+            calendar_opening(Locale::En, 2024, false, "scale", 2, 366)
+                .ends_with(" 2 of 366 days have a value.")
+        );
+        assert_eq!(
+            atlas_sentence(Locale::En, 2, 3, ("A", "3"), 4),
+            "Knowledge landscape of 2 realms and 3 regions; largest is A with 3. 4 places are marked."
+        );
     }
 }

@@ -10,6 +10,10 @@ pub(crate) enum Element {
     Circle(Circle),
     Line(Line),
     Polyline(Polyline),
+    /// The filled outline of a topic map area and the center it was placed around. The SVG
+    /// carries that center as `data-cx`/`data-cy`, so a host page need not recompute it from the
+    /// outline.
+    TopicArea(Polyline, (f64, f64)),
     Rect(Rect),
     SeriesText(Text, usize),
     /// Text the layout decides more about than its class can say: a topic map sizes an area's

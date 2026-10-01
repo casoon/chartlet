@@ -11,14 +11,14 @@ is the complete contract and can be used for editor validation.
 | --- | --- | --- |
 | `schemaVersion` | yes | Always `1`. |
 | `type` | yes | `bar`, `line`, `time`, `topicmap`, `atlas`, `stripes`, `calendar`, `rangebar`, or `multiples`. |
-| `title` | yes | Visible title; also the accessible name of the chart. |
+| `title` | yes | Visible title; also the accessible name of the chart. A title wider than the chart wraps onto a second line at a space, and the chart below it moves down; only what does not fit on two lines is shortened (`text_truncated`). |
 | `data` | one of | Single series: `[{ "label": "…", "value": 1 }]`. |
 | `categories` + `series` | one of | Several series: unique category labels, and `[{ "name": "…", "values": […] }]`. |
 | `orientation` | no | `vertical` (default) or `horizontal`; bar charts only. |
 | `theme` | no | `light` (default) or `dark`; both palettes are CSS custom properties on the root. |
 | `timeAxis.timezone` | no | Fixed UTC offset such as `"+02:00"`, or `UTC` (default); `time` charts only. |
 | `timeAxis.title` | no | Title of the time axis. |
-| `timeAxis.gaps` | no | `show` (default) or `collapse`. |
+| `timeAxis.gaps` | no | `show` (default) keeps the distances in time; `collapse` places every observed timestamp at the same distance from the next, so weekends and holidays take no space. Reference lines, point markers and zones then take the slot of an observation and must lie within the observed range (`time_out_of_range`). |
 | `panes` | no | `time`: 1–4 panes stacked on one shared time axis, each with its own `valueAxis` and `layers`. `multiples`: 2–12 panes, each with a unique `title`, sharing the top-level `valueAxis`. Up to six data layers per pane — on a `time` chart at most four of the whole chart without their own `color` — and six annotation layers (zones, reference lines and point markers together). |
 | `panes[].title` | multiples | Heading of a small-multiples panel; not allowed on a `time` chart, whose panes are named by their `valueAxis.title`. |
 | `panes[].heightRatio` | no | `time` only: the pane's share of the plot height against the other panes, 1–10, default 1. |
@@ -66,7 +66,8 @@ needs its own `color` (`too_many_layers`). Layer names are unique across the pan
 (`missing_name`). A candle whose `low` lies above its open or close, or whose `high` lies below
 them, is `invalid_candle`; more candles than a third of the plot's horizontal pixels are drawn as
 wicks only and reported as `dense_chart`. A zoom window has to hold two observations of a layer in
-every pane (`zoom_out_of_range`). Markers and
+every pane (`zoom_out_of_range`). With `"gaps": "collapse"`, a reference line or point marker outside
+the observed range and a zone that encloses no observation are `time_out_of_range`. Markers and
 value labels are drawn up to 60 observations per layer; a denser layer is a line only, and the
 values stay in the data table. More observations than the plot has horizontal pixels produce a
 `dense_chart` warning. These numbers come from a measurement at the default size — see

@@ -12,6 +12,7 @@ pub mod qr;
 mod rangebar;
 mod render;
 mod scene;
+mod sha256;
 mod spec;
 mod stripes;
 mod text;
@@ -21,6 +22,7 @@ use std::fmt::Write as _;
 
 pub use error::{ChartError, ChartWarning};
 pub use metrics::{BuiltinMetrics, TextMetrics};
+pub use sha256::sha256;
 pub use spec::{
     CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec,
     ChartType, Corner, Dash, DataPoint, Gaps, LayerSpec, Mark, MobileSpec, OhlcPoint, Orientation,
@@ -40,6 +42,8 @@ pub struct RenderOptions {
     pub id_prefix: Option<String>,
     pub table_mode: TableMode,
     pub variant: Variant,
+    /// Also returns a [`Manifest`] of the render in [`RenderOutput::manifest`].
+    pub manifest: bool,
 }
 
 /// Which layout the SVG profile renders. The HTML profile always carries the chart and, when the
@@ -64,6 +68,85 @@ pub enum TableMode {
 pub struct RenderOutput {
     pub content: String,
     pub warnings: Vec<ChartWarning>,
+    /// The provenance of `content`, when [`RenderOptions::manifest`] asks for it.
+    pub manifest: Option<Manifest>,
+}
+
+/// The provenance of one render: which version of chartlet produced which output from which
+/// specification, with which options and warnings. It carries no timestamp, so the same render
+/// always yields the same manifest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Manifest {
+    /// The version of the chartlet crate that rendered.
+    pub chartlet: &'static str,
+    pub schema_version: u8,
+    /// `sha256:` and the hexadecimal SHA-256 of the canonical specification: the parsed
+    /// specification serialized again, so key order and whitespace of the input do not matter.
+    pub spec_hash: String,
+    /// `sha256:` and the hexadecimal SHA-256 of [`RenderOutput::content`] as UTF-8.
+    pub output_hash: String,
+    pub format: RenderFormat,
+    pub variant: Variant,
+    /// The ID prefix the chart was rendered with: the one passed in, or the one derived from the
+    /// specification. The mobile variant appends `-m` to it.
+    pub id_prefix: String,
+    pub warnings: Vec<ChartWarning>,
+}
+
+impl Manifest {
+    /// The manifest as a pretty-printed JSON object, its keys in a fixed order:
+    /// `chartlet`, `schemaVersion`, `specHash`, `outputHash`, `format`, `variant`, `idPrefix`,
+    /// `warnings` (each with `code`, `path`, `message`).
+    ///
+    /// # Panics
+    ///
+    /// Never: every field is a string, a number or a list of strings.
+    #[must_use]
+    pub fn to_json(&self) -> String {
+        #[derive(serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Json<'a> {
+            chartlet: &'a str,
+            schema_version: u8,
+            spec_hash: &'a str,
+            output_hash: &'a str,
+            format: &'a str,
+            variant: &'a str,
+            id_prefix: &'a str,
+            warnings: Vec<Warning<'a>>,
+        }
+        #[derive(serde::Serialize)]
+        struct Warning<'a> {
+            code: &'a str,
+            path: &'a str,
+            message: &'a str,
+        }
+        let json = Json {
+            chartlet: self.chartlet,
+            schema_version: self.schema_version,
+            spec_hash: &self.spec_hash,
+            output_hash: &self.output_hash,
+            format: match self.format {
+                RenderFormat::Svg => "svg",
+                RenderFormat::Html => "html",
+            },
+            variant: match self.variant {
+                Variant::Desktop => "desktop",
+                Variant::Mobile => "mobile",
+            },
+            id_prefix: &self.id_prefix,
+            warnings: self
+                .warnings
+                .iter()
+                .map(|warning| Warning {
+                    code: warning.code,
+                    path: &warning.path,
+                    message: &warning.message,
+                })
+                .collect(),
+        };
+        serde_json::to_string_pretty(&json).expect("a manifest always serializes")
+    }
 }
 
 /// Parses and renders a chart specification.
@@ -104,6 +187,32 @@ pub fn render_with_metrics(
     options: &RenderOptions,
     metrics: &impl TextMetrics,
 ) -> Result<RenderOutput, ChartError> {
+    let mut output = render_content(spec, format, options, metrics)?;
+    if options.manifest {
+        let id_prefix = match &options.id_prefix {
+            Some(id_prefix) => id_prefix.clone(),
+            None => default_id_prefix(spec)?,
+        };
+        output.manifest = Some(Manifest {
+            chartlet: env!("CARGO_PKG_VERSION"),
+            schema_version: spec.schema_version,
+            spec_hash: format!("sha256:{}", sha256::hex(&sha256(&canonical_json(spec)?))),
+            output_hash: format!("sha256:{}", sha256::hex(&sha256(output.content.as_bytes()))),
+            format,
+            variant: options.variant,
+            id_prefix,
+            warnings: output.warnings.clone(),
+        });
+    }
+    Ok(output)
+}
+
+fn render_content(
+    spec: &ChartSpec,
+    format: RenderFormat,
+    options: &RenderOptions,
+    metrics: &impl TextMetrics,
+) -> Result<RenderOutput, ChartError> {
     let mut warnings = spec.validate()?;
     let id_prefix = match &options.id_prefix {
         Some(id_prefix) => {
@@ -133,7 +242,11 @@ pub fn render_with_metrics(
         };
         let mut warnings = mobile.validate_mobile_variant()?;
         let content = render_panel(&mobile, &mobile_prefix(&id_prefix), metrics, &mut warnings);
-        return Ok(RenderOutput { content, warnings });
+        return Ok(RenderOutput {
+            content,
+            warnings,
+            manifest: None,
+        });
     }
 
     // The HTML profile lays the chart out a second time at the mobile size; its warnings are
@@ -170,6 +283,7 @@ pub fn render_with_metrics(
         return Ok(RenderOutput {
             content: render::html_zoom(&panels, spec, options.table_mode, &id_prefix),
             warnings,
+            manifest: None,
         });
     }
 
@@ -198,7 +312,11 @@ pub fn render_with_metrics(
             )
         }
     };
-    Ok(RenderOutput { content, warnings })
+    Ok(RenderOutput {
+        content,
+        warnings,
+        manifest: None,
+    })
 }
 
 /// The chart one zoom step shows: a window of time on a time chart, a range of categories on
@@ -279,15 +397,20 @@ fn validate_id_prefix(value: &str) -> Result<(), ChartError> {
     Ok(())
 }
 
-fn default_id_prefix(spec: &ChartSpec) -> Result<String, ChartError> {
-    let canonical = serde_json::to_vec(spec).map_err(|error| {
+/// The canonical form of a specification: the parsed specification serialized again, so that two
+/// inputs that differ only in key order or whitespace share it.
+fn canonical_json(spec: &ChartSpec) -> Result<Vec<u8>, ChartError> {
+    serde_json::to_vec(spec).map_err(|error| {
         ChartError::new(
             "serialization_failed",
             "/",
             format!("could not canonicalize the chart specification: {error}"),
         )
-    })?;
-    let hash = canonical
+    })
+}
+
+fn default_id_prefix(spec: &ChartSpec) -> Result<String, ChartError> {
+    let hash = canonical_json(spec)?
         .iter()
         .fold(0xcbf2_9ce4_8422_2325_u64, |hash, byte| {
             (hash ^ u64::from(*byte)).wrapping_mul(0x0000_0100_0000_01b3)
@@ -488,9 +611,12 @@ fn time_description(spec: &ChartSpec) -> String {
     description
 }
 
-/// What a time chart adds to its opening and its values: missing values, areas, bands,
-/// reference lines, zones and point markers.
+/// What a time chart adds to its opening and its values: collapsed gaps, missing values, areas,
+/// bands, reference lines, zones and point markers.
 fn describe_additions(spec: &ChartSpec, zone: time::TimeZone, description: &mut String) {
+    if spec.time_axis.gaps == spec::Gaps::Collapse {
+        description.push_str(text::gaps_collapsed(spec.locale));
+    }
     let missing = spec
         .data_layers()
         .map(|entry| entry.layer.missing_values())
@@ -1661,6 +1787,52 @@ mod tests {
 
     // --- Uncertainty bands, reference lines, stripes, calendars, range bars, small multiples ---
 
+    #[test]
+    fn a_manifest_is_returned_only_on_request_and_hashes_the_parsed_specification() {
+        assert!(render_ok(SPEC).manifest.is_none());
+
+        let options = RenderOptions {
+            manifest: true,
+            variant: Variant::Desktop,
+            ..RenderOptions::default()
+        };
+        let output = render_json(SPEC, RenderFormat::Html, &options).unwrap();
+        let manifest = output.manifest.expect("the manifest was asked for");
+        assert_eq!(manifest.chartlet, env!("CARGO_PKG_VERSION"));
+        assert_eq!(manifest.format, RenderFormat::Html);
+        assert_eq!(
+            manifest.output_hash,
+            format!(
+                "sha256:{}",
+                super::sha256::hex(&super::sha256(output.content.as_bytes()))
+            )
+        );
+        assert!(manifest.id_prefix.starts_with("chartlet-"));
+
+        // Whitespace and key order of the input do not change the specification hash.
+        let value: serde_json::Value = serde_json::from_str(SPEC).unwrap();
+        let compact = render_json(&value.to_string(), RenderFormat::Html, &options).unwrap();
+        assert_eq!(compact.manifest, Some(manifest.clone()));
+
+        let json = manifest.to_json();
+        let keys = [
+            "chartlet",
+            "schemaVersion",
+            "specHash",
+            "outputHash",
+            "format",
+            "variant",
+            "idPrefix",
+            "warnings",
+        ];
+        let positions: Vec<usize> = keys
+            .iter()
+            .map(|key| json.find(&format!("\"{key}\"")).unwrap())
+            .collect();
+        assert!(positions.is_sorted(), "{json}");
+        assert!(json.contains("\"format\": \"html\""), "{json}");
+    }
+
     fn render_ok(spec: &str) -> super::RenderOutput {
         render_json(spec, RenderFormat::Svg, &RenderOptions::default())
             .unwrap_or_else(|error| panic!("should render: {error}"))
@@ -2670,6 +2842,24 @@ mod tests {
         );
         // A coastline is a closed ring, not a circle.
         assert!(!output.content.contains("class=\"chartlet-topic-area\"/>"));
+        // Every area names the center it was placed around, inside the viewBox.
+        let centers = output
+            .content
+            .split("class=\"chartlet-topic-area")
+            .skip(1)
+            .map(|rest| {
+                let attribute = |name: &str| -> f64 {
+                    let start = rest.find(name).expect("center attribute") + name.len();
+                    let end = start + rest[start..].find('"').expect("closing quote");
+                    rest[start..end].parse().expect("a number")
+                };
+                (attribute("data-cx=\""), attribute("data-cy=\""))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(centers.len(), 6);
+        for (cx, cy) in centers {
+            assert!((0.0..=800.0).contains(&cx) && (0.0..=450.0).contains(&cy));
+        }
 
         // At this size no area carries a name at the type size the design brief asks for, so
         // every label sits beside the map with a leader line to its area. No name is lost.
@@ -2985,7 +3175,7 @@ mod tests {
                 .contains("Knowledge landscape of 2 realms and 4 regions")
         );
         assert!(svg.content.contains("largest is Models with 40"));
-        assert!(svg.content.contains("1 places are marked"));
+        assert!(svg.content.contains("1 place is marked"));
     }
 
     #[test]
@@ -4188,5 +4378,277 @@ mod tests {
         assert!(html.contains(&rule.replace("{root}", desktop)));
         assert!(html.contains(&rule.replace("{root}", &format!("{desktop}-m"))));
         assert!(html.starts_with("<div class=\"chartlet-wrapper chartlet-responsive"));
+    }
+
+    // --- Collapsed gaps ---
+
+    /// Thursday 2026-03-05 to Wednesday 2026-03-11 without the weekend, as Unix seconds.
+    const TRADING_DAYS: [i64; 5] = [
+        1_772_668_800,
+        1_772_755_200,
+        1_773_014_400,
+        1_773_100_800,
+        1_773_187_200,
+    ];
+
+    /// A time chart with gaps collapsed: one line over `days`, then `extra` layers, then `tail`
+    /// at the top level.
+    fn collapsed(days: &[i64], extra: &str, tail: &str) -> String {
+        let points = days
+            .iter()
+            .enumerate()
+            .map(|(index, day)| format!(r#"{{"time": {day}, "value": {}}}"#, index + 1))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(
+            r#"{{
+                "schemaVersion": 1,
+                "type": "time",
+                "title": "Trading days",
+                "showValues": false,
+                "timeAxis": {{"gaps": "collapse"}},
+                "panes": [{{"layers": [{{"mark": "line", "points": [{points}]}}{extra}]}}]{tail}
+            }}"#
+        )
+    }
+
+    /// The horizontal centers of the line's point markers, in order.
+    fn point_xs(svg: &str) -> Vec<f64> {
+        svg.split("<circle cx=\"")
+            .skip(1)
+            .map(|rest| rest[..rest.find('"').unwrap()].parse().unwrap())
+            .collect()
+    }
+
+    /// The labels and positions of the time ticks, in order.
+    fn time_ticks(svg: &str) -> Vec<(String, f64)> {
+        svg.split("<text x=\"")
+            .skip(1)
+            .filter(|rest| rest.contains("class=\"chartlet-tick\">2026"))
+            .map(|rest| {
+                let x = rest[..rest.find('"').unwrap()].parse().unwrap();
+                let label = rest.split("class=\"chartlet-tick\">").nth(1).unwrap();
+                (label[..label.find('<').unwrap()].to_owned(), x)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn collapsed_gaps_place_observations_at_equal_distances() {
+        let svg = render_ok(&collapsed(&TRADING_DAYS, "", "")).content;
+        let xs = point_xs(&svg);
+        assert_eq!(xs.len(), 5);
+        let step = xs[1] - xs[0];
+        assert!(step > 0.0);
+        for pair in xs.windows(2) {
+            assert!((pair[1] - pair[0] - step).abs() < 0.01, "{xs:?}");
+        }
+        // The weekend takes no space: Friday and Monday are neighbours.
+        assert!(svg.contains("<title>2026-03-06: 2</title>"));
+        assert!(svg.contains("<title>2026-03-09: 3</title>"));
+        // Daily ticks: the weekend's boundaries fall on Monday, which is labelled once.
+        let labels: Vec<String> = time_ticks(&svg)
+            .into_iter()
+            .map(|(label, _)| label)
+            .collect();
+        assert_eq!(
+            labels,
+            [
+                "2026-03-05",
+                "2026-03-06",
+                "2026-03-09",
+                "2026-03-10",
+                "2026-03-11"
+            ]
+        );
+
+        // The same data with gaps shown leaves room for the weekend.
+        let shown =
+            render_ok(&collapsed(&TRADING_DAYS, "", "").replace("collapse", "show")).content;
+        let xs = point_xs(&shown);
+        assert!(xs[2] - xs[1] > 2.0 * (xs[1] - xs[0]));
+    }
+
+    #[test]
+    fn collapsed_ticks_sit_on_the_first_observation_after_their_boundary() {
+        // Five weeks of weekdays from Monday 2026-03-02, without Monday 2026-03-16.
+        let monday: i64 = 1_772_409_600;
+        let days: Vec<i64> = (0..33)
+            .map(|day| monday + day * 86_400)
+            .filter(|epoch| (epoch / 86_400 + 3).rem_euclid(7) < 5)
+            .filter(|epoch| *epoch != monday + 14 * 86_400)
+            .collect();
+        let svg = render_ok(&collapsed(&days, "", "")).content;
+        let ticks = time_ticks(&svg);
+        let labels: Vec<&str> = ticks.iter().map(|(label, _)| label.as_str()).collect();
+        assert_eq!(
+            labels,
+            [
+                "2026-03-02",
+                "2026-03-09",
+                "2026-03-17",
+                "2026-03-23",
+                "2026-03-30"
+            ]
+        );
+        // The tick of the week without its Monday sits on the Tuesday's observation.
+        let xs = point_xs(&svg);
+        let tuesday = days
+            .iter()
+            .position(|epoch| *epoch == monday + 15 * 86_400)
+            .unwrap();
+        assert!((ticks[2].1 - xs[tuesday]).abs() < 0.01, "{ticks:?}");
+    }
+
+    #[test]
+    fn collapsed_gaps_move_annotations_onto_observations() {
+        let extra = r#", {"mark": "annotation", "label": "Rule", "time": "2026-03-07"},
+            {"mark": "annotation", "label": "Event", "time": "2026-03-08", "value": 2, "shape": "square"},
+            {"mark": "band", "label": "Zone", "from": "2026-03-07", "to": "2026-03-10T12:00"}"#;
+        let output = render_ok(&collapsed(&TRADING_DAYS, extra, ""));
+        let svg = output.content;
+        let xs = point_xs(&svg);
+        let (monday, tuesday) = (xs[2], xs[3]);
+        // A reference line on Saturday stands on Monday, the next observation.
+        assert!(svg.contains(&format!(
+            "<polyline points=\"{monday},78 {monday},414\" class=\"chartlet-rule\">"
+        )));
+        // So does a point marker on Sunday.
+        let marker = svg
+            .split("class=\"chartlet-marker\"")
+            .next()
+            .and_then(|head| head.rsplit("<polyline points=\"").next())
+            .unwrap();
+        let corners: Vec<f64> = marker
+            .split([' ', '"'])
+            .filter_map(|pair| pair.split(',').next()?.parse().ok())
+            .collect();
+        let center = f64::midpoint(corners[0], corners[1]);
+        assert!((center - monday).abs() < 0.01, "{marker}");
+        // A zone covers the observations between its edges: from Monday to Tuesday.
+        assert!(svg.contains(&format!(
+            "<rect x=\"{monday}\" y=\"78\" width=\"{}\" height=\"336\" class=\"chartlet-zone\">",
+            tuesday - monday
+        )));
+        // Tooltips and description keep the real times.
+        assert!(svg.contains("<title>Rule: 2026-03-07</title>"));
+        assert!(svg.contains("Reference lines: Rule at 2026-03-07."));
+    }
+
+    #[test]
+    fn collapsed_gaps_refuse_times_without_an_observation() {
+        for (extra, path) in [
+            (
+                r#", {"mark": "annotation", "label": "Rule", "time": "2026-03-04"}"#,
+                "/panes/0/layers/1/time",
+            ),
+            (
+                r#", {"mark": "annotation", "label": "Event", "time": "2026-03-12", "value": 2}"#,
+                "/panes/0/layers/1/time",
+            ),
+            (
+                r#", {"mark": "band", "label": "Weekend", "from": "2026-03-07", "to": "2026-03-08"}"#,
+                "/panes/0/layers/1",
+            ),
+            (
+                r#", {"mark": "band", "label": "Before", "from": "2026-03-01", "to": "2026-03-04"}"#,
+                "/panes/0/layers/1",
+            ),
+        ] {
+            assert_eq!(
+                render_err(&collapsed(&TRADING_DAYS, extra, "")),
+                ("time_out_of_range", path.to_owned()),
+                "{extra}"
+            );
+        }
+        // A zone reaching beyond the observations is cut at the first and the last of them.
+        let wide =
+            r#", {"mark": "band", "label": "All", "from": "2026-03-01", "to": "2026-03-20"}"#;
+        let svg = render_ok(&collapsed(&TRADING_DAYS, wide, "")).content;
+        let xs = point_xs(&svg);
+        assert!(svg.contains(&format!(
+            "<rect x=\"{}\" y=\"78\" width=\"{}\"",
+            xs[0],
+            xs[4] - xs[0]
+        )));
+        // With the distances kept, the same times are fine.
+        let rule = r#", {"mark": "annotation", "label": "Rule", "time": "2026-03-04"}"#;
+        render_ok(&collapsed(&TRADING_DAYS, rule, "").replace("collapse", "show"));
+    }
+
+    #[test]
+    fn collapsed_zoom_windows_close_their_gaps_too() {
+        let zones = r#", {"mark": "band", "label": "Early", "from": "2026-03-05", "to": "2026-03-07T12:00"}"#;
+        let zoom = r#", "zoomSteps": [
+            {"label": "All", "from": "2026-03-05", "to": "2026-03-11"},
+            {"label": "Weekend on", "from": "2026-03-07", "to": "2026-03-11"}
+        ]"#;
+        let html = html_ok(&collapsed(&TRADING_DAYS, zones, zoom));
+        let panel = |index: usize| {
+            html.split(&format!("chartlet-panel chartlet-panel-{index}"))
+                .nth(1)
+                .and_then(|panel| panel.split("</div>").next())
+                .unwrap()
+                .to_owned()
+        };
+        let (all, late) = (panel(0), panel(1));
+        assert_eq!(point_xs(&all).len(), 5);
+        let xs = point_xs(&late);
+        assert_eq!(xs.len(), 3);
+        assert!(((xs[2] - xs[1]) - (xs[1] - xs[0])).abs() < 0.01, "{xs:?}");
+        // The zone keeps Thursday and Friday in the full window; the late window starts on the
+        // Saturday, so its share of the zone holds no observation and is left out.
+        assert!(all.contains("class=\"chartlet-zone\""));
+        assert!(!late.contains("class=\"chartlet-zone\""));
+    }
+
+    #[test]
+    fn collapsed_gaps_are_named_in_the_description() {
+        let spec = collapsed(&TRADING_DAYS, "", "");
+        assert!(
+            render_ok(&spec)
+                .content
+                .contains("Lowest: 1 (2026-03-05). Gaps in time are closed up.</desc>")
+        );
+        let html = html_ok(&german(&spec, "time"));
+        assert!(
+            html.contains("Zeiträume ohne Beobachtung sind ausgelassen."),
+            "{html}"
+        );
+        let shown = render_ok(&spec.replace("collapse", "show")).content;
+        assert!(!shown.contains("Gaps in time"));
+    }
+
+    #[test]
+    fn collapsed_small_multiples_share_their_slots() {
+        let points = |days: &[i64]| {
+            days.iter()
+                .map(|day| format!(r#"{{"time": {day}, "value": 1}}"#))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let spec = format!(
+            r#"{{
+                "schemaVersion": 1,
+                "type": "multiples",
+                "title": "Desks",
+                "timeAxis": {{"gaps": "collapse"}},
+                "panes": [
+                    {{"title": "A", "layers": [{{"mark": "line", "points": [{}]}}]}},
+                    {{"title": "B", "layers": [{{"mark": "line", "points": [{}]}}]}}
+                ]
+            }}"#,
+            points(&TRADING_DAYS[..3]),
+            points(&TRADING_DAYS[2..]),
+        );
+        let svg = render_ok(&spec).content;
+        let xs = point_xs(&svg);
+        assert_eq!(xs.len(), 6);
+        // Panel B, one grid cell of (800 - 2 × 16) / 2 pixels to the right, starts on the third
+        // of the five shared slots, where panel A ends, and keeps the same distances.
+        let cell = 384.0;
+        let step = xs[1] - xs[0];
+        assert!((xs[3] - cell - xs[2]).abs() < 0.01, "{xs:?}");
+        assert!((xs[5] - xs[4] - step).abs() < 0.01, "{xs:?}");
     }
 }

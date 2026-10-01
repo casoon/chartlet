@@ -62,6 +62,7 @@ chartlet is in early alpha. Statuses: **Verified**, **Designed, not yet verified
 | `area` mark | Verified | Filled down to zero in the layer's color; the value axis includes zero. Covered by unit and golden-file tests. |
 | Line patterns and weights (`dash`, `stroke`) | Verified | `solid`, `dashed`, `dotted`; `thin`, `regular`, `bold`; the legend sample shows both. |
 | Gaps (`null`) on a time chart | Verified | Break line, area and band; counted as missing in description and table. Also in small multiples. |
+| Gaps in time (`timeAxis.gaps: "collapse"`) | Verified | Every observed timestamp takes one evenly spaced slot, so weekends and holidays take no space; ticks sit on the first observation after each calendar boundary, annotations on the slot of an observation. Also in small multiples and zoom windows. Covered by unit and golden-file tests. |
 | `zoomSteps` on a time chart | Verified | Windows by timestamp, HTML profile only; same radio-and-CSS mechanism as category zoom. |
 | `ohlc` mark (candlesticks) | Verified | Wick from low to high, body from open to close; rising hollow, falling filled, in `--chartlet-rise` and `--chartlet-fall`. Beyond one candle per three plot pixels only the wicks are drawn and `dense_chart` is reported. Tooltips, table columns and description per candle layer. Covered by unit and golden-file tests. |
 | Several panes on a `time` chart | Verified | Up to four panes stacked on one shared time axis, each with its own value axis and a share of the height by `heightRatio`; one legend with names unique across the chart. Covered by unit and golden-file tests. |
@@ -82,6 +83,7 @@ chartlet is in early alpha. Statuses: **Verified**, **Designed, not yet verified
 | WebAssembly build in Node.js | Verified | The npm package renders through it by default; tests compare every example with the CLI output byte for byte on Node.js 22. |
 | WebAssembly build in Cloudflare Workers | Verified | `@casoon/chartlet/wasm` with an imported `chartlet.wasm`; checked locally in workerd, not in a deployed Worker. |
 | WebAssembly build in the browser | Designed, not yet verified | Same entry point; the module is compiled by the page. |
+| MCP server (`@casoon/chartlet-mcp`) | Designed, not yet verified | stdio server with `inspect_data`, `validate_spec`, `render_chart`, `explain_chart` and the schema as a resource; covered by unit tests and an end-to-end test with the reference MCP client, not yet tried in Claude Desktop or Claude Code. |
 | Native Node bindings | Not supported | The npm package renders through the WebAssembly build instead; `CHARTLET_BIN` selects the CLI. |
 | Series filtering and stepped zoom | Designed, not yet verified | Available in the HTML profile with native controls and CSS; broader browser and assistive-technology verification is pending. |
 | Mark tooltips | Designed, not yet verified | Native SVG titles provide hover hints; the description and table remain the accessible alternatives. |
