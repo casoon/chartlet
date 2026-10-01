@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { Client } from "@modelcontextprotocol/client";
+import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 
 const server = fileURLToPath(new URL("../src/server.mjs", import.meta.url));
 const schema = readFileSync(new URL("../../../schema/chartlet.schema.json", import.meta.url), "utf8");

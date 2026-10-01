@@ -19,8 +19,9 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@casoon/chartlet": "0.1.0-alpha.7",
-    "@modelcontextprotocol/sdk": "^1.31.0",
+    "@casoon/chartlet": "file:../chartlet",
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
+    "@modelcontextprotocol/server": "^2.2.0",
     "zod": "^4.6.5"
   },
   "scripts": {
@@ -34,5 +35,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.2.0"
   }
 }
