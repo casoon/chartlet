@@ -1,26 +1,57 @@
 //! PNG output, with `cargo test --features png`.
 #![cfg(feature = "png")]
 
-use std::fmt::Write;
-
-use chartlet::{ChartSpec, PngOptions, Variant, render_png, sha256};
-
-fn hash(bytes: &[u8]) -> String {
-    sha256(bytes).iter().fold(String::new(), |mut hex, byte| {
-        write!(hex, "{byte:02x}").expect("writing to String cannot fail");
-        hex
-    })
-}
+use chartlet::{ChartSpec, PngOptions, Variant, render_png};
 
 fn spec(json: &str) -> ChartSpec {
     ChartSpec::from_json(json).expect("the example parses")
 }
 
+/// How far a rendering may stray from its reviewed image: resvg rasterizes with floating point,
+/// and edge pixels can differ by a step or two between CPU architectures. Identical bytes are the
+/// rule on one platform; elsewhere at most 0.5 % of the pixels may differ, by at most 8 in any
+/// channel.
+fn assert_matches_reviewed(name: &str, png: &[u8], reviewed: &[u8]) {
+    if png == reviewed {
+        return;
+    }
+    let decode = |bytes: &[u8]| {
+        resvg::tiny_skia::Pixmap::decode_png(bytes).expect("a PNG chartlet wrote decodes")
+    };
+    let (actual, expected) = (decode(png), decode(reviewed));
+    assert_eq!(
+        (actual.width(), actual.height()),
+        (expected.width(), expected.height()),
+        "{name} changed its size"
+    );
+    let mut differing = 0_usize;
+    for (a, b) in actual.data().chunks(4).zip(expected.data().chunks(4)) {
+        let largest = a
+            .iter()
+            .zip(b)
+            .map(|(a, b)| a.abs_diff(*b))
+            .max()
+            .unwrap_or(0);
+        assert!(
+            largest <= 8,
+            "{name} drifted from its reviewed PNG by {largest}"
+        );
+        if largest > 0 {
+            differing += 1;
+        }
+    }
+    let pixels = actual.data().len() / 4;
+    assert!(
+        differing * 200 <= pixels,
+        "{name}: {differing} of {pixels} pixels differ from the reviewed PNG"
+    );
+}
+
 /// The bundled fonts and the absence of system fonts make the PNG a function of the
-/// specification: these are the SHA-256 hashes of the reviewed images. A change of chartlet's
-/// layout, of resvg or of the fonts changes them; review the new images and update the hashes.
+/// specification. A change of chartlet's layout, of resvg or of the fonts changes the images:
+/// review the new ones and replace the files in tests/png/.
 #[test]
-fn every_png_matches_its_reviewed_hash() {
+fn every_png_matches_its_reviewed_image() {
     let cases = [
         (
             "temperature-projection social",
@@ -29,7 +60,7 @@ fn every_png_matches_its_reviewed_hash() {
                 variant: Variant::Social,
                 scale: 1.0,
             },
-            "5e2c1ed9b872a6e5618eb86769800f3b3762393fded31802cfb5e0bbbc1fb4e5",
+            &include_bytes!("png/temperature-projection-social.png")[..],
         ),
         (
             "revenue-vs-forecast print at 2x",
@@ -38,16 +69,12 @@ fn every_png_matches_its_reviewed_hash() {
                 variant: Variant::Print,
                 scale: 2.0,
             },
-            "20bd6b632aa8b80baa8385e08380de3b95ff01b1577d2c300fd145276f372f41",
+            &include_bytes!("png/revenue-vs-forecast-print-2x.png")[..],
         ),
     ];
-    for (name, json, options, expected) in cases {
+    for (name, json, options, reviewed) in cases {
         let output = render_png(&spec(json), &options).expect("the example renders");
-        assert_eq!(
-            hash(&output.png),
-            expected,
-            "{name} drifted from its reviewed PNG"
-        );
+        assert_matches_reviewed(name, &output.png, reviewed);
     }
 }
 
