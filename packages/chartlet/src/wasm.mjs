@@ -36,6 +36,7 @@ export function createRenderer(module) {
         manifest: options.manifest ?? false,
         alternative: options.alternative ?? false,
         styles: options.styles ?? "inline",
+        hooks: options.hooks ?? false,
       },
     });
   }

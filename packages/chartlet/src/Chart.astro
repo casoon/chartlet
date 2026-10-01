@@ -9,6 +9,8 @@ export interface Props {
   strict?: boolean;
   allowWarnings?: string[];
   styles?: 'inline' | 'external';
+  /** Add the `data-*` hooks for `@casoon/chartlet/interactive`. */
+  hooks?: boolean;
   binary?: string;
 }
 
@@ -20,6 +22,7 @@ const {
   strict = false,
   allowWarnings,
   styles,
+  hooks = false,
   binary,
 } = Astro.props;
 
@@ -33,6 +36,7 @@ const rendered = renderChart(spec, {
   strict,
   allowWarnings,
   styles,
+  hooks,
   binary,
   idPrefix: id,
 });

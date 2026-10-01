@@ -243,3 +243,14 @@ test("returns the same provenance manifest from WebAssembly and the CLI", () => 
     ]);
   }
 });
+
+test("hooks are written alike by the WebAssembly build and the CLI, and only on request", () => {
+  const spec = JSON.parse(readExample("sensor-readings.json"));
+  for (const format of ["svg", "html"]) {
+    const hooked = renderChart(spec, { format, hooks: true }).content;
+    assert.equal(renderChart(spec, { format, hooks: true, binary }).content, hooked);
+    assert.match(hooked, /data-chartlet-type="time"/);
+    assert.match(hooked, /<g data-chartlet-plot="" data-pane="0"/);
+    assert.doesNotMatch(renderChart(spec, { format }).content, /data-chartlet-/);
+  }
+});

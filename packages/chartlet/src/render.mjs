@@ -125,6 +125,9 @@ function runCli(binary, input, options, extraArgs) {
   if (options.styles) {
     args.push("--styles", options.styles);
   }
+  if (options.hooks) {
+    args.push("--hooks");
+  }
   if (options.strict) {
     args.push("--strict");
   }

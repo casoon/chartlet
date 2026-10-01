@@ -37,6 +37,9 @@ for (const [renderer, chartletBin] of [
     assert.match(html, /smoke-chart-title/);
     assert.match(html, /class="chartlet-line"/);
     assert.match(html, /<table>/);
+    // `hooks` adds the data-* hooks for the optional module, and still no script.
+    assert.match(html, /data-chartlet-type="line" data-chartlet-id="hooked-chart"/);
+    assert.match(html, /<table data-chartlet-table="hooked-chart">/);
     assert.doesNotMatch(html, /<script/);
   });
 }

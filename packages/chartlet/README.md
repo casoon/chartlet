@@ -64,6 +64,22 @@ Astro takes the hashes without quotes: per page through
 `Astro.csp?.insertStyleHash(hash.slice(1, -1))`, or for all pages in
 `security.csp.styleDirective.hashes`. `createRenderer` returns the same field.
 
+## Interactive module
+
+`@casoon/chartlet/interactive` is an optional browser module without dependencies for charts
+rendered with `hooks: true`: crosshair with values (pointer and keyboard), series toggles, scroll
+stations and playback. Import only the features a page uses:
+
+```js
+import { enhance, crosshair, toggle } from '@casoon/chartlet/interactive';
+
+enhance(document.querySelector('figure.chartlet-figure'), { crosshair, toggle });
+```
+
+It reads values from the data table and geometry from `data-*` hooks, needs no inline script and
+sets styles only through the CSSOM. See
+[Interaction](https://github.com/casoon/chartlet/blob/main/docs/guides/interaction.md#optional-javascript).
+
 ## Cloudflare Workers and Vite
 
 Runtimes that cannot compile WebAssembly from bytes, such as workerd, import the module and pass

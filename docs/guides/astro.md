@@ -33,6 +33,9 @@ import revenue from '../data/monthly-revenue.json';
 - On a page with several charts, pass `styles="external"` and import
   `@casoon/chartlet/chartlet.css` once in the layout; each chart then carries only its own declared
   colors instead of the whole stylesheet. See [Shared stylesheet](../javascript/#shared-stylesheet).
+- `hooks` adds the `data-*` hooks for the optional crosshair, series toggle, scroll stations and
+  playback of `@casoon/chartlet/interactive`; see
+  [Optional JavaScript](../interaction/#optional-javascript).
 - The HTML table uses a native disclosure by default; set `table="visible"` to show it permanently.
 - A specification with `mobile` needs nothing extra: the component passes the HTML through, and
   the figure switches to the mobile variant by the width of its container. See

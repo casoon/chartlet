@@ -25,6 +25,10 @@
     },
     "./chartlet.wasm": "./src/chartlet.wasm",
     "./chartlet.css": "./src/chartlet.css",
+    "./interactive": {
+      "types": "./src/interactive.d.mts",
+      "import": "./src/interactive.mjs"
+    },
     "./astro": "./src/Chart.astro"
   },
   "peerDependencies": {

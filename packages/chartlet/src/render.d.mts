@@ -24,6 +24,12 @@ export interface RenderChartOptions {
   styles?: "inline" | "external";
   /** Also return the chart's text alternative in `alternative`. */
   alternative?: boolean;
+  /**
+   * Add the `data-*` hooks that `@casoon/chartlet/interactive` reads: plot geometry, layer
+   * groups and unformatted values on the data table (or in a JSON data block in the SVG
+   * profile). Off by default; without it the output is unchanged.
+   */
+  hooks?: boolean;
   /** A `chartlet` executable to render with instead of the bundled WebAssembly build. */
   binary?: string;
 }

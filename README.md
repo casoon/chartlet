@@ -163,6 +163,12 @@ shipped.
 
 The pure SVG profile stays a single static chart; filtering and stepped zoom are HTML-only.
 
+For what CSS cannot do, the npm package has an optional, additive browser module,
+`@casoon/chartlet/interactive`: a crosshair that reads out values by pointer and keyboard, series
+toggles on time charts, scroll stations and playback. It reads charts rendered with `hooks: true`
+(CLI `--hooks`) and lays nothing out again; without it the output is unchanged. See
+[Interaction](docs/guides/interaction.md#optional-javascript).
+
 ```json
 {
   "schemaVersion": 1,

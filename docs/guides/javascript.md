@@ -18,7 +18,7 @@ const { content, warnings } = renderChart(spec, { format: 'svg', idPrefix: 'reve
 ```
 
 The options are those of the CLI: `format`, `table`, `idPrefix`, `variant` (`desktop`, `mobile`
-or `print`), `strict`, `allowWarnings` and `manifest`. When
+or `print`), `strict`, `allowWarnings`, `manifest` and `hooks`. When
 `options.binary` or the environment variable `CHARTLET_BIN` names a `chartlet` executable,
 `renderChart` calls that CLI instead.
 
@@ -131,6 +131,22 @@ renders with `--styles external`. A chart looks the same either way.
 The full file covers every chart type. A site that renders only some of them can serve just
 those: `stylesheet({ types: ['bar', 'time'] })` or `chartlet stylesheet --types bar,time` keeps
 the common rules (about 4 KB) and the rules of the named types.
+
+## Interactive module
+
+`@casoon/chartlet/interactive` is an optional browser module, with no dependencies, for charts
+rendered with `hooks: true`: a crosshair that reads out values by pointer and keyboard, series
+toggles, scroll stations and playback. It reads the values from the chart's data table and the
+geometry from `data-*` hooks, so it never lays the chart out again:
+
+```js
+import { enhance, crosshair, toggle } from '@casoon/chartlet/interactive';
+
+enhance(document.querySelector('#power').closest('figure'), { crosshair, toggle });
+```
+
+See [Interaction](interaction.md#optional-javascript) for the features and the hooks. The Rust
+CLI writes the hooks with `--hooks` but ships no JavaScript.
 
 ## Content Security Policy
 
