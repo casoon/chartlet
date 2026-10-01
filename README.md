@@ -26,7 +26,7 @@ Install the CLI from crates.io (Rust 1.88 or newer). While chartlet is in alpha,
 explicitly:
 
 ```sh
-cargo install chartlet --version 0.1.0-alpha.5
+cargo install chartlet --version 0.1.0-alpha.6
 ```
 
 Save a minimal specification as `spec.json`:
@@ -280,7 +280,7 @@ Astro, Cloudflare Workers and Vite, see [JavaScript runtimes](docs/guides/javasc
 ## Rust
 
 ```sh
-cargo add chartlet@0.1.0-alpha.5
+cargo add chartlet@0.1.0-alpha.6
 ```
 
 ```rust

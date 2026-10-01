@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "chartlet"
-version = "0.1.0-alpha.5"
+version = "0.1.0-alpha.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "chartlet-wasm"
-version = "0.1.0-alpha.5"
+version = "0.1.0-alpha.6"
 dependencies = [
  "chartlet",
  "serde_json",

@@ -5,7 +5,7 @@ order: 3
 ---
 
 ```sh
-cargo add chartlet@0.1.0-alpha.5
+cargo add chartlet@0.1.0-alpha.6
 ```
 
 ```rust
