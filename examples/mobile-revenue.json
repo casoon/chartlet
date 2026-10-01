@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "type": "time",
+  "title": "Monthly revenue by sales channel",
+  "description": "Direct sales led every month and grew from 420 to 560 thousand over eighteen months; partner and marketplace revenue rose more slowly, each with a peak in December.",
+  "source": "Illustrative values, chartlet",
+  "showValues": false,
+  "timeAxis": {
+    "timezone": "UTC",
+    "title": "Month"
+  },
+  "panes": [
+    {
+      "valueAxis": {
+        "title": "Revenue in thousands"
+      },
+      "layers": [
+        {
+          "mark": "line",
+          "name": "Direct sales",
+          "points": [
+            { "time": "2025-01-01", "value": 420 },
+            { "time": "2025-02-01", "value": 432 },
+            { "time": "2025-03-01", "value": 445 },
+            { "time": "2025-04-01", "value": 451 },
+            { "time": "2025-05-01", "value": 468 },
+            { "time": "2025-06-01", "value": 474 },
+            { "time": "2025-07-01", "value": 490 },
+            { "time": "2025-08-01", "value": 482 },
+            { "time": "2025-09-01", "value": 505 },
+            { "time": "2025-10-01", "value": 512 },
+            { "time": "2025-11-01", "value": 530 },
+            { "time": "2025-12-01", "value": 561 },
+            { "time": "2026-01-01", "value": 498 },
+            { "time": "2026-02-01", "value": 506 },
+            { "time": "2026-03-01", "value": 522 },
+            { "time": "2026-04-01", "value": 531 },
+            { "time": "2026-05-01", "value": 544 },
+            { "time": "2026-06-01", "value": 560 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Partner network",
+          "points": [
+            { "time": "2025-01-01", "value": 180 },
+            { "time": "2025-02-01", "value": 186 },
+            { "time": "2025-03-01", "value": 205 },
+            { "time": "2025-04-01", "value": 199 },
+            { "time": "2025-05-01", "value": 198 },
+            { "time": "2025-06-01", "value": 214 },
+            { "time": "2025-07-01", "value": 224 },
+            { "time": "2025-08-01", "value": 219 },
+            { "time": "2025-09-01", "value": 236 },
+            { "time": "2025-10-01", "value": 232 },
+            { "time": "2025-11-01", "value": 241 },
+            { "time": "2025-12-01", "value": 268 },
+            { "time": "2026-01-01", "value": 226 },
+            { "time": "2026-02-01", "value": 231 },
+            { "time": "2026-03-01", "value": 244 },
+            { "time": "2026-04-01", "value": 250 },
+            { "time": "2026-05-01", "value": 255 },
+            { "time": "2026-06-01", "value": 262 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Marketplace",
+          "points": [
+            { "time": "2025-01-01", "value": 96 },
+            { "time": "2025-02-01", "value": 91 },
+            { "time": "2025-03-01", "value": 88 },
+            { "time": "2025-04-01", "value": 104 },
+            { "time": "2025-05-01", "value": 121 },
+            { "time": "2025-06-01", "value": 118 },
+            { "time": "2025-07-01", "value": 132 },
+            { "time": "2025-08-01", "value": 127 },
+            { "time": "2025-09-01", "value": 140 },
+            { "time": "2025-10-01", "value": 146 },
+            { "time": "2025-11-01", "value": 158 },
+            { "time": "2025-12-01", "value": 189 },
+            { "time": "2026-01-01", "value": 149 },
+            { "time": "2026-02-01", "value": 152 },
+            { "time": "2026-03-01", "value": 160 },
+            { "time": "2026-04-01", "value": 166 },
+            { "time": "2026-05-01", "value": 171 },
+            { "time": "2026-06-01", "value": 178 }
+          ]
+        }
+      ]
+    }
+  ],
+  "mobile": { "width": 360, "height": 420, "breakpoint": 640 }
+}

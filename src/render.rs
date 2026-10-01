@@ -4,7 +4,7 @@ use crate::{
     TableMode,
     layout::format_value,
     scene::{Element, Scene, TextAnchor, TextStyle},
-    spec::{ChartSpec, ChartType, Mark, NumberStyle, Theme},
+    spec::{ChartSpec, ChartType, Dash, Mark, Stroke, Theme},
 };
 
 /// The light palette. Every color is a CSS custom property so a host page can override a single
@@ -30,6 +30,20 @@ const LINE_SERIES_STYLE: &str = ".chartlet-legend{font-size:12px;fill:var(--char
 /// bytes.
 const LAYER_EXTRA_STYLE: &str = ".chartlet-band{stroke:none;fill-opacity:.18}.chartlet-band-series-1{fill:var(--chartlet-color-1)}.chartlet-band-series-2{fill:var(--chartlet-color-2)}.chartlet-band-series-3{fill:var(--chartlet-color-3)}.chartlet-band-series-4{fill:var(--chartlet-color-4)}.chartlet-hatch{stroke:none}.chartlet-hatch-line{stroke-width:1.2;opacity:.75}.chartlet-line-modeled{stroke-dasharray:7 5}.chartlet-line-thin{stroke-width:1}.chartlet-point-series-2{fill:var(--chartlet-color-2)}.chartlet-point-series-3{fill:var(--chartlet-color-3)}.chartlet-point-series-4{fill:var(--chartlet-color-4)}.chartlet-rule{fill:none;stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-rule-label{font-size:12px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
 
+/// Areas, line patterns other than the modeled dash, and bold lines. Only included when a chart
+/// uses one of them, for the same reason as [`LAYER_EXTRA_STYLE`].
+const MARK_EXTRA_STYLE: &str = ".chartlet-area{stroke:none;fill-opacity:.18}.chartlet-line-dashed{stroke-dasharray:7 5}.chartlet-line-dotted{stroke-dasharray:0 7}.chartlet-line-thin.chartlet-line-dotted{stroke-dasharray:1 3}.chartlet-line-bold{stroke-width:4.5}.chartlet-multiples .chartlet-line-bold{stroke-width:3}";
+
+/// Zones and point markers of time charts. Only included when a chart uses one of them, for the
+/// same reason as [`LAYER_EXTRA_STYLE`]. A marker is ringed in the background color so that it
+/// stands apart from the line it sits on.
+const ANNOTATION_EXTRA_STYLE: &str = ".chartlet-zone{fill:var(--chartlet-zero);fill-opacity:.14;stroke:none}.chartlet-marker{fill:var(--chartlet-text);stroke:var(--chartlet-background);stroke-width:1.5;stroke-linejoin:round}";
+
+/// Candlesticks. A rising candle is hollow and a falling one filled, so the direction does not
+/// rest on the two colors; both keep at least 4.5:1 against the background of their theme. Only
+/// included when a chart draws candles, for the same reason as [`LAYER_EXTRA_STYLE`].
+const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0f766e;--chartlet-fall:#b42318}.chartlet-theme-dark{--chartlet-rise:#4fd1c5;--chartlet-fall:#ff8a80}.chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}";
+
 /// Small multiples draw thinner lines, because their plots are small.
 const MULTIPLES_STYLE: &str = ".chartlet-multiples .chartlet-line{stroke-width:2}.chartlet-panel-title{font-size:13px;font-weight:650;fill:var(--chartlet-text)}";
 
@@ -39,7 +53,7 @@ const CALENDAR_STYLE: &str =
 
 /// Range bars: a translucent span in the accent color, a hatch on top of a modeled one, and a
 /// strong mark for the central value.
-const RANGEBAR_STYLE: &str = ".chartlet-range{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1}.chartlet-range-hatch{stroke:none}.chartlet-hatch-line{stroke:var(--chartlet-accent);stroke-width:1.2;opacity:.75}.chartlet-range-mid{stroke:var(--chartlet-text);stroke-width:3}";
+const RANGEBAR_STYLE: &str = ".chartlet-range{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1}.chartlet-range-hatch{stroke:none}.chartlet-hatch-line{stroke:var(--chartlet-accent);stroke-width:1.2;opacity:.75}.chartlet-range-mid{stroke:var(--chartlet-text);stroke-width:3}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 
 const FILTER_STYLE: &str = ".chartlet-wrapper{display:inline-block;max-width:100%}.chartlet-filter{border:none;padding:0;margin:0 0 12px 0}.chartlet-filter legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-filter label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-filter input{margin-right:4px}.chartlet-filter input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-wrapper:has(.chartlet-filter input.series-0:not(:checked)) .chartlet-root [data-series=\"0\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-2:not(:checked)) .chartlet-root [data-series=\"2\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-3:not(:checked)) .chartlet-root [data-series=\"3\"]{display:none}";
 
@@ -72,22 +86,53 @@ const PICKER_STYLE: &str = ".chartlet-topic-picker{border:none;padding:0;margin:
 /// way it should: a browser that does not understand `:has()` drops all of them, leaving the map
 /// in its plain state with every area in the accent colour and every panel visible. Nothing is
 /// hidden that cannot be shown again.
-fn picker_style(topics: usize) -> String {
+fn picker_style(topics: usize, roots: &[&str]) -> String {
     let mut style = String::from(PICKER_STYLE);
-    // The quiet state applies only once something is actually selected.
-    style.push_str(".chartlet-wrapper:has(.chartlet-topic-picker input:checked) .chartlet-topic-area{fill:var(--chartlet-quiet)}.chartlet-wrapper:has(.chartlet-topic-picker input:checked) .chartlet-topic-label,.chartlet-wrapper:has(.chartlet-topic-picker input:checked) .chartlet-topic-value{fill:var(--chartlet-text)}.chartlet-wrapper:has(.chartlet-topic-picker input:checked) .chartlet-topic-point{fill:var(--chartlet-muted)}");
+    // The quiet state applies only once something is actually selected. The rules for the map
+    // name each SVG's root ID, because the chart's own rules are scoped to it and would
+    // otherwise outrank them.
+    for root in roots {
+        write!(
+            style,
+            ".chartlet-wrapper:has(.chartlet-topic-picker input:checked) #{root} .chartlet-topic-area{{fill:var(--chartlet-quiet)}}.chartlet-wrapper:has(.chartlet-topic-picker input:checked) #{root} .chartlet-topic-label,.chartlet-wrapper:has(.chartlet-topic-picker input:checked) #{root} .chartlet-topic-value{{fill:var(--chartlet-text)}}.chartlet-wrapper:has(.chartlet-topic-picker input:checked) #{root} .chartlet-topic-point{{fill:var(--chartlet-muted)}}"
+        )
+        .expect("writing to String cannot fail");
+    }
     // A host page receives the wrapper as one block, so its own detail panels can only be
     // siblings of it — but a page that does place them inside should work too. Both forms are
     // written out rather than guessing which one the integration will use.
     style.push_str(".chartlet-wrapper:has(.chartlet-topic-picker input:checked) .chartlet-topic-panel,.chartlet-wrapper:has(.chartlet-topic-picker input:checked) ~ .chartlet-topic-panel{display:none}");
     for topic in 0..topics {
+        for root in roots {
+            write!(
+                style,
+                ".chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-area.chartlet-topic-{topic}{{fill:var(--chartlet-accent)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-label.chartlet-topic-{topic},.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-value.chartlet-topic-{topic}{{fill:var(--chartlet-background)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-point.chartlet-topic-{topic}{{fill:var(--chartlet-background)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-outside.chartlet-topic-{topic}{{fill:var(--chartlet-accent)}}"
+            )
+            .expect("writing to String cannot fail");
+        }
         write!(
             style,
-            ".chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) .chartlet-topic-area.chartlet-topic-{topic}{{fill:var(--chartlet-accent)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) .chartlet-topic-label.chartlet-topic-{topic},.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) .chartlet-topic-value.chartlet-topic-{topic}{{fill:var(--chartlet-background)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) .chartlet-topic-point.chartlet-topic-{topic}{{fill:var(--chartlet-background)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) .chartlet-topic-outside.chartlet-topic-{topic}{{fill:var(--chartlet-accent)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) .chartlet-topic-panel-{topic},.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) ~ .chartlet-topic-panel-{topic}{{display:block}}"
+            ".chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) .chartlet-topic-panel-{topic},.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) ~ .chartlet-topic-panel-{topic}{{display:block}}"
         )
         .expect("writing to String cannot fail");
     }
     style
+}
+
+/// The root IDs of every SVG in the panels, desktop and mobile.
+fn panel_roots(panels: &[Panel]) -> Vec<&str> {
+    panels
+        .iter()
+        .flat_map(|panel| std::iter::once(&panel.svg).chain(panel.mobile.as_ref()))
+        .filter_map(|svg| root_id(svg))
+        .collect()
+}
+
+/// The ID of an SVG's root element, which [`svg`] always writes as the root's first `id`.
+fn root_id(svg: &str) -> Option<&str> {
+    let start = svg.find(" id=\"")? + 5;
+    let end = start + svg[start..].find('"')?;
+    Some(&svg[start..end])
 }
 
 pub(crate) fn svg(scene: &Scene, spec: &ChartSpec, description: &str, id_prefix: &str) -> String {
@@ -105,7 +150,7 @@ pub(crate) fn svg(scene: &Scene, spec: &ChartSpec, description: &str, id_prefix:
     let mut output = String::new();
     write!(
         output,
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}\">",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}\">",
         scene.width,
         scene.height,
         scene.width,
@@ -118,11 +163,8 @@ pub(crate) fn svg(scene: &Scene, spec: &ChartSpec, description: &str, id_prefix:
         }
     )
     .expect("writing to String cannot fail");
-    write!(
-        output,
-        "<title id=\"{title_id}\">{}</title><desc id=\"{description_id}\">{}</desc><style>{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}</style>",
-        escape(&spec.title),
-        escape(description),
+    let stylesheet = format!(
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series { FILTER_STYLE } else { "" },
@@ -132,13 +174,39 @@ pub(crate) fn svg(scene: &Scene, spec: &ChartSpec, description: &str, id_prefix:
         } else {
             ""
         },
+        if is_time && needs_mark_extras(spec) {
+            MARK_EXTRA_STYLE
+        } else {
+            ""
+        },
+        if is_time && needs_annotation_extras(spec) {
+            ANNOTATION_EXTRA_STYLE
+        } else {
+            ""
+        },
         if is_multiples { MULTIPLES_STYLE } else { "" },
-        if is_diverging { crate::diverging::STYLE } else { "" },
+        if is_diverging {
+            crate::diverging::STYLE
+        } else {
+            ""
+        },
         if is_calendar { CALENDAR_STYLE } else { "" },
         if is_rangebar { RANGEBAR_STYLE } else { "" },
         if is_topicmap { TOPICMAP_STYLE } else { "" },
         if is_atlas { ATLAS_STYLE } else { "" },
+        if is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc) {
+            OHLC_STYLE
+        } else {
+            ""
+        },
         layer_style(spec),
+    );
+    write!(
+        output,
+        "<title id=\"{title_id}\">{}</title><desc id=\"{description_id}\">{}</desc><style>{}</style>",
+        escape(&spec.title),
+        escape(description),
+        scope_stylesheet(&stylesheet, id_prefix),
     )
     .expect("writing to String cannot fail");
     emit_hatches(spec, id_prefix, &mut output);
@@ -159,21 +227,91 @@ pub(crate) fn svg(scene: &Scene, spec: &ChartSpec, description: &str, id_prefix:
     output
 }
 
+/// Scopes a chart's stylesheet to its root element. An inline SVG's stylesheet applies to the
+/// whole page, so without this a later chart's rule such as `.chartlet-line` would recolor the
+/// series of an earlier one. Rules that only style the root keep their low specificity, because
+/// the `--chartlet-*` custom properties on it are what a host page overrides; the dark theme
+/// doubles its class so that a later light chart's defaults cannot win over it. Rules for the
+/// HTML controls around the SVG stay as they are.
+fn scope_stylesheet(stylesheet: &str, id_prefix: &str) -> String {
+    let mut scoped = String::with_capacity(stylesheet.len() * 2);
+    for rule in stylesheet.split_inclusive('}') {
+        let Some((selectors, body)) = rule.split_once('{') else {
+            scoped.push_str(rule);
+            continue;
+        };
+        let selectors: Vec<String> = selectors
+            .split(',')
+            .map(|selector| scope_selector(selector, id_prefix))
+            .collect();
+        scoped.push_str(&selectors.join(","));
+        scoped.push('{');
+        scoped.push_str(body);
+    }
+    scoped
+}
+
+fn scope_selector(selector: &str, id_prefix: &str) -> String {
+    const ROOT_CLASSES: [&str; 3] = [
+        ".chartlet-root",
+        ".chartlet-theme-dark",
+        ".chartlet-multiples",
+    ];
+    if selector.starts_with('#')
+        || selector.starts_with(".chartlet-wrapper")
+        || selector.starts_with(".chartlet-filter")
+    {
+        return selector.to_owned();
+    }
+    let on_root = ROOT_CLASSES.iter().any(|class| selector.starts_with(class));
+    match (on_root, selector.contains(' ')) {
+        (true, false) if selector == ".chartlet-theme-dark" => {
+            ".chartlet-root.chartlet-theme-dark".to_owned()
+        }
+        (true, false) => selector.to_owned(),
+        (true, true) => format!("#{id_prefix}{selector}"),
+        (false, _) => format!("#{id_prefix} {selector}"),
+    }
+}
+
 /// Whether a time chart uses anything beyond plain lines in the first palette colors.
 fn needs_layer_extras(spec: &ChartSpec) -> bool {
     spec.chart_type == ChartType::Multiples
-        || spec
-            .layers()
-            .any(|layer| layer.mark == Mark::Annotation || layer.modeled || layer.has_band())
+        || spec.layers().any(|layer| {
+            matches!(layer.mark, Mark::Annotation | Mark::Area | Mark::Band)
+                || layer.modeled
+                || layer.has_band()
+        })
         || spec.data_layers().any(|entry| {
             entry.layer.resolved_color().is_none()
-                && (spec.palette_index(entry.pane, entry.layer) > 0
-                    || spec.series_names().len() > 1)
+                && (spec.palette_index(entry.layer) > 0 || spec.series_names().len() > 1)
         })
 }
 
+/// Whether a time chart draws a zone or a point marker.
+fn needs_annotation_extras(spec: &ChartSpec) -> bool {
+    spec.layers()
+        .any(|layer| layer.mark == Mark::Band || layer.is_marker())
+}
+
+/// Whether a time chart draws an area, a line pattern other than solid or the modeled dash, or a
+/// bold line.
+fn needs_mark_extras(spec: &ChartSpec) -> bool {
+    spec.layers().any(|layer| {
+        layer.mark == Mark::Area
+            || layer.stroke == Stroke::Bold
+            || (layer.is_data()
+                && !matches!(
+                    (layer.effective_dash(), layer.modeled),
+                    (Dash::Solid, _) | (Dash::Dashed, true)
+                ))
+    })
+}
+
 /// CSS rules for the colors a time layer declares itself, including the fill of its band. Only colors that passed the contract reach this point, and the contract admits no
-/// character that could end a declaration, so the values are safe to interpolate.
+/// character that could end a declaration, so the values are safe to interpolate. The rules are
+/// scoped to the chart's root ID: an inline SVG's stylesheet applies to the whole page, and two
+/// charts would otherwise recolor each other's layers.
 fn layer_style(spec: &ChartSpec) -> String {
     let mut style = String::new();
     for (index, layer) in spec.layers().enumerate() {
@@ -188,6 +326,20 @@ fn layer_style(spec: &ChartSpec) -> String {
                 write!(
                     style,
                     ".chartlet-band.chartlet-style-{index}{{fill:{color};stroke:none}}"
+                )
+                .expect("writing to String cannot fail");
+            }
+            if layer.is_marker() {
+                write!(
+                    style,
+                    ".chartlet-marker.chartlet-style-{index}{{fill:{color};stroke:var(--chartlet-background)}}"
+                )
+                .expect("writing to String cannot fail");
+            }
+            if layer.mark == Mark::Area {
+                write!(
+                    style,
+                    ".chartlet-area.chartlet-style-{index}{{fill:{color};stroke:none}}"
                 )
                 .expect("writing to String cannot fail");
             }
@@ -208,7 +360,7 @@ fn emit_hatches(spec: &ChartSpec, id_prefix: &str, output: &mut String) {
             } else {
                 format!(
                     "chartlet-line-series-{}",
-                    spec.palette_index(entry.pane, entry.layer) + 1
+                    spec.palette_index(entry.layer) + 1
                 )
             };
             patterns.push((format!("hatch-{}", entry.global), class));
@@ -382,18 +534,25 @@ fn close(tag: &str, tooltip: Option<&str>, output: &mut String) {
     }
 }
 
-pub(crate) fn html(svg: &str, spec: &ChartSpec, table_mode: TableMode, id_prefix: &str) -> String {
-    html_document(
-        &[(String::new(), svg.to_owned())],
-        spec,
-        table_mode,
-        id_prefix,
-        false,
-    )
+/// One chart of the HTML figure: a zoom step, or the only chart. `mobile` is its mobile variant,
+/// when the specification has one.
+pub(crate) struct Panel {
+    pub label: String,
+    pub svg: String,
+    pub mobile: Option<String>,
+}
+
+pub(crate) fn html(
+    panel: Panel,
+    spec: &ChartSpec,
+    table_mode: TableMode,
+    id_prefix: &str,
+) -> String {
+    html_document(&[panel], spec, table_mode, id_prefix, false)
 }
 
 pub(crate) fn html_zoom(
-    panels: &[(String, String)],
+    panels: &[Panel],
     spec: &ChartSpec,
     table_mode: TableMode,
     id_prefix: &str,
@@ -401,10 +560,61 @@ pub(crate) fn html_zoom(
     html_document(panels, spec, table_mode, id_prefix, true)
 }
 
+/// Switches between the chart and its mobile variant by the width of the wrapper. The mobile
+/// variant is hidden unless the container query applies, so a browser without container queries
+/// keeps showing the chart at its full size. `display:none` also takes the hidden variant out of
+/// the accessibility tree. The rules carry the breakpoint in their selector, so charts with
+/// different breakpoints on one page do not switch each other.
+fn responsive_style(breakpoint: u32) -> String {
+    format!(
+        ".chartlet-wrapper.chartlet-responsive{{display:block;width:100%;container-type:inline-size}}.chartlet-variant-mobile{{display:none}}@container (max-width:{}px){{.chartlet-bp-{breakpoint} .chartlet-variant-desktop{{display:none}}.chartlet-bp-{breakpoint} .chartlet-variant-mobile{{display:block}}}}",
+        breakpoint - 1
+    )
+}
+
 /// Builds the HTML figure. With one panel and no zoom name this is the plain figure; with
 /// several panels it adds a radio group that switches between pre-computed variants.
+/// The radio group that picks an area of a topic map, with the rules that restyle the map.
+fn emit_topic_picker(
+    topics: usize,
+    panels: &[Panel],
+    spec: &ChartSpec,
+    id_prefix: &str,
+    output: &mut String,
+) {
+    write!(
+        output,
+        "<style>{}</style>",
+        picker_style(topics, &panel_roots(panels))
+    )
+    .expect("write");
+    write!(
+        output,
+        "<fieldset class=\"chartlet-topic-picker\"><legend>{}</legend>",
+        spec.locale.words().area
+    )
+    .expect("write");
+    let names = spec
+        .topicmap
+        .as_ref()
+        .expect("a picker means there is a topic map")
+        .topics
+        .iter()
+        .map(|topic| topic.label.as_str());
+    for (index, label) in names.enumerate() {
+        let checked = if index == 0 { " checked" } else { "" };
+        write!(
+            output,
+            "<label><input type=\"radio\" name=\"topic-{id_prefix}\" class=\"topic-{index}\"{checked}> {}</label>",
+            escape(label)
+        )
+        .expect("write");
+    }
+    output.push_str("</fieldset>");
+}
+
 fn html_document(
-    panels: &[(String, String)],
+    panels: &[Panel],
     spec: &ChartSpec,
     table_mode: TableMode,
     id_prefix: &str,
@@ -413,35 +623,26 @@ fn html_document(
     let mut output = String::new();
     let has_series = spec.series.len() > 1;
     let zoom = zoomable && panels.len() > 1;
+    let breakpoint = spec.mobile.as_ref().map(|mobile| mobile.breakpoint);
     // One area cannot be picked from, and islands are not what the map is about.
     let picker = spec
         .topicmap
         .as_ref()
         .map(|topicmap| topicmap.topics.len())
         .filter(|topics| *topics > 1);
-    if has_series || zoom || picker.is_some() {
+    let wrapped = has_series || zoom || picker.is_some() || breakpoint.is_some();
+    if let Some(breakpoint) = breakpoint {
+        write!(
+            output,
+            "<div class=\"chartlet-wrapper chartlet-responsive chartlet-bp-{breakpoint}\"><style>{}</style>",
+            responsive_style(breakpoint)
+        )
+        .expect("write");
+    } else if wrapped {
         output.push_str("<div class=\"chartlet-wrapper\">");
     }
     if let Some(topics) = picker {
-        write!(output, "<style>{}</style>", picker_style(topics)).expect("write");
-        output.push_str("<fieldset class=\"chartlet-topic-picker\"><legend>Area</legend>");
-        let names = spec
-            .topicmap
-            .as_ref()
-            .expect("a picker means there is a topic map")
-            .topics
-            .iter()
-            .map(|topic| topic.label.as_str());
-        for (index, label) in names.enumerate() {
-            let checked = if index == 0 { " checked" } else { "" };
-            write!(
-                output,
-                "<label><input type=\"radio\" name=\"topic-{id_prefix}\" class=\"topic-{index}\"{checked}> {}</label>",
-                escape(label)
-            )
-            .expect("write");
-        }
-        output.push_str("</fieldset>");
+        emit_topic_picker(topics, panels, spec, id_prefix, &mut output);
     }
     if has_series {
         write!(
@@ -467,7 +668,7 @@ fn html_document(
             spec.locale.words().view
         )
         .expect("write");
-        for (i, (label, _)) in panels.iter().enumerate() {
+        for (i, Panel { label, .. }) in panels.iter().enumerate() {
             let checked = if i == 0 { " checked" } else { "" };
             write!(
                 output,
@@ -480,17 +681,7 @@ fn html_document(
     }
     output.push_str("<figure class=\"chartlet-figure\">");
     write!(output, "<figcaption>{}</figcaption>", escape(&spec.title)).expect("write");
-    for (i, (_, svg)) in panels.iter().enumerate() {
-        if zoom {
-            write!(
-                output,
-                "<div class=\"chartlet-panel chartlet-panel-{i}\">{svg}</div>"
-            )
-            .expect("write");
-        } else {
-            output.push_str(svg);
-        }
-    }
+    emit_panels(panels, zoom, &mut output);
     if let Some(source) = &spec.source {
         write!(
             output,
@@ -502,10 +693,32 @@ fn html_document(
     }
     render_data_table(&mut output, spec, table_mode);
     output.push_str("</figure>");
-    if has_series || zoom || picker.is_some() {
+    if wrapped {
         output.push_str("</div>");
     }
     output
+}
+
+/// The charts of the figure: one per zoom step, each with its mobile variant beside it.
+fn emit_panels(panels: &[Panel], zoom: bool, output: &mut String) {
+    for (i, panel) in panels.iter().enumerate() {
+        let variants = match &panel.mobile {
+            Some(mobile) => format!(
+                "<div class=\"chartlet-variant-desktop\">{}</div><div class=\"chartlet-variant-mobile\">{mobile}</div>",
+                panel.svg
+            ),
+            None => panel.svg.clone(),
+        };
+        if zoom {
+            write!(
+                output,
+                "<div class=\"chartlet-panel chartlet-panel-{i}\">{variants}</div>"
+            )
+            .expect("write");
+        } else {
+            output.push_str(&variants);
+        }
+    }
 }
 
 fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMode) {
@@ -527,11 +740,13 @@ fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMod
         escape(&spec.title),
         match spec.chart_type {
             ChartType::Time | ChartType::Multiples => spec.locale.words().time,
-            ChartType::Topicmap => "Topic",
-            ChartType::Atlas => "Region",
-            ChartType::Stripes => "Year",
-            ChartType::Calendar => "Date",
-            ChartType::Bar | ChartType::Line | ChartType::Rangebar => "Category",
+            ChartType::Topicmap => spec.locale.words().topic,
+            ChartType::Atlas => spec.locale.words().region,
+            ChartType::Stripes => spec.locale.words().year,
+            ChartType::Calendar => spec.locale.words().date,
+            ChartType::Bar | ChartType::Line | ChartType::Rangebar => {
+                spec.locale.words().category
+            }
         }
     )
     .expect("write");
@@ -553,14 +768,9 @@ fn render_data_table(output: &mut String, spec: &ChartSpec, table_mode: TableMod
                 series.values[index].map_or_else(
                     || spec.locale.words().missing.to_owned(),
                     |value| {
-                        let style = spec.number_style();
                         escape(&format_value(
                             value,
-                            series.format.map_or(style, |format| NumberStyle {
-                                format,
-                                decimals: None,
-                                ..style
-                            }),
+                            series.style.unwrap_or_else(|| spec.number_style()),
                         ))
                     },
                 )

@@ -114,6 +114,76 @@ const catalogue = [
       'Weekly revenue against its forecast on a dark theme, with both layers naming their own color — one as a hex value, one as a CSS variable the host page owns.',
   },
   {
+    slug: 'temperature-projection',
+    chart: 'Time series with uncertainty',
+    useCase: 'Separate measurement from projection',
+    blurb:
+      'A measured line and two modeled scenarios, each with its uncertainty band. Modeled layers are dashed and hatched and say so in legend, description and table, so the difference never rests on color alone.',
+  },
+  {
+    slug: 'annual-mean-threshold',
+    chart: 'Time series with reference line',
+    useCase: 'Measure against a threshold',
+    blurb:
+      'Single years as a thin line under their 20-year mean, with a horizontal threshold and a vertical date marker. Illustrative values.',
+  },
+  {
+    slug: 'sensor-readings',
+    chart: 'Time series with area and gaps',
+    useCase: 'Show several measures and their outages',
+    blurb:
+      'Five layers on one axis: a total filled down to zero, a bold, a dotted and a dashed line, and one layer in its own color beside the four palette colors. Missing readings break the lines and the area, and two zoom steps switch between the whole month and its last week. Illustrative values.',
+  },
+  {
+    slug: 'release-incidents',
+    chart: 'Time series with zones and markers',
+    useCase: 'Mark events and ranges on a timeline',
+    blurb:
+      'A daily error rate with a shaded range of values, a maintenance window and three point markers in different shapes. Every zone and marker carries its own label, so the meaning never rests on color alone. Illustrative values.',
+  },
+  {
+    slug: 'share-price',
+    chart: 'Candlesticks with stacked panes',
+    useCase: 'Show prices and trading volume on one time axis',
+    blurb:
+      'Daily candles with a 20-day average and a marker for quarterly results, above a volume pane filled down to zero. Both panes share one time axis and have their own value axis; a rising candle is hollow and a falling one filled, so the direction never rests on color alone. Illustrative values for a fictional company.',
+  },
+  {
+    slug: 'warming-stripes',
+    chart: 'Stripes',
+    useCase: 'Show a long trend at a glance',
+    blurb:
+      'One stripe per year on a diverging scale around a reference value. Illustrative values; the data table carries every year.',
+  },
+  {
+    slug: 'daily-anomaly-calendar',
+    chart: 'Calendar heatmap',
+    useCase: 'Find patterns across a year',
+    blurb:
+      'One cell per day of a year, colored on the same diverging scale as the stripes, with a key for minimum, reference and maximum. Illustrative values.',
+  },
+  {
+    slug: 'warming-contributions',
+    chart: 'Range bars',
+    useCase: 'Compare estimates with their uncertainty',
+    blurb:
+      'Each factor as a span from low to high with its central estimate; modeled spans are hatched. The scale does not force zero, because a span is not a bar.',
+  },
+  {
+    slug: 'emission-pathways',
+    chart: 'Small multiples',
+    useCase: 'Compare the same measure across groups',
+    blurb:
+      'One small time chart per sector on a shared value axis, with one legend for all panels. Illustrative values.',
+  },
+  {
+    slug: 'mobile-revenue',
+    chart: 'Mobile variant',
+    useCase: 'Stay readable on a phone',
+    blurb:
+      'Three sales channels over eighteen months, laid out twice: at 800 × 450 and at 360 × 420 for containers narrower than 640 pixels, where the legend wraps into two rows. A container query switches between them; caption, source and data table appear once. The output panel on this page is narrower than 640 pixels at every window size, so it shows the mobile variant. Illustrative values.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

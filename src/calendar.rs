@@ -11,14 +11,11 @@ use crate::{
     layout::{count, fit_text, format_value},
     metrics::TextMetrics,
     scene::{Element, Rect, Scene, Text, TextAnchor},
-    spec::{CalendarLayout, CalendarSpec, ChartSpec, Diverging, ValueFormat, calendar_date},
+    spec::{CalendarLayout, CalendarSpec, ChartSpec, Diverging, NumberStyle, calendar_date},
+    text::{self, Words},
     time::{civil_from_days, days_from_civil, days_in_month},
 };
 
-const MONTHS: [&str; 12] = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-const WEEKDAYS: [&str; 7] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 /// Left of the grid, for the month or weekday names.
 const GUTTER: f64 = 44.0;
 const MARGIN: f64 = 16.0;
@@ -84,6 +81,8 @@ pub(crate) fn layout(
         values,
         year,
         start: days_from_civil(year, 1, 1),
+        style: spec.number_style(),
+        words: spec.locale.words(),
     };
     let labels = match calendar.layout {
         CalendarLayout::Months => cells.push_months(&mut elements),
@@ -95,6 +94,7 @@ pub(crate) fn layout(
         cells.grid.left + cells.grid.width - diverging::key_width(),
         height - KEY_SPACE + 12.0,
         &cells.scale,
+        cells.style,
     );
 
     Scene {
@@ -113,6 +113,8 @@ struct Cells {
     year: i64,
     /// January 1st as days since 1970-01-01.
     start: i64,
+    style: NumberStyle,
+    words: &'static Words,
 }
 
 impl Cells {
@@ -134,8 +136,8 @@ impl Cells {
             series_index: None,
             style_index: None,
             tooltip: Some(value.map_or_else(
-                || format!("{date}: no value"),
-                |value| format!("{date}: {}", format_value(value, ValueFormat::Number)),
+                || format!("{date}: {}", self.words.no_value),
+                |value| format!("{date}: {}", format_value(value, self.style)),
             )),
         }));
     }
@@ -155,7 +157,9 @@ impl Cells {
         }
         let size_x = self.grid.width / 31.0;
         let size_y = self.grid.height / 12.0;
-        let mut labels: Vec<Text> = MONTHS
+        let mut labels: Vec<Text> = self
+            .words
+            .months
             .iter()
             .enumerate()
             .map(|(index, name)| Text {
@@ -188,7 +192,9 @@ impl Cells {
         }
         let size_x = self.grid.width / small(columns);
         let size_y = self.grid.height / 7.0;
-        let mut labels: Vec<Text> = WEEKDAYS
+        let mut labels: Vec<Text> = self
+            .words
+            .weekdays
             .iter()
             .enumerate()
             .step_by(2)
@@ -200,7 +206,7 @@ impl Cells {
                 content: (*name).to_owned(),
             })
             .collect();
-        labels.extend(MONTHS.iter().enumerate().map(|(index, name)| {
+        labels.extend(self.words.months.iter().enumerate().map(|(index, name)| {
             let month = u32::try_from(index + 1).expect("twelve months");
             let column = (days_from_civil(self.year, month, 1) - self.start + first_weekday) / 7;
             Text {
@@ -234,7 +240,8 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .as_ref()
         .expect("validated calendar charts carry a calendar block");
     let scale = calendar.diverging();
-    let show = |value| format_value(value, ValueFormat::Number);
+    let show = |value| format_value(value, spec.number_style());
+    let words = spec.locale.words();
     let (values, length) = values_by_day(calendar);
     let days: Vec<(&str, f64)> = calendar
         .sorted_days()
@@ -249,20 +256,27 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .iter()
         .max_by(|a, b| a.1.total_cmp(&b.1))
         .expect("validated calendars hold a value");
-    let arrangement = match calendar.layout {
-        CalendarLayout::Months => "one row per month",
-        CalendarLayout::Weeks => "one row per weekday and one column per week",
-    };
     let missing = length - i64::try_from(values.len()).expect("a year has at most 366 days");
+    let scale = text::diverging_scale(
+        spec.locale,
+        &show(scale.reference),
+        &show(scale.min),
+        &show(scale.max),
+    );
     format!(
-        "Calendar of {} with {arrangement}, on a diverging color scale around {} with its outermost steps at {} and {}. {} of {length} days have a value. Lowest: {} ({}). Highest: {} ({}).",
-        calendar.year,
-        show(scale.reference),
-        show(scale.min),
-        show(scale.max),
-        length - missing,
+        "{} {}: {} ({}). {}: {} ({}).",
+        text::calendar_opening(
+            spec.locale,
+            calendar.year,
+            calendar.layout == CalendarLayout::Weeks,
+            &scale,
+            usize::try_from(length - missing).expect("a year has at most 366 days"),
+            length,
+        ),
+        words.lowest,
         show(lowest.1),
         lowest.0,
+        words.highest,
         show(highest.1),
         highest.0,
     )

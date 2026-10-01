@@ -10,7 +10,8 @@ use crate::{
     layout::{LABEL_SIZE, count, fit_text, format_value},
     metrics::TextMetrics,
     scene::{Element, Rect, Scene, Text, TextAnchor},
-    spec::{ChartSpec, ValueFormat},
+    spec::ChartSpec,
+    text,
 };
 
 /// Margin around the stripes, left and right.
@@ -63,7 +64,7 @@ pub(crate) fn layout(
             style_index: None,
             tooltip: Some(format!(
                 "{year}: {}",
-                format_value(*value, ValueFormat::Number)
+                format_value(*value, spec.number_style())
             )),
         }));
     }
@@ -107,7 +108,8 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .as_ref()
         .expect("validated stripes charts carry a stripes block");
     let scale = stripes.diverging();
-    let show = |value| format_value(value, ValueFormat::Number);
+    let show = |value| format_value(value, spec.number_style());
+    let words = spec.locale.words();
     let years: Vec<(i32, f64)> = stripes
         .years()
         .zip(&stripes.values)
@@ -121,23 +123,32 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .iter()
         .max_by(|a, b| a.1.total_cmp(&b.1))
         .expect("validated stripes hold a value");
-    let mut description = format!(
-        "Warming stripes from {} to {}, one stripe per year, on a diverging color scale around {} with its outermost steps at {} and {}. Lowest: {} ({}). Highest: {} ({}).",
+    let scale = text::diverging_scale(
+        spec.locale,
+        &show(scale.reference),
+        &show(scale.min),
+        &show(scale.max),
+    );
+    let mut description = text::stripes_opening(
+        spec.locale,
         stripes.first_year,
         stripes.years().last().unwrap_or(stripes.first_year),
-        show(scale.reference),
-        show(scale.min),
-        show(scale.max),
+        &scale,
+    );
+    write!(
+        description,
+        " {}: {} ({}). {}: {} ({}).",
+        words.lowest,
         show(lowest.1),
         lowest.0,
+        words.highest,
         show(highest.1),
         highest.0,
-    );
-    match stripes.values.len() - years.len() {
-        0 => {}
-        1 => description.push_str(" 1 year has no value."),
-        missing => write!(description, " {missing} years have no value.")
-            .expect("writing to String cannot fail"),
-    }
+    )
+    .expect("writing to String cannot fail");
+    description.push_str(&text::years_without_value(
+        spec.locale,
+        stripes.values.len() - years.len(),
+    ));
     description
 }

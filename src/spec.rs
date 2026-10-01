@@ -13,11 +13,13 @@ const MAX_DATA_POINTS: usize = 100;
 pub(crate) const MAX_SERIES: usize = 4;
 /// Per layer, measured against the size and the render time of the SVG and the HTML profile.
 pub(crate) const MAX_TIME_POINTS_PER_LAYER: usize = 2_000;
-/// Same reason as [`MAX_SERIES`]: without a distinguishable color per layer the legend stops
-/// carrying information.
-pub(crate) const MAX_TIME_LAYERS: usize = 4;
-/// More panes than this stop being readable at the minimum chart height.
-pub(crate) const MAX_TIME_PANES: usize = 1;
+/// Data layers per pane. Beyond the palette's [`MAX_SERIES`] colors a layer has to bring its own
+/// color, and past six lines the legend and the plot stop being readable.
+pub(crate) const MAX_TIME_LAYERS: usize = 6;
+/// Stacked panes of a time chart; more than this stop being readable at the minimum chart height.
+pub(crate) const MAX_TIME_PANES: usize = 4;
+/// The largest share one pane may claim against another.
+pub(crate) const MAX_HEIGHT_RATIO: u32 = 10;
 /// Reference lines per pane. They are drawn over the data, so more than a handful hide it.
 pub(crate) const MAX_ANNOTATIONS: usize = 6;
 /// Small multiples: fewer than two panels is a time chart, more than twelve no longer fit a
@@ -106,6 +108,22 @@ pub struct ChartSpec {
     /// like `theme`.
     #[serde(default, skip_serializing_if = "Locale::is_en")]
     pub locale: Locale,
+    /// A second layout for narrow containers. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mobile: Option<MobileSpec>,
+}
+
+/// The size of the mobile variant, and the container width below which the HTML profile shows it
+/// instead of the chart at `width` × `height`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct MobileSpec {
+    pub width: u32,
+    #[serde(default = "default_mobile_height")]
+    pub height: u32,
+    /// Container width in CSS pixels; the mobile variant shows below it.
+    #[serde(default = "default_breakpoint")]
+    pub breakpoint: u32,
 }
 
 /// A diverging color scale around a reference value, shared by stripes and calendars. Values are
@@ -453,10 +471,13 @@ pub struct LayerSpec {
     /// points carry one, is hatched.
     #[serde(default, skip_serializing_if = "is_false")]
     pub modeled: bool,
-    /// Line weight: `thin` sets a line back, for example single years under their mean, so the
-    /// two differ in more than color.
+    /// Line weight: `thin` sets a line back, for example single years under their mean, and
+    /// `bold` brings one forward, so that two lines differ in more than color.
     #[serde(default, skip_serializing_if = "Stroke::is_regular")]
     pub stroke: Stroke,
+    /// Line pattern. Absent, a modeled line is dashed and every other line solid.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dash: Option<Dash>,
 }
 
 /// The weight of a line.
@@ -466,6 +487,16 @@ pub enum Stroke {
     #[default]
     Regular,
     Thin,
+    Bold,
+}
+
+/// The pattern of a line.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Dash {
+    Solid,
+    Dashed,
+    Dotted,
 }
 
 impl Stroke {
@@ -509,16 +540,106 @@ impl LayerSpec {
             .collect()
     }
 
-    /// Whether the points carry an uncertainty band.
-    pub(crate) fn has_band(&self) -> bool {
+    /// The layer's observations split at every `null` value: each run of consecutive values is
+    /// drawn as its own piece of line, so a gap stays visible.
+    pub(crate) fn resolved_segments(&self, zone: crate::time::TimeZone) -> Vec<Vec<(i64, f64)>> {
+        let mut segments = vec![Vec::new()];
+        for point in &self.points {
+            let Ok(epoch) = point.time.resolve(zone) else {
+                continue;
+            };
+            match point.value {
+                Some(value) => segments
+                    .last_mut()
+                    .expect("there is always a current segment")
+                    .push((epoch, value)),
+                None => segments.push(Vec::new()),
+            }
+        }
+        segments.retain(|segment| !segment.is_empty());
+        segments
+    }
+
+    /// The timestamp of every observation, a missing value and a candle included.
+    pub(crate) fn resolved_times(&self, zone: crate::time::TimeZone) -> Vec<i64> {
         self.points
-            .first()
-            .is_some_and(|point| point.lower.is_some())
+            .iter()
+            .map(|point| &point.time)
+            .chain(self.data.iter().map(|candle| &candle.time))
+            .filter_map(|time| time.resolve(zone).ok())
+            .collect()
+    }
+
+    /// The candles of an `ohlc` layer as Unix seconds with open, high, low and close.
+    pub(crate) fn resolved_candles(&self, zone: crate::time::TimeZone) -> Vec<(i64, [f64; 4])> {
+        self.data
+            .iter()
+            .filter_map(|candle| {
+                let epoch = candle.time.resolve(zone).ok()?;
+                Some((epoch, [candle.open, candle.high, candle.low, candle.close]))
+            })
+            .collect()
+    }
+
+    /// The timestamps that carry a value: observations without a gap, and every candle.
+    fn observed_times(&self, zone: crate::time::TimeZone) -> impl Iterator<Item = i64> {
+        self.resolved_points(zone)
+            .into_iter()
+            .map(|(epoch, _)| epoch)
+            .chain(
+                self.resolved_candles(zone)
+                    .into_iter()
+                    .map(|(epoch, _)| epoch),
+            )
+    }
+
+    /// The number of observations whose value is `null`.
+    pub(crate) fn missing_values(&self) -> usize {
+        self.points
+            .iter()
+            .filter(|point| point.value.is_none())
+            .count()
+    }
+
+    /// Whether the points carry an uncertainty band. A missing value has no band, so any point
+    /// with a lower edge decides.
+    pub(crate) fn has_band(&self) -> bool {
+        self.points.iter().any(|point| point.lower.is_some())
+    }
+
+    /// The line pattern: as declared, otherwise dashed for a modeled line and solid for any other.
+    pub(crate) fn effective_dash(&self) -> Dash {
+        self.dash.unwrap_or(if self.modeled {
+            Dash::Dashed
+        } else {
+            Dash::Solid
+        })
     }
 
     /// Whether the layer draws data rather than annotating it.
     pub(crate) fn is_data(&self) -> bool {
-        self.mark != Mark::Annotation
+        !matches!(self.mark, Mark::Annotation | Mark::Band)
+    }
+
+    /// Whether the layer takes a palette color: a data layer other than candles, which are drawn
+    /// in the rise and fall colors, and without a color of its own.
+    pub(crate) fn takes_palette(&self) -> bool {
+        self.is_data() && self.mark != Mark::Ohlc && self.color.is_none()
+    }
+
+    /// Whether the layer is a reference line: an annotation at either a time or a value.
+    pub(crate) fn is_rule(&self) -> bool {
+        self.mark == Mark::Annotation && (self.time.is_some() != self.value.is_some())
+    }
+
+    /// Whether the layer is a point marker: an annotation at both a time and a value.
+    pub(crate) fn is_marker(&self) -> bool {
+        self.mark == Mark::Annotation && self.time.is_some() && self.value.is_some()
+    }
+
+    /// The marker shape of a point annotation; a circle unless the specification names another.
+    pub(crate) fn marker_shape(&self) -> Shape {
+        self.shape.unwrap_or(Shape::Circle)
     }
 
     /// Whether the layer keeps at least two observations in `zone`.
@@ -532,7 +653,7 @@ impl LayerSpec {
 #[serde(deny_unknown_fields)]
 pub struct TimePoint {
     pub time: TimeValue,
-    /// `null` would mark a gap; gaps arrive with the area and stroke support.
+    /// `null` marks a missing observation: the line and its band break there.
     pub value: Option<f64>,
     /// Lower edge of the uncertainty band around the line at this point.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -762,13 +883,47 @@ pub struct SeriesSpec {
     pub values: Vec<Option<f64>>,
 }
 
-/// A pre-computed zoom step: shows categories `from..=to` as its own chart variant.
+/// A pre-computed zoom step: shows categories `from..=to`, or on a time chart the observations
+/// from `from` to `to`, as its own chart variant.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ZoomStep {
     pub label: String,
-    pub from: usize,
-    pub to: usize,
+    pub from: ZoomBound,
+    pub to: ZoomBound,
+}
+
+/// One end of a zoom step: a category index on a bar or line chart, a timestamp on a time chart.
+/// A whole number from 0 up reads as an index first, so that a category chart keeps its
+/// serialized form; on a time chart the same number is Unix seconds.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ZoomBound {
+    Index(usize),
+    Time(TimeValue),
+}
+
+impl ZoomBound {
+    /// The category index, `None` for a timestamp that is not a whole number from 0.
+    pub(crate) const fn index(&self) -> Option<usize> {
+        match self {
+            Self::Index(index) => Some(*index),
+            Self::Time(_) => None,
+        }
+    }
+
+    /// The bound as Unix seconds, in the forms a point's `time` accepts.
+    pub(crate) fn resolve(&self, zone: crate::time::TimeZone) -> Result<i64, &'static str> {
+        match self {
+            Self::Index(seconds) => {
+                // Anything beyond the 1700–2200 contract is refused by `resolve` anyway.
+                #[allow(clippy::cast_precision_loss)]
+                let seconds = *seconds as f64;
+                TimeValue::Number(seconds).resolve(zone)
+            }
+            Self::Time(time) => time.resolve(zone),
+        }
+    }
 }
 
 /// A layer together with where it sits in the specification.
@@ -792,9 +947,10 @@ pub(crate) struct Series {
     /// `None` when the chart was given as a single `data` list.
     pub name: Option<String>,
     pub values: Vec<Option<f64>>,
-    /// How this column is written when it is not in the chart's own value format: a topic map's
-    /// share column is a percentage while the counts beside it are plain numbers.
-    pub format: Option<ValueFormat>,
+    /// How this column is written when it is not written like the chart's values: a topic map's
+    /// share column is a percentage while the counts beside it are plain numbers, and every pane
+    /// of a time chart has its own value axis.
+    pub style: Option<NumberStyle>,
 }
 
 impl Dataset {
@@ -839,7 +995,28 @@ impl ChartSpec {
     }
 
     pub(crate) fn validate(&self) -> Result<Vec<ChartWarning>, ChartError> {
-        self.validate_metadata()?;
+        self.validate_sized(true)
+    }
+
+    /// The chart laid out at the size of its mobile variant, or `None` without one.
+    pub(crate) fn mobile_variant(&self) -> Option<ChartSpec> {
+        let mobile = self.mobile.as_ref()?;
+        let mut spec = self.clone();
+        spec.width = mobile.width;
+        spec.height = mobile.height;
+        spec.mobile = None;
+        Some(spec)
+    }
+
+    /// Validates a mobile variant. Its size was already checked against the limits of `mobile`,
+    /// which admit narrower charts than `width`; the checks that depend on the size, such as
+    /// observations per plot pixel, run at that size.
+    pub(crate) fn validate_mobile_variant(&self) -> Result<Vec<ChartWarning>, ChartError> {
+        self.validate_sized(false)
+    }
+
+    fn validate_sized(&self, check_size: bool) -> Result<Vec<ChartWarning>, ChartError> {
+        self.validate_metadata(check_size)?;
         self.reject_foreign_blocks()?;
         match self.chart_type {
             ChartType::Time => return self.validate_time(),
@@ -863,18 +1040,8 @@ impl ChartSpec {
         Ok(warnings)
     }
 
-    /// A locale is only offered where every generated text is translated; fixed decimals stay in
-    /// a readable range.
-    fn validate_locale_and_decimals(&self) -> Result<(), ChartError> {
-        if self.locale != Locale::En
-            && !matches!(self.chart_type, ChartType::Time | ChartType::Multiples)
-        {
-            return Err(ChartError::new(
-                "locale_not_supported",
-                "/locale",
-                "a locale other than \"en\" is available for time and multiples charts so far; remove it for this chart type",
-            ));
-        }
+    /// Fixed decimals stay in a readable range.
+    fn validate_decimals(&self) -> Result<(), ChartError> {
         let axes = std::iter::once(("/valueAxis/decimals".to_owned(), &self.value_axis)).chain(
             self.panes.iter().enumerate().map(|(index, pane)| {
                 (
@@ -898,7 +1065,46 @@ impl ChartSpec {
         Ok(())
     }
 
-    fn validate_metadata(&self) -> Result<(), ChartError> {
+    /// The size of the chart and of its mobile variant.
+    fn validate_size(&self) -> Result<(), ChartError> {
+        if !(320..=2_400).contains(&self.width) {
+            return Err(ChartError::new(
+                "invalid_dimension",
+                "/width",
+                "width must be between 320 and 2400",
+            ));
+        }
+        if !(240..=1_600).contains(&self.height) {
+            return Err(ChartError::new(
+                "invalid_dimension",
+                "/height",
+                "height must be between 240 and 1600",
+            ));
+        }
+        if let Some(mobile) = &self.mobile {
+            for (path, value, range) in [
+                ("/mobile/width", mobile.width, 280..=600),
+                ("/mobile/height", mobile.height, 240..=1_600),
+                ("/mobile/breakpoint", mobile.breakpoint, 320..=1_600),
+            ] {
+                if !range.contains(&value) {
+                    return Err(ChartError::new(
+                        "invalid_dimension",
+                        path,
+                        format!(
+                            "{} must be between {} and {}",
+                            &path[1..],
+                            range.start(),
+                            range.end()
+                        ),
+                    ));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_metadata(&self, check_size: bool) -> Result<(), ChartError> {
         if self.schema_version != 1 {
             return Err(ChartError::new(
                 "unsupported_schema_version",
@@ -913,7 +1119,7 @@ impl ChartSpec {
                 "orientation is only available for bar charts",
             ));
         }
-        self.validate_locale_and_decimals()?;
+        self.validate_decimals()?;
         if !self.show_title && self.chart_type != ChartType::Time {
             return Err(ChartError::new(
                 "option_not_supported",
@@ -935,19 +1141,8 @@ impl ChartSpec {
         )?;
         validate_optional_text(self.value_axis.title.as_ref(), "/valueAxis/title", 100)?;
 
-        if !(320..=2_400).contains(&self.width) {
-            return Err(ChartError::new(
-                "invalid_dimension",
-                "/width",
-                "width must be between 320 and 2400",
-            ));
-        }
-        if !(240..=1_600).contains(&self.height) {
-            return Err(ChartError::new(
-                "invalid_dimension",
-                "/height",
-                "height must be between 240 and 1600",
-            ));
+        if check_size {
+            self.validate_size()?;
         }
         // Zoom steps slice `data` or `categories`, which only bar and line charts have; every
         // other type rejects the field by name.
@@ -963,7 +1158,18 @@ impl ChartSpec {
         }
         for (i, step) in self.zoom_steps.iter().enumerate() {
             validate_text(&step.label, &format!("/zoomSteps/{i}/label"), 40)?;
-            if step.from > step.to {
+            let index = |field: &str, bound: &ZoomBound| {
+                bound.index().ok_or_else(|| {
+                    ChartError::new(
+                        "invalid_spec",
+                        format!("/zoomSteps/{i}/{field}"),
+                        "expected a category index, a whole number from 0",
+                    )
+                })
+            };
+            let from = index("from", &step.from)?;
+            let to = index("to", &step.to)?;
+            if from > to {
                 return Err(ChartError::new(
                     "invalid_zoom_step",
                     format!("/zoomSteps/{i}/from"),
@@ -975,7 +1181,7 @@ impl ChartSpec {
             } else {
                 self.data.len()
             };
-            if step.to >= count {
+            if to >= count {
                 return Err(ChartError::new(
                     "zoom_out_of_range",
                     format!("/zoomSteps/{i}/to"),
@@ -1000,7 +1206,7 @@ impl ChartSpec {
                 series: vec![Series {
                     name: None,
                     values: self.data.iter().map(|point| point.value).collect(),
-                    format: None,
+                    style: None,
                 }],
             }
         } else {
@@ -1012,7 +1218,7 @@ impl ChartSpec {
                     .map(|series| Series {
                         name: Some(series.name.clone()),
                         values: series.values.clone(),
-                        format: None,
+                        style: None,
                     })
                     .collect(),
             }
@@ -1048,7 +1254,7 @@ impl ChartSpec {
             series: vec![Series {
                 name: None,
                 values: stripes.values.clone(),
-                format: None,
+                style: None,
             }],
         }
     }
@@ -1065,7 +1271,7 @@ impl ChartSpec {
             series: vec![Series {
                 name: None,
                 values: days.iter().map(|day| day.value).collect(),
-                format: None,
+                style: None,
             }],
         }
     }
@@ -1073,25 +1279,26 @@ impl ChartSpec {
     /// One row per range with its low, high and, where any range has one, its central value.
     /// A modeled range says so in its row label, since the table cannot show the hatching.
     fn rangebar_dataset(&self) -> Dataset {
+        let words = self.locale.words();
         let mut series = vec![
             Series {
-                name: Some("Low".to_owned()),
+                name: Some(words.range_low.to_owned()),
                 values: self.ranges.iter().map(|range| Some(range.low)).collect(),
-                format: None,
+                style: None,
             },
             Series {
-                name: Some("High".to_owned()),
+                name: Some(words.range_high.to_owned()),
                 values: self.ranges.iter().map(|range| Some(range.high)).collect(),
-                format: None,
+                style: None,
             },
         ];
         if self.ranges.iter().any(|range| range.mid.is_some()) {
             series.insert(
                 1,
                 Series {
-                    name: Some("Mid".to_owned()),
+                    name: Some(words.range_mid.to_owned()),
                     values: self.ranges.iter().map(|range| range.mid).collect(),
-                    format: None,
+                    style: None,
                 },
             );
         }
@@ -1101,7 +1308,7 @@ impl ChartSpec {
                 .iter()
                 .map(|range| {
                     if range.modeled {
-                        format!("{} (modeled)", range.label)
+                        format!("{} ({})", range.label, words.modeled)
                     } else {
                         range.label.clone()
                     }
@@ -1132,16 +1339,16 @@ impl ChartSpec {
                 .collect(),
             series: vec![
                 Series {
-                    name: Some("Entries".to_owned()),
+                    name: Some(self.locale.words().entries.to_owned()),
                     values: regions().map(|(_, region)| Some(region.value)).collect(),
-                    format: None,
+                    style: None,
                 },
                 Series {
-                    name: Some("Places".to_owned()),
+                    name: Some(self.locale.words().places.to_owned()),
                     values: regions()
                         .map(|(_, region)| Some(place_count(region.places.len())))
                         .collect(),
-                    format: None,
+                    style: None,
                 },
             ],
         }
@@ -1158,24 +1365,28 @@ impl ChartSpec {
             categories: all().map(|topic| topic.label.clone()).collect(),
             series: vec![
                 Series {
-                    name: Some("Entries".to_owned()),
+                    name: Some(self.locale.words().entries.to_owned()),
                     values: all().map(|topic| Some(topic.value)).collect(),
-                    format: None,
+                    style: None,
                 },
                 Series {
-                    name: Some("Paths".to_owned()),
+                    name: Some(self.locale.words().paths.to_owned()),
                     values: all().map(|topic| Some(f64::from(topic.points))).collect(),
-                    format: None,
+                    style: None,
                 },
                 Series {
-                    name: Some("Share".to_owned()),
+                    name: Some(self.locale.words().share.to_owned()),
                     // Of every entry on the map, islands included: the table lists them too.
                     // Rounded to two decimal places of a percent — a share carried to twelve
                     // digits would claim a precision the underlying counts do not have.
                     values: all()
                         .map(|topic| Some(((topic.value / total) * 10_000.0).round() / 10_000.0))
                         .collect(),
-                    format: Some(ValueFormat::Percent),
+                    style: Some(NumberStyle {
+                        format: ValueFormat::Percent,
+                        decimals: None,
+                        locale: self.locale,
+                    }),
                 },
             ],
         }
@@ -1235,21 +1446,47 @@ impl ChartSpec {
         names
     }
 
-    /// Which palette color a data layer takes when it declares none: its position among the data
-    /// layers of a time chart, the position of its name among all names in small multiples.
-    pub(crate) fn palette_index(&self, pane_index: usize, layer: &LayerSpec) -> usize {
+    /// Which palette color a data layer takes when it declares none. In a time chart that is its
+    /// position among the chart's data layers other than candles, across all panes, so that no two
+    /// entries of the one legend share a color; a layer from the fifth position on takes the first
+    /// palette color no layer before it holds, which validation guarantees exists because at most
+    /// [`MAX_SERIES`] layers go without a color of their own. In small multiples it is the
+    /// position of its name among all names.
+    pub(crate) fn palette_index(&self, layer: &LayerSpec) -> usize {
         let index = if self.chart_type == ChartType::Multiples {
             self.series_names()
                 .iter()
                 .position(|name| *name == layer.name)
                 .unwrap_or(0)
         } else {
-            self.panes[pane_index]
-                .layers
-                .iter()
-                .filter(|candidate| candidate.is_data())
-                .position(|candidate| std::ptr::eq(candidate, layer))
-                .unwrap_or(0)
+            let data = || {
+                self.layers()
+                    .filter(|candidate| candidate.is_data() && candidate.mark != Mark::Ohlc)
+                    .enumerate()
+            };
+            let mut taken = [false; MAX_SERIES];
+            for (position, candidate) in data() {
+                if position < MAX_SERIES && candidate.color.is_none() {
+                    taken[position] = true;
+                }
+            }
+            let mut index = 0;
+            for (position, candidate) in data() {
+                let slot = if position < MAX_SERIES {
+                    position
+                } else if candidate.color.is_none() {
+                    let free = taken.iter().position(|taken| !taken).unwrap_or(0);
+                    taken[free] = true;
+                    free
+                } else {
+                    0
+                };
+                if std::ptr::eq(candidate, layer) {
+                    index = slot;
+                    break;
+                }
+            }
+            index
         };
         index.min(MAX_SERIES - 1)
     }
@@ -1258,8 +1495,7 @@ impl ChartSpec {
     pub(crate) fn time_precision(&self, zone: crate::time::TimeZone) -> crate::time::Precision {
         let epochs: Vec<i64> = self
             .data_layers()
-            .flat_map(|entry| entry.layer.resolved_points(zone))
-            .map(|(epoch, _)| epoch)
+            .flat_map(|entry| entry.layer.resolved_times(zone))
             .collect();
         crate::time::Precision::of(epochs.into_iter(), zone)
     }
@@ -1283,6 +1519,19 @@ impl ChartSpec {
         }
     }
 
+    /// How the values of one pane are written: a time chart's pane has its own value axis, every
+    /// other chart writes all values alike.
+    pub(crate) fn pane_style(&self, pane_index: usize) -> NumberStyle {
+        match self.chart_type {
+            ChartType::Time => NumberStyle {
+                format: self.panes[pane_index].value_axis.format,
+                decimals: self.panes[pane_index].value_axis.decimals,
+                locale: self.locale,
+            },
+            _ => self.number_style(),
+        }
+    }
+
     /// The value format that applies to the chart: the pane's format for a time chart, otherwise
     /// the single top-level value axis.
     pub(crate) fn value_format(&self) -> ValueFormat {
@@ -1301,8 +1550,8 @@ impl ChartSpec {
     }
 
     /// Timestamps × layers: one row per timestamp that any data layer uses, one column per data
-    /// layer, and `None` where a layer has no observation at that timestamp. With `bounds`, a
-    /// layer with a band adds a column for its lower and one for its upper edge.
+    /// layer, and `None` where a layer has no observation or a `null` value at that timestamp.
+    /// With `bounds`, a layer with a band adds a column for its lower and one for its upper edge.
     ///
     /// Timestamps and layer values are owned because the row labels are formatted timestamps
     /// rather than text taken from the specification.
@@ -1314,8 +1563,7 @@ impl ChartSpec {
     ) -> Dataset {
         let mut categories: Vec<i64> = self
             .data_layers()
-            .flat_map(|entry| entry.layer.resolved_points(zone))
-            .map(|(epoch, _)| epoch)
+            .flat_map(|entry| entry.layer.resolved_times(zone))
             .collect();
         categories.sort_unstable();
         categories.dedup();
@@ -1331,29 +1579,53 @@ impl ChartSpec {
                 .collect()
         };
 
+        // A part of a layer, such as a band edge or a candle's open, is named after the layer.
+        let part_name = |name: &Option<String>, part: &str| {
+            if let Some(name) = name {
+                format!("{name} ({part})")
+            } else {
+                let mut chars = part.chars();
+                chars
+                    .next()
+                    .map(|first| first.to_uppercase().chain(chars).collect())
+                    .unwrap_or_default()
+            }
+        };
+        let words = self.locale.words();
         let mut series = Vec::new();
         for (entry, name) in self.data_layers().zip(self.layer_names()) {
             let layer = entry.layer;
+            // Every pane of a time chart writes its values by its own value axis.
+            let style = (self.chart_type == ChartType::Time).then(|| self.pane_style(entry.pane));
+            if layer.mark == Mark::Ohlc {
+                let candles = layer.resolved_candles(zone);
+                for (index, part) in [words.open, words.high, words.low, words.close]
+                    .into_iter()
+                    .enumerate()
+                {
+                    series.push(Series {
+                        name: Some(part_name(&name, part)),
+                        values: column(
+                            candles
+                                .iter()
+                                .map(|(epoch, values)| (*epoch, values[index]))
+                                .collect(),
+                        ),
+                        style,
+                    });
+                }
+                continue;
+            }
             series.push(Series {
                 name: name.clone(),
                 values: column(layer.resolved_points(zone)),
-                format: None,
+                style,
             });
             if bounds && layer.has_band() {
                 let band = layer.resolved_band(zone);
-                let words = self.locale.words();
                 for (edge, pick) in [(words.lower, 0), (words.upper, 1)] {
-                    let edge_name = if let Some(name) = &name {
-                        format!("{name} ({edge})")
-                    } else {
-                        let mut chars = edge.chars();
-                        chars
-                            .next()
-                            .map(|first| first.to_uppercase().chain(chars).collect())
-                            .unwrap_or_default()
-                    };
                     series.push(Series {
-                        name: Some(edge_name),
+                        name: Some(part_name(&name, edge)),
                         values: column(
                             band.iter()
                                 .map(|(epoch, lower, upper)| {
@@ -1361,7 +1633,7 @@ impl ChartSpec {
                                 })
                                 .collect(),
                         ),
-                        format: None,
+                        style,
                     });
                 }
             }
@@ -1397,6 +1669,49 @@ impl ChartSpec {
                 (_, name) => name,
             }
         })
+    }
+
+    /// Returns a copy of this time chart restricted to the observations from `from` to `to`, both
+    /// included. Every data layer stays, even when the window leaves it empty, so that colors and
+    /// the legend match the full chart; a vertical reference line outside the window is left out.
+    pub(crate) fn windowed(&self, from: i64, to: i64) -> ChartSpec {
+        let zone = self.time_zone().unwrap_or_default();
+        let inside = |time: &TimeValue| {
+            time.resolve(zone)
+                .is_ok_and(|epoch| (from..=to).contains(&epoch))
+        };
+        let mut spec = self.clone();
+        for pane in &mut spec.panes {
+            pane.layers
+                .retain(|layer| layer.time.as_ref().is_none_or(&inside));
+            // A zone that misses the window is left out; one that reaches beyond it is cut at
+            // the window's edges, so it cannot widen the time axis.
+            pane.layers.retain(|layer| {
+                let resolve = |time: &Option<TimeValue>| {
+                    time.as_ref().and_then(|time| time.resolve(zone).ok())
+                };
+                layer.mark != Mark::Band
+                    || (resolve(&layer.from).is_none_or(|start| start < to)
+                        && resolve(&layer.to).is_none_or(|end| end > from))
+            });
+            for layer in &mut pane.layers {
+                layer.points.retain(|point| inside(&point.time));
+                layer.data.retain(|candle| inside(&candle.time));
+                if layer.mark == Mark::Band {
+                    #[allow(clippy::cast_precision_loss)]
+                    let clamp = |time: &mut Option<TimeValue>| {
+                        if let Some(epoch) = time.as_ref().and_then(|time| time.resolve(zone).ok())
+                            && !(from..=to).contains(&epoch)
+                        {
+                            *time = Some(TimeValue::Number(epoch.clamp(from, to) as f64));
+                        }
+                    };
+                    clamp(&mut layer.from);
+                    clamp(&mut layer.to);
+                }
+            }
+        }
+        spec
     }
 
     /// Returns a copy of this specification with categories and values sliced to `from..=to`.
@@ -1598,7 +1913,10 @@ impl ChartSpec {
             ("/data", !self.data.is_empty()),
             ("/categories", !self.categories.is_empty()),
             ("/series", !self.series.is_empty()),
-            ("/zoomSteps", !self.zoom_steps.is_empty()),
+            (
+                "/zoomSteps",
+                !self.zoom_steps.is_empty() && self.chart_type == ChartType::Multiples,
+            ),
         ] {
             if present {
                 return Err(ChartError::new(
@@ -1713,7 +2031,7 @@ impl ChartSpec {
             return Err(ChartError::new(
                 "too_many_panes",
                 "/panes",
-                format!("at most {MAX_TIME_PANES} pane is supported in this alpha"),
+                format!("at most {MAX_TIME_PANES} panes are supported"),
             ));
         }
 
@@ -1721,20 +2039,24 @@ impl ChartSpec {
         // Observations beyond one per horizontal pixel cannot be told apart in the drawing.
         let plot_pixels =
             usize::try_from(plot_pixels(self.width)).expect("a usize is at least 32 bits wide");
+        // The panes share one legend, so a name has to be unique across all of them, and every
+        // layer needs one as soon as the chart has more than one.
+        let data_layers = self.data_layers().count();
+        let mut names = BTreeSet::new();
         for (pane_index, pane) in self.panes.iter().enumerate() {
             let pane_path = format!("/panes/{pane_index}");
             if pane.title.is_some() {
                 return Err(ChartError::new(
                     "option_not_supported",
                     format!("{pane_path}/title"),
-                    "pane titles head the panels of small multiples; a time chart uses its title",
+                    "pane titles head the panels of small multiples; a time chart uses its title, and a pane is named by its valueAxis title",
                 ));
             }
-            if !(1..=20).contains(&pane.height_ratio) {
+            if !(1..=MAX_HEIGHT_RATIO).contains(&pane.height_ratio) {
                 return Err(ChartError::new(
                     "invalid_height_ratio",
                     format!("{pane_path}/heightRatio"),
-                    "heightRatio must be between 1 and 20",
+                    format!("heightRatio must be between 1 and {MAX_HEIGHT_RATIO}"),
                 ));
             }
             validate_optional_text(
@@ -1742,9 +2064,86 @@ impl ChartSpec {
                 &format!("{pane_path}/valueAxis/title"),
                 100,
             )?;
-            validate_pane_layers(pane, &pane_path, zone, plot_pixels, &mut warnings)?;
+            let context = LayerContext {
+                zone,
+                plot_pixels,
+                named: data_layers > 1,
+            };
+            validate_pane_layers(pane, &pane_path, &context, &mut names, &mut warnings)?;
         }
+        // One legend: at most as many layers take a palette color as the palette has colors.
+        if let Some(entry) = self
+            .data_layers()
+            .filter(|entry| entry.layer.takes_palette())
+            .nth(MAX_SERIES)
+        {
+            return Err(ChartError::new(
+                "too_many_layers",
+                format!("/panes/{}/layers/{}/color", entry.pane, entry.local),
+                format!(
+                    "at most {MAX_SERIES} data layers of a chart take a palette color; give this layer a color of its own"
+                ),
+            ));
+        }
+        self.validate_time_zoom(zone)?;
         Ok(warnings)
+    }
+
+    /// Zoom steps of a time chart: two to four windows, each from one timestamp to a later one and
+    /// holding at least two observations of some data layer.
+    fn validate_time_zoom(&self, zone: crate::time::TimeZone) -> Result<(), ChartError> {
+        if self.zoom_steps.len() == 1 {
+            return Err(ChartError::new(
+                "not_enough_zoom_steps",
+                "/zoomSteps",
+                "provide at least 2 zoom steps so the view can be switched",
+            ));
+        }
+        for (i, step) in self.zoom_steps.iter().enumerate() {
+            validate_text(&step.label, &format!("/zoomSteps/{i}/label"), 40)?;
+            let resolve = |field: &str, bound: &ZoomBound| {
+                bound.resolve(zone).map_err(|message| {
+                    ChartError::new("invalid_time", format!("/zoomSteps/{i}/{field}"), message)
+                })
+            };
+            let from = resolve("from", &step.from)?;
+            let to = resolve("to", &step.to)?;
+            if from >= to {
+                return Err(ChartError::new(
+                    "invalid_zoom_step",
+                    format!("/zoomSteps/{i}/from"),
+                    "from must lie before to",
+                ));
+            }
+            // Every pane is drawn in the window, so every pane needs something to draw there.
+            let covered = self.panes.iter().all(|pane| {
+                pane.layers
+                    .iter()
+                    .filter(|layer| layer.is_data())
+                    .any(|layer| {
+                        layer
+                            .observed_times(zone)
+                            .filter(|epoch| (from..=to).contains(epoch))
+                            .count()
+                            >= 2
+                    })
+            });
+            if !covered {
+                return Err(ChartError::new(
+                    "zoom_out_of_range",
+                    format!("/zoomSteps/{i}"),
+                    "the window must hold at least two observations of one layer in every pane",
+                ));
+            }
+        }
+        if self.zoom_steps.len() > 4 {
+            return Err(ChartError::new(
+                "too_many_zoom_steps",
+                "/zoomSteps",
+                "at most 4 zoom steps are supported",
+            ));
+        }
+        Ok(())
     }
 
     /// Small multiples: two to twelve titled panels, one shared value axis at the top level, and
@@ -1813,7 +2212,30 @@ impl ChartSpec {
                     "the panels of small multiples all have the same size",
                 ));
             }
-            validate_pane_layers(pane, &pane_path, zone, plot_pixels, &mut warnings)?;
+            if let Some(layer_index) = pane
+                .layers
+                .iter()
+                .position(|layer| layer.mark == Mark::Ohlc)
+            {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    format!("{pane_path}/layers/{layer_index}/mark"),
+                    "candles are drawn on a time chart; small multiples take line and area layers",
+                ));
+            }
+            // A name is one series across the panels, so names are checked per panel.
+            let context = LayerContext {
+                zone,
+                plot_pixels,
+                named: pane.layers.iter().filter(|layer| layer.is_data()).count() > 1,
+            };
+            validate_pane_layers(
+                pane,
+                &pane_path,
+                &context,
+                &mut BTreeSet::new(),
+                &mut warnings,
+            )?;
         }
         if self.series_names().len() > MAX_SERIES {
             return Err(ChartError::new(
@@ -2391,17 +2813,12 @@ fn validate_topic(
     Ok(())
 }
 
-/// The milestone a mark is planned for, so the error says when it arrives.
-const fn planned_for(mark: Mark) -> &'static str {
-    match mark {
-        Mark::Line => "line layers are supported",
-        Mark::Area => "the area mark arrives with the area and gap support",
-        Mark::Ohlc => "the ohlc mark arrives with the candlestick support",
-        Mark::Band => {
-            "the band mark (a zone between two fixed values) arrives with the reference zones; for an uncertainty band around a line, give its points lower and upper"
-        }
-        Mark::Annotation => "annotation layers are supported",
-    }
+/// What the layers of a pane are checked against: the chart's time zone, the width of its plot
+/// in pixels, and whether every data layer needs a name.
+pub(crate) struct LayerContext {
+    pub zone: crate::time::TimeZone,
+    pub plot_pixels: usize,
+    pub named: bool,
 }
 
 /// A layer's own color has to be one of the forms in the contract; anything else is replaced by
@@ -2423,7 +2840,8 @@ fn check_layer_color(layer: &LayerSpec, path: &str, warnings: &mut Vec<ChartWarn
     }
 }
 
-/// Every observation resolves to a timestamp, carries a value, and follows the one before it.
+/// Every observation resolves to a timestamp and follows the one before it; a `null` value marks
+/// a gap and carries no band.
 fn validate_points(
     layer: &LayerSpec,
     path: &str,
@@ -2437,15 +2855,21 @@ fn validate_points(
         let epoch = point.time.resolve(zone).map_err(|message| {
             ChartError::new("invalid_time", format!("{point_path}/time"), message)
         })?;
-        let Some(value) = point.value else {
+        if let Some(value) = point.value {
+            validate_number(value, &format!("{point_path}/value"))?;
+            validate_band_point(point, &point_path, banded, value, warnings)?;
+        } else if point.lower.is_some() || point.upper.is_some() {
+            let edge = if point.lower.is_some() {
+                "lower"
+            } else {
+                "upper"
+            };
             return Err(ChartError::new(
-                "option_not_supported",
-                format!("{point_path}/value"),
-                "a null value would leave a gap; gaps arrive with the area and gap support",
+                "invalid_band",
+                format!("{point_path}/{edge}"),
+                "a missing value has no band; leave out lower and upper where value is null",
             ));
-        };
-        validate_number(value, &format!("{point_path}/value"))?;
-        validate_band_point(point, &point_path, banded, value, warnings)?;
+        }
         if previous.is_some_and(|previous| epoch <= previous) {
             return Err(ChartError::new(
                 "unordered_time",
@@ -2458,7 +2882,7 @@ fn validate_points(
     Ok(())
 }
 
-/// The band edges of one point: both or neither, matching the first point of the layer, and the
+/// The band edges of one point with a value: both or neither, matching the rest of the layer, and the
 /// lower edge not above the upper one. A value outside its own band is allowed but reported: a
 /// median can leave a percentile band only when the two come from different sources.
 fn validate_band_point(
@@ -2502,15 +2926,17 @@ fn validate_band_point(
     Ok(())
 }
 
-/// The layers of one pane: data layers within the palette, reference lines within their own
-/// limit, and a name on every data layer once there is more than one.
+/// The layers of one pane: data layers within their limit and at most as many without a color of
+/// their own as the palette has colors, reference lines within their own limit, and a name on
+/// every data layer once there is more than one.
 fn validate_pane_layers(
     pane: &PaneSpec,
     pane_path: &str,
-    zone: crate::time::TimeZone,
-    plot_pixels: usize,
+    context: &LayerContext,
+    names: &mut BTreeSet<String>,
     warnings: &mut Vec<ChartWarning>,
 ) -> Result<(), ChartError> {
+    let zone = context.zone;
     let data_layers = pane.layers.iter().filter(|layer| layer.is_data()).count();
     let annotations = pane.layers.len() - data_layers;
     if data_layers == 0 {
@@ -2527,6 +2953,21 @@ fn validate_pane_layers(
             format!("at most {MAX_TIME_LAYERS} data layers are supported"),
         ));
     }
+    if let Some((layer_index, _)) = pane
+        .layers
+        .iter()
+        .enumerate()
+        .filter(|(_, layer)| layer.takes_palette())
+        .nth(MAX_SERIES)
+    {
+        return Err(ChartError::new(
+            "too_many_layers",
+            format!("{pane_path}/layers/{layer_index}/color"),
+            format!(
+                "at most {MAX_SERIES} data layers take a palette color; give this layer a color of its own"
+            ),
+        ));
+    }
     if annotations > MAX_ANNOTATIONS {
         return Err(ChartError::new(
             "too_many_annotations",
@@ -2534,28 +2975,22 @@ fn validate_pane_layers(
             format!("at most {MAX_ANNOTATIONS} annotation layers are supported per pane"),
         ));
     }
-    let mut names = BTreeSet::new();
     for (layer_index, layer) in pane.layers.iter().enumerate() {
         let layer_path = format!("{pane_path}/layers/{layer_index}");
-        if layer.mark == Mark::Annotation {
-            validate_annotation(layer, &layer_path, zone, warnings)?;
-        } else {
-            validate_layer(
-                layer,
-                &layer_path,
-                data_layers,
-                zone,
-                plot_pixels,
-                &mut names,
-                warnings,
-            )?;
+        match layer.mark {
+            Mark::Annotation => validate_annotation(layer, &layer_path, zone, warnings)?,
+            Mark::Band => validate_zone(layer, &layer_path, zone, warnings)?,
+            Mark::Ohlc => crate::ohlc::validate(layer, &layer_path, context, names, warnings)?,
+            Mark::Line | Mark::Area => {
+                validate_layer(layer, &layer_path, context, names, warnings)?;
+            }
         }
     }
     Ok(())
 }
 
-/// A reference line: a horizontal rule at a `value`, or a vertical one at a `time`, always with a
-/// label. A point marker with both is a later milestone.
+/// An annotation: a horizontal reference line at a `value`, a vertical one at a `time`, or a
+/// point marker at both, always with a label. Only a point marker takes a `shape`.
 fn validate_annotation(
     layer: &LayerSpec,
     path: &str,
@@ -2580,6 +3015,7 @@ fn validate_annotation(
             layer.stroke != Stroke::Regular,
             "belongs to a line layer",
         ),
+        ("dash", layer.dash.is_some(), "belongs to a line layer"),
         (
             "name",
             layer.name.is_some(),
@@ -2587,8 +3023,8 @@ fn validate_annotation(
         ),
         (
             "shape",
-            layer.shape.is_some(),
-            "arrives with the point markers; a reference line has no shape",
+            layer.shape.is_some() && !layer.is_marker(),
+            "belongs to a point marker with both time and value; a reference line has no shape",
         ),
     ] {
         if present {
@@ -2599,54 +3035,180 @@ fn validate_annotation(
             ));
         }
     }
-    match (&layer.time, layer.value) {
-        (Some(_), Some(_)) => {
-            return Err(ChartError::new(
-                "option_not_supported",
-                format!("{path}/value"),
-                "a point marker at a time and a value arrives with the markers; give either time (vertical line) or value (horizontal line)",
-            ));
-        }
-        (None, None) => {
-            return Err(ChartError::new(
-                "missing_position",
-                path,
-                "give time for a vertical reference line or value for a horizontal one",
-            ));
-        }
-        (Some(time), None) => {
-            time.resolve(zone).map_err(|message| {
-                ChartError::new("invalid_time", format!("{path}/time"), message)
-            })?;
-        }
-        (None, Some(value)) => validate_number(value, &format!("{path}/value"))?,
+    if layer.time.is_none() && layer.value.is_none() {
+        return Err(ChartError::new(
+            "missing_position",
+            path,
+            "give time for a vertical reference line, value for a horizontal one, or both for a point marker",
+        ));
+    }
+    if let Some(time) = &layer.time {
+        time.resolve(zone)
+            .map_err(|message| ChartError::new("invalid_time", format!("{path}/time"), message))?;
+    }
+    if let Some(value) = layer.value {
+        validate_number(value, &format!("{path}/value"))?;
     }
     let Some(label) = &layer.label else {
         return Err(ChartError::new(
             "missing_label",
             format!("{path}/label"),
-            "a reference line needs a label that says what it marks",
+            if layer.is_marker() {
+                "a point marker needs a label that says what it marks"
+            } else {
+                "a reference line needs a label that says what it marks"
+            },
         ));
     };
     validate_text(label, &format!("{path}/label"), 100)
 }
 
+/// A zone: a shaded area between `bottom` and `top`, between `from` and `to`, or both. A missing
+/// edge is the edge of the plot, but at least one pair has to be complete, and the zone needs a
+/// label.
+fn validate_zone(
+    layer: &LayerSpec,
+    path: &str,
+    zone: crate::time::TimeZone,
+    warnings: &mut Vec<ChartWarning>,
+) -> Result<(), ChartError> {
+    check_layer_color(layer, path, warnings);
+    for (field, present, reason) in [
+        (
+            "points",
+            !layer.points.is_empty(),
+            "belongs to a line layer; for an uncertainty band around a line, give its points lower and upper",
+        ),
+        ("data", !layer.data.is_empty(), "belongs to an ohlc layer"),
+        (
+            "time",
+            layer.time.is_some(),
+            "belongs to an annotation; a zone spans from and to",
+        ),
+        (
+            "value",
+            layer.value.is_some(),
+            "belongs to an annotation; a zone spans bottom and top",
+        ),
+        ("shape", layer.shape.is_some(), "belongs to a point marker"),
+        ("modeled", layer.modeled, "belongs to a line layer"),
+        (
+            "stroke",
+            layer.stroke != Stroke::Regular,
+            "belongs to a line layer",
+        ),
+        ("dash", layer.dash.is_some(), "belongs to a line layer"),
+        (
+            "name",
+            layer.name.is_some(),
+            "is not used; a zone is named by its label",
+        ),
+    ] {
+        if present {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("{path}/{field}"),
+                format!("{field} {reason}"),
+            ));
+        }
+    }
+    let resolve = |field: &str, time: Option<&TimeValue>| {
+        time.map(|time| {
+            time.resolve(zone).map_err(|message| {
+                ChartError::new("invalid_time", format!("{path}/{field}"), message)
+            })
+        })
+        .transpose()
+    };
+    let from = resolve("from", layer.from.as_ref())?;
+    let to = resolve("to", layer.to.as_ref())?;
+    if let Some(bottom) = layer.bottom {
+        validate_number(bottom, &format!("{path}/bottom"))?;
+    }
+    if let Some(top) = layer.top {
+        validate_number(top, &format!("{path}/top"))?;
+    }
+    let values = layer.bottom.is_some() && layer.top.is_some();
+    let times = from.is_some() && to.is_some();
+    if !values && !times {
+        return Err(ChartError::new(
+            "missing_position",
+            path,
+            "give bottom and top for a range of values, from and to for a span of time, or both",
+        ));
+    }
+    if let (Some(bottom), Some(top)) = (layer.bottom, layer.top)
+        && bottom >= top
+    {
+        return Err(ChartError::new(
+            "invalid_band",
+            format!("{path}/top"),
+            "top must lie above bottom",
+        ));
+    }
+    if let (Some(from), Some(to)) = (from, to)
+        && from >= to
+    {
+        return Err(ChartError::new(
+            "invalid_band",
+            format!("{path}/to"),
+            "to must lie after from",
+        ));
+    }
+    let Some(label) = &layer.label else {
+        return Err(ChartError::new(
+            "missing_label",
+            format!("{path}/label"),
+            "a zone needs a label that says what it marks",
+        ));
+    };
+    validate_text(label, &format!("{path}/label"), 100)
+}
+
+/// The name of a data layer: required once the legend lists more than one layer, and unique
+/// among the names it is checked against.
+pub(crate) fn validate_layer_name(
+    layer: &LayerSpec,
+    path: &str,
+    required: bool,
+    names: &mut BTreeSet<String>,
+) -> Result<(), ChartError> {
+    match layer.name.as_deref() {
+        Some(name) => {
+            validate_text(name, &format!("{path}/name"), 100)?;
+            if !names.insert(name.to_owned()) {
+                return Err(ChartError::new(
+                    "duplicate_series",
+                    format!("{path}/name"),
+                    "layer names must be unique within a pane, and across the panes of a time chart",
+                ));
+            }
+        }
+        None if required => {
+            return Err(ChartError::new(
+                "missing_name",
+                format!("{path}/name"),
+                "name every layer when a pane or a chart has more than one",
+            ));
+        }
+        None => {}
+    }
+    Ok(())
+}
+
 fn validate_layer(
     layer: &LayerSpec,
     path: &str,
-    layer_count: usize,
-    zone: crate::time::TimeZone,
-    plot_pixels: usize,
+    context: &LayerContext,
     names: &mut BTreeSet<String>,
     warnings: &mut Vec<ChartWarning>,
 ) -> Result<(), ChartError> {
-    if layer.mark != Mark::Line {
-        return Err(ChartError::new(
-            "mark_not_implemented",
-            format!("{path}/mark"),
-            planned_for(layer.mark),
-        ));
-    }
+    let (zone, plot_pixels) = (context.zone, context.plot_pixels);
+    let mark = if layer.mark == Mark::Area {
+        "an area"
+    } else {
+        "a line"
+    };
 
     check_layer_color(layer, path, warnings);
 
@@ -2666,31 +3228,12 @@ fn validate_layer(
             return Err(ChartError::new(
                 "option_not_supported",
                 format!("{path}/{field}"),
-                format!("{field} belongs to a {owner} layer, not to a line layer"),
+                format!("{field} belongs to a {owner} layer, not to {mark} layer"),
             ));
         }
     }
 
-    match layer.name.as_deref() {
-        Some(name) => {
-            validate_text(name, &format!("{path}/name"), 100)?;
-            if !names.insert(name.to_owned()) {
-                return Err(ChartError::new(
-                    "duplicate_series",
-                    format!("{path}/name"),
-                    "layer names must be unique within a pane",
-                ));
-            }
-        }
-        None if layer_count > 1 => {
-            return Err(ChartError::new(
-                "missing_name",
-                format!("{path}/name"),
-                "name every layer when a pane has more than one",
-            ));
-        }
-        None => {}
-    }
+    validate_layer_name(layer, path, context.named, names)?;
 
     if layer.points.is_empty() {
         return Err(ChartError::new(
@@ -2812,7 +3355,7 @@ fn json_pointer(path: &serde_path_to_error::Path) -> String {
     }
 }
 
-fn validate_number(value: f64, path: &str) -> Result<(), ChartError> {
+pub(crate) fn validate_number(value: f64, path: &str) -> Result<(), ChartError> {
     if !value.is_finite() {
         return Err(ChartError::new(
             "non_finite_value",
@@ -2881,6 +3424,14 @@ const fn default_width() -> u32 {
 
 const fn default_height() -> u32 {
     450
+}
+
+const fn default_mobile_height() -> u32 {
+    360
+}
+
+const fn default_breakpoint() -> u32 {
+    640
 }
 
 const fn default_show_values() -> bool {

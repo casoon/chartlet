@@ -76,10 +76,14 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Knowledge landscape: one land, position by kinship | `"type": "atlas"` with `realms` | [knowledge-landscape](examples/knowledge-landscape.json) |
 | Time series with uncertainty band, modeled (hatched, dashed) | `lower`/`upper` per point, `"modeled": true` per layer | [temperature-projection](examples/temperature-projection.json) |
 | Reference lines: threshold and date marker | `"mark": "annotation"` with `value` or `time` and `label` | [annual-mean-threshold](examples/annual-mean-threshold.json) |
+| Time series with area, gaps, line patterns and zoom | `"mark": "area"`, `null` values, `dash`, `"stroke": "bold"`, `zoomSteps` by time | [sensor-readings](examples/sensor-readings.json) |
+| Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [release-incidents](examples/release-incidents.json) |
+| Candlesticks with a volume pane on one time axis | `"mark": "ohlc"` with `data`; up to four `panes` with `heightRatio` | [share-price](examples/share-price.json) |
 | Warming stripes on a diverging scale | `"type": "stripes"` with `stripes` | [warming-stripes](examples/warming-stripes.json) |
 | Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
 | Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
+| Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 
 Each example has its rendered `.svg` and `.html` next to it. The SVG files are also the
 reference output of the test suite.
@@ -109,7 +113,15 @@ A line layer can carry an uncertainty band: give every point `lower` and `upper`
 `"modeled": true` the line is dashed, its band hatched, and legend, description and data table
 say “modeled”. An `"annotation"` layer draws a labelled reference line: `value` for a horizontal
 threshold, `time` for a vertical marker. A bare year such as `"1850"` is a valid timestamp, and
-annual data is labelled by year. `"type": "multiples"` lays out 2 to 12 titled panes as small
+annual data is labelled by year. `null` as a value breaks the line, its band and its area.
+`"mark": "area"` fills the region between a line and zero; `dash` (`solid`, `dashed`, `dotted`)
+and `stroke` (`thin`, `regular`, `bold`) tell lines apart beyond color. A pane holds up to six
+data layers, four of them in palette colors, and `zoomSteps` take timestamps on a time chart.
+`"mark": "ohlc"` draws candlesticks from `data: [{ time, open, high, low, close }]` — hollow when
+rising, filled when falling — and up to four `panes` stack on one shared time axis, each with its
+own value axis and a share of the height by `heightRatio`; volume goes in a second pane as an
+`area` layer.
+`"type": "multiples"` lays out 2 to 12 titled panes as small
 time charts in a grid (`columns`), sharing one value axis and one legend.
 
 ### Stripes, calendars and range bars
@@ -144,7 +156,8 @@ shipped.
   show the full data. Browsers without `:has()` support simply keep every series visible.
 - **Zoom steps:** add two to four `zoomSteps` to pre-compute narrower views of the same chart. The HTML
   output renders one variant per step and switches between them with radio buttons. Each step
-  costs its own SVG in the output file.
+  costs its own SVG in the output file. A bar or line chart names categories by index; a `time`
+  chart names a window by timestamps (`"from": "2026-03-22", "to": "2026-03-28"`).
 - **Tooltips:** every bar and point carries a native `<title>` (`Month: value`, or
   `Month – Series: value`) that browsers can show on hover. The chart description and data table,
   rather than these hover-only tooltips, remain the assistive-technology alternative.
@@ -172,49 +185,29 @@ The pure SVG profile stays a single static chart; filtering and stepped zoom are
 ## Specification
 
 [`schema/chartlet.schema.json`](schema/chartlet.schema.json) is the complete contract and can be
-used for editor validation.
-
-| Field | Required | Description |
-|---|---|---|
-| `schemaVersion` | yes | Always `1`. |
-| `type` | yes | `bar`, `line`, `time`, `topicmap`, or `atlas`. |
-| `title` | yes | Visible title; also the accessible name of the chart. |
-| `data` | one of | Single series: `[{ "label": "…", "value": 1 }]`. |
-| `categories` + `series` | one of | Several series: unique category labels, and `[{ "name": "…", "values": […] }]`. |
-| `orientation` | no | `vertical` (default) or `horizontal`; bar charts only. |
-| `theme` | no | `light` (default) or `dark`; the palette lives in CSS custom properties. |
-| `timeAxis.timezone` | no | Fixed UTC offset such as `"+02:00"`, or `UTC` (default); `time` charts only. |
-| `timeAxis.title` | no | Title of the time axis. |
-| `timeAxis.gaps` | no | `show` (default) or `collapse`. |
-| `panes` | no | `time` charts only: one pane with a `valueAxis` and up to four `layers`. |
-| `panes[].layers[].mark` | no | `line`; `area`, `ohlc`, `band`, and `annotation` are planned. |
-| `panes[].layers[].points` | yes | `[{ "time": 1772323200, "value": 1 }]`; ISO dates are accepted too. |
-| `panes[].layers[].color` | no | `#rgb`, `#rrggbb`, `#rrggbbaa`, or `var(--name)`. |
-| `description` | no | Replaces the generated description. |
-| `source` | no | Shown below the chart in the HTML output. |
-| `categoryAxis.title` | no | Title of the category axis. |
-| `valueAxis.title` | no | Title of the value axis. |
-| `valueAxis.format` | no | `number` (default) or `percent`; `0.12` is shown as `12%`. |
-| `width`, `height` | no | Size in pixels: 320–2400 × 240–1600, default 800 × 450. |
-| `showValues` | no | Value labels on bars and points, default `true`. On a time pane with several layers the labels can overlap; the values stay in the tooltips and the data table. |
-| `zoomSteps` | no | Two to four `{ "label", "from", "to" }` variants, selectable in the HTML output. |
+used for editor validation. Every field, per chart type, and every limit is listed in the
+[specification reference](docs/reference/specification.md).
 
 Limits: up to 100 categories and four series. Labels must be unique. Values must be zero or have
-a magnitude between `1e-100` and `1e100`. A `time` chart carries up to four layers of 2000
-observations each in one pane; markers and value labels are drawn up to 60 observations per
-layer, and beyond one observation per plot pixel the rendering is reported as `dense_chart`.
+a magnitude between `1e-100` and `1e100`. A `time` chart carries up to four panes, each with up to six data layers of
+2000 observations or candles (at most four layers of the chart in palette colors) and up to six
+zones, reference lines and point markers; markers and value labels are drawn
+up to 60 observations per layer, and beyond one observation per plot pixel the rendering is
+reported as `dense_chart`. Small multiples take 2 to 12 panes.
 
 ## Output
 
 | Option | Effect |
 |---|---|
 | `--format svg` | Standalone SVG with `<title>` and `<desc>` (default). |
-| `--format html` | `<figure>` with caption, SVG, source and data table. |
+| `--format html` | `<figure>` with caption, SVG, source and data table; with `mobile` in the specification, both variants behind a container query. |
 | `--table details` | Puts the HTML data table in a native, initially closed `<details>` (default). |
 | `--table visible` | Shows the data table permanently. |
-| `--id-prefix <prefix>` | Stable prefix for the accessibility IDs; needed when the same chart appears twice on one page. |
+| `--id-prefix <prefix>` | Stable ID of the chart root and prefix for its other IDs; needed when the same chart appears twice on one page. |
+| `--variant mobile` | Renders the mobile variant alone as SVG, for a `<picture>` source; requires `mobile` in the specification (`missing_mobile`) and the SVG format. `desktop` (default) renders the chart at `width` × `height`. |
 | `-o <path>` | Writes to a file instead of standard output. |
 | `--strict` | Fails on any warning. Useful in CI. |
+| `--diagnostics json` | Writes errors and warnings to standard error as one JSON document instead of text lines. |
 
 Pass `-` instead of a file name to read the specification from standard input.
 
@@ -260,16 +253,16 @@ Warnings are written to standard error, and the chart is still produced:
 | `places_did_not_fit` | A region declares more places than it has ground. |
 | `realm_without_structure` | A realm holds a single region, so it has no inner structure to show. |
 | `more_places_than_value` | A region lists more places than its value. |
+| `label_overlap` | The label of a zone, reference line or point marker overlaps another annotation label, crosses a data line, or reaches outside the plot; the label is kept. |
 
 ## Astro
 
 The npm package [`@casoon/chartlet`](packages/chartlet/README.md) renders charts while Astro
-builds the site and ships no JavaScript to the browser. In the alpha, it calls the `chartlet`
-CLI, so install both:
+builds the site and ships no JavaScript to the browser. It carries the renderer as WebAssembly,
+so the package is all you install:
 
 ```sh
 npm install @casoon/chartlet@alpha
-cargo install chartlet --version 0.1.0-alpha.5
 ```
 
 ```astro
@@ -281,7 +274,8 @@ import revenue from '../data/monthly-revenue.json';
 <Chart id="monthly-revenue" spec={revenue} />
 ```
 
-The CLI must be on `PATH`, or `CHARTLET_BIN` must point to it.
+To render with an installed CLI instead, set `CHARTLET_BIN` to its path. For Node.js without
+Astro, Cloudflare Workers and Vite, see [JavaScript runtimes](docs/guides/javascript.md).
 
 ## Rust
 

@@ -8,8 +8,11 @@ chartlet compiles a small JSON chart specification into a finished, accessible c
 time: plain SVG, or an HTML figure with caption, source and data table. Nothing runs in the
 browser – no chart JavaScript, no hydration, no layout shift.
 
-**Status:** early alpha. Bar charts (single and grouped, vertical and horizontal) and categorical
-line charts are supported. The specification may still change before the first stable release.
+**Status:** early alpha. Bar charts (single and grouped, vertical and horizontal), categorical
+line charts, time series with uncertainty bands and reference lines, small multiples, warming
+stripes, calendar heatmaps and range bars are supported, plus two map-like types
+(topic map and knowledge landscape). The specification may still change before the first stable
+release.
 
 ## Principles
 
@@ -25,7 +28,7 @@ line charts are supported. The specification may still change before the first s
 - You need continuous zooming, panning, cross-filtering, live updates or keyboard-addressable
   details for individual marks.
 - The data changes at runtime rather than at build time.
-- You need maps, networks, 3D charts or chart types beyond bar and line.
+- You need geographic maps, networks, 3D charts, scatter plots or pie charts.
 - You want to explore data rather than publish a finished chart.
 
 ## How the docs are organised

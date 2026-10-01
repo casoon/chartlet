@@ -16,7 +16,7 @@
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
     "theme": { "enum": ["light", "dark"], "default": "light" },
     "locale": {
-      "description": "Language of the texts chartlet generates (description, legend additions, tooltips, HTML figure and table) and of the number format. \"de\" is available for time and multiples charts.",
+      "description": "Language of the texts chartlet generates (description, legend additions, tooltips, HTML figure and table) and of the number format.",
       "enum": ["en", "de"],
       "default": "en"
     },
@@ -24,7 +24,7 @@
     "valueAxis": { "$ref": "#/$defs/valueAxis" },
     "timeAxis": { "$ref": "#/$defs/timeAxis" },
     "panes": {
-      "description": "Time charts are drawn from one pane, small multiples from 2 to 12 titled panes.",
+      "description": "Time charts are drawn from 1 to 4 panes stacked on one time axis, small multiples from 2 to 12 titled panes.",
       "type": "array",
       "minItems": 1,
       "maxItems": 12,
@@ -61,7 +61,29 @@
     },
     "width": { "type": "integer", "minimum": 320, "maximum": 2400, "default": 800 },
     "height": { "type": "integer", "minimum": 240, "maximum": 1600, "default": 450 },
+    "mobile": {
+      "description": "A second layout for narrow containers. The HTML profile shows it below the breakpoint by a container query; the SVG profile renders it with the variant option.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width"],
+      "properties": {
+        "width": { "type": "integer", "minimum": 280, "maximum": 600 },
+        "height": { "type": "integer", "minimum": 240, "maximum": 1600, "default": 360 },
+        "breakpoint": {
+          "description": "Container width in CSS pixels below which the mobile variant is shown.",
+          "type": "integer",
+          "minimum": 320,
+          "maximum": 1600,
+          "default": 640
+        }
+      }
+    },
     "showValues": { "type": "boolean", "default": true },
+    "showTitle": {
+      "description": "false leaves the drawn title out of a time chart; it stays the accessible name. Time charts only.",
+      "type": "boolean",
+      "default": true
+    },
     "data": {
       "description": "Single-series data. Use either data or categories with series.",
       "type": "array",
@@ -101,7 +123,7 @@
       }
     },
     "zoomSteps": {
-      "description": "Optional pre-computed zoom variants, selectable in the HTML profile.",
+      "description": "Optional pre-computed zoom variants, selectable in the HTML profile. A bar or line chart names categories by index, a time chart names a window by timestamps.",
       "type": "array",
       "minItems": 2,
       "maxItems": 4,
@@ -111,8 +133,14 @@
         "required": ["label", "from", "to"],
         "properties": {
           "label": { "type": "string", "minLength": 1, "maxLength": 40 },
-          "from": { "type": "integer", "minimum": 0 },
-          "to": { "type": "integer", "minimum": 0 }
+          "from": {
+            "description": "First category index, or on a time chart the first timestamp of the window.",
+            "anyOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/timeValue" }]
+          },
+          "to": {
+            "description": "Last category index, or on a time chart the last timestamp of the window.",
+            "anyOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/timeValue" }]
+          }
         }
       }
     }
@@ -235,13 +263,12 @@
       "if": { "properties": { "type": { "const": "time" } } },
       "then": {
         "required": ["panes"],
-        "properties": { "panes": { "maxItems": 1 } },
+        "properties": { "panes": { "maxItems": 4 } },
         "not": {
           "anyOf": [
             { "required": ["orientation"] },
             { "required": ["categoryAxis"] },
             { "required": ["valueAxis"] },
-            { "required": ["zoomSteps"] },
             { "required": ["topicmap"] }
           ]
         }
@@ -250,6 +277,16 @@
     {
       "if": { "properties": { "type": { "enum": ["bar", "line"] } } },
       "then": {
+        "properties": {
+          "zoomSteps": {
+            "items": {
+              "properties": {
+                "from": { "type": "integer", "minimum": 0 },
+                "to": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        },
         "not": {
           "anyOf": [
             { "required": ["panes"] },
@@ -404,18 +441,24 @@
       "additionalProperties": false,
       "properties": {
         "title": {
-          "description": "Heading of a small-multiples panel; required there, not allowed in a time chart.",
+          "description": "Heading of a small-multiples panel; required there, not allowed in a time chart, whose panes are named by their valueAxis title.",
           "type": "string",
           "minLength": 1,
           "maxLength": 100
         },
-        "heightRatio": { "type": "integer", "minimum": 1, "maximum": 20, "default": 1 },
+        "heightRatio": {
+          "description": "Time charts: the pane's share of the plot height against the other panes. Small multiples keep the default.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 1
+        },
         "valueAxis": { "$ref": "#/$defs/valueAxis" },
         "layers": {
-          "description": "Up to 4 data layers and up to 6 annotation layers.",
+          "description": "Up to 6 data layers — on a time chart at most 4 line and area layers of the whole chart without their own color — and up to 6 annotation layers (zones, reference lines and point markers together).",
           "type": "array",
           "minItems": 1,
-          "maxItems": 10,
+          "maxItems": 12,
           "items": { "$ref": "#/$defs/layer" }
         }
       }
@@ -426,7 +469,10 @@
       "additionalProperties": false,
       "required": ["mark"],
       "properties": {
-        "mark": { "enum": ["line", "area", "ohlc", "band", "annotation"] },
+        "mark": {
+          "description": "line and area draw data; ohlc draws candlesticks (time charts only); band is a zone; annotation is a reference line or, with both time and value, a point marker.",
+          "enum": ["line", "area", "ohlc", "band", "annotation"]
+        },
         "name": { "type": "string", "minLength": 1, "maxLength": 100 },
         "color": {
           "description": "#rgb, #rrggbb, #rrggbbaa or var(--name). Anything else is reported and replaced by the neutral tone.",
@@ -445,9 +491,12 @@
             "required": ["time", "value"],
             "properties": {
               "time": { "$ref": "#/$defs/timeValue" },
-              "value": { "$ref": "#/$defs/value" },
+              "value": {
+                "description": "null marks a missing observation: the line, its area and its band break there.",
+                "$ref": "#/$defs/value"
+              },
               "lower": {
-                "description": "Lower edge of the uncertainty band; give lower and upper on every point of a layer, or on none.",
+                "description": "Lower edge of the uncertainty band; give lower and upper on every point of a layer that has a value, or on none. A point whose value is null has no band.",
                 "type": "number"
               },
               "upper": { "description": "Upper edge of the uncertainty band.", "type": "number" }
@@ -455,9 +504,10 @@
           }
         },
         "data": {
-          "description": "Candlesticks of an ohlc layer.",
+          "description": "Candlesticks of an ohlc layer, with increasing time; low at or below open and close, high at or above them.",
           "type": "array",
-          "minItems": 1,
+          "minItems": 2,
+          "maxItems": 2000,
           "items": {
             "type": "object",
             "additionalProperties": false,
@@ -471,28 +521,58 @@
             }
           }
         },
-        "from": { "$ref": "#/$defs/timeValue" },
-        "to": { "$ref": "#/$defs/timeValue" },
-        "top": { "type": "number" },
-        "bottom": { "type": "number" },
-        "time": { "$ref": "#/$defs/timeValue" },
-        "value": { "type": "number" },
-        "label": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "shape": { "enum": ["triangle-up", "triangle-down", "square", "circle", "diamond"] },
+        "from": {
+          "description": "Start of a zone; missing, the zone begins at the plot's left edge.",
+          "$ref": "#/$defs/timeValue"
+        },
+        "to": {
+          "description": "End of a zone, after from; missing, the zone ends at the plot's right edge.",
+          "$ref": "#/$defs/timeValue"
+        },
+        "top": {
+          "description": "Upper edge of a zone, above bottom; missing, the zone reaches the top of the plot.",
+          "type": "number"
+        },
+        "bottom": {
+          "description": "Lower edge of a zone; missing, the zone reaches the bottom of the plot.",
+          "type": "number"
+        },
+        "time": {
+          "description": "Time of a vertical reference line or of a point marker.",
+          "$ref": "#/$defs/timeValue"
+        },
+        "value": {
+          "description": "Value of a horizontal reference line or of a point marker.",
+          "type": "number"
+        },
+        "label": {
+          "description": "Text of a reference line, point marker or zone; required there.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "shape": {
+          "description": "Symbol of a point marker; circle by default. Only a point marker takes one.",
+          "enum": ["triangle-up", "triangle-down", "square", "circle", "diamond"]
+        },
         "modeled": {
-          "description": "A line from a model: drawn dashed, its band hatched, and named modeled in legend and description.",
+          "description": "A line from a model: drawn dashed unless dash says otherwise, its band hatched, and named modeled in legend and description.",
           "type": "boolean",
           "default": false
         },
         "stroke": {
-          "description": "Line weight; thin sets a line back, for example single years under their mean.",
-          "enum": ["regular", "thin"],
+          "description": "Line weight; thin sets a line back, for example single years under their mean, bold brings one forward.",
+          "enum": ["regular", "thin", "bold"],
           "default": "regular"
+        },
+        "dash": {
+          "description": "Line pattern. Defaults to dashed for a modeled line and solid for any other.",
+          "enum": ["solid", "dashed", "dotted"]
         }
       },
       "allOf": [
         {
-          "if": { "properties": { "mark": { "const": "line" } }, "required": ["mark"] },
+          "if": { "properties": { "mark": { "enum": ["line", "area"] } }, "required": ["mark"] },
           "then": {
             "required": ["points"],
             "not": {
@@ -511,11 +591,37 @@
           }
         },
         {
+          "if": { "properties": { "mark": { "const": "ohlc" } }, "required": ["mark"] },
+          "then": {
+            "description": "Candlesticks: rising candles are hollow, falling ones filled, in --chartlet-rise and --chartlet-fall.",
+            "required": ["data"],
+            "not": {
+              "anyOf": [
+                { "required": ["points"] },
+                { "required": ["color"] },
+                { "required": ["from"] },
+                { "required": ["to"] },
+                { "required": ["top"] },
+                { "required": ["bottom"] },
+                { "required": ["time"] },
+                { "required": ["value"] },
+                { "required": ["label"] },
+                { "required": ["shape"] },
+                { "required": ["modeled"] },
+                { "required": ["stroke"] },
+                { "required": ["dash"] }
+              ]
+            }
+          }
+        },
+        {
           "if": { "properties": { "mark": { "const": "annotation" } }, "required": ["mark"] },
           "then": {
-            "description": "A reference line: value draws a horizontal one, time a vertical one; label is required.",
+            "description": "A reference line: value draws a horizontal one, time a vertical one; both draw a point marker, which alone takes a shape. label is required.",
             "required": ["label"],
-            "oneOf": [{ "required": ["value"] }, { "required": ["time"] }],
+            "anyOf": [{ "required": ["value"] }, { "required": ["time"] }],
+            "if": { "not": { "required": ["time", "value"] } },
+            "then": { "not": { "required": ["shape"] } },
             "not": {
               "anyOf": [
                 { "required": ["name"] },
@@ -525,9 +631,30 @@
                 { "required": ["to"] },
                 { "required": ["top"] },
                 { "required": ["bottom"] },
+                { "required": ["modeled"] },
+                { "required": ["stroke"] },
+                { "required": ["dash"] }
+              ]
+            }
+          }
+        },
+        {
+          "if": { "properties": { "mark": { "const": "band" } }, "required": ["mark"] },
+          "then": {
+            "description": "A zone between bottom and top, from and to, or both; a missing edge is the plot's edge. label is required.",
+            "required": ["label"],
+            "anyOf": [{ "required": ["bottom", "top"] }, { "required": ["from", "to"] }],
+            "not": {
+              "anyOf": [
+                { "required": ["name"] },
+                { "required": ["points"] },
+                { "required": ["data"] },
+                { "required": ["time"] },
+                { "required": ["value"] },
                 { "required": ["shape"] },
                 { "required": ["modeled"] },
-                { "required": ["stroke"] }
+                { "required": ["stroke"] },
+                { "required": ["dash"] }
               ]
             }
           }

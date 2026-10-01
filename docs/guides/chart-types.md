@@ -1,6 +1,6 @@
 ---
 title: Chart types
-description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, small multiples, warming stripes, calendar heatmaps, range bars, and two kinds of map.
+description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, and two kinds of map.
 order: 1
 ---
 
@@ -14,14 +14,19 @@ order: 1
 | Time series, dark theme, declared colors | `"theme": "dark"`, `color` per layer | [Revenue vs. forecast](../../../showcase/revenue-vs-forecast/) |
 | Separate landmasses, area by value | `"type": "topicmap"` with `topics` | [Insights themes](../../../showcase/topicmap-sample/) |
 | One continuous land, position by kinship | `"type": "atlas"` with `realms` | [Documentation by area](../../../showcase/knowledge-landscape/) |
-| Time series with uncertainty band, modeled | `lower`/`upper` per point, `"modeled": true` | `examples/temperature-projection.json` |
-| Threshold and date marker | `"mark": "annotation"` with `value` or `time` | `examples/annual-mean-threshold.json` |
-| Small multiples, shared value axis | `"type": "multiples"` with titled `panes` | `examples/emission-pathways.json` |
-| Warming stripes | `"type": "stripes"` with `stripes` | `examples/warming-stripes.json` |
-| Calendar heatmap, by month or week | `"type": "calendar"` with `calendar` | `examples/daily-anomaly-calendar.json` |
-| Range bars with central value | `"type": "rangebar"` with `ranges` | `examples/warming-contributions.json` |
+| Time series with uncertainty band, modeled | `lower`/`upper` per point, `"modeled": true` | [Temperature projection](../../../showcase/temperature-projection/) |
+| Threshold and date marker | `"mark": "annotation"` with `value` or `time` | [Annual mean and threshold](../../../showcase/annual-mean-threshold/) |
+| Time series with area, gaps and zoom | `"mark": "area"`, `null` values, `dash`, `zoomSteps` by time | [Data hall power draw](../../../showcase/sensor-readings/) |
+| Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [Checkout API error rate](../../../showcase/release-incidents/) |
+| Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio` | [Daily share price](../../../showcase/share-price/) |
+| Small multiples, shared value axis | `"type": "multiples"` with titled `panes` | [Emission pathways](../../../showcase/emission-pathways/) |
+| Warming stripes | `"type": "stripes"` with `stripes` | [Warming stripes](../../../showcase/warming-stripes/) |
+| Calendar heatmap, by month or week | `"type": "calendar"` with `calendar` | [Daily anomaly calendar](../../../showcase/daily-anomaly-calendar/) |
+| Range bars with central value | `"type": "rangebar"` with `ranges` | [Warming contributions](../../../showcase/warming-contributions/) |
+| Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
-Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it.
+Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
+one with a mobile variant also has its `.mobile.svg`.
 The SVG files are also the reference output of the test suite.
 
 ## Several series
@@ -132,7 +137,8 @@ A region whose area has no room for its own name at a readable size is left unna
 ## Time series
 
 `"type": "time"` drops categories altogether: an observation carries a timestamp, the ticks land
-on calendar boundaries, and the layer list lives in `panes`. Bars, grouped series, and
-`zoomSteps` do not apply to it, and a `time` chart refuses them by name instead of ignoring them.
+on calendar boundaries, and the layer list lives in `panes`. Bars and grouped series do not apply
+to it, and a `time` chart refuses them by name instead of ignoring them. Its `zoomSteps` name a
+window of time instead of a range of categories.
 The [time series guide](time-series.md) covers timestamps, timezone, per-layer colors, the dark
 theme, and the limits for dense data.

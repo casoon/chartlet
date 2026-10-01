@@ -33,7 +33,7 @@ pub(crate) const STYLE: &str = ".chartlet-root{--chartlet-diverging-0:#033761;--
 
 use crate::layout::{LABEL_SIZE, format_value};
 use crate::scene::{Element, Rect, Text, TextAnchor};
-use crate::spec::ValueFormat;
+use crate::spec::NumberStyle;
 
 /// Width of one swatch of the color key.
 const KEY_SWATCH: f64 = 14.0;
@@ -45,7 +45,13 @@ pub(crate) fn key_width() -> f64 {
 
 /// A color key: one swatch per step, labelled with the outer ends and the reference below. The
 /// outer labels read as "at most" and "at least", since values beyond them take the end steps.
-pub(crate) fn push_key(elements: &mut Vec<Element>, left: f64, top: f64, scale: &Diverging) {
+pub(crate) fn push_key(
+    elements: &mut Vec<Element>,
+    left: f64,
+    top: f64,
+    scale: &Diverging,
+    style: NumberStyle,
+) {
     for (index, class) in CLASSES.iter().enumerate() {
         elements.push(Element::Rect(Rect {
             x: left + KEY_SWATCH * crate::layout::count(index),
@@ -73,7 +79,7 @@ pub(crate) fn push_key(elements: &mut Vec<Element>, left: f64, top: f64, scale: 
             y: baseline,
             class: "chartlet-tick",
             anchor,
-            content: format_value(value, ValueFormat::Number),
+            content: format_value(value, style),
         }));
     }
 }

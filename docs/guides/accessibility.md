@@ -11,7 +11,8 @@ order: 4
 - The HTML output adds a `<figure>` with caption and a real `<table>` containing every value,
   including values whose visual label had to be left out.
 - Series colours stay distinguishable for the common forms of colour-vision deficiency and have at
-  least 4.5:1 contrast against white. The legend lists series in the same order as the bars.
+  least 4.5:1 contrast against white — and against the dark theme's background, where the lowest
+  series colour reaches 7.65:1. The legend lists series in the same order as the bars.
 - Text is never removed silently: shortened labels and omitted value labels produce warnings, and
   the full text stays in the specification and the data table.
 
@@ -21,5 +22,6 @@ Every page of this site, including all showcase charts, is checked with axe (WCA
 Testing with VoiceOver and NVDA is still pending. Until then, treat the output as designed for
 accessibility, not as verified. The [support matrix](../../reference/support/) lists the details.
 
-The default palette is designed for light backgrounds; a dark palette is planned. This site places
-charts on a light surface in its dark theme for that reason.
+The default palette is designed for light backgrounds; `"theme": "dark"` switches to a dark
+palette that paints its own background. This site places light charts on a light surface in its
+dark theme for that reason.

@@ -2,8 +2,6 @@
 //! estimate drawn across it. A modeled span is hatched, so that the difference between measured
 //! and modeled does not rest on color.
 
-use std::fmt::Write as _;
-
 use crate::{
     error::ChartWarning,
     layout::{
@@ -13,6 +11,7 @@ use crate::{
     metrics::TextMetrics,
     scene::{Element, Line, Rect, Scene, Text, TextAnchor},
     spec::{ChartSpec, Orientation, RangeSpec},
+    text,
 };
 
 /// Extra top margin for the legend that explains the hatching.
@@ -25,19 +24,24 @@ const MID_OVERHANG: f64 = 3.0;
 /// The label of one span: its central value and its bounds, or only the bounds.
 fn span_label(spec: &ChartSpec, range: &RangeSpec) -> String {
     let show = |value| format_value(value, spec.number_style());
+    let to = spec.locale.words().to;
     match range.mid {
         Some(mid) => format!(
-            "{} ({} to {})",
+            "{} ({} {to} {})",
             show(mid),
             show(range.low),
             show(range.high)
         ),
-        None => format!("{} to {}", show(range.low), show(range.high)),
+        None => format!("{} {to} {}", show(range.low), show(range.high)),
     }
 }
 
 fn tooltip(spec: &ChartSpec, range: &RangeSpec) -> String {
-    let modeled = if range.modeled { ", modeled" } else { "" };
+    let modeled = if range.modeled {
+        format!(", {}", spec.locale.words().modeled)
+    } else {
+        String::new()
+    };
     format!("{}: {}{modeled}", range.label, span_label(spec, range))
 }
 
@@ -96,7 +100,7 @@ fn push_legend(
         y: 55.0,
         class: "chartlet-legend",
         anchor: TextAnchor::Start,
-        content: "Hatched: modeled".to_owned(),
+        content: spec.locale.words().hatched_modeled.to_owned(),
     }));
 }
 
@@ -332,23 +336,12 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .iter()
         .max_by(|a, b| a.high.total_cmp(&b.high))
         .expect("validated rangebar charts have a range");
-    let categories = spec.ranges.len();
-    let mid = if spec.ranges.iter().any(|range| range.mid.is_some()) {
-        " and a central value"
-    } else {
-        ""
-    };
-    let mut description = format!(
-        "Range chart with {categories} {}, each a span from low to high{mid}. Lowest low: {} ({}). Highest high: {} ({}).",
-        if categories == 1 {
-            "category"
-        } else {
-            "categories"
-        },
-        show(lowest.low),
-        lowest.label,
-        show(highest.high),
-        highest.label,
+    let mut description = text::rangebar_opening(
+        spec.locale,
+        spec.ranges.len(),
+        spec.ranges.iter().any(|range| range.mid.is_some()),
+        (&show(lowest.low), &lowest.label),
+        (&show(highest.high), &highest.label),
     );
     let modeled: Vec<&str> = spec
         .ranges
@@ -357,12 +350,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .map(|range| range.label.as_str())
         .collect();
     if !modeled.is_empty() {
-        write!(
-            description,
-            " Modeled, drawn hatched: {}.",
-            modeled.join(", ")
-        )
-        .expect("writing to String cannot fail");
+        description.push_str(&text::modeled_ranges(spec.locale, &modeled.join(", ")));
     }
     description
 }

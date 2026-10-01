@@ -5,13 +5,15 @@ order: 3
 ---
 
 The npm package `@casoon/chartlet` renders charts while Astro builds the site and ships no
-JavaScript to the browser. In the alpha it calls the `chartlet` CLI: install both, and make sure
-the CLI is on `PATH` or `CHARTLET_BIN` points to it.
+JavaScript to the browser. It carries the renderer as a WebAssembly build, so the package is all
+you install:
 
 ```sh
 npm install @casoon/chartlet@alpha
-cargo install chartlet --version 0.1.0-alpha.5
 ```
+
+To render with an installed `chartlet` CLI instead, set `CHARTLET_BIN` to its path or pass
+`binary` to the component. Both produce the same bytes.
 
 ## The component
 
@@ -29,6 +31,9 @@ import revenue from '../data/monthly-revenue.json';
 - `format="svg"` renders the graphic alone; `format="html"` (the default) renders the figure with
   caption, source and data table.
 - The HTML table uses a native disclosure by default; set `table="visible"` to show it permanently.
+- A specification with `mobile` needs nothing extra: the component passes the HTML through, and
+  the figure switches to the mobile variant by the width of its container. See
+  [Responsive charts](responsive.md).
 
 ## The render API
 
@@ -45,5 +50,9 @@ const { content, warnings } = renderChart(spec, {
 });
 ```
 
-`content` is the SVG or HTML; `warnings` lists the layout warnings the CLI reported. This site uses
+`content` is the SVG or HTML; `warnings` lists the layout warnings, in the same lines the CLI
+writes. An invalid specification throws an error with the CLI's message. With
+`format: 'svg'` and `variant: 'mobile'` it returns the mobile variant alone. This site uses
 exactly that to render its showcase.
+
+Outside Astro, and in runtimes that cannot read files, see [JavaScript runtimes](javascript.md).

@@ -7,8 +7,9 @@ use crate::{
     noise,
     scene::{Circle, Element, Line, Polyline, Rect, Scene, Text, TextAnchor, TextStyle},
     spec::{
-        AtlasSpec, ChartSpec, ChartType, Corner, Dataset, LayerRef, Locale, MAX_SERIES, Mark,
-        NumberStyle, Orientation, Stroke, TopicLinkSpec, TopicMapSpec, TopicSpec, ValueFormat,
+        AtlasSpec, ChartSpec, ChartType, Corner, Dash, Dataset, LayerRef, LayerSpec, Locale,
+        MAX_SERIES, Mark, NumberStyle, Orientation, Shape, Stroke, TopicLinkSpec, TopicMapSpec,
+        TopicSpec, ValueFormat,
     },
     time::{self, Precision, TimeZone},
 };
@@ -69,39 +70,32 @@ const SERIES_BAR_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-bar chartlet-series-3",
     "chartlet-bar chartlet-series-4",
 ];
-/// Line classes for time layers that declare no color: the same palette as the bars.
-const LINE_CLASSES: [&str; MAX_SERIES] = [
-    "chartlet-line chartlet-line-series-1",
-    "chartlet-line chartlet-line-series-2",
-    "chartlet-line chartlet-line-series-3",
-    "chartlet-line chartlet-line-series-4",
+/// The weight classes of a line, by [`Stroke`].
+const LINE_WEIGHTS: [&str; 3] = ["", " chartlet-line-thin", " chartlet-line-bold"];
+/// The pattern classes of a line: solid, dashed because modeled, dashed, dotted. A modeled line
+/// keeps its own class, which the stylesheet dashes.
+const LINE_DASHES: [&str; 4] = [
+    "",
+    " chartlet-line-modeled",
+    " chartlet-line-dashed",
+    " chartlet-line-dotted",
 ];
-/// The same palette for a modeled line, which is dashed.
-const MODELED_LINE_CLASSES: [&str; MAX_SERIES] = [
-    "chartlet-line chartlet-line-modeled chartlet-line-series-1",
-    "chartlet-line chartlet-line-modeled chartlet-line-series-2",
-    "chartlet-line chartlet-line-modeled chartlet-line-series-3",
-    "chartlet-line chartlet-line-modeled chartlet-line-series-4",
-];
-/// A thin line in the palette, regular and modeled.
-const THIN_LINE_CLASSES: [&str; MAX_SERIES] = [
-    "chartlet-line chartlet-line-thin chartlet-line-series-1",
-    "chartlet-line chartlet-line-thin chartlet-line-series-2",
-    "chartlet-line chartlet-line-thin chartlet-line-series-3",
-    "chartlet-line chartlet-line-thin chartlet-line-series-4",
-];
-const THIN_MODELED_LINE_CLASSES: [&str; MAX_SERIES] = [
-    "chartlet-line chartlet-line-thin chartlet-line-modeled chartlet-line-series-1",
-    "chartlet-line chartlet-line-thin chartlet-line-modeled chartlet-line-series-2",
-    "chartlet-line chartlet-line-thin chartlet-line-modeled chartlet-line-series-3",
-    "chartlet-line chartlet-line-thin chartlet-line-modeled chartlet-line-series-4",
-];
+/// Every combination of color, pattern and weight a time line can take, built once: a declared
+/// color first, then the palette colors.
+static LINE_CLASSES: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
 /// Fill of an uncertainty band, in the palette color of its line.
 const BAND_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-band chartlet-band-series-1",
     "chartlet-band chartlet-band-series-2",
     "chartlet-band chartlet-band-series-3",
     "chartlet-band chartlet-band-series-4",
+];
+/// Fill of an area layer, in the palette color of its line.
+const AREA_CLASSES: [&str; MAX_SERIES] = [
+    "chartlet-area chartlet-band-series-1",
+    "chartlet-area chartlet-band-series-2",
+    "chartlet-area chartlet-band-series-3",
+    "chartlet-area chartlet-band-series-4",
 ];
 /// Markers of a layer that takes a palette color other than the first.
 const POINT_CLASSES: [&str; MAX_SERIES] = [
@@ -434,10 +428,17 @@ fn layout_time(
     let height = f64::from(spec.height);
     let left = f64::from(AXIS_GUTTER);
     let right = f64::from(PLOT_MARGIN);
-    let layered = spec.series_names().len() > 1;
+    // Candles always take a legend entry: it says which body is rising and which is falling.
+    let layered =
+        spec.series_names().len() > 1 || spec.layers().any(|layer| layer.mark == Mark::Ohlc);
     // Without a drawn title the legend and the plot move up into its place.
     let head = if spec.show_title { 0.0 } else { TITLE_BLOCK };
-    let top = 78.0 - head + if layered { LEGEND_HEIGHT } else { 0.0 };
+    let legend = if layered {
+        count(legend_rows(spec, width - left - right, metrics)) * LEGEND_HEIGHT
+    } else {
+        0.0
+    };
+    let top = 78.0 - head + legend;
     let bottom = if spec.time_axis.title.is_some() {
         56.0
     } else {
@@ -451,15 +452,30 @@ fn layout_time(
         vertical_bars: true,
     };
 
-    let frame = TimeFrame {
-        plot,
-        span: time_span(spec, zone),
-        zone,
-        precision: spec.time_precision(zone),
-        scale: time_scale(spec, zone),
-    };
-
-    let mut elements = time_base_elements(spec, &frame, warnings, metrics);
+    let frames = pane_frames(spec, zone, plot, warnings);
+    let mut elements = Vec::new();
+    if spec.show_title {
+        let title = fit_text(&spec.title, plot.width, 22.0, metrics, warnings, "/title");
+        elements.push(Element::Text(Text {
+            x: plot.left,
+            y: 30.0,
+            class: "chartlet-title",
+            anchor: TextAnchor::Start,
+            content: title,
+        }));
+    }
+    for (pane_index, frame) in frames.iter().enumerate() {
+        let bottom_pane = pane_index + 1 == frames.len();
+        push_pane_axes(
+            spec,
+            pane_index,
+            frame,
+            bottom_pane,
+            &mut elements,
+            warnings,
+            metrics,
+        );
+    }
     if layered {
         add_layer_legend(
             spec,
@@ -472,15 +488,17 @@ fn layout_time(
         );
     }
 
-    draw_pane(
-        spec,
-        0,
-        &frame,
-        Detail::Full,
-        &mut elements,
-        warnings,
-        metrics,
-    );
+    for (pane_index, frame) in frames.iter().enumerate() {
+        draw_pane(
+            spec,
+            pane_index,
+            frame,
+            Detail::Full,
+            &mut elements,
+            warnings,
+            metrics,
+        );
+    }
 
     if let Some(title) = &spec.time_axis.title {
         let title = fit_text(
@@ -543,7 +561,7 @@ fn multiples_header(
             warnings,
             metrics,
         );
-        cursor += LEGEND_HEIGHT;
+        cursor += count(legend_rows(spec, width - 2.0 * MULTIPLES_MARGIN, metrics)) * LEGEND_HEIGHT;
     }
     if let Some(axis_title) = &spec.value_axis.title {
         elements.push(Element::Text(Text {
@@ -592,7 +610,7 @@ fn layout_multiples(
 
     let span = time_span(spec, zone);
     let precision = spec.time_precision(zone);
-    let scale = time_scale(spec, zone);
+    let scale = time_scale(spec, zone, None);
     let max_ticks = usize::try_from(
         (panel_plot_pixels(spec.width, columns) / time_tick_spacing(precision)).max(2),
     )
@@ -616,6 +634,7 @@ fn layout_multiples(
             zone,
             precision,
             scale,
+            style: spec.number_style(),
         };
 
         let panel_title = pane.title.as_deref().unwrap_or_default();
@@ -633,8 +652,8 @@ fn layout_multiples(
                 &format!("/panes/{pane_index}/title"),
             ),
         }));
-        push_value_grid(spec, &frame, &mut elements);
-        push_time_ticks(&frame, max_ticks, &mut elements);
+        push_value_grid(&frame, &mut elements);
+        push_time_ticks(&frame, max_ticks, true, width, metrics, &mut elements);
         draw_pane(
             spec,
             pane_index,
@@ -1175,6 +1194,7 @@ struct Area<'a> {
     /// the picker's indices still line up with the topics it offers.
     index: Option<usize>,
     placed: &'a Placement,
+    style: NumberStyle,
 }
 
 impl Area<'_> {
@@ -1191,7 +1211,7 @@ impl Area<'_> {
             format!(
                 "{}: {}",
                 self.topic.label,
-                format_value(self.topic.value, ValueFormat::Number)
+                format_value(self.topic.value, self.style)
             )
         })
     }
@@ -1281,10 +1301,11 @@ fn build_areas<'a>(
     topicmap: &'a TopicMapSpec,
     ordered: &[(usize, &'a TopicSpec)],
     positions: &'a HashMap<&str, Placement>,
+    style: NumberStyle,
 ) -> (Vec<Area<'a>>, Vec<Area<'a>>) {
     let areas = ordered
         .iter()
-        .map(|(index, topic)| build_area(topic, "topics", *index, *index, positions))
+        .map(|(index, topic)| build_area(topic, "topics", *index, *index, positions, style))
         .collect();
     let islands = topicmap
         .islands
@@ -1292,7 +1313,7 @@ fn build_areas<'a>(
         .enumerate()
         .map(|(index, island)| {
             let selectable = topicmap.topics.len() + index;
-            build_area(island, "islands", index, selectable, positions)
+            build_area(island, "islands", index, selectable, positions, style)
         })
         .collect();
     (areas, islands)
@@ -1305,6 +1326,7 @@ fn build_area<'a>(
     index: usize,
     selectable: usize,
     positions: &'a HashMap<&str, Placement>,
+    style: NumberStyle,
 ) -> Area<'a> {
     Area {
         topic,
@@ -1313,6 +1335,7 @@ fn build_area<'a>(
         placed: positions
             .get(topic.label.as_str())
             .expect("every topic and island was placed"),
+        style,
     }
 }
 
@@ -1636,7 +1659,7 @@ fn layout_atlas(
     let landscape = crate::atlas::landscape(atlas, plot);
     let mut elements = Vec::new();
     push_sea(&mut elements, plot, false);
-    push_landscape(&mut elements, atlas, &landscape);
+    push_landscape(&mut elements, atlas, &landscape, spec.number_style());
 
     push_places(&mut elements, &landscape);
     push_names(&mut elements, atlas, &landscape, metrics, warnings);
@@ -1840,6 +1863,7 @@ fn push_landscape(
     elements: &mut Vec<Element>,
     atlas: &AtlasSpec,
     landscape: &crate::atlas::Landscape,
+    style: NumberStyle,
 ) {
     let field = &landscape.field;
     let corner = |(column, row): (usize, usize)| {
@@ -1915,7 +1939,7 @@ fn push_landscape(
                     format!(
                         "{}: {}",
                         site.region.label,
-                        format_value(site.region.value, ValueFormat::Number)
+                        format_value(site.region.value, style)
                     )
                 })),
             }));
@@ -1956,7 +1980,7 @@ fn layout_topicmap(
     let positions =
         topicmap_positions(topicmap, &ordered, &kept_links, plot, &furniture.reserved());
 
-    let (areas, islands) = build_areas(topicmap, &ordered, &positions);
+    let (areas, islands) = build_areas(topicmap, &ordered, &positions, spec.number_style());
 
     // Labels are decided before anything is drawn, because a label that has to sit outside its
     // area needs its leader line laid down underneath the areas.
@@ -2147,7 +2171,7 @@ fn push_label(
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> Option<OutsideLabel> {
-    let value = format_value(area.topic.value, ValueFormat::Number);
+    let value = format_value(area.topic.value, area.style);
     let size = label_size(area.radius());
     let inscribed = area.radius()
         * area
@@ -2368,20 +2392,23 @@ fn push_outside_labels(elements: &mut Vec<Element>, labels: &[OutsideLabel]) {
 /// Draws one polyline per layer, plus markers and value labels while the observations stay far
 /// enough apart for them to be readable.
 /// Everything a pane needs to map an observation onto its plot.
-struct TimeFrame {
+pub(crate) struct TimeFrame {
     plot: PlotArea,
     span: (i64, i64),
-    zone: TimeZone,
-    precision: Precision,
+    pub(crate) zone: TimeZone,
+    pub(crate) precision: Precision,
     scale: NumericScale,
+    /// How the pane writes its values: its own value axis on a time chart, the shared one in
+    /// small multiples.
+    pub(crate) style: NumberStyle,
 }
 
 impl TimeFrame {
-    fn x(&self, epoch: i64) -> f64 {
+    pub(crate) fn x(&self, epoch: i64) -> f64 {
         time_x(epoch, self.span, self.plot)
     }
 
-    fn y(&self, value: f64) -> f64 {
+    pub(crate) fn y(&self, value: f64) -> f64 {
         self.scale
             .map(value, self.plot.top + self.plot.height, self.plot.top)
     }
@@ -2395,11 +2422,19 @@ enum Detail {
     Compact,
 }
 
-/// The value scale of a time chart or of all small multiples: every observation, every band
-/// edge and every horizontal reference line, so that none of them falls outside the plot.
-fn time_scale(spec: &ChartSpec, zone: TimeZone) -> NumericScale {
+/// The value scale of one pane of a time chart, or of all small multiples when `pane` is `None`:
+/// every observation, every candle's high and low, every band edge, every horizontal reference
+/// line, every point marker and every zone edge, so that none of them falls outside the plot. An
+/// area is filled down to zero, so a pane with one always shows zero.
+fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) -> NumericScale {
+    let inside = |pane_index: usize| pane.is_none_or(|pane| pane == pane_index);
+    let layers = || {
+        spec.indexed_layers()
+            .filter(|entry| inside(entry.pane))
+            .map(|entry| entry.layer)
+    };
     let mut values = Vec::new();
-    for entry in spec.data_layers() {
+    for entry in spec.data_layers().filter(|entry| inside(entry.pane)) {
         values.extend(
             entry
                 .layer
@@ -2411,17 +2446,28 @@ fn time_scale(spec: &ChartSpec, zone: TimeZone) -> NumericScale {
             values.push(lower);
             values.push(upper);
         }
+        for (_, [_, high, low, _]) in entry.layer.resolved_candles(zone) {
+            values.push(high);
+            values.push(low);
+        }
     }
     values.extend(
-        spec.layers()
+        layers()
             .filter(|layer| layer.mark == Mark::Annotation)
             .filter_map(|layer| layer.value),
     );
-    NumericScale::from_values(values.into_iter(), false)
+    values.extend(
+        layers()
+            .filter(|layer| layer.mark == Mark::Band)
+            .flat_map(|layer| [layer.bottom, layer.top])
+            .flatten(),
+    );
+    let area = layers().any(|layer| layer.mark == Mark::Area);
+    NumericScale::from_values(values.into_iter(), area)
 }
 
 /// The name a tooltip gives a layer: in small multiples the panel title comes first.
-fn tooltip_name(spec: &ChartSpec, entry: LayerRef) -> Option<String> {
+pub(crate) fn tooltip_name(spec: &ChartSpec, entry: LayerRef) -> Option<String> {
     let title = if spec.chart_type == ChartType::Multiples {
         spec.panes[entry.pane].title.clone()
     } else {
@@ -2434,8 +2480,9 @@ fn tooltip_name(spec: &ChartSpec, entry: LayerRef) -> Option<String> {
     }
 }
 
-/// Draws the layers of one pane: uncertainty bands first, reference lines over them, then the
-/// lines with their markers, and the labels of the reference lines last so nothing covers them.
+/// Draws the layers of one pane: zones first, filled areas and uncertainty bands over them,
+/// reference lines over those, then the lines with their markers, the point markers, and the
+/// labels of every annotation last so nothing covers them.
 fn draw_pane(
     spec: &ChartSpec,
     pane: usize,
@@ -2449,7 +2496,30 @@ fn draw_pane(
         .indexed_layers()
         .filter(|entry| entry.pane == pane)
         .collect();
+    let mut space = LabelSpace::new(frame, &entries);
+    let mut rule_labels = Vec::new();
 
+    for entry in entries
+        .iter()
+        .filter(|entry| entry.layer.mark == Mark::Band)
+    {
+        push_zone(
+            spec,
+            *entry,
+            frame,
+            elements,
+            &mut rule_labels,
+            &mut space,
+            warnings,
+            metrics,
+        );
+    }
+    for entry in entries
+        .iter()
+        .filter(|entry| entry.layer.mark == Mark::Area)
+    {
+        push_area(spec, *entry, frame, elements);
+    }
     for entry in entries
         .iter()
         .filter(|entry| entry.layer.is_data() && entry.layer.has_band())
@@ -2457,33 +2527,559 @@ fn draw_pane(
         push_band(spec, *entry, frame, elements);
     }
 
-    let mut rule_labels = Vec::new();
-    for entry in entries
-        .iter()
-        .filter(|entry| entry.layer.mark == Mark::Annotation)
-    {
+    for entry in entries.iter().filter(|entry| entry.layer.is_rule()) {
         push_rule(
-            spec,
             *entry,
             frame,
             elements,
             &mut rule_labels,
+            &mut space,
             warnings,
             metrics,
         );
     }
 
-    for entry in entries.iter().filter(|entry| entry.layer.is_data()) {
+    // Candles go below the lines, so that a moving average stays readable across them.
+    for entry in entries
+        .iter()
+        .filter(|entry| entry.layer.mark == Mark::Ohlc)
+    {
+        crate::ohlc::push_candles(spec, *entry, frame, elements);
+    }
+    for entry in entries
+        .iter()
+        .filter(|entry| entry.layer.is_data() && entry.layer.mark != Mark::Ohlc)
+    {
         push_line(spec, *entry, frame, detail, elements);
+    }
+
+    let markers: Vec<LayerRef> = entries
+        .iter()
+        .filter(|entry| entry.layer.is_marker())
+        .copied()
+        .collect();
+    let radius = if detail == Detail::Full { 6.0 } else { 4.5 };
+    for entry in &markers {
+        push_marker(*entry, frame, radius, elements, &mut space);
+    }
+    for entry in &markers {
+        push_marker_label(
+            *entry,
+            frame,
+            radius,
+            &mut rule_labels,
+            &mut space,
+            warnings,
+            metrics,
+        );
     }
     elements.extend(rule_labels);
 }
 
-/// The band of one layer as a closed outline: along the upper edge and back along the lower one.
-/// A modeled band gets a hatched copy on top, so that it reads as modeled without relying on
-/// color.
+/// A label's box on the canvas: left, top, right and bottom edge.
+type LabelBox = (f64, f64, f64, f64);
+
+/// What the label of an annotation has to keep clear of: the plot's edges, the labels placed
+/// before it, the data lines of its pane and the point marker symbols.
+struct LabelSpace {
+    plot: PlotArea,
+    labels: Vec<LabelBox>,
+    lines: Vec<Vec<(f64, f64)>>,
+    symbols: Vec<LabelBox>,
+}
+
+/// Why a label collides, if it does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Collision {
+    Outside,
+    Label,
+    Line,
+}
+
+impl LabelSpace {
+    /// The data lines of a pane as drawn, but only when the pane carries an annotation whose
+    /// label could run into them.
+    fn new(frame: &TimeFrame, entries: &[LayerRef]) -> Self {
+        let annotated = entries.iter().any(|entry| !entry.layer.is_data());
+        let lines = if annotated {
+            // A candle's wick spans all of it, from high to low.
+            let wicks = entries.iter().flat_map(|entry| {
+                entry.layer.resolved_candles(frame.zone).into_iter().map(
+                    |(epoch, [_, high, low, _])| {
+                        let x = frame.x(epoch);
+                        vec![(x, frame.y(high)), (x, frame.y(low))]
+                    },
+                )
+            });
+            entries
+                .iter()
+                .filter(|entry| entry.layer.is_data())
+                .flat_map(|entry| entry.layer.resolved_segments(frame.zone))
+                .map(|segment| {
+                    segment
+                        .iter()
+                        .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
+                        .collect()
+                })
+                .chain(wicks)
+                .collect()
+        } else {
+            Vec::new()
+        };
+        Self {
+            plot: frame.plot,
+            labels: Vec::new(),
+            lines,
+            symbols: Vec::new(),
+        }
+    }
+
+    fn outside(&self, label: LabelBox) -> bool {
+        let plot = self.plot;
+        label.0 < plot.left
+            || label.2 > plot.left + plot.width
+            || label.1 < plot.top
+            || label.3 > plot.top + plot.height
+    }
+
+    fn hits_label(&self, label: LabelBox) -> bool {
+        self.labels.iter().any(|other| boxes_overlap(label, *other))
+    }
+
+    fn hits_line(&self, label: LabelBox) -> bool {
+        self.lines.iter().any(|line| {
+            line.windows(2)
+                .any(|pair| segment_hits_box(pair[0], pair[1], label))
+        })
+    }
+
+    fn hits_symbol(&self, label: LabelBox) -> bool {
+        self.symbols
+            .iter()
+            .any(|other| boxes_overlap(label, *other))
+    }
+
+    /// The first collision of a label, checked against the data lines only when `lines` asks for
+    /// it.
+    fn collision(&self, label: LabelBox, lines: bool) -> Option<Collision> {
+        if self.outside(label) {
+            Some(Collision::Outside)
+        } else if self.hits_label(label) {
+            Some(Collision::Label)
+        } else if lines && self.hits_line(label) {
+            Some(Collision::Line)
+        } else {
+            None
+        }
+    }
+
+    /// Takes the room of a label that stays where it is, and reports whatever it collides with.
+    fn place(
+        &mut self,
+        text: &Text,
+        entry: LayerRef,
+        lines: bool,
+        metrics: &impl TextMetrics,
+        warnings: &mut Vec<ChartWarning>,
+    ) {
+        let label = label_box(text, metrics);
+        if let Some(collision) = self.collision(label, lines) {
+            warn_label_overlap(entry, collision, warnings);
+        }
+        self.labels.push(label);
+    }
+}
+
+/// The box a label takes: its measured width on the side its anchor points to, and the height of
+/// a line of text around its baseline.
+fn label_box(text: &Text, metrics: &impl TextMetrics) -> LabelBox {
+    let width = metrics.width(&text.content, LABEL_SIZE);
+    let left = match text.anchor {
+        TextAnchor::Start => text.x,
+        TextAnchor::Middle => text.x - width / 2.0,
+        TextAnchor::End => text.x - width,
+    };
+    (left, text.y - 9.0, left + width, text.y + 3.0)
+}
+
+fn boxes_overlap(a: LabelBox, b: LabelBox) -> bool {
+    a.0 < b.2 && b.0 < a.2 && a.1 < b.3 && b.1 < a.3
+}
+
+/// Whether a straight piece of line from `a` to `b` passes through a box, by clipping it against
+/// the box's edges.
+fn segment_hits_box(a: (f64, f64), b: (f64, f64), area: LabelBox) -> bool {
+    let (dx, dy) = (b.0 - a.0, b.1 - a.1);
+    let (mut start, mut end) = (0.0_f64, 1.0_f64);
+    for (p, q) in [
+        (-dx, a.0 - area.0),
+        (dx, area.2 - a.0),
+        (-dy, a.1 - area.1),
+        (dy, area.3 - a.1),
+    ] {
+        if p == 0.0 {
+            if q < 0.0 {
+                return false;
+            }
+        } else {
+            let t = q / p;
+            if p < 0.0 {
+                start = start.max(t);
+            } else {
+                end = end.min(t);
+            }
+            if start > end {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+fn warn_label_overlap(entry: LayerRef, collision: Collision, warnings: &mut Vec<ChartWarning>) {
+    let message = match collision {
+        Collision::Outside => {
+            "the label reaches outside the plot area; shorten it or move the annotation"
+        }
+        Collision::Label => {
+            "the label overlaps the label of another annotation; shorten one of them or move it"
+        }
+        Collision::Line => "the label crosses a data line; shorten it or move the reference line",
+    };
+    warnings.push(ChartWarning::new(
+        "label_overlap",
+        format!("/panes/{}/layers/{}", entry.pane, entry.local),
+        message,
+    ));
+}
+
+/// Where a zone lies, for its tooltip and the description: its span of time, its range of
+/// values, or both.
+pub(crate) fn zone_extent(
+    spec: &ChartSpec,
+    layer: &LayerSpec,
+    zone: TimeZone,
+    style: NumberStyle,
+) -> String {
+    let resolve = |time: &Option<crate::time::TimeValue>| {
+        time.as_ref().and_then(|time| time.resolve(zone).ok())
+    };
+    let (from, to) = (resolve(&layer.from), resolve(&layer.to));
+    let epochs: Vec<i64> = from.into_iter().chain(to).collect();
+    let times = if epochs.is_empty() {
+        None
+    } else {
+        let precision = Precision::of(epochs.into_iter(), zone);
+        crate::text::zone_times(
+            spec.locale,
+            from.map(|epoch| precision.format(epoch, zone)).as_deref(),
+            to.map(|epoch| precision.format(epoch, zone)).as_deref(),
+        )
+    };
+    let show = |value: f64| format_value(value, style);
+    let values = crate::text::zone_values(
+        spec.locale,
+        layer.bottom.map(show).as_deref(),
+        layer.top.map(show).as_deref(),
+    );
+    [times, values]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Where a point marker sits, for its tooltip and the description: its time and its value.
+pub(crate) fn marker_position(layer: &LayerSpec, zone: TimeZone, style: NumberStyle) -> String {
+    let epoch = layer
+        .time
+        .as_ref()
+        .and_then(|time| time.resolve(zone).ok())
+        .expect("validated point markers carry a time");
+    let value = layer.value.expect("validated point markers carry a value");
+    format!(
+        "{}, {}",
+        Precision::of(std::iter::once(epoch), zone).format(epoch, zone),
+        format_value(value, style)
+    )
+}
+
+/// A zone: a shaded rectangle behind the data between its edges, each missing edge taken from
+/// the plot. Its label sits inside the zone's top left corner when the zone is tall enough, and
+/// just outside its upper or lower edge when it is not.
+#[allow(clippy::too_many_arguments)]
+fn push_zone(
+    spec: &ChartSpec,
+    entry: LayerRef,
+    frame: &TimeFrame,
+    elements: &mut Vec<Element>,
+    labels: &mut Vec<Element>,
+    space: &mut LabelSpace,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
+    let layer = entry.layer;
+    let label = layer
+        .label
+        .as_deref()
+        .expect("validated zones carry a label");
+    let plot = frame.plot;
+    let resolve = |time: &Option<crate::time::TimeValue>| {
+        time.as_ref().and_then(|time| time.resolve(frame.zone).ok())
+    };
+    let left = resolve(&layer.from).map_or(plot.left, |epoch| frame.x(epoch));
+    let right = resolve(&layer.to).map_or(plot.left + plot.width, |epoch| frame.x(epoch));
+    let top = layer.top.map_or(plot.top, |value| frame.y(value));
+    let bottom = layer
+        .bottom
+        .map_or(plot.top + plot.height, |value| frame.y(value));
+    elements.push(Element::Rect(Rect {
+        x: left,
+        y: top,
+        width: right - left,
+        height: bottom - top,
+        class: "chartlet-zone",
+        series_index: None,
+        style_index: layer.resolved_color().is_some().then_some(entry.global),
+        tooltip: Some(format!(
+            "{label}: {}",
+            zone_extent(spec, layer, frame.zone, frame.style)
+        )),
+    }));
+
+    let content = fit_text(
+        label,
+        plot.width * 0.4,
+        LABEL_SIZE,
+        metrics,
+        warnings,
+        &format!("/panes/{}/layers/{}/label", entry.pane, entry.local),
+    );
+    let width = metrics.width(&content, LABEL_SIZE);
+    // A zone at the right edge takes its label on its right end, so the label stays inside.
+    let (x, anchor) = if left + 4.0 + width > plot.left + plot.width {
+        (right - 4.0, TextAnchor::End)
+    } else {
+        (left + 4.0, TextAnchor::Start)
+    };
+    let y = if bottom - top >= 20.0 {
+        top + 14.0
+    } else if top - 17.0 >= plot.top {
+        top - 5.0
+    } else {
+        bottom + 13.0
+    };
+    let text = Text {
+        x,
+        y,
+        class: "chartlet-rule-label",
+        anchor,
+        content,
+    };
+    space.place(&text, entry, true, metrics, warnings);
+    labels.push(Element::Text(text));
+}
+
+/// The symbol of a point marker, in its declared shape. Shape and label carry its meaning, so a
+/// marker never depends on its color alone.
+fn push_marker(
+    entry: LayerRef,
+    frame: &TimeFrame,
+    radius: f64,
+    elements: &mut Vec<Element>,
+    space: &mut LabelSpace,
+) {
+    let layer = entry.layer;
+    let (x, y) = marker_point(entry, frame);
+    let label = layer
+        .label
+        .as_deref()
+        .expect("validated point markers carry a label");
+    let style_index = layer.resolved_color().is_some().then_some(entry.global);
+    let tooltip = Some(format!(
+        "{label}: {}",
+        marker_position(layer, frame.zone, frame.style)
+    ));
+    let reach = radius * 1.25;
+    space
+        .symbols
+        .push((x - reach, y - reach, x + reach, y + reach));
+    let outline = |corners: &[(f64, f64)]| -> Vec<(f64, f64)> {
+        let mut points: Vec<(f64, f64)> = corners
+            .iter()
+            .map(|(dx, dy)| (x + dx * radius, y + dy * radius))
+            .collect();
+        points.push(points[0]);
+        points
+    };
+    let points = match layer.marker_shape() {
+        Shape::Circle => {
+            elements.push(Element::Circle(Circle {
+                cx: x,
+                cy: y,
+                radius,
+                class: "chartlet-marker",
+                topic: None,
+                series_index: None,
+                style_index,
+                tooltip,
+            }));
+            return;
+        }
+        Shape::Square => outline(&[(-0.9, -0.9), (0.9, -0.9), (0.9, 0.9), (-0.9, 0.9)]),
+        Shape::Diamond => outline(&[(0.0, -1.25), (1.25, 0.0), (0.0, 1.25), (-1.25, 0.0)]),
+        Shape::TriangleUp => outline(&[(0.0, -1.25), (1.15, 0.8), (-1.15, 0.8)]),
+        Shape::TriangleDown => outline(&[(0.0, 1.25), (1.15, -0.8), (-1.15, -0.8)]),
+    };
+    elements.push(Element::Polyline(Polyline {
+        points,
+        class: "chartlet-marker",
+        topic: None,
+        series_index: None,
+        style_index,
+        tooltip,
+    }));
+}
+
+/// Where a point marker sits on the plot.
+fn marker_point(entry: LayerRef, frame: &TimeFrame) -> (f64, f64) {
+    let layer = entry.layer;
+    let epoch = layer
+        .time
+        .as_ref()
+        .and_then(|time| time.resolve(frame.zone).ok())
+        .expect("validated point markers carry a time");
+    let value = layer.value.expect("validated point markers carry a value");
+    (frame.x(epoch), frame.y(value))
+}
+
+/// The label of a point marker. It tries the right of the symbol first, then the left, above and
+/// below, and takes the first place that stays inside the plot and clear of other labels, data
+/// lines and markers; failing that, the first one that at least stays inside and clear of other
+/// labels. Only when no place works is the label kept on the right and reported.
+fn push_marker_label(
+    entry: LayerRef,
+    frame: &TimeFrame,
+    radius: f64,
+    labels: &mut Vec<Element>,
+    space: &mut LabelSpace,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
+    let (x, y) = marker_point(entry, frame);
+    let content = fit_text(
+        entry
+            .layer
+            .label
+            .as_deref()
+            .expect("validated point markers carry a label"),
+        frame.plot.width * 0.4,
+        LABEL_SIZE,
+        metrics,
+        warnings,
+        &format!("/panes/{}/layers/{}/label", entry.pane, entry.local),
+    );
+    let gap = radius * 1.25 + 4.0;
+    let candidates = [
+        (x + gap, y + 4.0, TextAnchor::Start),
+        (x - gap, y + 4.0, TextAnchor::End),
+        (x, y - gap - 3.0, TextAnchor::Middle),
+        (x, y + gap + 10.0, TextAnchor::Middle),
+    ]
+    .map(|(x, y, anchor)| Text {
+        x,
+        y,
+        class: "chartlet-rule-label",
+        anchor,
+        content: content.clone(),
+    });
+    let boxes = candidates.each_ref().map(|text| label_box(text, metrics));
+    let clear = boxes
+        .iter()
+        .position(|label| space.collision(*label, true).is_none() && !space.hits_symbol(*label));
+    let readable = || {
+        boxes
+            .iter()
+            .position(|label| space.collision(*label, false).is_none())
+    };
+    let chosen = clear.or_else(readable);
+    let index = chosen.unwrap_or(0);
+    if chosen.is_none()
+        && let Some(collision) = space.collision(boxes[0], false)
+    {
+        warn_label_overlap(entry, collision, warnings);
+    }
+    space.labels.push(boxes[index]);
+    let text = candidates
+        .into_iter()
+        .nth(index)
+        .expect("the index comes from the candidates");
+    labels.push(Element::Text(text));
+}
+
+/// The region between an area layer's line and zero, one closed outline per run of values: along
+/// the line and back along the zero line. It takes the layer's color at the band's low opacity;
+/// the line itself is drawn on top with the other lines.
+fn push_area(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mut Vec<Element>) {
+    let explicit = entry.layer.resolved_color().is_some();
+    let palette = spec.palette_index(entry.layer);
+    let base = frame.y(0.0);
+    for segment in entry.layer.resolved_segments(frame.zone) {
+        if segment.len() < 2 {
+            continue;
+        }
+        let (first, last) = (segment[0].0, segment[segment.len() - 1].0);
+        let mut outline: Vec<(f64, f64)> = segment
+            .iter()
+            .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
+            .collect();
+        outline.push((frame.x(last), base));
+        outline.push((frame.x(first), base));
+        elements.push(Element::Polyline(Polyline {
+            points: outline,
+            class: if explicit {
+                "chartlet-area"
+            } else {
+                AREA_CLASSES[palette]
+            },
+            topic: None,
+            series_index: None,
+            style_index: explicit.then_some(entry.global),
+            tooltip: None,
+        }));
+    }
+}
+
+/// The band of one layer as closed outlines, one per run of values between missing ones: along
+/// the upper edge and back along the lower one. A modeled band gets a hatched copy on top, so
+/// that it reads as modeled without relying on color.
 fn push_band(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mut Vec<Element>) {
-    let band = entry.layer.resolved_band(frame.zone);
+    let mut runs = vec![Vec::new()];
+    for point in &entry.layer.points {
+        let Ok(epoch) = point.time.resolve(frame.zone) else {
+            continue;
+        };
+        match (point.lower, point.upper) {
+            (Some(lower), Some(upper)) if point.value.is_some() => runs
+                .last_mut()
+                .expect("there is always a current run")
+                .push((epoch, lower, upper)),
+            _ => runs.push(Vec::new()),
+        }
+    }
+    for band in runs.into_iter().filter(|run| !run.is_empty()) {
+        push_band_run(spec, entry, frame, &band, elements);
+    }
+}
+
+/// One closed band outline, see [`push_band`].
+fn push_band_run(
+    spec: &ChartSpec,
+    entry: LayerRef,
+    frame: &TimeFrame,
+    band: &[(i64, f64, f64)],
+    elements: &mut Vec<Element>,
+) {
     let mut outline: Vec<(f64, f64)> = band
         .iter()
         .map(|(epoch, _, upper)| (frame.x(*epoch), frame.y(*upper)))
@@ -2494,7 +3090,7 @@ fn push_band(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mu
             .map(|(epoch, lower, _)| (frame.x(*epoch), frame.y(*lower))),
     );
     let explicit = entry.layer.resolved_color().is_some();
-    let palette = spec.palette_index(entry.pane, entry.layer);
+    let palette = spec.palette_index(entry.layer);
     if entry.layer.modeled {
         elements.push(Element::Polyline(Polyline {
             points: outline.clone(),
@@ -2533,13 +3129,14 @@ fn push_band(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mu
 }
 
 /// A reference line across the plot: horizontal at a value, vertical at a time. Its label is
-/// collected separately and drawn after the data.
+/// collected separately and drawn after the data; it stays where it is, and a collision with the
+/// plot's edges, another label or a data line is reported.
 fn push_rule(
-    spec: &ChartSpec,
     entry: LayerRef,
     frame: &TimeFrame,
     elements: &mut Vec<Element>,
     labels: &mut Vec<Element>,
+    space: &mut LabelSpace,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) {
@@ -2569,7 +3166,7 @@ fn push_rule(
                     &path,
                 ),
             },
-            format!("{label}: {}", format_value(value, spec.number_style())),
+            format!("{label}: {}", format_value(value, frame.style)),
         )
     } else {
         let epoch = layer
@@ -2613,10 +3210,12 @@ fn push_rule(
         style_index: layer.resolved_color().is_some().then_some(entry.global),
         tooltip: Some(tooltip),
     }));
+    space.place(&text, entry, true, metrics, warnings);
     labels.push(Element::Text(text));
 }
 
-/// One line with its markers and, in a full-size chart, its value labels.
+/// One line, broken at every missing value, with its markers and, in a full-size chart, its
+/// value labels.
 fn push_line(
     spec: &ChartSpec,
     entry: LayerRef,
@@ -2627,19 +3226,25 @@ fn push_line(
     let layer = entry.layer;
     let points = layer.resolved_points(frame.zone);
     let explicit = layer.resolved_color().is_some();
-    let palette = spec.palette_index(entry.pane, layer);
+    let palette = spec.palette_index(layer);
     let class = line_class(spec, entry);
-    elements.push(Element::Polyline(Polyline {
-        points: points
-            .iter()
-            .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
-            .collect(),
-        class,
-        topic: None,
-        series_index: None,
-        style_index: explicit.then_some(entry.global),
-        tooltip: None,
-    }));
+    // A missing value breaks the line; a lone value between two gaps keeps only its marker.
+    for segment in layer.resolved_segments(frame.zone) {
+        if segment.len() < 2 {
+            continue;
+        }
+        elements.push(Element::Polyline(Polyline {
+            points: segment
+                .iter()
+                .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
+                .collect(),
+            class,
+            topic: None,
+            series_index: None,
+            style_index: explicit.then_some(entry.global),
+            tooltip: None,
+        }));
+    }
 
     // Markers and their labels are only drawn while the observations stay far enough apart
     // for them to be readable.
@@ -2654,7 +3259,7 @@ fn push_line(
         let mut text = tooltip(
             &frame.precision.format(*epoch, frame.zone),
             *value,
-            spec.number_style(),
+            frame.style,
             name.as_deref(),
         );
         if let Some((_, lower, upper)) = band.get(index) {
@@ -2662,9 +3267,9 @@ fn push_line(
                 text,
                 " ({} {} {} {})",
                 spec.locale.words().range,
-                format_value(*lower, spec.number_style()),
+                format_value(*lower, frame.style),
                 spec.locale.words().to,
-                format_value(*upper, spec.number_style())
+                format_value(*upper, frame.style)
             )
             .expect("writing to String cannot fail");
         }
@@ -2688,32 +3293,53 @@ fn push_line(
                 y: y - 10.0,
                 class: "chartlet-value",
                 anchor: TextAnchor::Middle,
-                content: format_value(*value, spec.number_style()),
+                content: format_value(*value, frame.style),
             }));
         }
     }
 }
 
-/// The classes of a line: palette or declared color, dashed when modeled, and its weight. The
-/// legend draws its sample with the same classes, so it looks exactly like the line.
+/// The classes of a line: palette or declared color, its pattern and its weight. The legend
+/// draws its sample with the same classes, so it looks exactly like the line.
 fn line_class(spec: &ChartSpec, entry: LayerRef) -> &'static str {
     let layer = entry.layer;
-    let palette = spec.palette_index(entry.pane, layer);
-    let thin = layer.stroke == Stroke::Thin;
-    match (layer.resolved_color().is_some(), layer.modeled, thin) {
-        (true, false, false) => "chartlet-line",
-        (true, true, false) => "chartlet-line chartlet-line-modeled",
-        (true, false, true) => "chartlet-line chartlet-line-thin",
-        (true, true, true) => "chartlet-line chartlet-line-thin chartlet-line-modeled",
-        (false, false, false) => LINE_CLASSES[palette],
-        (false, true, false) => MODELED_LINE_CLASSES[palette],
-        (false, false, true) => THIN_LINE_CLASSES[palette],
-        (false, true, true) => THIN_MODELED_LINE_CLASSES[palette],
-    }
+    let color = if layer.resolved_color().is_some() {
+        0
+    } else {
+        spec.palette_index(layer) + 1
+    };
+    let dash = match (layer.effective_dash(), layer.modeled) {
+        (Dash::Solid, _) => 0,
+        (Dash::Dashed, true) => 1,
+        (Dash::Dashed, false) => 2,
+        (Dash::Dotted, _) => 3,
+    };
+    let weight = match layer.stroke {
+        Stroke::Regular => 0,
+        Stroke::Thin => 1,
+        Stroke::Bold => 2,
+    };
+    let classes = LINE_CLASSES.get_or_init(|| {
+        let mut classes = Vec::new();
+        for color in 0..=MAX_SERIES {
+            let color = if color == 0 {
+                String::new()
+            } else {
+                format!(" chartlet-line-series-{color}")
+            };
+            for dash in LINE_DASHES {
+                for weight in LINE_WEIGHTS {
+                    classes.push(format!("chartlet-line{weight}{dash}{color}"));
+                }
+            }
+        }
+        classes
+    });
+    &classes[(color * LINE_DASHES.len() + dash) * LINE_WEIGHTS.len() + weight]
 }
 
 /// The horizontal grid lines and value ticks of one plot.
-fn push_value_grid(spec: &ChartSpec, frame: &TimeFrame, elements: &mut Vec<Element>) {
+fn push_value_grid(frame: &TimeFrame, elements: &mut Vec<Element>) {
     let plot = frame.plot;
     for value in frame.scale.ticks() {
         let y = frame.y(value);
@@ -2733,13 +3359,22 @@ fn push_value_grid(spec: &ChartSpec, frame: &TimeFrame, elements: &mut Vec<Eleme
             y: y + 4.0,
             class: "chartlet-tick",
             anchor: TextAnchor::End,
-            content: format_tick(value, frame.scale.step, spec.number_style()),
+            content: format_tick(value, frame.scale.step, frame.style),
         }));
     }
 }
 
-/// The vertical grid lines and time ticks of one plot.
-fn push_time_ticks(frame: &TimeFrame, max_ticks: usize, elements: &mut Vec<Element>) {
+/// The vertical grid lines and time ticks of one plot, the tick labels only with `labels`. A label
+/// that would reach past the right edge of the chart moves left until it fits, since a tick can
+/// sit at the very end of the span.
+fn push_time_ticks(
+    frame: &TimeFrame,
+    max_ticks: usize,
+    labels: bool,
+    canvas_width: f64,
+    metrics: &impl TextMetrics,
+    elements: &mut Vec<Element>,
+) {
     let plot = frame.plot;
     for tick in time::ticks(
         frame.span.0,
@@ -2756,8 +3391,12 @@ fn push_time_ticks(frame: &TimeFrame, max_ticks: usize, elements: &mut Vec<Eleme
             y2: plot.top + plot.height,
             class: "chartlet-grid",
         }));
+        if !labels {
+            continue;
+        }
+        let half = metrics.width(&tick.label, LABEL_SIZE) / 2.0;
         elements.push(Element::Text(Text {
-            x,
+            x: x.min(canvas_width - 4.0 - half),
             y: plot.top + plot.height + 24.0,
             class: "chartlet-tick",
             anchor: TextAnchor::Middle,
@@ -2766,36 +3405,83 @@ fn push_time_ticks(frame: &TimeFrame, max_ticks: usize, elements: &mut Vec<Eleme
     }
 }
 
-fn time_base_elements(
+/// Space between two stacked panes; it holds the value axis title of the lower one.
+const PANE_GAP: f64 = 36.0;
+/// A pane lower than this cannot show its value axis in a readable way.
+const MIN_PANE_HEIGHT: f64 = 40.0;
+
+/// One frame per pane of a time chart, stacked from top to bottom within `plot`: every pane
+/// shares the time span and takes a share of the height by its `heightRatio`, and scales its
+/// values on its own.
+fn pane_frames(
     spec: &ChartSpec,
+    zone: TimeZone,
+    plot: PlotArea,
+    warnings: &mut Vec<ChartWarning>,
+) -> Vec<TimeFrame> {
+    let span = time_span(spec, zone);
+    let precision = spec.time_precision(zone);
+    let panes = spec.panes.len();
+    let ratios: u32 = spec.panes.iter().map(|pane| pane.height_ratio).sum();
+    let available = plot.height - PANE_GAP * count(panes - 1);
+    let mut top = plot.top;
+    let mut frames = Vec::new();
+    for (pane_index, pane) in spec.panes.iter().enumerate() {
+        let height = if panes == 1 {
+            plot.height
+        } else {
+            available * f64::from(pane.height_ratio) / f64::from(ratios)
+        };
+        if panes > 1 && height < MIN_PANE_HEIGHT {
+            warnings.push(ChartWarning::new(
+                "dense_chart",
+                format!("/panes/{pane_index}/heightRatio"),
+                "the pane is less than 40 pixels tall; raise height or its heightRatio",
+            ));
+        }
+        frames.push(TimeFrame {
+            plot: PlotArea {
+                top,
+                height,
+                ..plot
+            },
+            span,
+            zone,
+            precision,
+            scale: time_scale(spec, zone, Some(pane_index)),
+            style: spec.pane_style(pane_index),
+        });
+        top += height + PANE_GAP;
+    }
+    frames
+}
+
+/// The value grid, the vertical time grid and the value axis title of one pane of a time chart;
+/// the time tick labels only below the bottom pane, since all panes share one time axis.
+fn push_pane_axes(
+    spec: &ChartSpec,
+    pane_index: usize,
     frame: &TimeFrame,
+    bottom_pane: bool,
+    elements: &mut Vec<Element>,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
-) -> Vec<Element> {
+) {
     let plot = frame.plot;
-    let mut elements = Vec::new();
-    if spec.show_title {
-        let title = fit_text(&spec.title, plot.width, 22.0, metrics, warnings, "/title");
-        elements.push(Element::Text(Text {
-            x: plot.left,
-            y: 30.0,
-            class: "chartlet-title",
-            anchor: TextAnchor::Start,
-            content: title,
-        }));
-    }
-
-    push_value_grid(spec, frame, &mut elements);
+    push_value_grid(frame, elements);
     let max_ticks =
         usize::try_from((plot_pixels(spec.width) / time_tick_spacing(frame.precision)).max(2))
             .expect("a usize is at least 32 bits wide");
-    push_time_ticks(frame, max_ticks, &mut elements);
+    push_time_ticks(
+        frame,
+        max_ticks,
+        bottom_pane,
+        f64::from(spec.width),
+        metrics,
+        elements,
+    );
 
-    if let Some(title) = spec
-        .panes
-        .first()
-        .and_then(|pane| pane.value_axis.title.as_deref())
-    {
+    if let Some(title) = spec.panes[pane_index].value_axis.title.as_deref() {
         elements.push(Element::Text(Text {
             x: plot.left,
             y: plot.top - 20.0,
@@ -2807,16 +3493,78 @@ fn time_base_elements(
                 LABEL_SIZE,
                 metrics,
                 warnings,
-                "/panes/0/valueAxis/title",
+                &format!("/panes/{pane_index}/valueAxis/title"),
             ),
         }));
     }
-
-    elements
 }
 
-/// One legend entry per series name, in order of first appearance. A modeled series says so in
-/// its entry, because the dashing alone is not a legend.
+/// One entry of a time chart's legend: the layer it shows, its text, and where it sits.
+struct LegendEntry<'a> {
+    entry: LayerRef<'a>,
+    name: String,
+    x: f64,
+    row: usize,
+}
+
+/// One legend entry per series name, in order of first appearance, placed in rows: an entry that
+/// would reach past `available_width` starts a new row. A modeled series says so in its entry,
+/// because the dashing alone is not a legend.
+fn legend_entries<'a>(
+    spec: &'a ChartSpec,
+    left: f64,
+    available_width: f64,
+    metrics: &impl TextMetrics,
+) -> Vec<LegendEntry<'a>> {
+    let mut layers: Vec<LayerRef> = Vec::new();
+    for entry in spec.data_layers() {
+        if !layers
+            .iter()
+            .any(|known| known.layer.name == entry.layer.name)
+        {
+            layers.push(entry);
+        }
+    }
+    let words = spec.locale.words();
+    let sample = LEGEND_LINE + 8.0;
+    let (mut x, mut row) = (left, 0);
+    let mut entries = Vec::new();
+    for entry in layers {
+        let name = entry.layer.name.as_deref().unwrap_or(words.value);
+        let name = if entry.layer.modeled {
+            format!("{name} ({})", words.modeled)
+        } else if entry.layer.mark == Mark::Ohlc {
+            format!("{name} ({})", words.candle_key)
+        } else {
+            name.to_owned()
+        };
+        let width = metrics
+            .width(&name, LABEL_SIZE)
+            .min(available_width - sample);
+        if x > left && x + sample + width > left + available_width {
+            x = left;
+            row += 1;
+        }
+        entries.push(LegendEntry {
+            entry,
+            name,
+            x,
+            row,
+        });
+        x += sample + width + 20.0;
+    }
+    entries
+}
+
+/// The number of rows the legend of a time chart or of small multiples takes.
+fn legend_rows(spec: &ChartSpec, available_width: f64, metrics: &impl TextMetrics) -> usize {
+    legend_entries(spec, 0.0, available_width, metrics)
+        .last()
+        .map_or(1, |entry| entry.row + 1)
+}
+
+/// Draws the legend of a time chart or of small multiples, see [`legend_entries`]. Every sample is
+/// a short piece of the line itself, over a swatch of its fill for an area.
 fn add_layer_legend(
     spec: &ChartSpec,
     row: f64,
@@ -2826,69 +3574,76 @@ fn add_layer_legend(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) {
-    let mut entries: Vec<LayerRef> = Vec::new();
-    for entry in spec.data_layers() {
-        if !entries
-            .iter()
-            .any(|known| known.layer.name == entry.layer.name)
-        {
-            entries.push(entry);
-        }
-    }
-    let entry_width = available_width / count(entries.len());
-    let mut x = left;
-    for entry in entries {
+    for LegendEntry {
+        entry,
+        name,
+        x,
+        row: line,
+    } in legend_entries(spec, left, available_width, metrics)
+    {
+        let y = row + count(line) * LEGEND_HEIGHT;
         let explicit = entry.layer.resolved_color().is_some();
-        // A short piece of the line itself: color, dashing and weight, so that a legend entry
+        if entry.layer.mark == Mark::Ohlc {
+            crate::ohlc::push_legend_sample(x, y, elements);
+        } else if entry.layer.mark == Mark::Area {
+            elements.push(Element::Rect(Rect {
+                x,
+                y: y + 5.0,
+                width: LEGEND_LINE,
+                height: 8.0,
+                class: if explicit {
+                    "chartlet-area"
+                } else {
+                    AREA_CLASSES[spec.palette_index(entry.layer)]
+                },
+                series_index: None,
+                style_index: explicit.then_some(entry.global),
+                tooltip: None,
+            }));
+        }
+        // A short piece of the line itself: color, pattern and weight, so that a legend entry
         // never rests on color alone.
-        elements.push(Element::Polyline(Polyline {
-            points: vec![(x, row + 5.0), (x + LEGEND_LINE, row + 5.0)],
-            class: line_class(spec, entry),
-            topic: None,
-            series_index: None,
-            style_index: explicit.then_some(entry.global),
-            tooltip: None,
-        }));
-        let words = spec.locale.words();
-        let name = entry.layer.name.as_deref().unwrap_or(words.value);
-        let name = if entry.layer.modeled {
-            format!("{name} ({})", words.modeled)
-        } else {
-            name.to_owned()
-        };
+        if entry.layer.mark != Mark::Ohlc {
+            elements.push(Element::Polyline(Polyline {
+                points: vec![(x, y + 5.0), (x + LEGEND_LINE, y + 5.0)],
+                class: line_class(spec, entry),
+                topic: None,
+                series_index: None,
+                style_index: explicit.then_some(entry.global),
+                tooltip: None,
+            }));
+        }
         let label = fit_text(
             &name,
-            entry_width - LEGEND_LINE - 28.0,
+            left + available_width - x - LEGEND_LINE - 8.0,
             LABEL_SIZE,
             metrics,
             warnings,
             &format!("/panes/{}/layers/{}/name", entry.pane, entry.local),
         );
-        let label_width = metrics.width(&label, LABEL_SIZE);
         elements.push(Element::Text(Text {
             x: x + LEGEND_LINE + 8.0,
-            y: row + 9.0,
+            y: y + 9.0,
             class: "chartlet-legend",
             anchor: TextAnchor::Start,
             content: label,
         }));
-        x += LEGEND_LINE + 8.0 + label_width + 20.0;
     }
 }
 
-/// The first and last timestamp any data layer or vertical reference line uses. Validation
-/// guarantees every data layer holds at least two observations that increase, so the span is
-/// never empty.
+/// The first and last timestamp any data layer, vertical reference line, point marker or zone
+/// edge uses, a missing value included. Validation guarantees every data layer holds at least two observations that
+/// increase, and a zoom window at least two of one layer, so the span is never empty.
 fn time_span(spec: &ChartSpec, zone: TimeZone) -> (i64, i64) {
     let mut min = i64::MAX;
     let mut max = i64::MIN;
     let data = spec
         .data_layers()
-        .flat_map(|entry| entry.layer.resolved_points(zone))
-        .map(|(epoch, _)| epoch);
+        .flat_map(|entry| entry.layer.resolved_times(zone));
     let rules = spec
         .layers()
-        .filter_map(|layer| layer.time.as_ref())
+        .flat_map(|layer| [&layer.time, &layer.from, &layer.to])
+        .filter_map(Option::as_ref)
         .filter_map(|time| time.resolve(zone).ok());
     for epoch in data.chain(rules) {
         min = min.min(epoch);

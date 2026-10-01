@@ -1,7 +1,7 @@
-use chartlet::{RenderFormat, RenderOptions, render_json};
+use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 20] = [
+const EXAMPLES: [(&str, &str, &str); 24] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -102,7 +102,34 @@ const EXAMPLES: [(&str, &str, &str); 20] = [
         include_str!("../examples/emission-pathways.json"),
         include_str!("../examples/emission-pathways.svg"),
     ),
+    (
+        "sensor-readings",
+        include_str!("../examples/sensor-readings.json"),
+        include_str!("../examples/sensor-readings.svg"),
+    ),
+    (
+        "release-incidents",
+        include_str!("../examples/release-incidents.json"),
+        include_str!("../examples/release-incidents.svg"),
+    ),
+    (
+        "share-price",
+        include_str!("../examples/share-price.json"),
+        include_str!("../examples/share-price.svg"),
+    ),
+    (
+        "mobile-revenue",
+        include_str!("../examples/mobile-revenue.json"),
+        include_str!("../examples/mobile-revenue.svg"),
+    ),
 ];
+
+/// Examples with a mobile variant, and its reviewed SVG.
+const MOBILE_EXAMPLES: [(&str, &str, &str); 1] = [(
+    "mobile-revenue",
+    include_str!("../examples/mobile-revenue.json"),
+    include_str!("../examples/mobile-revenue.mobile.svg"),
+)];
 
 /// The committed SVGs are the reviewed reference output. Each example must render to exactly the
 /// bytes that are checked into `examples/`, on every supported platform.
@@ -114,6 +141,26 @@ fn every_example_matches_its_reviewed_svg() {
         assert_eq!(
             actual.content, expected,
             "{name} drifted from its reviewed SVG"
+        );
+    }
+}
+
+/// The mobile variant is reference output too.
+#[test]
+fn every_mobile_variant_matches_its_reviewed_svg() {
+    for (name, specification, expected) in MOBILE_EXAMPLES {
+        let actual = render_json(
+            specification,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: Variant::Mobile,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("{name} should render its mobile variant: {error}"));
+        assert_eq!(
+            actual.content, expected,
+            "{name} drifted from its reviewed mobile SVG"
         );
     }
 }

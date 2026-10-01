@@ -7,6 +7,7 @@ mod error;
 mod layout;
 mod metrics;
 mod noise;
+mod ohlc;
 pub mod qr;
 mod rangebar;
 mod render;
@@ -20,13 +21,13 @@ use std::fmt::Write as _;
 
 pub use error::{ChartError, ChartWarning};
 pub use metrics::{BuiltinMetrics, TextMetrics};
-use spec::Dataset;
 pub use spec::{
     CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec,
-    ChartType, Corner, DataPoint, Gaps, LayerSpec, Mark, OhlcPoint, Orientation, PaneSpec,
-    RangeSpec, SeriesSpec, Shape, StripesSpec, Stroke, Theme, TimeAxisSpec, TimePoint,
-    TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomStep,
+    ChartType, Corner, Dash, DataPoint, Gaps, LayerSpec, Mark, MobileSpec, OhlcPoint, Orientation,
+    PaneSpec, RangeSpec, SeriesSpec, Shape, StripesSpec, Stroke, Theme, TimeAxisSpec, TimePoint,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
 };
+use spec::{Dataset, LayerRef};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderFormat {
@@ -38,6 +39,18 @@ pub enum RenderFormat {
 pub struct RenderOptions {
     pub id_prefix: Option<String>,
     pub table_mode: TableMode,
+    pub variant: Variant,
+}
+
+/// Which layout the SVG profile renders. The HTML profile always carries the chart and, when the
+/// specification has one, its mobile variant.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Variant {
+    /// The chart at `width` × `height`.
+    #[default]
+    Desktop,
+    /// The chart at the size in `mobile`; its IDs end in `-m`.
+    Mobile,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -100,17 +113,60 @@ pub fn render_with_metrics(
         None => default_id_prefix(spec)?,
     };
 
+    let mobile = spec.mobile_variant();
+    let mobile_prefix = |prefix: &str| format!("{prefix}-m");
+
+    if options.variant == Variant::Mobile {
+        if format == RenderFormat::Html {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/render/variant",
+                "the HTML profile carries both variants; render the mobile variant alone as SVG",
+            ));
+        }
+        let Some(mobile) = mobile else {
+            return Err(ChartError::new(
+                "missing_mobile",
+                "/mobile",
+                "the specification has no mobile variant; add \"mobile\": { \"width\": 360 }",
+            ));
+        };
+        let mut warnings = mobile.validate_mobile_variant()?;
+        let content = render_panel(&mobile, &mobile_prefix(&id_prefix), metrics, &mut warnings);
+        return Ok(RenderOutput { content, warnings });
+    }
+
+    // The HTML profile lays the chart out a second time at the mobile size; its warnings are
+    // reported where they add to those of the chart itself.
+    let mut mobile_warnings = match (&mobile, format) {
+        (Some(mobile), RenderFormat::Html) => mobile.validate_mobile_variant()?,
+        _ => Vec::new(),
+    };
+
     // Zoom steps render as pre-computed variants switched by radio buttons, which only the
     // HTML profile can carry. The pure SVG profile stays a single static chart.
     if format == RenderFormat::Html && spec.zoom_steps.len() > 1 {
         let mut panels = Vec::new();
         for (index, step) in spec.zoom_steps.iter().enumerate() {
-            let sliced = spec.sliced(step.from, step.to);
+            let sliced = zoom_variant(spec, step);
             let panel_prefix = format!("{id_prefix}-z{index}");
             let svg = render_panel(&sliced, &panel_prefix, metrics, &mut warnings);
-            panels.push((step.label.clone(), svg));
+            let mobile = mobile.as_ref().map(|mobile| {
+                render_panel(
+                    &zoom_variant(mobile, step),
+                    &mobile_prefix(&panel_prefix),
+                    metrics,
+                    &mut mobile_warnings,
+                )
+            });
+            panels.push(render::Panel {
+                label: step.label.clone(),
+                svg,
+                mobile,
+            });
         }
         dedupe_warnings(&mut warnings);
+        merge_mobile_warnings(&mut warnings, mobile_warnings);
         return Ok(RenderOutput {
             content: render::html_zoom(&panels, spec, options.table_mode, &id_prefix),
             warnings,
@@ -120,9 +176,50 @@ pub fn render_with_metrics(
     let svg = render_panel(spec, &id_prefix, metrics, &mut warnings);
     let content = match format {
         RenderFormat::Svg => svg,
-        RenderFormat::Html => render::html(&svg, spec, options.table_mode, &id_prefix),
+        RenderFormat::Html => {
+            let mobile = mobile.as_ref().map(|mobile| {
+                render_panel(
+                    mobile,
+                    &mobile_prefix(&id_prefix),
+                    metrics,
+                    &mut mobile_warnings,
+                )
+            });
+            merge_mobile_warnings(&mut warnings, mobile_warnings);
+            render::html(
+                render::Panel {
+                    label: String::new(),
+                    svg,
+                    mobile,
+                },
+                spec,
+                options.table_mode,
+                &id_prefix,
+            )
+        }
     };
     Ok(RenderOutput { content, warnings })
+}
+
+/// The chart one zoom step shows: a window of time on a time chart, a range of categories on
+/// any other.
+fn zoom_variant(spec: &ChartSpec, step: &ZoomStep) -> ChartSpec {
+    if spec.chart_type == ChartType::Time {
+        let zone = spec.time_zone().unwrap_or_default();
+        let bound = |bound: &ZoomBound| {
+            bound
+                .resolve(zone)
+                .expect("validated zoom steps resolve to timestamps")
+        };
+        spec.windowed(bound(&step.from), bound(&step.to))
+    } else {
+        let index = |bound: &ZoomBound| {
+            bound
+                .index()
+                .expect("validated zoom steps of a category chart are indices")
+        };
+        spec.sliced(index(&step.from), index(&step.to))
+    }
 }
 
 /// Lays out and serializes one chart, using its explicit description or a generated one.
@@ -144,6 +241,25 @@ fn render_panel(
 fn dedupe_warnings(warnings: &mut Vec<ChartWarning>) {
     let mut seen = std::collections::BTreeSet::new();
     warnings.retain(|warning| seen.insert((warning.code, warning.path.clone())));
+}
+
+/// Adds the warnings of the mobile variant that the chart itself does not already report, marked
+/// as coming from the mobile variant.
+fn merge_mobile_warnings(warnings: &mut Vec<ChartWarning>, mut mobile: Vec<ChartWarning>) {
+    dedupe_warnings(&mut mobile);
+    let reported = warnings
+        .iter()
+        .map(|warning| (warning.code, warning.path.clone()))
+        .collect::<std::collections::BTreeSet<_>>();
+    warnings.extend(
+        mobile
+            .into_iter()
+            .filter(|warning| !reported.contains(&(warning.code, warning.path.clone())))
+            .map(|warning| ChartWarning {
+                message: format!("mobile variant: {}", warning.message),
+                ..warning
+            }),
+    );
 }
 
 fn validate_id_prefix(value: &str) -> Result<(), ChartError> {
@@ -190,7 +306,9 @@ fn automatic_description(spec: &ChartSpec) -> String {
         ChartType::Bar | ChartType::Line => {}
     }
     let dataset = spec.dataset();
-    let chart = chart_type_name(spec.chart_type);
+    let locale = spec.locale;
+    let words = locale.words();
+    let line = spec.chart_type == ChartType::Line;
     let show = |value| layout::format_value(value, spec.number_style());
     let highest_value = dataset
         .values()
@@ -205,35 +323,33 @@ fn automatic_description(spec: &ChartSpec) -> String {
     let equal = highest_value.total_cmp(&lowest_value).is_eq();
 
     if !grouped && equal {
-        return format!(
-            "{chart} with {categories} equal values: {} each.",
-            show(highest_value)
-        );
+        return text::equal_values(locale, line, categories, &show(highest_value));
     }
-    let mut description = if grouped {
-        let names = dataset
-            .series
-            .iter()
-            .filter_map(|series| series.name.clone())
-            .collect::<Vec<_>>()
-            .join(", ");
-        format!(
-            "{chart} with {categories} categories and {} series ({names}).",
-            dataset.series.len()
-        )
-    } else {
-        format!("{chart} with {categories} categories.")
-    };
+    let names = dataset
+        .series
+        .iter()
+        .filter_map(|series| series.name.clone())
+        .collect::<Vec<_>>()
+        .join(", ");
+    let mut description =
+        text::categories_opening(locale, line, categories, dataset.series.len(), &names);
     if equal {
-        write!(description, " All values: {}.", show(highest_value))
+        write!(
+            description,
+            " {}: {}.",
+            words.all_values,
+            show(highest_value)
+        )
     } else {
         write!(
             description,
-            " Highest: {} ({}). Lowest: {} ({}).",
+            " {}: {} ({}). {}: {} ({}).",
+            words.highest,
             show(highest_value),
-            labels_at_value(&dataset, highest_value, spec.locale),
+            labels_at_value(&dataset, highest_value, locale),
+            words.lowest,
             show(lowest_value),
-            labels_at_value(&dataset, lowest_value, spec.locale)
+            labels_at_value(&dataset, lowest_value, locale)
         )
     }
     .expect("writing to String cannot fail");
@@ -244,12 +360,7 @@ fn automatic_description(spec: &ChartSpec) -> String {
             .flat_map(|series| &series.values)
             .filter(|value| value.is_none())
             .count();
-        match missing {
-            0 => {}
-            1 => description.push_str(" 1 value is missing."),
-            missing => write!(description, " {missing} values are missing.")
-                .expect("writing to String cannot fail"),
-        }
+        description.push_str(&text::missing_values(locale, missing));
     }
     description
 }
@@ -281,6 +392,11 @@ fn labels_at_value(dataset: &Dataset, value: f64, locale: spec::Locale) -> Strin
 /// reference lines add. Small multiples name their panels first, since the panel is what a reader
 /// compares.
 fn time_description(spec: &ChartSpec) -> String {
+    if spec.chart_type == ChartType::Time
+        && (spec.panes.len() > 1 || spec.layers().any(|layer| layer.mark == spec::Mark::Ohlc))
+    {
+        return stacked_description(spec);
+    }
     let locale = spec.locale;
     let words = locale.words();
     let zone = spec.time_zone().unwrap_or_default();
@@ -368,9 +484,193 @@ fn time_description(spec: &ChartSpec) -> String {
     }
     .expect("writing to String cannot fail");
 
-    describe_bands(spec, &mut description);
-    describe_rules(spec, zone, &mut description);
+    describe_additions(spec, zone, &mut description);
     description
+}
+
+/// What a time chart adds to its opening and its values: missing values, areas, bands,
+/// reference lines, zones and point markers.
+fn describe_additions(spec: &ChartSpec, zone: time::TimeZone, description: &mut String) {
+    let missing = spec
+        .data_layers()
+        .map(|entry| entry.layer.missing_values())
+        .sum();
+    description.push_str(&text::missing_values(spec.locale, missing));
+    describe_areas(spec, description);
+    describe_bands(spec, description);
+    describe_rules(spec, zone, description);
+    describe_zones_and_markers(spec, zone, description);
+}
+
+/// Describes a time chart with stacked panes or candles: its range and layers, the panes, and
+/// then pane by pane what its candles did and where its lines peak, each in the pane's own
+/// number format.
+fn stacked_description(spec: &ChartSpec) -> String {
+    let locale = spec.locale;
+    let words = locale.words();
+    let zone = spec.time_zone().unwrap_or_default();
+    let precision = spec.time_precision(zone);
+    let dataset = spec.time_dataset(zone, precision, false);
+    let range = format!(
+        "{} {} {} {}",
+        words.from,
+        dataset
+            .categories
+            .first()
+            .expect("validated time charts have points"),
+        words.to,
+        dataset
+            .categories
+            .last()
+            .expect("validated time charts have points")
+    );
+    let names = spec
+        .data_layers()
+        .filter_map(|entry| {
+            let name = entry.layer.name.clone()?;
+            Some(if entry.layer.modeled {
+                format!("{name} ({})", words.modeled)
+            } else {
+                name
+            })
+        })
+        .collect::<Vec<_>>();
+    let layered = spec.data_layers().count() > 1;
+    let mut description = text::time_opening(
+        locale,
+        dataset.categories.len(),
+        &range,
+        if layered { names.as_slice() } else { &[] },
+        !layered && spec.data_layers().any(|entry| entry.layer.modeled),
+    );
+    let labels: Vec<String> = spec
+        .panes
+        .iter()
+        .enumerate()
+        .map(|(index, pane)| {
+            pane.value_axis
+                .title
+                .clone()
+                .unwrap_or_else(|| format!("{} {}", words.pane, index + 1))
+        })
+        .collect();
+    if spec.panes.len() > 1 {
+        description.push_str(&text::panes(locale, &labels));
+    }
+    for (pane_index, label) in labels.iter().enumerate() {
+        let style = spec.pane_style(pane_index);
+        let layers: Vec<LayerRef> = spec
+            .data_layers()
+            .filter(|entry| entry.pane == pane_index)
+            .collect();
+        for entry in layers
+            .iter()
+            .filter(|entry| entry.layer.mark == spec::Mark::Ohlc)
+        {
+            description.push_str(&ohlc::describe(spec, *entry, zone, precision, style));
+        }
+        let observations: Vec<(f64, String)> = layers
+            .iter()
+            .filter(|entry| entry.layer.mark != spec::Mark::Ohlc)
+            .flat_map(|entry| {
+                entry
+                    .layer
+                    .resolved_points(zone)
+                    .into_iter()
+                    .map(move |(epoch, value)| {
+                        let time = precision.format(epoch, zone);
+                        let place = match &entry.layer.name {
+                            Some(name) if layered => text::series_at(locale, name, &time),
+                            _ => time,
+                        };
+                        (value, place)
+                    })
+            })
+            .collect();
+        describe_extremes(
+            &observations,
+            (spec.panes.len() > 1).then_some(label.as_str()),
+            style,
+            locale,
+            &mut description,
+        );
+    }
+    describe_additions(spec, zone, &mut description);
+    description
+}
+
+/// The highest and the lowest of a pane's observations, each with every place it occurs;
+/// `label` names the pane when the chart has several.
+fn describe_extremes(
+    observations: &[(f64, String)],
+    label: Option<&str>,
+    style: spec::NumberStyle,
+    locale: spec::Locale,
+    description: &mut String,
+) {
+    let words = locale.words();
+    let (Some(highest), Some(lowest)) = (
+        observations
+            .iter()
+            .map(|(value, _)| *value)
+            .max_by(f64::total_cmp),
+        observations
+            .iter()
+            .map(|(value, _)| *value)
+            .min_by(f64::total_cmp),
+    ) else {
+        return;
+    };
+    let at = |target: f64| {
+        observations
+            .iter()
+            .filter(|(value, _)| value.total_cmp(&target).is_eq())
+            .map(|(_, place)| place.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    let show = |value| layout::format_value(value, style);
+    let prefix = label.map_or_else(String::new, |label| format!(" {label} –"));
+    if highest.total_cmp(&lowest).is_eq() {
+        write!(
+            description,
+            "{prefix} {}: {}.",
+            words.all_values,
+            show(highest)
+        )
+    } else {
+        write!(
+            description,
+            "{prefix} {}: {} ({}). {}: {} ({}).",
+            words.highest,
+            show(highest),
+            at(highest),
+            words.lowest,
+            show(lowest),
+            at(lowest)
+        )
+    }
+    .expect("writing to String cannot fail");
+}
+
+/// The sentence about filled areas, if any layer is one.
+fn describe_areas(spec: &ChartSpec, description: &mut String) {
+    let areas: Vec<LayerRef> = spec
+        .data_layers()
+        .filter(|entry| entry.layer.mark == spec::Mark::Area)
+        .collect();
+    if areas.is_empty() {
+        return;
+    }
+    let mut names: Vec<String> = Vec::new();
+    for entry in areas {
+        if let Some(name) = &entry.layer.name
+            && !names.contains(name)
+        {
+            names.push(name.clone());
+        }
+    }
+    description.push_str(&text::areas(spec.locale, &names));
 }
 
 /// The sentence about uncertainty bands, if any line has one.
@@ -391,14 +691,18 @@ fn describe_bands(spec: &ChartSpec, description: &mut String) {
 /// The sentence that names every reference line and where it lies.
 fn describe_rules(spec: &ChartSpec, zone: time::TimeZone, description: &mut String) {
     let words = spec.locale.words();
-    let show = |value| layout::format_value(value, spec.number_style());
     let rules = spec
-        .layers()
-        .filter(|layer| layer.mark == spec::Mark::Annotation)
-        .filter_map(|layer| {
+        .indexed_layers()
+        .filter(|entry| entry.layer.is_rule())
+        .filter_map(|entry| {
+            let layer = entry.layer;
             let label = layer.label.as_deref()?;
             if let Some(value) = layer.value {
-                return Some(format!("{label} {} {}", words.at, show(value)));
+                return Some(format!(
+                    "{label} {} {}",
+                    words.at,
+                    layout::format_value(value, spec.pane_style(entry.pane))
+                ));
             }
             let epoch = layer.time.as_ref()?.resolve(zone).ok()?;
             Some(format!(
@@ -416,6 +720,43 @@ fn describe_rules(spec: &ChartSpec, zone: time::TimeZone, description: &mut Stri
             rules.join("; ")
         )
         .expect("writing to String cannot fail");
+    }
+}
+
+/// The sentences that name every zone with its extent and every point marker with its time and
+/// value.
+fn describe_zones_and_markers(spec: &ChartSpec, zone: time::TimeZone, description: &mut String) {
+    let words = spec.locale.words();
+    let zones: Vec<String> = spec
+        .indexed_layers()
+        .filter(|entry| entry.layer.mark == spec::Mark::Band)
+        .filter_map(|entry| {
+            let label = entry.layer.label.as_deref()?;
+            Some(format!(
+                "{label}, {}",
+                layout::zone_extent(spec, entry.layer, zone, spec.pane_style(entry.pane))
+            ))
+        })
+        .collect();
+    if !zones.is_empty() {
+        write!(description, " {}: {}.", words.zones, zones.join("; "))
+            .expect("writing to String cannot fail");
+    }
+    let markers: Vec<String> = spec
+        .indexed_layers()
+        .filter(|entry| entry.layer.is_marker())
+        .filter_map(|entry| {
+            let label = entry.layer.label.as_deref()?;
+            Some(format!(
+                "{label} {} {}",
+                words.at,
+                layout::marker_position(entry.layer, zone, spec.pane_style(entry.pane))
+            ))
+        })
+        .collect();
+    if !markers.is_empty() {
+        write!(description, " {}: {}.", words.markers, markers.join("; "))
+            .expect("writing to String cannot fail");
     }
 }
 
@@ -442,15 +783,12 @@ fn atlas_description(spec: &ChartSpec) -> String {
         .flat_map(|realm| &realm.regions)
         .max_by(|a, b| a.value.total_cmp(&b.value))
         .expect("validated atlas charts have at least one region");
-    let marked = if places > 0 {
-        format!(" {places} places are marked.")
-    } else {
-        String::new()
-    };
-    format!(
-        "Knowledge landscape of {realms} realms and {regions} regions; largest is {} with {}.{marked}",
-        largest.label,
-        show(largest.value)
+    text::atlas_sentence(
+        spec.locale,
+        realms,
+        regions,
+        (&largest.label, &show(largest.value)),
+        places,
     )
 }
 
@@ -472,60 +810,35 @@ fn topicmap_description(spec: &ChartSpec) -> String {
         .min_by(|a, b| a.value.total_cmp(&b.value))
         .expect("validated topicmap charts have at least one topic");
 
-    let mut description = format!(
-        "Topic map with {areas} area{}",
-        if areas == 1 { "" } else { "s" }
+    let mut description = text::topicmap_opening(
+        spec.locale,
+        areas,
+        topicmap.islands.len(),
+        (&largest.label, &show(largest.value)),
+        (&smallest.label, &show(smallest.value)),
     );
-    match topicmap.islands.len() {
-        0 => description.push('.'),
-        1 => description.push_str(" and one island."),
-        islands => {
-            write!(description, " and {islands} islands.").expect("writing to String cannot fail");
-        }
-    }
-    write!(
-        description,
-        " Largest: {} with {} entries, smallest: {} with {}.",
-        largest.label,
-        show(largest.value),
-        smallest.label,
-        show(smallest.value)
-    )
-    .expect("writing to String cannot fail");
 
     // The strongest neighbourhoods, named as relationships in the data rather than as something
     // the drawing does: a weak route may have been dropped before it was ever drawn.
     let mut strongest: Vec<&spec::TopicLinkSpec> = topicmap.links.iter().collect();
     strongest.sort_by(|a, b| b.weight.total_cmp(&a.weight));
-    let named: Vec<String> = strongest
+    let named: Vec<(&str, &str)> = strongest
         .iter()
         .take(3)
-        .map(|link| format!("{} and {}", link.from, link.to))
+        .map(|link| (link.from.as_str(), link.to.as_str()))
         .collect();
     if !named.is_empty() {
-        write!(description, " Closest neighbours: {}.", named.join(", "))
-            .expect("writing to String cannot fail");
+        description.push_str(&text::neighbours(spec.locale, &named));
     }
     description
 }
 
-const fn chart_type_name(chart_type: ChartType) -> &'static str {
-    match chart_type {
-        ChartType::Bar => "Bar chart",
-        ChartType::Line => "Line chart",
-        ChartType::Time => "Time chart",
-        ChartType::Topicmap => "Topic map",
-        ChartType::Atlas => "Knowledge landscape",
-        ChartType::Stripes => "Warming stripes",
-        ChartType::Calendar => "Calendar",
-        ChartType::Rangebar => "Range chart",
-        ChartType::Multiples => "Small multiples",
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{BuiltinMetrics, RenderFormat, RenderOptions, TextMetrics, render_json};
+    use super::{
+        BuiltinMetrics, ChartSpec, RenderFormat, RenderOptions, TextMetrics, Variant, render_json,
+        render_with_metrics,
+    };
 
     const SPEC: &str = r#"{
         "schemaVersion": 1,
@@ -983,16 +1296,102 @@ mod tests {
         );
     }
 
+    /// Adds `"locale": "de"` to a specification of the given type.
+    fn german(spec: &str, chart_type: &str) -> String {
+        spec.replace(
+            &format!("\"type\": \"{chart_type}\","),
+            &format!("\"type\": \"{chart_type}\", \"locale\": \"de\","),
+        )
+    }
+
+    fn html_ok(spec: &str) -> String {
+        render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content
+    }
+
     #[test]
-    fn a_locale_is_refused_where_texts_are_not_translated_yet() {
-        let spec = SPEC.replace(
-            "\"type\": \"bar\",",
-            "\"type\": \"bar\", \"locale\": \"de\",",
-        );
-        assert_eq!(
-            render_err(&spec),
-            ("locale_not_supported", "/locale".to_owned())
-        );
+    fn german_bar_chart_writes_description_table_and_numbers_in_german() {
+        let html = html_ok(&german(SPEC, "bar").replace("\"value\": -4}", "\"value\": -4.5}"));
+        assert!(html.contains(
+            "Balkendiagramm mit 2 Kategorien. Höchster Wert: 12 (North &lt;East&gt;). Niedrigster Wert: \u{2212}4,5 (South)."
+        ));
+        assert!(html.contains("<th scope=\"col\">Kategorie</th><th scope=\"col\">Wert</th>"));
+        assert!(html.contains("<td>\u{2212}4,5</td>"));
+    }
+
+    #[test]
+    fn german_stripes_write_description_tooltips_and_table_in_german() {
+        let html = html_ok(&german(STRIPES, "stripes"));
+        assert!(html.contains("<title>1851: \u{2212}0,5</title>"));
+        assert!(html.contains(
+            "Wärmestreifen von 1850 bis 1855, ein Streifen pro Jahr, auf einer divergierenden Farbskala um 0 mit den äußersten Stufen bei \u{2212}1 und 1. Niedrigster Wert: \u{2212}1 (1850). Höchster Wert: 2 (1855). 1 Jahr hat keinen Wert."
+        ));
+        assert!(html.contains("<th scope=\"col\">Jahr</th>"));
+        assert!(html.contains("<th scope=\"row\">1852</th><td>fehlt</td>"));
+    }
+
+    #[test]
+    fn german_calendar_names_months_and_weekdays_in_german() {
+        let days = DAYS.replace("\"value\": -2}", "\"value\": -2.5}");
+        let months = html_ok(&german(&calendar("months", &days), "calendar"));
+        for month in ["Jan", "Mär", "Mai", "Okt", "Dez"] {
+            assert!(months.contains(&format!(">{month}</text>")), "{month}");
+        }
+        assert!(!months.contains(">Mar</text>"));
+        assert!(months.contains("<title>2024-01-01: \u{2212}2,5</title>"));
+        assert!(months.contains("<title>2024-12-31: kein Wert</title>"));
+        assert!(months.contains(
+            "Kalender 2024 mit einer Zeile pro Monat, auf einer divergierenden Farbskala um "
+        ));
+        assert!(months.contains(
+            "2 von 366 Tagen haben einen Wert. Niedrigster Wert: \u{2212}2,5 (2024-01-01). Höchster Wert: 4 (2024-02-29)."
+        ));
+        assert!(months.contains("<th scope=\"col\">Datum</th>"));
+        let weeks = render_ok(&german(&calendar("weeks", DAYS), "calendar")).content;
+        for weekday in ["Mo", "Mi", "Fr", "So"] {
+            assert!(weeks.contains(&format!(">{weekday}</text>")), "{weekday}");
+        }
+        assert!(weeks.contains(">Mär</text>"));
+        assert!(weeks.contains("einer Zeile pro Wochentag und einer Spalte pro Woche"));
+    }
+
+    #[test]
+    fn german_range_chart_writes_spans_legend_and_table_in_german() {
+        let html = html_ok(&german(RANGES, "rangebar"));
+        assert!(html.contains("<title>Observed: 1,05 (0,9 bis 1,2)</title>"));
+        assert!(html.contains("<title>Natural: \u{2212}0,1 bis 0,1, modelliert</title>"));
+        assert!(html.contains(">Schraffiert: modelliert<"));
+        assert!(html.contains(
+            "Spannendiagramm mit 2 Kategorien, jeweils eine Spanne vom unteren zum oberen Wert mit einem mittleren Wert. Niedrigster unterer Wert: \u{2212}0,1 (Natural). Höchster oberer Wert: 1,2 (Observed). Modelliert, schraffiert gezeichnet: Natural."
+        ));
+        assert!(html.contains(
+            "<th scope=\"col\">Kategorie</th><th scope=\"col\">Unterer Wert</th><th scope=\"col\">Mittlerer Wert</th><th scope=\"col\">Oberer Wert</th>"
+        ));
+        assert!(html.contains("<th scope=\"row\">Natural (modelliert)</th>"));
+    }
+
+    #[test]
+    fn german_maps_write_description_picker_and_table_in_german() {
+        let topicmap = html_ok(&german(TOPICMAP, "topicmap"));
+        assert!(topicmap.contains(
+            "Themenkarte mit 5 Gebieten und einer Insel. Größtes: AI in practice mit 291 Einträgen, kleinstes: Management mit 69. Engste Nachbarn: AI in practice und Engineering."
+        ));
+        assert!(topicmap.contains("<legend>Gebiet</legend>"));
+        assert!(topicmap.contains(
+            "<th scope=\"col\">Thema</th><th scope=\"col\">Einträge</th><th scope=\"col\">Pfade</th><th scope=\"col\">Anteil</th>"
+        ));
+        let atlas = html_ok(&german(ATLAS, "atlas"));
+        assert!(atlas.contains(
+            "Wissenslandschaft aus 2 Reichen und 4 Regionen; die größte ist Models mit 40. 1 Ort ist markiert."
+        ));
+        assert!(atlas.contains(
+            "<th scope=\"col\">Region</th><th scope=\"col\">Einträge</th><th scope=\"col\">Orte</th>"
+        ));
+    }
+
+    #[test]
+    fn too_many_decimals_are_refused() {
         let spec = TIME.replace(
             "\"valueAxis\": {\"title\": \"Orders\"}",
             "\"valueAxis\": {\"title\": \"Orders\", \"decimals\": 9}",
@@ -1174,6 +1573,39 @@ mod tests {
     }
 
     #[test]
+    fn declared_layer_colors_stay_inside_their_chart() {
+        let specification = include_str!("../examples/revenue-vs-forecast.json");
+        let svg = render_json(
+            specification,
+            RenderFormat::Svg,
+            &RenderOptions {
+                id_prefix: Some("first".to_owned()),
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap();
+        // Inline SVG stylesheets apply to the whole page; an unscoped rule would recolor the
+        // layers of every other chart on it.
+        assert!(svg.content.contains("id=\"first\" role=\"img\""));
+        assert!(
+            svg.content
+                .contains("#first .chartlet-style-0{stroke:#7ea6ff}")
+        );
+        assert!(!svg.content.contains("}.chartlet-style-0{"));
+        // Every other rule is scoped too, so a later chart's `.chartlet-line` cannot restyle
+        // this one; the dark palette outranks a later light chart's defaults.
+        assert!(svg.content.contains("#first .chartlet-title{"));
+        assert!(
+            svg.content
+                .contains(".chartlet-root.chartlet-theme-dark{--chartlet-text:")
+        );
+        assert!(
+            svg.content
+                .contains("<style>.chartlet-root{--chartlet-text:")
+        );
+    }
+
+    #[test]
     fn an_invalid_color_is_reported_and_replaced_by_the_neutral_tone() {
         let declared = hourly(3, ", \"color\": \"red\"");
         let output = render_json(&declared, RenderFormat::Svg, &RenderOptions::default()).unwrap();
@@ -1181,27 +1613,6 @@ mod tests {
         assert_eq!(output.warnings[0].code, "color_not_supported");
         assert_eq!(output.warnings[0].path, "/panes/0/layers/0/color");
         assert!(output.content.contains(".chartlet-style-0{stroke:#667085}"));
-    }
-
-    #[test]
-    fn marks_from_later_milestones_say_when_they_arrive() {
-        for mark in ["area", "ohlc", "band"] {
-            let declared = TIME.replace("\"mark\": \"line\"", &format!("\"mark\": \"{mark}\""));
-            let error = render_json(&declared, RenderFormat::Svg, &RenderOptions::default())
-                .expect_err("an unbuilt mark is refused, not ignored");
-            assert_eq!(error.code, "mark_not_implemented");
-            assert_eq!(error.path, "/panes/0/layers/0/mark");
-            assert!(error.message.contains(mark), "{}", error.message);
-        }
-    }
-
-    #[test]
-    fn a_null_value_is_rejected_until_gaps_arrive() {
-        let gapped = TIME.replace("\"value\": 15", "\"value\": null");
-        let error = render_json(&gapped, RenderFormat::Svg, &RenderOptions::default())
-            .expect_err("a gap cannot be told apart from a missing observation yet");
-        assert_eq!(error.code, "option_not_supported");
-        assert_eq!(error.path, "/panes/0/layers/0/points/1/value");
     }
 
     #[test]
@@ -1222,10 +1633,6 @@ mod tests {
         for (field, path) in [
             ("\"data\": [{\"label\": \"Jan\", \"value\": 1}],", "/data"),
             ("\"categories\": [\"Jan\"],", "/categories"),
-            (
-                "\"zoomSteps\": [{\"label\": \"A\", \"from\": 0, \"to\": 0}, {\"label\": \"B\", \"from\": 0, \"to\": 1}],",
-                "/zoomSteps",
-            ),
         ] {
             let mixed = TIME.replace(
                 "\"schemaVersion\": 1,",
@@ -1236,18 +1643,6 @@ mod tests {
             assert_eq!(error.code, "option_not_supported", "{field}");
             assert_eq!(error.path, path, "{field}");
         }
-    }
-
-    #[test]
-    fn more_than_one_pane_is_rejected_in_this_alpha() {
-        let two = TIME.replace(
-            "\"panes\": [",
-            "\"panes\": [{\"layers\": [{\"mark\": \"line\", \"name\": \"Load\", \"points\": [{\"time\": \"2026-03-01\", \"value\": 1}, {\"time\": \"2026-03-02\", \"value\": 2}]}]},",
-        );
-        let error = render_json(&two, RenderFormat::Svg, &RenderOptions::default())
-            .expect_err("one pane is all this alpha draws");
-        assert_eq!(error.code, "too_many_panes");
-        assert_eq!(error.path, "/panes");
     }
 
     #[test]
@@ -1395,10 +1790,17 @@ mod tests {
 
     #[test]
     fn the_band_mark_points_to_the_line_band() {
-        let declared = TIME.replace("\"mark\": \"line\"", "\"mark\": \"band\"");
-        let error = render_json(&declared, RenderFormat::Svg, &RenderOptions::default())
-            .expect_err("the zone band is a later milestone");
-        assert_eq!(error.code, "mark_not_implemented");
+        let error = render_json(
+            &with_rules(
+                r#"{"mark": "band", "label": "Z", "bottom": 0, "top": 1,
+                    "points": [{"time": "2026-03-01", "value": 1}]}"#,
+            ),
+            RenderFormat::Svg,
+            &RenderOptions::default(),
+        )
+        .expect_err("a zone has no points");
+        assert_eq!(error.code, "option_not_supported");
+        assert_eq!(error.path, "/panes/0/layers/0/points");
         assert!(
             error.message.contains("lower and upper"),
             "{}",
@@ -1450,11 +1852,6 @@ mod tests {
                 "/panes/0/layers/0",
             ),
             (
-                r#"{"mark": "annotation", "value": 1, "time": "2026-03-01", "label": "Point"}"#,
-                "option_not_supported",
-                "/panes/0/layers/0/value",
-            ),
-            (
                 r#"{"mark": "annotation", "value": 1, "label": "L", "shape": "circle"}"#,
                 "option_not_supported",
                 "/panes/0/layers/0/shape",
@@ -1492,6 +1889,306 @@ mod tests {
             render_err(&with_rules(&seven)),
             ("too_many_annotations", "/panes/0/layers".to_owned())
         );
+    }
+
+    #[test]
+    fn zones_are_drawn_behind_the_data_labelled_and_described() {
+        let spec = with_rules(
+            r##"{"mark": "band", "label": "Quiet", "from": "2026-03-01", "to": "2026-03-02"},
+               {"mark": "band", "label": "Target", "bottom": 25, "top": 40, "color": "#16a34a"}"##,
+        );
+        let output = render_ok(&spec);
+        let svg = &output.content;
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert_eq!(svg.matches("class=\"chartlet-zone").count(), 2);
+        assert!(svg.contains("class=\"chartlet-zone chartlet-style-1-swatch\""));
+        assert!(svg.contains(".chartlet-style-1-swatch{fill:#16a34a}"));
+        // Behind the data: every zone comes before the line.
+        assert!(svg.rfind("chartlet-zone\"").unwrap() < svg.find("class=\"chartlet-line").unwrap());
+        assert!(svg.contains(">Quiet</text>"));
+        assert!(svg.contains(">Target</text>"));
+        assert!(svg.contains("<title>Quiet: 2026-03-01 to 2026-03-02</title>"));
+        assert!(svg.contains("<title>Target: values 25 to 40</title>"));
+        // 40 lies above every observation, so the axis reaches it.
+        assert!(svg.contains(">40<"));
+        assert!(svg.contains("Zones: Quiet, 2026-03-01 to 2026-03-02; Target, values 25 to 40."));
+        // Zones are neither series in the legend nor columns in the table.
+        assert!(!svg.contains("class=\"chartlet-legend\""));
+        let html = render_json(&spec, RenderFormat::Html, &RenderOptions::default()).unwrap();
+        assert!(
+            html.content
+                .contains("<th scope=\"col\">Time</th><th scope=\"col\">Orders</th></tr>")
+        );
+    }
+
+    #[test]
+    fn a_zone_with_one_open_end_reaches_the_plot_edge_and_says_so() {
+        let spec = with_rules(
+            r#"{"mark": "band", "label": "Later", "from": "2026-03-02", "bottom": 0, "top": 5}"#,
+        );
+        let svg = render_ok(&spec).content;
+        assert!(svg.contains("<title>Later: from 2026-03-02, values 0 to 5</title>"));
+    }
+
+    #[test]
+    fn zones_are_validated_by_name() {
+        for (zone, code, path) in [
+            (
+                r#"{"mark": "band", "bottom": 0, "top": 1}"#,
+                "missing_label",
+                "/panes/0/layers/0/label",
+            ),
+            (
+                r#"{"mark": "band", "label": "Z", "top": 1, "from": "2026-03-01"}"#,
+                "missing_position",
+                "/panes/0/layers/0",
+            ),
+            (
+                r#"{"mark": "band", "label": "Z", "bottom": 2, "top": 2}"#,
+                "invalid_band",
+                "/panes/0/layers/0/top",
+            ),
+            (
+                r#"{"mark": "band", "label": "Z", "from": "2026-03-02", "to": "2026-03-01"}"#,
+                "invalid_band",
+                "/panes/0/layers/0/to",
+            ),
+            (
+                r#"{"mark": "band", "label": "Z", "from": "1600-01-01", "to": "2026-03-01"}"#,
+                "invalid_time",
+                "/panes/0/layers/0/from",
+            ),
+            (
+                r#"{"mark": "band", "label": "Z", "bottom": 0, "top": 1, "name": "N"}"#,
+                "option_not_supported",
+                "/panes/0/layers/0/name",
+            ),
+            (
+                r#"{"mark": "band", "label": "Z", "bottom": 0, "top": 1, "value": 1}"#,
+                "option_not_supported",
+                "/panes/0/layers/0/value",
+            ),
+            (
+                r#"{"mark": "band", "label": "Z", "bottom": 0, "top": 1, "shape": "circle"}"#,
+                "option_not_supported",
+                "/panes/0/layers/0/shape",
+            ),
+            (
+                r#"{"mark": "band", "label": "Z", "bottom": 0, "top": 1, "dash": "dotted"}"#,
+                "option_not_supported",
+                "/panes/0/layers/0/dash",
+            ),
+        ] {
+            assert_eq!(
+                render_err(&with_rules(zone)),
+                (code, path.to_owned()),
+                "{zone}"
+            );
+        }
+        // Zones, reference lines and point markers share one limit.
+        let seven = (0..7)
+            .map(|index| match index % 3 {
+                0 => format!(r#"{{"mark": "band", "bottom": {index}, "top": 50, "label": "Z{index}"}}"#),
+                1 => format!(r#"{{"mark": "annotation", "value": {index}, "label": "R{index}"}}"#),
+                _ => format!(
+                    r#"{{"mark": "annotation", "time": "2026-03-02", "value": {index}, "label": "M{index}"}}"#
+                ),
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        assert_eq!(
+            render_err(&with_rules(&seven)),
+            ("too_many_annotations", "/panes/0/layers".to_owned())
+        );
+    }
+
+    #[test]
+    fn point_markers_are_drawn_in_their_shape_labelled_and_described() {
+        let spec = with_rules(
+            r##"{"mark": "annotation", "time": "2026-03-02", "value": 50, "label": "Launch", "shape": "triangle-up"},
+               {"mark": "annotation", "time": "2026-03-01", "value": 12, "label": "Start"},
+               {"mark": "annotation", "time": "2026-03-02", "value": 5, "label": "Dip", "shape": "diamond", "color": "#16a34a"}"##,
+        );
+        let output = render_ok(&spec);
+        let svg = &output.content;
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        // Shapes other than the circle are closed outlines; the default is a circle.
+        assert_eq!(svg.matches("class=\"chartlet-marker").count(), 3);
+        assert!(svg.contains("<circle cx="));
+        assert!(svg.contains("class=\"chartlet-marker\"><title>Start: 2026-03-01, 12</title>"));
+        assert!(svg.contains("<title>Launch: 2026-03-02, 50</title>"));
+        assert!(svg.contains(
+            "class=\"chartlet-marker chartlet-style-2\"><title>Dip: 2026-03-02, 5</title>"
+        ));
+        assert!(svg.contains(
+            ".chartlet-marker.chartlet-style-2{fill:#16a34a;stroke:var(--chartlet-background)}"
+        ));
+        assert!(svg.contains(">Launch</text>"));
+        // 50 lies above every observation, so the axis reaches it.
+        assert!(svg.contains(">50<"));
+        assert!(svg.contains(
+            "Markers: Launch at 2026-03-02, 50; Start at 2026-03-01, 12; Dip at 2026-03-02, 5."
+        ));
+        assert!(!svg.contains("Reference lines"));
+        assert!(!svg.contains("class=\"chartlet-legend\""));
+    }
+
+    #[test]
+    fn a_point_marker_needs_a_label_and_only_it_takes_a_shape() {
+        assert_eq!(
+            render_err(&with_rules(
+                r#"{"mark": "annotation", "time": "2026-03-02", "value": 5}"#
+            )),
+            ("missing_label", "/panes/0/layers/0/label".to_owned())
+        );
+        let error = render_json(
+            &with_rules(
+                r#"{"mark": "annotation", "time": "2026-03-02", "label": "L", "shape": "square"}"#,
+            ),
+            RenderFormat::Svg,
+            &RenderOptions::default(),
+        )
+        .expect_err("a reference line has no shape");
+        assert_eq!(error.code, "option_not_supported");
+        assert_eq!(error.path, "/panes/0/layers/0/shape");
+        assert!(error.message.contains("point marker"), "{}", error.message);
+    }
+
+    #[test]
+    fn a_marker_label_moves_to_the_left_at_the_right_edge() {
+        let spec = with_rules(
+            r#"{"mark": "annotation", "time": "2026-03-03", "value": 20, "label": "Peak"}"#,
+        );
+        let output = render_ok(&spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(
+            output
+                .content
+                .contains("text-anchor=\"end\" class=\"chartlet-rule-label\">Peak</text>")
+        );
+    }
+
+    #[test]
+    fn overlapping_annotation_labels_are_reported_not_dropped() {
+        let spec = with_rules(
+            r#"{"mark": "annotation", "value": 12, "label": "First"},
+               {"mark": "annotation", "value": 12, "label": "Second"}"#,
+        );
+        let output = render_ok(&spec);
+        assert!(output.content.contains(">First</text>"));
+        assert!(output.content.contains(">Second</text>"));
+        assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
+        assert_eq!(output.warnings[0].code, "label_overlap");
+        assert_eq!(output.warnings[0].path, "/panes/0/layers/1");
+    }
+
+    #[test]
+    fn a_reference_line_label_across_a_data_line_is_reported() {
+        let spec = TIME
+            .replace("\"value\": 10}", "\"value\": 10.4}")
+            .replace("\"value\": 15}", "\"value\": 10.4}")
+            .replace("\"value\": 20}", "\"value\": 0}")
+            .replace(
+                "\"layers\": [",
+                r#""layers": [{"mark": "annotation", "value": 10, "label": "Limit"},"#,
+            );
+        let output = render_ok(&spec);
+        assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
+        assert_eq!(output.warnings[0].code, "label_overlap");
+        assert_eq!(output.warnings[0].path, "/panes/0/layers/0");
+        assert!(output.warnings[0].message.contains("data line"));
+    }
+
+    #[test]
+    fn a_label_outside_the_plot_is_reported() {
+        // An area starts the axis at zero without padding, so 20 is the top edge of the plot and
+        // the label of a reference line there sits above it.
+        let spec = TIME
+            .replace("\"mark\": \"line\"", "\"mark\": \"area\"")
+            .replace(
+                "\"layers\": [",
+                r#""layers": [{"mark": "annotation", "value": 20, "label": "Ceiling"},"#,
+            );
+        let output = render_ok(&spec);
+        assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
+        assert_eq!(output.warnings[0].code, "label_overlap");
+        assert_eq!(output.warnings[0].path, "/panes/0/layers/0");
+        assert!(output.warnings[0].message.contains("outside"));
+    }
+
+    #[test]
+    fn label_collisions_are_measured_with_the_injected_metrics() {
+        // Wide metrics stretch the label of the horizontal line into that of the vertical one.
+        struct Wide;
+        impl TextMetrics for Wide {
+            fn width(&self, text: &str, font_size: f64) -> f64 {
+                BuiltinMetrics.width(text, font_size) * 4.0
+            }
+        }
+        let spec = ChartSpec::from_json(&with_rules(
+            r#"{"mark": "annotation", "value": 24, "label": "Ceiling"},
+               {"mark": "annotation", "time": "2026-03-01T06:00:00Z", "label": "Deploy"}"#,
+        ))
+        .unwrap();
+        let narrow = render_ok(&serde_json::to_string(&spec).unwrap());
+        assert!(narrow.warnings.is_empty(), "{:?}", narrow.warnings);
+        let wide = render_with_metrics(&spec, RenderFormat::Svg, &RenderOptions::default(), &Wide)
+            .unwrap();
+        assert!(
+            wide.warnings
+                .iter()
+                .any(|warning| warning.code == "label_overlap"),
+            "{:?}",
+            wide.warnings
+        );
+    }
+
+    #[test]
+    fn zones_and_markers_are_described_in_german() {
+        let spec = with_rules(
+            r#"{"mark": "band", "label": "Ruhe", "from": "2026-03-01", "to": "2026-03-02"},
+               {"mark": "band", "label": "Ziel", "bottom": 2.5},
+               {"mark": "annotation", "time": "2026-03-02", "value": 12.5, "label": "Start"}"#,
+        )
+        .replace(
+            "\"schemaVersion\": 1,",
+            "\"schemaVersion\": 1, \"locale\": \"de\",",
+        );
+        // A value zone needs both edges unless it spans a time.
+        assert_eq!(
+            render_err(&spec),
+            ("missing_position", "/panes/0/layers/1".to_owned())
+        );
+        let spec = spec.replace(
+            r#""bottom": 2.5}"#,
+            r#""bottom": 2.5, "from": "2026-03-02", "to": "2026-03-03"}"#,
+        );
+        let svg = render_ok(&spec).content;
+        assert!(svg.contains(
+            "Bereiche: Ruhe, 2026-03-01 bis 2026-03-02; Ziel, 2026-03-02 bis 2026-03-03, Werte über 2,5."
+        ), "{svg}");
+        assert!(svg.contains("Markierungen: Start bei 2026-03-02, 12,5."));
+        assert!(svg.contains("<title>Start: 2026-03-02, 12,5</title>"));
+    }
+
+    #[test]
+    fn a_zoom_window_cuts_zones_and_leaves_out_those_it_misses() {
+        let spec = with_rules(
+            r#"{"mark": "band", "label": "Early", "from": "2026-03-01", "to": "2026-03-02"},
+               {"mark": "band", "label": "Wide", "from": "2026-02-20", "to": "2026-03-10"}"#,
+        )
+        .replace(
+            "\"timeAxis\"",
+            r#""zoomSteps": [{"label": "All", "from": "2026-03-01", "to": "2026-03-03"},
+                             {"label": "Late", "from": "2026-03-02", "to": "2026-03-03"}],
+               "timeAxis""#,
+        );
+        let html = render_json(&spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        // Both zones in the first window, only the wide one in the second.
+        assert_eq!(html.matches("class=\"chartlet-zone\"").count(), 3);
+        assert!(html.contains("<title>Wide: 2026-03-02 to 2026-03-03</title>"));
     }
 
     const STRIPES: &str = r#"{
@@ -1704,6 +2401,8 @@ mod tests {
             assert!(svg.contains("<title>Observed: 1.05 (0.9 to 1.2)</title>"));
             assert!(svg.contains("<title>Natural: −0.1 to 0.1, modeled</title>"));
             assert!(svg.contains(">Hatched: modeled<"));
+            // The legend text needs its own color; without it a dark chart draws it black.
+            assert!(svg.contains(".chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}"));
             assert!(svg.contains(
                 "Range chart with 2 categories, each a span from low to high and a central value. Lowest low: −0.1 (Natural). Highest high: 1.2 (Observed). Modeled, drawn hatched: Natural."
             ));
@@ -2112,9 +2811,13 @@ mod tests {
                 "a panel rule applies unconditionally: {rule}"
             );
         }
-        assert!(output.content.contains(
-            ".chartlet-wrapper:has(.chartlet-topic-picker input.topic-2:checked) .chartlet-topic-area.chartlet-topic-2{fill:var(--chartlet-accent)}"
-        ));
+        // The rule names the map's root ID: the chart's own rules are scoped to it and would
+        // outrank a rule that selects by class alone.
+        let root = output.content.split(" id=\"").nth(1).unwrap();
+        let root = &root[..root.find('"').unwrap()];
+        assert!(output.content.contains(&format!(
+            ".chartlet-wrapper:has(.chartlet-topic-picker input.topic-2:checked) #{root} .chartlet-topic-area.chartlet-topic-2{{fill:var(--chartlet-accent)}}"
+        )));
         // The plain SVG profile carries no selection at all.
         let svg = render_json(TOPICMAP, RenderFormat::Svg, &RenderOptions::default()).unwrap();
         assert!(!svg.content.contains("chartlet-topic-picker"));
@@ -2498,5 +3201,992 @@ mod tests {
                 .content
                 .contains("<th scope=\"row\">WASM</th><td>6</td><td>1</td>")
         );
+    }
+
+    // --- Gaps, line patterns, areas, time zoom and more layers ---
+
+    /// A time chart over five days whose pane holds `layers`; `extra` goes into the top level.
+    fn week(layers: &str, extra: &str) -> String {
+        format!(
+            r#"{{
+                "schemaVersion": 1,
+                "type": "time",
+                "title": "Sensors",
+                "showValues": false{extra},
+                "panes": [{{"layers": [{layers}]}}]
+            }}"#
+        )
+    }
+
+    /// A line layer over the five days of [`week`]; `fields` goes into the layer object and
+    /// `values` are the five values, `null` included.
+    fn sensor(name: &str, fields: &str, values: [&str; 5]) -> String {
+        let points = values
+            .iter()
+            .enumerate()
+            .map(|(day, value)| format!(r#"{{"time": "2026-03-0{}", "value": {value}}}"#, day + 1))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!(r#"{{"mark": "line", "name": "{name}"{fields}, "points": [{points}]}}"#)
+    }
+
+    const GAPPED: [&str; 5] = ["10", "12", "null", "14", "15"];
+
+    #[test]
+    fn a_null_value_breaks_the_line_and_counts_as_missing() {
+        let spec = week(&sensor("Load", "", GAPPED), "");
+        let output = render_ok(&spec);
+        let svg = &output.content;
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        // Two pieces of line around the gap, and a marker for each of the four values.
+        assert_eq!(svg.matches("<polyline").count(), 2);
+        assert_eq!(svg.matches("class=\"chartlet-point\"").count(), 4);
+        assert!(svg.contains("1 value is missing."), "{svg}");
+
+        let html = html_ok(&spec);
+        assert!(html.contains("<th scope=\"row\">2026-03-03</th><td>Missing</td>"));
+
+        let german = html_ok(&german(&spec, "time"));
+        assert!(german.contains("1 Wert fehlt."));
+        assert!(german.contains("<th scope=\"row\">2026-03-03</th><td>fehlt</td>"));
+
+        // A lone value between two gaps keeps its marker but draws no line.
+        let lone = week(&sensor("Load", "", ["10", "null", "12", "null", "15"]), "");
+        let svg = render_ok(&lone).content;
+        assert!(!svg.contains("<polyline"), "{svg}");
+        assert_eq!(svg.matches("class=\"chartlet-point\"").count(), 3);
+        assert!(svg.contains("2 values are missing."));
+
+        // Small multiples break their lines the same way.
+        let gapped = panel("B", 1.0).replacen(
+            r#"{"time": "2010", "value": 12}"#,
+            r#"{"time": "2005", "value": null}, {"time": "2010", "value": 12}"#,
+            1,
+        );
+        let spec = multiples(&[panel("A", 1.0), gapped].join(","));
+        assert!(render_ok(&spec).content.contains("1 value is missing."));
+    }
+
+    #[test]
+    fn a_band_breaks_at_a_missing_value_and_a_missing_value_has_no_band() {
+        let banded = |gap: &str| {
+            let points = [
+                r#"{"time": "2026-03-01", "value": 1, "lower": 0, "upper": 2}"#,
+                r#"{"time": "2026-03-02", "value": 2, "lower": 1, "upper": 3}"#,
+                gap,
+                r#"{"time": "2026-03-04", "value": 2, "lower": 1, "upper": 3}"#,
+                r#"{"time": "2026-03-05", "value": 3, "lower": 2, "upper": 4}"#,
+            ]
+            .join(", ");
+            week(
+                &format!(r#"{{"mark": "line", "name": "Load", "points": [{points}]}}"#),
+                "",
+            )
+        };
+        let svg = render_ok(&banded(r#"{"time": "2026-03-03", "value": null}"#)).content;
+        assert_eq!(
+            svg.matches("class=\"chartlet-band chartlet-band-series-1\"")
+                .count(),
+            2
+        );
+        assert_eq!(
+            render_err(&banded(
+                r#"{"time": "2026-03-03", "value": null, "lower": 1, "upper": 3}"#
+            )),
+            (
+                "invalid_band",
+                "/panes/0/layers/0/points/2/lower".to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn a_line_takes_its_declared_pattern_and_weight_in_plot_and_legend() {
+        let spec = week(
+            &[
+                sensor("Dotted", r#", "dash": "dotted""#, GAPPED),
+                sensor("Bold", r#", "stroke": "bold""#, GAPPED),
+                sensor("Dashed", r#", "dash": "dashed""#, GAPPED),
+                sensor(
+                    "Solid model",
+                    r#", "modeled": true, "dash": "solid""#,
+                    GAPPED,
+                ),
+            ]
+            .join(", "),
+            "",
+        );
+        let svg = render_ok(&spec).content;
+        assert!(svg.contains(".chartlet-line-dotted{stroke-dasharray:0 7}"));
+        assert!(svg.contains(".chartlet-line-bold{stroke-width:4.5}"));
+        // Two pieces of line around the gap, and the legend sample.
+        for class in [
+            "chartlet-line chartlet-line-dotted chartlet-line-series-1",
+            "chartlet-line chartlet-line-bold chartlet-line-series-2",
+            "chartlet-line chartlet-line-dashed chartlet-line-series-3",
+            "chartlet-line chartlet-line-series-4",
+        ] {
+            assert_eq!(
+                svg.matches(&format!("class=\"{class}\"")).count(),
+                3,
+                "{class}"
+            );
+        }
+        // An explicit pattern replaces the modeled dash, but the legend still says modeled.
+        assert!(svg.contains(">Solid model (modeled)<"));
+        assert!(!svg.contains("class=\"chartlet-line chartlet-line-modeled"));
+
+        // Without the new options a chart carries none of their rules.
+        let plain = render_ok(&week(&sensor("Load", "", GAPPED), "")).content;
+        assert!(!plain.contains("chartlet-line-dotted"));
+
+        let rule = week(
+            &format!(
+                r#"{}, {{"mark": "annotation", "value": 1, "label": "Limit", "dash": "dotted"}}"#,
+                sensor("Load", "", GAPPED)
+            ),
+            "",
+        );
+        assert_eq!(
+            render_err(&rule),
+            ("option_not_supported", "/panes/0/layers/1/dash".to_owned())
+        );
+    }
+
+    #[test]
+    fn an_area_is_filled_down_to_zero_and_described() {
+        let area = sensor("Load", "", ["10", "12", "null", "14", "15"])
+            .replace("\"mark\": \"line\"", "\"mark\": \"area\"");
+        let spec = week(
+            &[
+                area.clone(),
+                sensor("Base", "", ["8", "9", "9", "10", "11"]),
+            ]
+            .join(", "),
+            "",
+        );
+        let output = render_ok(&spec);
+        let svg = &output.content;
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(svg.contains(".chartlet-area{stroke:none;fill-opacity:.18}"));
+        // One filled outline on either side of the gap, and a swatch under the legend sample.
+        assert_eq!(
+            svg.matches("<polyline points=\"").count(),
+            // Two area outlines, two line pieces, one line for the second layer, two samples.
+            7
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-area chartlet-band-series-1\"")
+                .count(),
+            3
+        );
+        // The value axis reaches zero although every value lies well above it.
+        assert!(svg.contains("class=\"chartlet-tick\">0</text>"), "{svg}");
+        assert!(svg.contains("The area below Load is filled down to zero."));
+        assert!(
+            html_ok(&german(&spec, "time")).contains("Die Fläche unter Load ist bis null gefüllt.")
+        );
+
+        let colored = week(
+            &area.replace(
+                "\"name\": \"Load\"",
+                "\"name\": \"Load\", \"color\": \"#0f766e\"",
+            ),
+            "",
+        );
+        let svg = render_ok(&colored).content;
+        assert!(svg.contains(".chartlet-area.chartlet-style-0{fill:#0f766e;stroke:none}"));
+        assert!(svg.contains("The area below Load is filled down to zero."));
+    }
+
+    #[test]
+    fn a_time_chart_zooms_into_windows_of_time() {
+        let zoom = r#", "zoomSteps": [
+            {"label": "All", "from": "2026-03-01", "to": "2026-03-05"},
+            {"label": "End", "from": "2026-03-04", "to": 1772668800}
+        ]"#;
+        let spec = week(&sensor("Load", "", GAPPED), zoom);
+        let html = html_ok(&spec);
+        assert!(html.contains("<fieldset class=\"chartlet-zoom\">"));
+        assert_eq!(html.matches("<svg").count(), 2);
+        let end = html
+            .split("chartlet-panel chartlet-panel-1")
+            .nth(1)
+            .and_then(|panel| panel.split("</div>").next())
+            .expect("the second window has a panel");
+        assert!(end.contains("Time chart with 2 points from 2026-03-04 to 2026-03-05."));
+        assert!(!end.contains("2026-03-01"));
+        // The table keeps every observation.
+        assert!(html.contains("<th scope=\"row\">2026-03-01</th>"));
+        // The SVG profile stays one static chart.
+        assert_eq!(render_ok(&spec).content.matches("<svg").count(), 1);
+
+        for (steps, code, path) in [
+            (
+                r#"[{"label": "A", "from": "2026-03-04", "to": "2026-03-04"}, {"label": "B", "from": "2026-03-01", "to": "2026-03-05"}]"#,
+                "invalid_zoom_step",
+                "/zoomSteps/0/from",
+            ),
+            (
+                r#"[{"label": "A", "from": "2026-03-01", "to": "2026-03-05"}, {"label": "B", "from": "2026-03-02", "to": "2026-03-03"}]"#,
+                "zoom_out_of_range",
+                "/zoomSteps/1",
+            ),
+            (
+                r#"[{"label": "A", "from": "March", "to": "2026-03-05"}, {"label": "B", "from": "2026-03-01", "to": "2026-03-05"}]"#,
+                "invalid_time",
+                "/zoomSteps/0/from",
+            ),
+            (
+                r#"[{"label": "A", "from": "2026-03-01", "to": "2026-03-05"}]"#,
+                "not_enough_zoom_steps",
+                "/zoomSteps",
+            ),
+        ] {
+            let spec = week(
+                &sensor("Load", "", GAPPED),
+                &format!(r#", "zoomSteps": {steps}"#),
+            );
+            assert_eq!(render_err(&spec), (code, path.to_owned()), "{steps}");
+        }
+
+        // A category chart still counts categories, and a timestamp is no category.
+        let dated = SPEC.replace(
+            "\"schemaVersion\": 1,",
+            r#""schemaVersion": 1, "zoomSteps": [{"label": "A", "from": "2026-03-01", "to": 1}, {"label": "B", "from": 0, "to": 1}],"#,
+        );
+        assert_eq!(
+            render_err(&dated),
+            ("invalid_spec", "/zoomSteps/0/from".to_owned())
+        );
+        let panels = [panel("A", 1.0), panel("B", 1.0)].join(",");
+        let zoomed = multiples(&panels).replace(
+            "\"schemaVersion\": 1,",
+            r#""schemaVersion": 1, "zoomSteps": [{"label": "A", "from": "2000", "to": "2010"}, {"label": "B", "from": "2000", "to": "2050"}],"#,
+        );
+        assert_eq!(
+            render_err(&zoomed),
+            ("option_not_supported", "/zoomSteps".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_pane_takes_six_layers_when_two_bring_their_own_color() {
+        let colored = r##", "color": "#0f766e""##;
+        let layers = |names: &[(&str, &str)]| {
+            names
+                .iter()
+                .map(|(name, fields)| sensor(name, fields, GAPPED))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
+        let six = [
+            ("Own", colored),
+            ("A", ""),
+            ("B", ""),
+            ("C", ""),
+            ("Also own", colored),
+            ("D", ""),
+        ];
+        let output = render_ok(&week(&layers(&six), ""));
+        let svg = &output.content;
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        // The fifth data layer takes the first palette color no layer before it holds.
+        assert!(svg.contains("class=\"chartlet-line chartlet-line-series-1\""));
+        for series in 2..=4 {
+            assert!(svg.contains(&format!("chartlet-line-series-{series}")));
+        }
+        assert_eq!(svg.matches("class=\"chartlet-legend\"").count(), 6);
+
+        let seven = [six.as_slice(), &[("E", colored)]].concat();
+        assert_eq!(
+            render_err(&week(&layers(&seven), "")),
+            ("too_many_layers", "/panes/0/layers".to_owned())
+        );
+        let five_in_palette = [("A", ""), ("B", ""), ("C", ""), ("D", ""), ("E", "")];
+        assert_eq!(
+            render_err(&week(&layers(&five_in_palette), "")),
+            ("too_many_layers", "/panes/0/layers/4/color".to_owned())
+        );
+    }
+
+    /// Position and content of every text of `class`, in document order.
+    fn placed_texts(svg: &str, class: &str) -> Vec<(f64, f64, String)> {
+        svg.split("<text ")
+            .skip(1)
+            .filter(|chunk| chunk.contains(&format!("class=\"{class}\"")))
+            .map(|chunk| {
+                let read = |name: &str| -> f64 {
+                    chunk
+                        .split(&format!(" {name}=\""))
+                        .nth(1)
+                        .or_else(|| chunk.strip_prefix(&format!("{name}=\"")))
+                        .and_then(|rest| rest.split('"').next())
+                        .expect("a coordinate")
+                        .parse()
+                        .expect("a number")
+                };
+                let content = chunk
+                    .split_once('>')
+                    .and_then(|(_, rest)| rest.split_once("</text>"))
+                    .map(|(content, _)| content.to_owned())
+                    .expect("a text element has content");
+                (read("x"), read("y"), content)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_long_legend_wraps_into_rows_without_overlap() {
+        let names = [
+            "Server hall north",
+            "Server hall south",
+            "Cooling plant",
+            "Office floors",
+            "Lighting",
+            "Charging",
+        ];
+        let layers = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| {
+                let fields = if index < 4 {
+                    String::new()
+                } else {
+                    format!(r##", "color": "#12345{index}""##)
+                };
+                sensor(name, &fields, GAPPED)
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let svg = render_ok(&week(&layers, r#", "width": 480"#)).content;
+        let legend = placed_texts(&svg, "chartlet-legend");
+        let written: Vec<&str> = legend
+            .iter()
+            .map(|(_, _, content)| content.as_str())
+            .collect();
+        assert_eq!(written, names, "every name is written in full");
+        let rows: std::collections::BTreeSet<u64> =
+            legend.iter().map(|(_, y, _)| y.to_bits()).collect();
+        assert!(rows.len() > 1, "{legend:?}");
+        let width = |content: &str| BuiltinMetrics.width(content, 12.0);
+        for (x, y, content) in &legend {
+            assert!(x + width(content) <= 480.0, "{content} leaves the chart");
+            for (other_x, other_y, other) in &legend {
+                if other_y.to_bits() == y.to_bits() && other_x > x {
+                    assert!(
+                        x + width(content) < *other_x - 24.0,
+                        "{content} runs into {other}"
+                    );
+                }
+            }
+        }
+        // The plot starts below the last legend row.
+        let lowest = legend.iter().map(|(_, y, _)| *y).fold(0.0, f64::max);
+        let ticks = placed_texts(&svg, "chartlet-tick");
+        assert!(ticks.iter().all(|(_, y, _)| *y > lowest), "{ticks:?}");
+    }
+
+    // --- Candlesticks and stacked panes ---
+
+    /// Three candles: rising, falling, and one that opens and closes alike.
+    const CANDLES: &str = r#"[
+        {"time": "2026-03-02", "open": 10, "high": 12, "low": 9, "close": 11},
+        {"time": "2026-03-03", "open": 11, "high": 11.5, "low": 8, "close": 9},
+        {"time": "2026-03-04", "open": 9, "high": 10, "low": 8.5, "close": 9}
+    ]"#;
+
+    /// A time chart whose panes are given as JSON; `extra` goes into the top level.
+    fn stacked(panes: &str, extra: &str) -> String {
+        format!(
+            r#"{{
+                "schemaVersion": 1,
+                "type": "time",
+                "title": "Share price",
+                "timeAxis": {{"title": "Day"}}{extra},
+                "panes": [{panes}]
+            }}"#
+        )
+    }
+
+    fn candle_pane(extra_layers: &str) -> String {
+        format!(
+            r#"{{"heightRatio": 3, "valueAxis": {{"title": "Price", "decimals": 2}}, "layers": [{{"mark": "ohlc", "name": "Price", "data": {CANDLES}}}{extra_layers}]}}"#
+        )
+    }
+
+    const VOLUME_PANE: &str = r#"{"valueAxis": {"title": "Volume", "format": "percent"}, "layers": [{"mark": "area", "name": "Volume", "points": [{"time": "2026-03-02", "value": 0.12}, {"time": "2026-03-03", "value": 0.2}, {"time": "2026-03-04", "value": 0.08}]}]}"#;
+
+    #[test]
+    fn candles_differ_in_shape_and_color_by_direction() {
+        let output = render_ok(&stacked(&candle_pane(""), ""));
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = output.content;
+        // A rising candle is hollow, a falling one filled; the legend sample shows both.
+        assert_eq!(
+            svg.matches("class=\"chartlet-candle chartlet-candle-rise\"")
+                .count(),
+            3,
+            "two rising or level candles and the legend sample"
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-candle chartlet-candle-fall\"")
+                .count(),
+            2
+        );
+        assert!(svg.contains(
+            ".chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}"
+        ));
+        assert!(svg.contains(".chartlet-theme-dark{--chartlet-rise:"));
+        assert!(svg.contains("Price (hollow: rising, filled: falling)</text>"));
+        assert!(svg.contains(
+            "<title>2026-03-02 – Price: open 10.00, high 12.00, low 9.00, close 11.00</title>"
+        ));
+        // A level candle keeps a body one pixel high.
+        assert!(svg.contains(" height=\"1\" class=\"chartlet-candle chartlet-candle-rise\""));
+        assert!(svg.contains(
+            "opened at 10.00 on 2026-03-02 and closed at 9.00 on 2026-03-04, a change of \u{2212}1.00 (\u{2212}10.0%); high 12.00 on 2026-03-02, low 8.00 on 2026-03-03."
+        ), "{svg}");
+        let html = html_ok(&stacked(&candle_pane(""), ""));
+        assert!(html.contains("<th scope=\"col\">Price (open)</th><th scope=\"col\">Price (high)</th><th scope=\"col\">Price (low)</th><th scope=\"col\">Price (close)</th>"));
+        assert!(html.contains("<td>11.00</td><td>11.50</td><td>8.00</td><td>9.00</td>"));
+        // Charts without candles carry none of their styles.
+        assert!(!render_ok(TIME).content.contains("chartlet-rise"));
+    }
+
+    #[test]
+    fn dense_candles_are_drawn_as_wicks_only() {
+        // 704 plot pixels at the default width leave room for 234 candles.
+        let data = (0..240)
+            .map(|index| {
+                format!(
+                    r#"{{"time": {}, "open": 10, "high": 12, "low": 9, "close": 11}}"#,
+                    1_770_000_000 + index * 86_400
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let output = render_ok(&stacked(
+            &format!(r#"{{"layers": [{{"mark": "ohlc", "data": [{data}]}}]}}"#),
+            "",
+        ));
+        assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
+        assert_eq!(output.warnings[0].code, "dense_chart");
+        assert_eq!(output.warnings[0].path, "/panes/0/layers/0/data");
+        let svg = output.content;
+        assert_eq!(
+            svg.matches("class=\"chartlet-wick chartlet-wick-rise\"")
+                .count(),
+            241
+        );
+        // Only the legend sample keeps its bodies.
+        assert_eq!(
+            svg.matches("class=\"chartlet-candle chartlet-candle-rise\"")
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn invalid_candles_are_refused_with_their_path() {
+        let refuse = |data: &str, layer: &str| {
+            render_err(&stacked(
+                &format!(r#"{{"layers": [{{"mark": "ohlc", "data": {data}{layer}}}]}}"#),
+                "",
+            ))
+        };
+        let valid = CANDLES;
+        assert_eq!(
+            refuse(&valid.replace("\"low\": 8,", "\"low\": 9.5,"), ""),
+            ("invalid_candle", "/panes/0/layers/0/data/1/low".to_owned())
+        );
+        assert_eq!(
+            refuse(&valid.replace("\"high\": 12,", "\"high\": 10.5,"), ""),
+            ("invalid_candle", "/panes/0/layers/0/data/0/high".to_owned())
+        );
+        assert_eq!(
+            refuse(&valid.replace("2026-03-03", "2026-03-02"), ""),
+            ("unordered_time", "/panes/0/layers/0/data/1/time".to_owned())
+        );
+        assert_eq!(
+            refuse(&valid.replace("\"open\": 10,", "\"open\": 1e101,"), ""),
+            (
+                "unsupported_numeric_range",
+                "/panes/0/layers/0/data/0/open".to_owned()
+            )
+        );
+        assert_eq!(
+            refuse(
+                r#"[{"time": "2026-03-02", "open": 1, "high": 2, "low": 0, "close": 1}]"#,
+                ""
+            ),
+            ("empty_series", "/panes/0/layers/0/data".to_owned())
+        );
+        assert_eq!(
+            refuse(valid, r##", "color": "#123""##),
+            ("option_not_supported", "/panes/0/layers/0/color".to_owned())
+        );
+        assert_eq!(
+            refuse(valid, r#", "points": [{"time": "2026-03-02", "value": 1}]"#),
+            (
+                "option_not_supported",
+                "/panes/0/layers/0/points".to_owned()
+            )
+        );
+        assert_eq!(
+            render_err(&multiples(&format!(
+                r#"{{"title": "A", "layers": [{{"mark": "ohlc", "data": {valid}}}]}}, {}"#,
+                panel("B", 1.0)
+            ))),
+            ("option_not_supported", "/panes/0/layers/0/mark".to_owned())
+        );
+    }
+
+    #[test]
+    fn panes_stack_by_their_ratio_and_share_one_time_axis_at_the_bottom() {
+        let svg = render_ok(&stacked(&format!("{}, {VOLUME_PANE}", candle_pane("")), "")).content;
+        // 450 high: the plot runs from 102 (title and one legend row) to 394 (time axis title).
+        // Less the gap of 36, the ratio 3:1 splits 256 pixels into 192 and 64.
+        let titles = placed_texts(&svg, "chartlet-axis-title");
+        let at = |name: &str| {
+            titles
+                .iter()
+                .find(|(_, _, content)| content == name)
+                .map(|(_, y, _)| *y)
+                .expect("the axis title is drawn")
+        };
+        assert!((at("Price") - 82.0).abs() < 1e-9);
+        assert!((at("Volume") - 310.0).abs() < 1e-9);
+        // Time tick labels sit only below the bottom pane; value ticks at the left of both.
+        let ticks = placed_texts(&svg, "chartlet-tick");
+        let time_ticks: Vec<_> = ticks.iter().filter(|(x, _, _)| *x > 72.0).collect();
+        assert!(!time_ticks.is_empty());
+        assert!(
+            time_ticks.iter().all(|(_, y, _)| (*y - 418.0).abs() < 1e-9),
+            "{time_ticks:?}"
+        );
+        assert!(
+            ticks
+                .iter()
+                .any(|(x, _, content)| *x <= 72.0 && !content.ends_with('%'))
+        );
+        assert!(ticks.iter().any(|(_, _, content)| content.ends_with('%')));
+        // Vertical grid lines run through both panes, each within its own.
+        assert!(svg.contains("y1=\"102\" x2="));
+        assert!(svg.contains("y1=\"330\" x2="));
+        assert!(svg.contains("y2=\"394\" class=\"chartlet-grid\""));
+        // The panes share one legend, and the area of the second pane takes the next palette
+        // color, since candles take none.
+        assert!(svg.contains("Volume</text>"));
+        assert!(svg.contains("chartlet-area chartlet-band-series-1"));
+        assert!(svg.contains(" 2 stacked panes on one time axis: Price, Volume."));
+        assert!(
+            svg.contains(
+                " Volume – Highest: 20% (Volume in 2026-03-03). Lowest: 8% (Volume in 2026-03-04)."
+            ),
+            "{svg}"
+        );
+    }
+
+    #[test]
+    fn every_pane_writes_its_values_by_its_own_axis() {
+        let html = html_ok(&stacked(
+            &format!(
+                "{}, {VOLUME_PANE}",
+                candle_pane(
+                    r#", {"mark": "line", "name": "Average", "points": [{"time": "2026-03-02", "value": 10.5}, {"time": "2026-03-04", "value": 10}]}, {"mark": "annotation", "label": "Target", "value": 11}"#
+                )
+            ),
+            "",
+        ));
+        assert!(html.contains("<td>10.50</td>"), "{html}");
+        assert!(html.contains("<td>12%</td>"));
+        assert!(html.contains("Reference lines: Target at 11.00."));
+        assert!(
+            html.contains("chartlet-line-series-1"),
+            "the line takes the first palette color"
+        );
+    }
+
+    #[test]
+    fn pane_limits_are_refused_by_name() {
+        let line = |name: &str| {
+            format!(
+                r#"{{"layers": [{{"mark": "line", "name": "{name}", "points": [{{"time": "2026-03-02", "value": 1}}, {{"time": "2026-03-03", "value": 2}}]}}]}}"#
+            )
+        };
+        let five = (0..5)
+            .map(|index| line(&format!("L{index}")))
+            .collect::<Vec<_>>()
+            .join(",");
+        assert_eq!(
+            render_err(&stacked(&five, "")),
+            ("too_many_panes", "/panes".to_owned())
+        );
+        let four = (0..4)
+            .map(|index| line(&format!("L{index}")))
+            .collect::<Vec<_>>()
+            .join(",");
+        assert!(render_ok(&stacked(&four, "")).warnings.is_empty());
+        let tall = format!(
+            "{}, {}",
+            line("A"),
+            line("B").replacen('{', r#"{"heightRatio": 11, "#, 1)
+        );
+        assert_eq!(
+            render_err(&stacked(&tall, "")),
+            ("invalid_height_ratio", "/panes/1/heightRatio".to_owned())
+        );
+        assert_eq!(
+            render_err(&stacked(&format!("{}, {}", line("A"), line("A")), "")),
+            ("duplicate_series", "/panes/1/layers/0/name".to_owned())
+        );
+        let anonymous = line("A").replace(r#""name": "A", "#, "");
+        assert_eq!(
+            render_err(&stacked(&format!("{anonymous}, {}", line("B")), "")),
+            ("missing_name", "/panes/0/layers/0/name".to_owned())
+        );
+        let two = r#"{"layers": [{"mark": "line", "name": "X", "points": [{"time": "2026-03-02", "value": 1}, {"time": "2026-03-03", "value": 2}]}, {"mark": "line", "name": "Y", "points": [{"time": "2026-03-02", "value": 1}, {"time": "2026-03-03", "value": 2}]}]}"#;
+        assert_eq!(
+            render_err(&stacked(
+                &format!("{four}, {two}")
+                    .replacen(&line("L3"), "", 1)
+                    .replace(",,", ","),
+                ""
+            )),
+            ("too_many_layers", "/panes/3/layers/1/color".to_owned())
+        );
+        let late = line("Late")
+            .replace("2026-03-02", "2026-03-10")
+            .replace("2026-03-03", "2026-03-11");
+        let zoomed = stacked(
+            &format!("{}, {late}", line("Early")),
+            r#", "zoomSteps": [{"label": "All", "from": "2026-03-01", "to": "2026-03-12"}, {"label": "Early", "from": "2026-03-01", "to": "2026-03-04"}]"#,
+        );
+        assert_eq!(
+            render_err(&zoomed),
+            ("zoom_out_of_range", "/zoomSteps/1".to_owned())
+        );
+        let squeezed = stacked(&tall.replace("11", "10"), r#", "height": 240"#);
+        let output = render_ok(&squeezed);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "dense_chart"
+                    && warning.path == "/panes/0/heightRatio"),
+            "{:?}",
+            output.warnings
+        );
+    }
+
+    #[test]
+    fn german_candles_and_panes_write_german_texts() {
+        let spec = stacked(
+            &format!("{}, {VOLUME_PANE}", candle_pane("")),
+            r#", "locale": "de""#,
+        );
+        let html = html_ok(&spec);
+        assert!(html.contains("Price (hohl: steigend, gefüllt: fallend)</text>"));
+        assert!(html.contains(
+            "<title>2026-03-02 – Price: Eröffnung 10,00; Hoch 12,00; Tief 9,00; Schluss 11,00</title>"
+        ));
+        assert!(
+            html.contains(
+                " 2 übereinanderliegende Teildiagramme auf einer Zeitachse: Price, Volume."
+            )
+        );
+        assert!(html.contains(
+            "Price: Eröffnung 10,00 am 2026-03-02, Schluss 9,00 am 2026-03-04, Veränderung \u{2212}1,00 (\u{2212}10,0\u{202f}%); Hoch 12,00 am 2026-03-02, Tief 8,00 am 2026-03-03."
+        ), "{html}");
+        assert!(html.contains("<th scope=\"col\">Price (Eröffnung)</th><th scope=\"col\">Price (Hoch)</th><th scope=\"col\">Price (Tief)</th><th scope=\"col\">Price (Schluss)</th>"));
+        assert!(html.contains("<td>12\u{202f}%</td>"));
+    }
+
+    /// The specification with a `mobile` field added at the top level.
+    fn with_mobile(specification: &str, mobile: &str) -> String {
+        specification.replacen('{', &format!("{{\"mobile\": {mobile},"), 1)
+    }
+
+    fn mobile_svg(specification: &str) -> Result<super::RenderOutput, super::ChartError> {
+        render_json(
+            specification,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: Variant::Mobile,
+                ..RenderOptions::default()
+            },
+        )
+    }
+
+    #[test]
+    fn mobile_sizes_are_validated_with_their_paths() {
+        for (mobile, path) in [
+            (r#"{"width": 279}"#, "/mobile/width"),
+            (r#"{"width": 601}"#, "/mobile/width"),
+            (r#"{"width": 360, "height": 239}"#, "/mobile/height"),
+            (r#"{"width": 360, "height": 1601}"#, "/mobile/height"),
+            (r#"{"width": 360, "breakpoint": 319}"#, "/mobile/breakpoint"),
+            (
+                r#"{"width": 360, "breakpoint": 1601}"#,
+                "/mobile/breakpoint",
+            ),
+        ] {
+            let error = render_json(
+                &with_mobile(GROUPED, mobile),
+                RenderFormat::Html,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!(
+                (error.code, error.path.as_str()),
+                ("invalid_dimension", path)
+            );
+        }
+        let missing = render_json(
+            &with_mobile(GROUPED, r#"{"height": 360}"#),
+            RenderFormat::Html,
+            &RenderOptions::default(),
+        )
+        .unwrap_err();
+        assert_eq!(
+            (missing.code, missing.path.as_str()),
+            ("invalid_spec", "/mobile")
+        );
+    }
+
+    #[test]
+    fn a_missing_mobile_field_keeps_the_default_id() {
+        let plain = render_json(GROUPED, RenderFormat::Svg, &RenderOptions::default()).unwrap();
+        let spec = ChartSpec::from_json(GROUPED).unwrap();
+        assert!(spec.mobile.is_none());
+        assert!(!serde_json::to_string(&spec).unwrap().contains("mobile"));
+        assert!(plain.content.contains("id=\"chartlet-"));
+    }
+
+    #[test]
+    fn html_carries_both_variants_behind_a_container_query() {
+        let specification = with_mobile(GROUPED, r#"{"width": 360, "breakpoint": 700}"#);
+        let html = render_json(
+            &specification,
+            RenderFormat::Html,
+            &RenderOptions {
+                id_prefix: Some("chart".to_owned()),
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap()
+        .content;
+        assert!(html.starts_with(
+            "<div class=\"chartlet-wrapper chartlet-responsive chartlet-bp-700\"><style>"
+        ));
+        assert!(html.contains("container-type:inline-size"));
+        assert!(html.contains("@container (max-width:699px){.chartlet-bp-700 .chartlet-variant-desktop{display:none}.chartlet-bp-700 .chartlet-variant-mobile{display:block}}"));
+        assert!(html.contains(".chartlet-variant-mobile{display:none}"));
+        assert!(html.contains("<div class=\"chartlet-variant-desktop\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"800\" height=\"450\""));
+        assert!(html.contains("<div class=\"chartlet-variant-mobile\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"360\" height=\"360\""));
+        assert!(html.contains("id=\"chart\""));
+        assert!(html.contains("id=\"chart-m\""));
+        assert!(html.contains("aria-labelledby=\"chart-m-title chart-m-description\""));
+        // Every ID is unique across both variants.
+        let ids = html
+            .split(" id=\"")
+            .skip(1)
+            .map(|rest| rest.split('"').next().unwrap())
+            .collect::<Vec<_>>();
+        let unique = ids.iter().collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(ids.len(), unique.len(), "{ids:?}");
+        // Caption, source, filter and data table appear once.
+        for once in [
+            "<figcaption>",
+            "<table>",
+            "<fieldset class=\"chartlet-filter\">",
+        ] {
+            assert_eq!(html.matches(once).count(), 1, "{once}");
+        }
+        // The series filter reaches the bars of both variants.
+        assert!(html.contains(".chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}"));
+        assert_eq!(html.matches("<svg").count(), 2);
+    }
+
+    #[test]
+    fn the_svg_profile_is_unchanged_by_a_mobile_variant() {
+        let options = RenderOptions {
+            id_prefix: Some("chart".to_owned()),
+            ..RenderOptions::default()
+        };
+        let plain = render_json(GROUPED, RenderFormat::Svg, &options).unwrap();
+        let responsive = render_json(
+            &with_mobile(GROUPED, r#"{"width": 360}"#),
+            RenderFormat::Svg,
+            &options,
+        )
+        .unwrap();
+        assert_eq!(plain.content, responsive.content);
+    }
+
+    #[test]
+    fn the_mobile_variant_renders_alone_as_svg() {
+        let output = mobile_svg(&with_mobile(GROUPED, r#"{"width": 320, "height": 400}"#))
+            .unwrap()
+            .content;
+        assert!(output.starts_with("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"320\" height=\"400\" viewBox=\"0 0 320 400\" id=\"chartlet-"));
+        assert!(output.contains("-m-title\""));
+
+        let error = mobile_svg(GROUPED).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("missing_mobile", "/mobile")
+        );
+
+        let error = render_json(
+            &with_mobile(GROUPED, r#"{"width": 360}"#),
+            RenderFormat::Html,
+            &RenderOptions {
+                variant: Variant::Mobile,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("option_not_supported", "/render/variant")
+        );
+    }
+
+    #[test]
+    fn zoom_panels_carry_both_variants_under_one_radio_group() {
+        let specification = r#"{
+            "schemaVersion": 1,
+            "type": "bar",
+            "title": "Quarterly revenue",
+            "mobile": {"width": 360},
+            "data": [
+                {"label": "Q1", "value": 320},
+                {"label": "Q2", "value": 345},
+                {"label": "Q3", "value": 380},
+                {"label": "Q4", "value": 410}
+            ],
+            "zoomSteps": [
+                {"label": "First half", "from": 0, "to": 1},
+                {"label": "All", "from": 0, "to": 3}
+            ]
+        }"#;
+        let html = render_json(
+            specification,
+            RenderFormat::Html,
+            &RenderOptions {
+                id_prefix: Some("q".to_owned()),
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap()
+        .content;
+        assert_eq!(
+            html.matches("<fieldset class=\"chartlet-zoom\">").count(),
+            1
+        );
+        assert_eq!(html.matches("type=\"radio\"").count(), 2);
+        for id in ["q-z0", "q-z0-m", "q-z1", "q-z1-m"] {
+            assert!(html.contains(&format!("id=\"{id}\"")), "{id}");
+        }
+        assert!(html.contains("<div class=\"chartlet-panel chartlet-panel-1\"><div class=\"chartlet-variant-desktop\"><svg"));
+        assert_eq!(html.matches("<table>").count(), 1);
+    }
+
+    #[test]
+    fn warnings_of_the_mobile_variant_are_marked_and_deduplicated() {
+        // A label that is shortened at both sizes is reported once; one that only the mobile
+        // variant shortens is reported as coming from it.
+        let specification = r#"{
+            "schemaVersion": 1,
+            "type": "bar",
+            "title": "Revenue",
+            "mobile": {"width": 280},
+            "categories": ["An exceptionally long category label that never fits", "B"],
+            "series": [
+                {"name": "Direct", "values": [1, 2]},
+                {"name": "A partner network with a long name", "values": [2, 1]}
+            ]
+        }"#;
+        let desktop = render_json(specification, RenderFormat::Svg, &RenderOptions::default())
+            .unwrap()
+            .warnings;
+        let html = render_json(specification, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .warnings;
+        assert!(html.starts_with(&desktop));
+        let added = &html[desktop.len()..];
+        assert!(!added.is_empty());
+        for warning in added {
+            assert!(
+                warning.message.starts_with("mobile variant: "),
+                "{warning:?}"
+            );
+            assert!(
+                !desktop
+                    .iter()
+                    .any(|seen| (seen.code, &seen.path) == (warning.code, &warning.path)),
+                "{warning:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_mobile_variant_is_checked_for_density_at_its_own_width() {
+        let points = (0..400)
+            .map(|index| {
+                format!(
+                    "{{\"time\": {}, \"value\": {index}}}",
+                    1_772_323_200 + index * 3600
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let specification = format!(
+            r#"{{"schemaVersion": 1, "type": "time", "title": "Load", "mobile": {{"width": 280}},
+            "panes": [{{"layers": [{{"mark": "line", "points": [{points}]}}]}}]}}"#
+        );
+        let desktop = render_json(&specification, RenderFormat::Svg, &RenderOptions::default())
+            .unwrap()
+            .warnings;
+        assert!(!desktop.iter().any(|warning| warning.code == "dense_chart"));
+        let html = render_json(
+            &specification,
+            RenderFormat::Html,
+            &RenderOptions::default(),
+        )
+        .unwrap()
+        .warnings;
+        assert!(html.iter().any(|warning| warning.code == "dense_chart"
+            && warning.message.starts_with("mobile variant: ")));
+    }
+
+    #[test]
+    fn the_topic_picker_switches_both_variants() {
+        let specification = with_mobile(
+            include_str!("../examples/topicmap-sample.json"),
+            r#"{"width": 360}"#,
+        );
+        let html = render_json(
+            &specification,
+            RenderFormat::Html,
+            &RenderOptions::default(),
+        )
+        .unwrap()
+        .content;
+        assert_eq!(
+            html.matches("<fieldset class=\"chartlet-topic-picker\">")
+                .count(),
+            1
+        );
+        assert_eq!(html.matches("<svg").count(), 2);
+        // The picker's rules name both variants' root IDs.
+        let rule = ":checked) #{root} .chartlet-topic-area.chartlet-topic-0{";
+        let desktop = html.split(" id=\"").nth(1).unwrap();
+        let desktop = &desktop[..desktop.find('"').unwrap()];
+        assert!(html.contains(&rule.replace("{root}", desktop)));
+        assert!(html.contains(&rule.replace("{root}", &format!("{desktop}-m"))));
+        assert!(html.starts_with("<div class=\"chartlet-wrapper chartlet-responsive"));
     }
 }
