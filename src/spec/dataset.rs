@@ -191,8 +191,8 @@ impl ChartSpec {
                         .collect(),
                     style: Some(NumberStyle {
                         format: ValueFormat::Percent,
-                        decimals: None,
                         locale: self.locale,
+                        ..NumberStyle::default()
                     }),
                 },
             ],
@@ -325,10 +325,10 @@ impl ChartSpec {
     /// How values are written: the value format, the fixed decimals of the axis that applies, and
     /// the locale.
     pub(crate) fn number_style(&self) -> NumberStyle {
-        let decimals = match self.chart_type {
-            ChartType::Time => self.panes.first().and_then(|pane| pane.value_axis.decimals),
+        let axis = match self.chart_type {
+            ChartType::Time => self.panes.first().map(|pane| &pane.value_axis),
             ChartType::Bar | ChartType::Line | ChartType::Rangebar | ChartType::Multiples => {
-                self.value_axis.decimals
+                Some(&self.value_axis)
             }
             ChartType::Topicmap | ChartType::Atlas | ChartType::Stripes | ChartType::Calendar => {
                 None
@@ -336,8 +336,9 @@ impl ChartSpec {
         };
         NumberStyle {
             format: self.value_format(),
-            decimals,
+            decimals: axis.and_then(|axis| axis.decimals),
             locale: self.locale,
+            thousands: axis.is_some_and(|axis| axis.thousands_separator),
         }
     }
 
@@ -349,6 +350,7 @@ impl ChartSpec {
                 format: self.panes[pane_index].value_axis.format,
                 decimals: self.panes[pane_index].value_axis.decimals,
                 locale: self.locale,
+                thousands: self.panes[pane_index].value_axis.thousands_separator,
             },
             _ => self.number_style(),
         }

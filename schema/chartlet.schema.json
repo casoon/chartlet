@@ -351,6 +351,11 @@
         "max": {
           "description": "The axis reaches at least up to this value.",
           "type": "number"
+        },
+        "thousandsSeparator": {
+          "description": "Separate thousands in every written value: 12,500 (en) or 12.500 (de).",
+          "type": "boolean",
+          "default": false
         }
       }
     },

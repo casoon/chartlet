@@ -327,6 +327,7 @@ pub(crate) fn describe(
                 format: ValueFormat::Percent,
                 decimals: Some(1),
                 locale: spec.locale,
+                thousands: false,
             },
         )
     });

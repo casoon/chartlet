@@ -130,9 +130,21 @@ pub(crate) fn format_value(value: f64, style: impl Into<NumberStyle>) -> String 
         digits
     };
     let digits = digits.replace('-', "\u{2212}");
+    let digits = if style.thousands {
+        separate_thousands(&digits)
+    } else {
+        digits
+    };
     let digits = match style.locale {
         Locale::En => digits,
-        Locale::De => digits.replace('.', ","),
+        Locale::De => digits
+            .chars()
+            .map(|c| match c {
+                '.' => ',',
+                ',' => '.',
+                c => c,
+            })
+            .collect(),
     };
     let suffix = match (style.format, style.locale) {
         (ValueFormat::Number, _) => "",
@@ -140,6 +152,26 @@ pub(crate) fn format_value(value: f64, style: impl Into<NumberStyle>) -> String 
         (ValueFormat::Percent, Locale::De) => "\u{202f}%",
     };
     format!("{digits}{suffix}")
+}
+
+/// Puts a comma between every three digits of the integer part: `\u{2212}12345.6` becomes
+/// `\u{2212}12,345.6`.
+fn separate_thousands(digits: &str) -> String {
+    let start = digits.find(|c: char| c.is_ascii_digit()).unwrap_or(0);
+    let end = digits[start..]
+        .find(|c: char| !c.is_ascii_digit())
+        .map_or(digits.len(), |offset| start + offset);
+    let integer = &digits[start..end];
+    let mut grouped = String::with_capacity(digits.len() + integer.len() / 3);
+    grouped.push_str(&digits[..start]);
+    for (index, digit) in integer.chars().enumerate() {
+        if index > 0 && (integer.len() - index).is_multiple_of(3) {
+            grouped.push(',');
+        }
+        grouped.push(digit);
+    }
+    grouped.push_str(&digits[end..]);
+    grouped
 }
 
 /// Writes an axis tick with as many decimals as the tick step has, so that every tick of an axis
@@ -327,6 +359,28 @@ mod tests {
             ..de
         };
         assert_eq!(format_value(0.125, percent), "12,5\u{202f}%");
+    }
+
+    #[test]
+    fn separates_thousands_only_when_asked() {
+        let en = NumberStyle {
+            thousands: true,
+            ..NumberStyle::default()
+        };
+        assert_eq!(format_value(1_234_567.5, en), "1,234,567.5");
+        assert_eq!(format_value(-12_500.0, en), "\u{2212}12,500");
+        assert_eq!(format_value(999.0, en), "999");
+        assert_eq!(format_value(2024.0, NumberStyle::default()), "2024");
+        let de = NumberStyle {
+            locale: Locale::De,
+            ..en
+        };
+        assert_eq!(format_value(12_500.25, de), "12.500,25");
+        let percent = NumberStyle {
+            format: ValueFormat::Percent,
+            ..de
+        };
+        assert_eq!(format_value(12.5, percent), "1.250\u{202f}%");
     }
 
     #[test]

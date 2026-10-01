@@ -162,12 +162,14 @@ impl Locale {
     }
 }
 
-/// How a value is written: format, fixed decimals if any, and locale.
+/// How a value is written: format, fixed decimals if any, locale, and whether thousands are
+/// separated.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct NumberStyle {
     pub format: ValueFormat,
     pub decimals: Option<u8>,
     pub locale: Locale,
+    pub thousands: bool,
 }
 
 impl From<ValueFormat> for NumberStyle {
@@ -235,6 +237,10 @@ pub struct ValueAxisSpec {
     /// The axis reaches at least up to this value.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max: Option<f64>,
+    /// Separates thousands in every written value: `12,500` or, in German, `12.500`. Off by
+    /// default, because four digits are often years.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub thousands_separator: bool,
 }
 
 impl ValueAxisSpec {
@@ -627,11 +633,14 @@ impl ChartSpec {
                 "a time chart sets the value format inside its pane",
             ));
         }
-        if self.value_axis.min.is_some() || self.value_axis.max.is_some() {
+        if self.value_axis.min.is_some()
+            || self.value_axis.max.is_some()
+            || self.value_axis.thousands_separator
+        {
             return Err(ChartError::new(
                 "option_not_supported",
                 "/valueAxis",
-                "a time chart sets the value axis range inside its pane",
+                "a time chart sets the value axis range and number style inside its pane",
             ));
         }
         Ok(())
@@ -717,6 +726,7 @@ impl ChartSpec {
             || self.value_axis.format != ValueFormat::Number
             || self.value_axis.min.is_some()
             || self.value_axis.max.is_some()
+            || self.value_axis.thousands_separator
         {
             return Err(ChartError::new(
                 "option_not_supported",
