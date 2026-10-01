@@ -43,9 +43,11 @@ const MARK_EXTRA_STYLE: &str = ".chartlet-area{stroke:none;fill-opacity:.18}.cha
 const ANNOTATION_EXTRA_STYLE: &str = ".chartlet-zone{fill:var(--chartlet-zero);fill-opacity:.14;stroke:none}.chartlet-marker{fill:var(--chartlet-text);stroke:var(--chartlet-background);stroke-width:1.5;stroke-linejoin:round}";
 
 /// Candlesticks. A rising candle is hollow and a falling one filled, so the direction does not
-/// rest on the two colors; both keep at least 4.5:1 against the background of their theme. Only
+/// rest on the two colors; both keep at least 4.5:1 against the background of their theme, and
+/// they differ in lightness too (about 1.9:1 light, 3.1:1 dark), which grayscale print and
+/// color-vision deficiencies keep. Only
 /// included when a chart draws candles, for the same reason as [`LAYER_EXTRA_STYLE`].
-const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0f766e;--chartlet-fall:#b42318}.chartlet-theme-dark{--chartlet-rise:#4fd1c5;--chartlet-fall:#ff8a80}.chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}";
+const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall:#d03a0f}.chartlet-theme-dark{--chartlet-rise:#99f6e4;--chartlet-fall:#e5484d}.chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}";
 
 /// Small multiples draw thinner lines, because their plots are small.
 const MULTIPLES_STYLE: &str = ".chartlet-multiples .chartlet-line{stroke-width:2}.chartlet-panel-title{font-size:13px;font-weight:650;fill:var(--chartlet-text)}";
