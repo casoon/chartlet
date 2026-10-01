@@ -1,0 +1,153 @@
+---
+import { renderChart } from '@casoon/chartlet';
+import { CodeBlock } from '@casoon/pages-theme/components';
+import Base from '@casoon/pages-theme/layouts/Base.astro';
+import { spec } from '../showcase';
+
+// The same example specifications as the showcase, rendered with `hooks: true` so that the
+// optional module in the script below can read them.
+function chart(slug: string, id: string): string {
+  return renderChart(spec(slug), { format: 'html', idPrefix: id, hooks: true }).content;
+}
+
+const sensors = chart('sensor-readings', 'sensors');
+const pathways = chart('emission-pathways', 'pathways');
+const projection = chart('temperature-projection', 'projection');
+const threshold = chart('annual-mean-threshold', 'threshold');
+
+const usage = `import { enhance, crosshair, toggle, steps, play } from '@casoon/chartlet/interactive';
+
+for (const figure of document.querySelectorAll('figure.chartlet-figure')) {
+  enhance(figure, { crosshair, toggle, steps, play });
+}`;
+---
+
+<Base
+  title="Interactive charts"
+  description="The optional module @casoon/chartlet/interactive: crosshair, series toggle, scroll stations and playback on top of the static charts."
+>
+  <div class="page">
+    <h1>Interactive charts</h1>
+    <p class="lead">
+      Every chart below is the static output of chartlet, rendered with <code>hooks: true</code>.
+      The optional module <code>@casoon/chartlet/interactive</code> adds a crosshair, series
+      toggles, scroll stations and playback. It reads the values from the data table and the
+      geometry from <code>data-*</code> hooks, and lays nothing out again. Without JavaScript each
+      chart stays as it is, with its caption, description and table.
+    </p>
+    <CodeBlock code={usage} lang="js" />
+
+    <section aria-labelledby="crosshair-heading">
+      <h2 id="crosshair-heading">Crosshair and series toggle</h2>
+      <p>
+        Move the pointer over the chart, or focus it with Tab and use the arrow keys, Home and End;
+        Escape closes the values. The checkboxes switch a series off without rescaling the axis.
+      </p>
+      <div class="surface" data-features="crosshair toggle" set:html={sensors} />
+    </section>
+
+    <section aria-labelledby="multiples-heading">
+      <h2 id="multiples-heading">Small multiples in step</h2>
+      <p>One crosshair runs through every panel, because they share the time axis.</p>
+      <div class="surface" data-features="crosshair toggle" set:html={pathways} />
+    </section>
+
+    <section aria-labelledby="play-heading">
+      <h2 id="play-heading">Playback</h2>
+      <p>
+        Play reveals the measurements year by year; Pause and Show all stop it. With reduced
+        motion there is no playback, only the step buttons.
+      </p>
+      <div class="surface" data-features="crosshair play" set:html={projection} />
+    </section>
+
+    <section aria-labelledby="steps-heading" class="steps">
+      <h2 id="steps-heading">Scroll stations</h2>
+      <div class="sticky">
+        <div class="surface" data-features="steps" set:html={threshold} />
+      </div>
+      <div class="stations">
+        <p data-chartlet-step="threshold">Single years swing widely around their mean.</p>
+        <p data-chartlet-step="threshold" data-chartlet-highlight="20-year mean">
+          The 20-year mean shows the trend beneath the swings.
+        </p>
+        <p data-chartlet-step="threshold" data-chartlet-annotation="2">
+          The line marks the 1.5 °C limit.
+        </p>
+        <p data-chartlet-step="threshold" data-chartlet-range="1990 2024">
+          Since 1990 the mean has climbed steadily.
+        </p>
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  import { crosshair, enhance, play, steps, toggle } from '@casoon/chartlet/interactive';
+
+  const features = { crosshair, toggle, steps, play };
+  for (const surface of document.querySelectorAll<HTMLElement>('[data-features]')) {
+    const chosen = Object.fromEntries(
+      (surface.dataset.features ?? '')
+        .split(' ')
+        .map((name) => [name, features[name as keyof typeof features]]),
+    );
+    enhance(surface.querySelector('figure.chartlet-figure') ?? surface, chosen);
+  }
+</script>
+
+<style>
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 16px 64px;
+  }
+  .lead {
+    font-size: 1.1rem;
+  }
+  section {
+    margin-top: 48px;
+  }
+  /* chartlet's light palette assumes a light surface; the site's theme may be dark. */
+  .surface {
+    background: #fff;
+    color: #172033;
+    color-scheme: light;
+    padding: 16px;
+    border-radius: 10px;
+    overflow-x: auto;
+  }
+  .steps {
+    display: grid;
+    gap: 24px;
+  }
+  .sticky {
+    position: sticky;
+    top: 8px;
+    z-index: 1;
+  }
+  .stations p {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    font-size: 1.1rem;
+  }
+  @media (min-width: 900px) {
+    .steps {
+      grid-template-columns: 1fr 2fr;
+      align-items: start;
+    }
+    .steps h2 {
+      grid-column: 1 / -1;
+    }
+    .sticky {
+      grid-column: 2;
+      grid-row: 2;
+      top: 20vh;
+    }
+    .stations {
+      grid-column: 1;
+      grid-row: 2;
+    }
+  }
+</style>

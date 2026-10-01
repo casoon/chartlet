@@ -27,8 +27,11 @@ for (const route of routes()) {
         .analyze();
       expect(accessibility.violations).toEqual([]);
 
-      // The theme's two small inline scripts only; nothing is loaded from elsewhere.
-      await expect(page.locator('script[src]')).toHaveCount(0);
+      // The theme's two small inline scripts only; nothing is loaded from elsewhere. The page of
+      // the optional interactive module loads that module, from the site itself.
+      if (route !== 'interactive/') {
+        await expect(page.locator('script[src]')).toHaveCount(0);
+      }
 
       const internalPaths = await page.locator('a[href]').evaluateAll((links) =>
         links
