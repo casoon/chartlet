@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ChartSpec, default_true, validate_number};
+use super::{ChartSpec, default_true, is_false, validate_number};
 use crate::error::{ChartError, ChartWarning};
 
 /// Warming stripes: one stripe per year; beyond this the stripes get thinner than a pixel at the
@@ -36,6 +36,10 @@ pub struct StripesSpec {
     /// Label the first and the last year under the stripes.
     #[serde(default = "default_true")]
     pub year_labels: bool,
+    /// The stripes alone, filling the whole canvas without margins, title or year labels, in an
+    /// SVG that stretches to whatever height and width the page gives it: a band of color.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub stretch: bool,
 }
 
 impl StripesSpec {

@@ -30,15 +30,25 @@ pub(crate) fn layout(
         .expect("validated stripes charts carry a stripes block");
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
-    let plot_width = width - 2.0 * MARGIN;
-    let top = 56.0 + title_extra(spec, plot_width, metrics);
-    let bottom = if stripes.year_labels { 40.0 } else { 24.0 };
+    // Stretched, the stripes fill the canvas and nothing else is drawn.
+    let (margin, top, bottom) = if stripes.stretch {
+        (0.0, 0.0, 0.0)
+    } else {
+        (
+            MARGIN,
+            56.0 + title_extra(spec, width - 2.0 * MARGIN, metrics),
+            if stripes.year_labels { 40.0 } else { 24.0 },
+        )
+    };
+    let plot_width = width - 2.0 * margin;
     let plot_height = height - top - bottom;
     let stripe = plot_width / count(stripes.values.len());
     let scale = stripes.diverging();
 
     let mut elements = Vec::new();
-    push_title(&mut elements, spec, MARGIN, plot_width, metrics, warnings);
+    if !stripes.stretch {
+        push_title(&mut elements, spec, MARGIN, plot_width, metrics, warnings);
+    }
 
     let last = stripes.values.len() - 1;
     for (index, (year, value)) in stripes.years().zip(&stripes.values).enumerate() {
@@ -46,7 +56,7 @@ pub(crate) fn layout(
             continue;
         };
         elements.push(Element::Rect(Rect {
-            x: MARGIN + stripe * count(index),
+            x: margin + stripe * count(index),
             y: top,
             width: if index == last {
                 stripe
@@ -64,7 +74,7 @@ pub(crate) fn layout(
         }));
     }
 
-    if stripes.year_labels {
+    if stripes.year_labels && !stripes.stretch {
         let first = stripes.first_year;
         let last_year = stripes.years().last().unwrap_or(first);
         for (x, anchor, year) in [
@@ -81,7 +91,7 @@ pub(crate) fn layout(
         }
     }
 
-    if stripe < 1.0 {
+    if stripe < 1.0 && !stripes.stretch {
         warnings.push(ChartWarning::new(
             "dense_chart",
             "/stripes/values",

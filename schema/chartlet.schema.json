@@ -470,6 +470,11 @@
           "description": "Label the first and the last year under the stripes.",
           "type": "boolean",
           "default": true
+        },
+        "stretch": {
+          "description": "The stripes alone, filling the canvas without margins, title or year labels, in an SVG that stretches to the box the page gives it.",
+          "type": "boolean",
+          "default": false
         }
       }
     },

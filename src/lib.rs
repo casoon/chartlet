@@ -1060,6 +1060,17 @@ mod tests {
     }
 
     #[test]
+    fn stretched_stripes_fill_the_canvas_and_stretch() {
+        let spec = r#"{"schemaVersion": 1, "type": "stripes", "title": "Band",
+            "stripes": {"firstYear": 2000, "values": [0.1, -0.2, 0.3, 0.5], "stretch": true}}"#;
+        let svg = render_ok(spec).content;
+        assert!(svg.contains(" preserveAspectRatio=\"none\""));
+        assert!(svg.contains("<rect x=\"0\" y=\"0\""), "{svg}");
+        assert!(!svg.contains("class=\"chartlet-title\""));
+        assert!(!svg.contains("class=\"chartlet-tick\""));
+    }
+
+    #[test]
     fn a_sparkline_draws_only_its_line_at_a_small_size() {
         let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Visitors", "sparkline": true,
             "width": 120, "height": 32, "panes": [{"layers": [{"mark": "line", "name": "Visitors",

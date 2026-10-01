@@ -41,7 +41,7 @@ is the complete contract and can be used for editor validation.
 | `panes[].layers[].bottom` / `top` | band | Value edges of a zone; `bottom` must lie below `top`. A missing edge is the edge of the plot. Given edges widen the value axis. |
 | `panes[].layers[].from` / `to` | band | Time edges of a zone in the forms a point's `time` takes; `from` must lie before `to`. A missing edge is the edge of the plot. At least `bottom` and `top`, or `from` and `to`, are required. |
 | `panes[].layers[].label` | annotation, band | Required text of a reference line, point marker or zone. |
-| `stripes` | stripes | `{ "firstYear": 1850, "values": [..], "reference": 0, "min": .., "max": .., "yearLabels": true }`; `null` leaves a year empty. |
+| `stripes` | stripes | `{ "firstYear": 1850, "values": [..], "reference": 0, "min": .., "max": .., "yearLabels": true, "stretch": false }`; `null` leaves a year empty. `stretch: true` draws the stripes alone across the whole canvas, without margins, title or year labels, and the SVG stretches to whatever box the page gives it (`preserveAspectRatio="none"`): give it a height in CSS, such as a 6-pixel band. Title and description remain its accessible name and description. |
 | `calendar` | calendar | `{ "year": 2024, "layout": "months" \| "weeks", "days": [{ "date": "2024-03-01", "value": 1 }], "reference", "min", "max" }`. |
 | `ranges` | rangebar | `[{ "label": "…", "low": 0, "high": 1, "mid": 0.5, "modeled": false }]`; `orientation` applies. |
 | `patterns` | no | `bar` with `series` only: `true` draws every other series as an outline — the background inside, the series color around it — in the bars, the legend and stacks, so that series differ in form as well as in color. |

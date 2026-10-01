@@ -178,7 +178,7 @@ pub(crate) fn svg(
     let mut output = String::new();
     write!(
         output,
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}{}\"{}>",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}{}\"{}{}>",
         scene.width,
         scene.height,
         scene.width,
@@ -202,6 +202,12 @@ pub(crate) fn svg(
                 " data-chartlet-type=\"{}\" data-chartlet-id=\"{id_prefix}\"",
                 crate::spec::type_name(spec.chart_type)
             )
+        },
+        // Stretched stripes take whatever box the page gives them.
+        if spec.stripes.as_ref().is_some_and(|stripes| stripes.stretch) {
+            " preserveAspectRatio=\"none\""
+        } else {
+            ""
         }
     )
     .expect("writing to String cannot fail");
