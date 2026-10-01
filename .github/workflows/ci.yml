@@ -23,6 +23,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
 
       - uses: Swatinem/rust-cache@v2
 
@@ -30,7 +31,9 @@ jobs:
         run: cargo fmt --check
 
       - name: Lint
-        run: cargo clippy --all-targets -- -D warnings
+        run: |
+          cargo clippy --all-targets -- -D warnings
+          cargo clippy -p chartlet-wasm --target wasm32-unknown-unknown -- -D warnings
 
       # The golden tests compare against the committed SVGs, so this also checks that the
       # output is byte-identical on every platform.
@@ -44,6 +47,9 @@ jobs:
             base="${spec%.json}"
             ./target/debug/chartlet render "$spec" --format svg -o "$base.svg"
             ./target/debug/chartlet render "$spec" --format html -o "$base.html"
+            if [ -f "$base.mobile.svg" ]; then
+              ./target/debug/chartlet render "$spec" --variant mobile -o "$base.mobile.svg"
+            fi
           done
           git diff --exit-code -- examples/
 
@@ -53,12 +59,12 @@ jobs:
           cache: npm
           cache-dependency-path: packages/chartlet/package-lock.json
 
+      # The tests render through the WebAssembly build and, with an explicit binary, the CLI.
       - name: npm package and Astro integration
         working-directory: packages/chartlet
-        env:
-          CHARTLET_BIN: ${{ github.workspace }}/target/debug/chartlet
         run: |
           npm ci
+          npm run build:wasm
           npm test
 
       - uses: pnpm/action-setup@v6
@@ -76,6 +82,4 @@ jobs:
       - name: Site build and accessibility
         if: matrix.os == 'ubuntu-latest'
         working-directory: site
-        env:
-          CHARTLET_BIN: ${{ github.workspace }}/target/debug/chartlet
         run: pnpm test

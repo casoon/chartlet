@@ -19,6 +19,11 @@
       "types": "./src/index.d.ts",
       "import": "./src/render.mjs"
     },
+    "./wasm": {
+      "types": "./src/wasm.d.mts",
+      "import": "./src/wasm.mjs"
+    },
+    "./chartlet.wasm": "./src/chartlet.wasm",
     "./astro": "./src/Chart.astro"
   },
   "peerDependencies": {
@@ -33,6 +38,8 @@
     "astro": "^7.3.2"
   },
   "scripts": {
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "prepack": "npm run build:wasm",
     "test": "node --test"
   },
   "engines": {

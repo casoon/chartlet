@@ -17,16 +17,26 @@ const metadata = JSON.parse(
 execFileSync("cargo", ["build", "--quiet"], { cwd: repository });
 const binary = join(metadata.target_directory, "debug", "chartlet");
 
-test("Astro builds a static chart without client JavaScript", () => {
-  execFileSync("astro", ["build", "--root", fixture], {
-    cwd: packageDirectory,
-    env: { ...process.env, CHARTLET_BIN: binary },
-    stdio: "pipe",
-  });
-  const html = readFileSync(join(fixture, "dist/index.html"), "utf8");
+// Without CHARTLET_BIN the component renders with the bundled WebAssembly build.
+for (const [renderer, chartletBin] of [
+  ["WebAssembly", undefined],
+  ["the CLI", binary],
+]) {
+  test(`Astro builds a static chart without client JavaScript through ${renderer}`, () => {
+    const env = { ...process.env, CHARTLET_BIN: chartletBin };
+    if (chartletBin === undefined) {
+      delete env.CHARTLET_BIN;
+    }
+    execFileSync("astro", ["build", "--root", fixture], {
+      cwd: packageDirectory,
+      env,
+      stdio: "pipe",
+    });
+    const html = readFileSync(join(fixture, "dist/index.html"), "utf8");
 
-  assert.match(html, /smoke-chart-title/);
-  assert.match(html, /class="chartlet-line"/);
-  assert.match(html, /<table>/);
-  assert.doesNotMatch(html, /<script/);
-});
+    assert.match(html, /smoke-chart-title/);
+    assert.match(html, /class="chartlet-line"/);
+    assert.match(html, /<table>/);
+    assert.doesNotMatch(html, /<script/);
+  });
+}

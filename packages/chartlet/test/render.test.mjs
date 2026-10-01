@@ -88,3 +88,34 @@ test("reports a series that outnumbers the plot pixels as a warning", () => {
   assert.match(result.warnings[0], /warning\[dense_chart\]/);
   assert.match(result.warnings[0], /exceed the 704 horizontal pixels/);
 });
+
+const mobileRevenue = JSON.parse(
+  readFileSync(join(repository, "examples/mobile-revenue.json"), "utf8"),
+);
+
+test("renders the mobile variant alone as SVG", () => {
+  const desktop = renderChart(mobileRevenue, { binary, format: "svg", idPrefix: "revenue" });
+  const mobile = renderChart(mobileRevenue, {
+    binary,
+    format: "svg",
+    idPrefix: "revenue",
+    variant: "mobile",
+  });
+
+  assert.match(desktop.content, /^<svg[^>]* width="800"[^>]* id="revenue"/);
+  assert.match(mobile.content, /^<svg[^>]* width="360"[^>]* id="revenue-m"/);
+  assert.throws(
+    () => renderChart(spec, { binary, format: "svg", variant: "mobile" }),
+    /missing_mobile at \/mobile/,
+  );
+});
+
+test("carries both variants in the HTML profile", () => {
+  const result = renderChart(mobileRevenue, { binary, idPrefix: "revenue" });
+
+  assert.match(result.content, /^<div class="chartlet-wrapper chartlet-responsive chartlet-bp-640">/);
+  assert.match(result.content, /@container \(max-width:639px\)/);
+  assert.match(result.content, /id="revenue"/);
+  assert.match(result.content, /id="revenue-m"/);
+  assert.equal(result.content.match(/<table>/g).length, 1);
+});

@@ -1,0 +1,18 @@
+[package]
+name = "chartlet-wasm"
+version = "0.1.0-alpha.5"
+edition = "2024"
+license = "MIT"
+description = "WebAssembly build of chartlet for the @casoon/chartlet npm package"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+chartlet = { path = ".." }
+serde_json = "1.0"
+
+[lints.clippy]
+all = "warn"
+pedantic = "warn"

@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: chartlet ships as a CLI and crate on crates.io and as an Astro package on npm. All three use the same renderer.
+description: chartlet ships as a CLI and crate on crates.io and as an npm package with a WebAssembly build. All three use the same renderer.
 order: 1
 ---
 
@@ -25,11 +25,10 @@ To build from a clone of the repository instead, run `cargo install --path .`.
 
 ```sh
 npm install @casoon/chartlet@alpha
-cargo install chartlet --version 0.1.0-alpha.5
 ```
 
-The alpha package calls the `chartlet` CLI, so install both. The CLI must be on `PATH`, or
-`CHARTLET_BIN` must point to it.
+The package carries the renderer as WebAssembly; it needs no Rust toolchain. To render with an
+installed CLI instead, set `CHARTLET_BIN` to its path.
 
 </div>
 <div slot="rust">
@@ -50,7 +49,7 @@ cargo add chartlet@0.1.0-alpha.5
 | Package | Requirement |
 | --- | --- |
 | CLI and crate | Rust 1.88 or newer |
-| `@casoon/chartlet` | Astro 6 or newer, and the `chartlet` CLI |
+| `@casoon/chartlet` | Node.js 22.12 or newer; Astro 6 or newer for the component |
 
 ## Next steps
 
