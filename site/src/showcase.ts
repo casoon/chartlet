@@ -80,6 +80,12 @@ const catalogue = [
     blurb: 'Outcomes of accessibility checks per page as shares of all checks.',
   },
   {
+    slug: 'population-and-emissions',
+    chart: 'Bar (grouped, outlined series)',
+    useCase: 'Compare two shares per category',
+    blurb: 'Two series told apart by fill and outline as well as by color.',
+  },
+  {
     slug: 'budget-vs-actual',
     chart: 'Grouped bar',
     useCase: 'Plan versus actual',

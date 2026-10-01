@@ -1,11 +1,12 @@
 use super::{
-    AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea, SERIES_BAR_CLASSES,
+    AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea,
     axis::{
         NumericScale, add_bottom_category_title, format_value, push_category_label, push_side_label,
     },
     base_elements, base_elements_with_title, count,
     labels::{LabelBox, WithReserve, boxes_overlap, label_box},
     legend::{add_legend, legend_space},
+    series_bar_class,
     title::{horizontal_title, title_extra},
     tooltip, warn_if_labels_omitted,
 };
@@ -48,7 +49,7 @@ pub(super) fn layout_vertical(
         vertical_bars: true,
     };
     let mut elements = base_elements(spec, &scale, plot, warnings, metrics);
-    add_legend(dataset, plot, head, &mut elements, warnings, metrics);
+    add_legend(spec, dataset, plot, head, &mut elements, warnings, metrics);
     let bars = elements.len();
     let bar_and_label = |index: usize, series_index: usize, value: f64| {
         let center = left + band * (count(index) + 0.5);
@@ -81,7 +82,7 @@ pub(super) fn layout_vertical(
                     y,
                     width,
                     height,
-                    class: bar_class(dataset, series_index),
+                    class: bar_class(spec, dataset, series_index),
                     series_index: (dataset.series.len() > 1).then_some(series_index),
                     style_index: None,
                     tooltip: Some(tooltip(
@@ -160,7 +161,7 @@ pub(super) fn layout_horizontal(
         vertical_bars: false,
     };
     let mut elements = base_elements_with_title(spec, &scale, plot, title, warnings, metrics);
-    add_legend(dataset, plot, head, &mut elements, warnings, metrics);
+    add_legend(spec, dataset, plot, head, &mut elements, warnings, metrics);
     let bars = elements.len();
     let bar_and_label = |index: usize, series_index: usize, value: f64| {
         let center = top + band * (count(index) + 0.5);
@@ -199,7 +200,7 @@ pub(super) fn layout_horizontal(
                     y,
                     width,
                     height,
-                    class: bar_class(dataset, series_index),
+                    class: bar_class(spec, dataset, series_index),
                     series_index: (dataset.series.len() > 1).then_some(series_index),
                     style_index: None,
                     tooltip: Some(tooltip(
@@ -385,11 +386,11 @@ fn crowded_groups(
         .collect()
 }
 
-fn bar_class(dataset: &Dataset, series_index: usize) -> &'static str {
+fn bar_class(spec: &ChartSpec, dataset: &Dataset, series_index: usize) -> &'static str {
     if dataset.series.len() == 1 {
         "chartlet-bar"
     } else {
-        SERIES_BAR_CLASSES[series_index]
+        series_bar_class(spec, series_index)
     }
 }
 

@@ -7,13 +7,14 @@
 use std::fmt::Write as _;
 
 use super::{
-    AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea, SERIES_BAR_CLASSES,
+    AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea,
     axis::{
         NumericScale, add_bottom_category_title, format_value, push_category_label, push_side_label,
     },
     bar::label_gutter,
     base_elements_with_title, count,
     legend::{add_legend, legend_space},
+    series_bar_class,
     title::{horizontal_title, title_extra},
     tooltip, warn_if_labels_omitted,
 };
@@ -195,7 +196,7 @@ pub(super) fn layout(
         spec.value_axis.bounds(),
     );
     let mut elements = base_elements_with_title(spec, &scale, plot, title, warnings, metrics);
-    add_legend(dataset, plot, head, &mut elements, warnings, metrics);
+    add_legend(spec, dataset, plot, head, &mut elements, warnings, metrics);
     let bars = elements.len();
     let length = if plot.vertical_bars {
         plot.width
@@ -296,7 +297,7 @@ fn push_segment(
         y,
         width,
         height,
-        class: SERIES_BAR_CLASSES[series_index],
+        class: series_bar_class(spec, series_index),
         series_index: None,
         style_index: None,
         tooltip: Some(text),
@@ -319,7 +320,12 @@ fn push_segment(
         elements.push(Element::Text(Text {
             x: x + width / 2.0,
             y: y + height / 2.0 + 4.0,
-            class: "chartlet-value-inverse",
+            // An outlined segment shows the background, so its label takes the text color.
+            class: if series_bar_class(spec, series_index).ends_with("outline") {
+                "chartlet-value"
+            } else {
+                "chartlet-value-inverse"
+            },
             anchor: TextAnchor::Middle,
             content,
         }));

@@ -1,6 +1,6 @@
 use super::{
-    AREA_CLASSES, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PlotArea, SERIES_BAR_CLASSES, count,
-    fit_text, timechart::line_class,
+    AREA_CLASSES, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PlotArea, count, fit_text,
+    series_bar_class, timechart::line_class,
 };
 use crate::{
     error::ChartWarning,
@@ -263,6 +263,7 @@ pub(super) fn add_line_legend(
 /// Draws the legend of a multi-series bar chart above `plot`, below a title that takes `head`
 /// more than one line.
 pub(super) fn add_legend(
+    spec: &ChartSpec,
     dataset: &Dataset,
     plot: PlotArea,
     head: f64,
@@ -283,7 +284,7 @@ pub(super) fn add_legend(
             y,
             width: 10.0,
             height: 10.0,
-            class: SERIES_BAR_CLASSES[index],
+            class: series_bar_class(spec, index),
             series_index: None,
             style_index: None,
             tooltip: None,

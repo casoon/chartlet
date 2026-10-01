@@ -42,6 +42,7 @@ is the complete contract and can be used for editor validation.
 | `stripes` | stripes | `{ "firstYear": 1850, "values": [..], "reference": 0, "min": .., "max": .., "yearLabels": true }`; `null` leaves a year empty. |
 | `calendar` | calendar | `{ "year": 2024, "layout": "months" \| "weeks", "days": [{ "date": "2024-03-01", "value": 1 }], "reference", "min", "max" }`. |
 | `ranges` | rangebar | `[{ "label": "…", "low": 0, "high": 1, "mid": 0.5, "modeled": false }]`; `orientation` applies. |
+| `patterns` | no | `bar` with `series` only: `true` draws every other series as an outline — the background inside, the series color around it — in the bars, the legend and stacks, so that series differ in form as well as in color. |
 | `stack` | no | `bar` with `series` only: `"normal"` stacks the series of a category by value, positive ones up and negative ones down, with the total beyond each stack; `"percent"` stacks shares of each category's total (values of zero or more, axis in percent). A stack has no series filter. |
 | `references` | no | `bar` only: up to four reference lines across the bars, `[{ "value": 48, "label": "EU average" }]`. A line widens the value axis to reach its value; the description names it. |
 | `panes[].layers[].color` | no | `#rgb`, `#rrggbb`, `#rrggbbaa`, `var(--name)`, or `var(--name, #hex)` with a hex fallback, which the print variant draws. |

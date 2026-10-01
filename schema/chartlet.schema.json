@@ -49,6 +49,11 @@
       "type": "boolean",
       "default": false
     },
+    "patterns": {
+      "description": "type: \"bar\" with series: draw every other series as an outline, so that series differ in form as well as in color.",
+      "type": "boolean",
+      "default": false
+    },
     "stack": {
       "description": "Stacks the series of a type: \"bar\" chart: \"normal\" by value, \"percent\" as shares of each category's total.",
       "enum": ["normal", "percent"]

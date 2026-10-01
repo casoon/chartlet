@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "orientation": "horizontal",
+  "patterns": true,
+  "title": "Share of world population and of CO₂ emissions",
+  "source": "Sample data, rounded",
+  "valueAxis": { "format": "percent" },
+  "categories": ["China", "United States", "European Union", "India", "Africa"],
+  "series": [
+    { "name": "Population", "values": [0.18, 0.04, 0.06, 0.18, 0.18] },
+    { "name": "CO₂ emissions", "values": [0.31, 0.13, 0.07, 0.08, 0.04] }
+  ]
+}

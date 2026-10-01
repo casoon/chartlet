@@ -1026,6 +1026,19 @@ mod tests {
     }
 
     #[test]
+    fn patterns_outline_every_other_series() {
+        let spec = GROUPED.replacen('{', "{\"patterns\": true,", 1);
+        let svg = render_ok(&spec).content;
+        assert!(svg.contains("chartlet-bar chartlet-series-2 chartlet-outline"));
+        assert!(svg.contains(".chartlet-outline{fill:var(--chartlet-background)"));
+        let line = spec.replace("\"bar\"", "\"line\"");
+        assert_eq!(
+            render_err(&line),
+            ("option_not_supported", "/patterns".to_owned())
+        );
+    }
+
+    #[test]
     fn stacks_add_up_and_a_percent_stack_takes_no_negative_values() {
         let stacked = GROUPED.replacen('{', "{\"stack\": \"normal\",", 1);
         let svg = render_ok(&stacked).content;

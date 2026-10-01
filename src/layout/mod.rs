@@ -86,6 +86,25 @@ const SERIES_BAR_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-bar chartlet-series-3",
     "chartlet-bar chartlet-series-4",
 ];
+/// The same bars drawn as outlines: with `patterns`, every other series, so that series differ in
+/// form as well as in color.
+const OUTLINED_BAR_CLASSES: [&str; MAX_SERIES] = [
+    "chartlet-bar chartlet-series-1",
+    "chartlet-bar chartlet-series-2 chartlet-outline",
+    "chartlet-bar chartlet-series-3",
+    "chartlet-bar chartlet-series-4 chartlet-outline",
+];
+
+/// The class of a series' bars and legend swatch: filled, or an outline for every other series
+/// when the chart asks for `patterns`.
+pub(super) fn series_bar_class(spec: &ChartSpec, series_index: usize) -> &'static str {
+    if spec.patterns {
+        OUTLINED_BAR_CLASSES[series_index]
+    } else {
+        SERIES_BAR_CLASSES[series_index]
+    }
+}
+
 /// Fill of an area layer, in the palette color of its line.
 const AREA_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-area chartlet-band-series-1",

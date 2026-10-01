@@ -39,12 +39,20 @@ pub(crate) const MAX_DECIMALS: u8 = 6;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "every bool is a switch of the JSON specification"
+)]
 pub struct ChartSpec {
     pub schema_version: u8,
     #[serde(rename = "type")]
     pub chart_type: ChartType,
     #[serde(default)]
     pub orientation: Orientation,
+    /// Draws every other series of a `type: "bar"` chart as an outline, so that series differ
+    /// in form as well as in color.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub patterns: bool,
     /// Stacks the series of a `type: "bar"` chart instead of setting them side by side.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stack: Option<Stack>,
@@ -809,6 +817,7 @@ impl ChartSpec {
             ("/columns", self.columns.is_some(), ChartType::Multiples),
             ("/references", !self.references.is_empty(), ChartType::Bar),
             ("/stack", self.stack.is_some(), ChartType::Bar),
+            ("/patterns", self.patterns, ChartType::Bar),
             (
                 "/independentAxes",
                 self.independent_axes,

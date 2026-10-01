@@ -10,6 +10,7 @@ order: 1
 | Bar, horizontal, with negative values | `"orientation": "horizontal"` | [Quarterly change](../../../showcase/quarterly-change/) |
 | Bar with a reference line, thousands separated | `references` with `value` and `label`; `valueAxis.thousandsSeparator` | [Open support tickets](../../../showcase/ticket-backlog/) |
 | Stacked bar, by value or as 100 % | `"stack": "normal"` or `"percent"` with `series` | [Electricity generation](../../../showcase/energy-mix/), [Accessibility checks](../../../showcase/audit-outcomes/) |
+| Grouped bar, series told apart by form as well as color | `"patterns": true` | [Population and emissions](../../../showcase/population-and-emissions/) |
 | Grouped bar, up to four series | `categories` and `series` instead of `data` | [Budget vs. actual](../../../showcase/budget-vs-actual/) |
 | Line with several series, color and pattern per series | `"type": "line"` with `categories` and `series` | [Weekly visitors](../../../showcase/visitors-by-channel/) |
 | Line on a logarithmic axis | `"valueAxis": { "scale": "log" }` | [Earthquakes per year](../../../showcase/quake-frequency/) |
