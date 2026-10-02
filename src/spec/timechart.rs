@@ -17,6 +17,9 @@ pub(crate) const MAX_TIME_POINTS_PER_LAYER: usize = 2_000;
 /// Data layers per pane. Beyond the palette's [`MAX_SERIES`] colors a layer has to bring its own
 /// color, and past six lines the legend and the plot stop being readable.
 pub(crate) const MAX_TIME_LAYERS: usize = 6;
+/// Data layers of a stacked pane: stacked areas lie side by side instead of crossing, so a few
+/// more stay readable, such as the sources of an electricity mix.
+pub(crate) const MAX_STACKED_LAYERS: usize = 8;
 /// Stacked panes of a time chart; more than this stop being readable at the minimum chart height.
 pub(crate) const MAX_TIME_PANES: usize = 4;
 /// The largest share one pane may claim against another.
@@ -1141,11 +1144,18 @@ fn validate_pane_layers(
             "provide at least one line layer; a reference line alone has nothing to refer to",
         ));
     }
-    if data_layers > MAX_TIME_LAYERS {
+    let limit = if pane.stack.is_some() {
+        MAX_STACKED_LAYERS
+    } else {
+        MAX_TIME_LAYERS
+    };
+    if data_layers > limit {
         return Err(ChartError::new(
             "too_many_layers",
             format!("{pane_path}/layers"),
-            format!("at most {MAX_TIME_LAYERS} data layers are supported"),
+            format!(
+                "at most {MAX_TIME_LAYERS} data layers are supported, {MAX_STACKED_LAYERS} in a stacked pane"
+            ),
         ));
     }
     if let Some((layer_index, _)) = pane

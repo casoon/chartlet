@@ -570,10 +570,10 @@
           "const": "normal"
         },
         "layers": {
-          "description": "Up to 6 data layers — on a time chart at most 4 line and area layers of the whole chart without their own color — and up to 6 annotation layers (zones, reference lines and point markers together).",
+          "description": "Up to 6 data layers (8 in a stacked pane) — on a time chart at most 4 line and area layers of the whole chart without their own color — and up to 6 annotation layers (zones, reference lines and point markers together).",
           "type": "array",
           "minItems": 1,
-          "maxItems": 12,
+          "maxItems": 14,
           "items": { "$ref": "#/$defs/layer" }
         }
       }

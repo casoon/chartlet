@@ -1286,6 +1286,36 @@ mod tests {
             output.content
         );
 
+        // A stacked pane takes eight areas; beyond the palette they bring their own colors.
+        let mut extra = String::new();
+        for (index, color) in ["#0a0", "#a0a", "#aa0", "#0aa"].iter().enumerate() {
+            let points = [2000, 2004, 2008, 2012, 2016, 2020, 2024]
+                .map(|year| format!(r#"{{"time": "{year}", "value": 10}}"#))
+                .join(",");
+            std::fmt::Write::write_fmt(
+                &mut extra,
+                format_args!(r#",{{"mark": "area", "name": "Extra {index}", "color": "{color}", "points": [{points}]}}"#),
+            )
+            .expect("writing to String cannot fail");
+        }
+        let eight = spec.replacen(
+            "\n      ]\n    }\n  ]",
+            &format!("{extra}\n      ]\n    }}\n  ]"),
+            1,
+        );
+        assert_eq!(
+            render_ok(&eight)
+                .content
+                .matches("class=\"chartlet-legend\"")
+                .count(),
+            8
+        );
+        let nine = eight.replacen(",{\"mark\": \"area\", \"name\": \"Extra 0\"", ",{\"mark\": \"area\", \"name\": \"Extra 9\", \"color\": \"#123\", \"points\": [{\"time\": \"2000\", \"value\": 1}, {\"time\": \"2024\", \"value\": 1}]},{\"mark\": \"area\", \"name\": \"Extra 0\"", 1);
+        assert_eq!(
+            render_err(&nine),
+            ("too_many_layers", "/panes/0/layers".to_owned())
+        );
+
         let percent = spec.replace("\"stack\": \"normal\"", "\"stack\": \"percent\"");
         assert_eq!(
             render_err(&percent),

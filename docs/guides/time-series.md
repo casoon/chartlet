@@ -48,7 +48,7 @@ Timestamps must increase within a layer and lie between 1700-01-01 and 2200-01-0
 
 ## Layers
 
-A pane holds up to six data layers, each a `line`, an `area`, a `point` or an `ohlc` candlestick layer, and up
+A pane holds up to six data layers (eight in a stacked pane), each a `line`, an `area`, a `point` or an `ohlc` candlestick layer, and up
 to six annotation layers: zones, reference lines and point markers together.
 Four palette colors are available for the whole chart: at most four line and area layers go
 without a `color` of their own, and a fifth one has to bring one (`too_many_layers` otherwise).

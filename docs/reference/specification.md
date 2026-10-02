@@ -78,7 +78,7 @@ Up to 100 categories and four series. Labels must be unique. Values must be zero
 magnitude between `1e-100` and `1e100`.
 
 A `time` chart carries one to four panes (`too_many_panes`), each with a `heightRatio` from 1 to 10
-(`invalid_height_ratio`) and up to six data layers of 2000 observations or candles each. At most
+(`invalid_height_ratio`) and up to six data layers (eight in a stacked pane) of 2000 observations or candles each. At most
 four data layers of the whole chart take a palette color — candles take none — and a further layer
 needs its own `color` (`too_many_layers`). Layer names are unique across the panes
 (`duplicate_series`), and every data layer needs one once the chart has more than one
