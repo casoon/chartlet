@@ -700,8 +700,8 @@
           "default": false
         },
         "stroke": {
-          "description": "Line weight; thin sets a line back, for example single years under their mean, bold brings one forward.",
-          "enum": ["regular", "thin", "bold"],
+          "description": "Line weight; thin sets a line back, for example single years under their mean, bold brings one forward, medium suits the lines of small panels.",
+          "enum": ["regular", "thin", "medium", "bold"],
           "default": "regular"
         },
         "dash": {

@@ -10,6 +10,12 @@ does.
 
 - Time charts: `timeAxis.min` and `timeAxis.max` extend the time axis to a position such as a
   round year before the first observation.
+- Time charts: `"stroke": "medium"`, a two-pixel line for small panels.
+
+### Changed
+
+- A time chart with neither a drawn title, a legend nor a value axis title above its first pane
+  starts its plot near the top instead of keeping the title's room free.
 
 ### Fixed
 

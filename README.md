@@ -123,7 +123,7 @@ stacks its areas; `"mark": "point"` draws dots without a line, `"markers": false
 dots; `"curve": "step"` with `stepEnd` draws period values such as annual means; `precision` per
 layer names yearly means by their year beside monthly values; `timeAxis.step` sets the distance
 between time ticks; `dash` (`solid`, `dashed`, `dotted`)
-and `stroke` (`thin`, `regular`, `bold`) tell lines apart beyond color. A pane holds up to six
+and `stroke` (`thin`, `medium`, `regular`, `bold`) tell lines apart beyond color. A pane holds up to six
 data layers, four of them in palette colors, and `zoomSteps` take timestamps on a time chart.
 `"mark": "ohlc"` draws candlesticks from `data: [{ time, open, high, low, close }]` — hollow when
 rising, filled when falling — and up to four `panes` stack on one shared time axis, each with its

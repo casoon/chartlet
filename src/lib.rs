@@ -1412,6 +1412,22 @@ mod tests {
     }
 
     #[test]
+    fn a_medium_line_and_a_bare_panel_suit_small_charts() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Panel", "showTitle": false,
+            "width": 260, "height": 180, "showValues": false, "panes": [{"layers": [
+            {"mark": "line", "stroke": "medium", "markers": false, "points": [
+            {"time": "2000", "value": 1}, {"time": "2010", "value": 2}]}]}]}"#;
+        let svg = render_ok(spec).content;
+        assert!(svg.contains("class=\"chartlet-line chartlet-line-medium "), "{svg}");
+        assert!(
+            svg.contains(".chartlet-line-medium{stroke-width:2}"),
+            "{svg}"
+        );
+        // No title, legend or value axis title: the plot starts 14 pixels from the top.
+        assert!(svg.contains(" y1=\"14\""), "{svg}");
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;

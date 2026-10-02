@@ -41,6 +41,8 @@ const LAYER_EXTRA_STYLE: &str = ".chartlet-band{stroke:none;fill-opacity:.18}.ch
 /// Areas, line patterns other than the modeled dash, and bold lines. Only included when a chart
 /// uses one of them, for the same reason as [`LAYER_EXTRA_STYLE`].
 const MARK_EXTRA_STYLE: &str = ".chartlet-area{stroke:none;fill-opacity:.18}.chartlet-line-dashed{stroke-dasharray:7 5}.chartlet-line-dotted{stroke-dasharray:0 7}.chartlet-line-thin.chartlet-line-dotted{stroke-dasharray:1 3}.chartlet-line-bold{stroke-width:4.5}.chartlet-multiples .chartlet-line-bold{stroke-width:3}";
+/// Medium lines, in the charts that draw one.
+const MEDIUM_LINE_STYLE: &str = ".chartlet-line-medium{stroke-width:2}.chartlet-multiples .chartlet-line-medium{stroke-width:1.5}";
 
 /// Zones and point markers of time charts. Only included when a chart uses one of them, for the
 /// same reason as [`LAYER_EXTRA_STYLE`]. A marker is ringed in the background color so that it
@@ -285,7 +287,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -305,6 +307,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         },
         if (is_time && needs_mark_extras(spec)) || several_lines {
             MARK_EXTRA_STYLE
+        } else {
+            ""
+        },
+        if is_time && spec.layers().any(|layer| layer.stroke == Stroke::Medium) {
+            MEDIUM_LINE_STYLE
         } else {
             ""
         },
@@ -361,7 +368,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{Atlas, Bar, Calendar, Line, Multiples, Rangebar, Stripes, Time, Topicmap};
-    let groups: [(&str, &[ChartType]); 20] = [
+    let groups: [(&str, &[ChartType]); 21] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -370,6 +377,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (LINE_SERIES_STYLE, &[Line, Time, Multiples]),
         (LAYER_EXTRA_STYLE, &[Line, Time, Multiples]),
         (MARK_EXTRA_STYLE, &[Line, Time, Multiples]),
+        (MEDIUM_LINE_STYLE, &[Time, Multiples]),
         (ANNOTATION_EXTRA_STYLE, &[Time, Multiples]),
         (MULTIPLES_STYLE, &[Multiples]),
         (PANEL_NOTE_STYLE, &[Multiples]),

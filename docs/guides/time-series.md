@@ -66,7 +66,8 @@ so a series never disappears silently. The print variant draws the fallback. A v
 and is reported as a `color_not_supported` warning.
 
 `"stroke": "thin"` draws a line at one pixel instead of three, for example single years under
-their running mean; `"stroke": "bold"` draws it at 4.5 pixels to bring it forward. `"dash"` sets
+their running mean; `"stroke": "bold"` draws it at 4.5 pixels to bring it forward, and
+`"stroke": "medium"` at two pixels, for the lines of small panels. `"dash"` sets
 the pattern: `solid`, `dashed`, or `dotted`. A modeled layer is dashed unless `dash` says
 otherwise. The legend draws a short piece of each line — color, weight and pattern — so two lines
 never differ by color alone.

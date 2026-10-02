@@ -48,7 +48,12 @@ const TIME_INSET: f64 = 6.0;
 /// and tooltip costs bytes in the output; the line and the data table carry the values instead.
 const MAX_TIME_MARKERS: usize = 60;
 /// The weight classes of a line, by [`Stroke`].
-const LINE_WEIGHTS: [&str; 3] = ["", " chartlet-line-thin", " chartlet-line-bold"];
+const LINE_WEIGHTS: [&str; 4] = [
+    "",
+    " chartlet-line-thin",
+    " chartlet-line-bold",
+    " chartlet-line-medium",
+];
 /// The pattern classes of a line: solid, dashed because modeled, dashed, dotted. A modeled line
 /// keeps its own class, which the stylesheet dashes.
 const LINE_DASHES: [&str; 4] = [
@@ -107,7 +112,15 @@ pub(super) fn layout_time(
     } else {
         0.0
     };
-    let top = 78.0 - head + legend;
+    // With neither title, legend nor a value axis title above the first pane, nothing sits above
+    // the plot but the half of its top tick label.
+    let bare = !spec.show_title
+        && legend == 0.0
+        && spec
+            .panes
+            .first()
+            .is_none_or(|pane| pane.value_axis.title.is_none());
+    let top = if bare { 14.0 } else { 78.0 - head + legend };
     let bottom = if spec.time_axis.title.is_some() {
         56.0
     } else {
@@ -1225,6 +1238,7 @@ pub(super) fn line_class(spec: &ChartSpec, entry: LayerRef) -> &'static str {
         Stroke::Regular => 0,
         Stroke::Thin => 1,
         Stroke::Bold => 2,
+        Stroke::Medium => 3,
     };
     let classes = LINE_CLASSES.get_or_init(|| {
         let mut classes = Vec::new();

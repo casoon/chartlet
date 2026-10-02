@@ -333,6 +333,8 @@ pub enum Stroke {
     Regular,
     Thin,
     Bold,
+    /// Between thin and regular, for the lines of small panels.
+    Medium,
 }
 
 /// The pattern of a line.
