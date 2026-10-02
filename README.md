@@ -15,9 +15,9 @@ the browser: no chart JavaScript, no hydration, no layout shift.
 - **Honest about problems:** invalid input is rejected with a code, a path and a fix; layout
   compromises such as shortened labels are reported as warnings instead of happening silently.
 
-> **Status:** 0.1. Bar charts (single and grouped, vertical and horizontal), categorical
+> **Status:** 0.2. Bar charts (single and grouped, vertical and horizontal), categorical
 > line charts, time series with uncertainty bands and reference lines, warming stripes, calendar
-> heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.2, 0.3, …) may still change the specification; a
+> heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.3, 0.4, …) may still change the specification; a
 > patch release never does.
 
 ## Quick start
