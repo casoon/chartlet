@@ -401,6 +401,16 @@
           "enum": ["linear", "log"],
           "default": "linear"
         },
+        "step": {
+          "description": "Distance between two ticks, instead of a round step chosen from the values.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "exact": {
+          "description": "min and max are the ends of the axis; every value has to lie between them.",
+          "type": "boolean",
+          "default": false
+        },
         "reverse": {
           "description": "Run the axis the other way: larger values down or left.",
           "type": "boolean",

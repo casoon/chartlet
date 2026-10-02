@@ -340,6 +340,13 @@ pub struct ValueAxisSpec {
     /// Runs the axis the other way: larger values down (or left), as δ18O records are drawn.
     #[serde(default, skip_serializing_if = "is_false")]
     pub reverse: bool,
+    /// The distance between two ticks, instead of a round step chosen from the values.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step: Option<f64>,
+    /// `min` and `max` are the ends of the axis, not only values it reaches; every value has to
+    /// lie between them.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub exact: bool,
 }
 
 /// How a value axis spaces its values.
@@ -520,7 +527,7 @@ impl ChartSpec {
     fn validate_sized(&self, check_size: bool) -> Result<Vec<ChartWarning>, ChartError> {
         self.validate_metadata(check_size)?;
         self.reject_foreign_blocks()?;
-        self.validate_log_axes()?;
+        self.validate_value_axes()?;
         match self.chart_type {
             ChartType::Time => return self.validate_time(),
             ChartType::Multiples => return self.validate_multiples(),
@@ -546,56 +553,174 @@ impl ChartSpec {
         Ok(warnings)
     }
 
-    /// A logarithmic axis can only place values above zero: every value it carries, every edge of
-    /// a band or a zone, every reference line and a declared range have to be positive. A stack
-    /// and an area are measured from zero, so neither takes a logarithmic axis.
-    fn validate_log_axes(&self) -> Result<(), ChartError> {
-        let top_log = self.value_axis.scale == AxisScale::Log;
-        if top_log {
-            positive_bounds(&self.value_axis, "/valueAxis")?;
-            if self.stack.is_some() {
-                return Err(ChartError::new(
-                    "option_not_supported",
-                    "/valueAxis/scale",
-                    "a stack is measured from zero and takes no logarithmic axis",
-                ));
+    /// Every value a value axis has to place, with its path: the values, band and zone edges,
+    /// candles, reference lines and point markers, by the axis they belong to — `None` for the
+    /// top-level value axis, `Some(pane)` for the own axis of a time chart's pane. Small multiples
+    /// share the top-level axis.
+    fn axis_values(&self) -> Vec<(Option<usize>, f64, String)> {
+        let mut values = Vec::new();
+        for (index, point) in self.data.iter().enumerate() {
+            if let Some(value) = point.value {
+                values.push((None, value, format!("/data/{index}/value")));
             }
-            for (index, point) in self.data.iter().enumerate() {
-                if let Some(value) = point.value {
-                    positive(value, format!("/data/{index}/value"))?;
+        }
+        for (series_index, series) in self.series.iter().enumerate() {
+            for (index, value) in series.values.iter().enumerate() {
+                if let Some(value) = value {
+                    values.push((
+                        None,
+                        *value,
+                        format!("/series/{series_index}/values/{index}"),
+                    ));
                 }
             }
-            for (series_index, series) in self.series.iter().enumerate() {
-                for (index, value) in series.values.iter().enumerate() {
-                    if let Some(value) = value {
-                        positive(*value, format!("/series/{series_index}/values/{index}"))?;
-                    }
-                }
-            }
-            for (index, reference) in self.references.iter().enumerate() {
-                positive(reference.value, format!("/references/{index}/value"))?;
-            }
-            for (index, range) in self.ranges.iter().enumerate() {
-                for (name, value) in [
-                    ("low", Some(range.low)),
-                    ("high", Some(range.high)),
-                    ("mid", range.mid),
-                ] {
-                    if let Some(value) = value {
-                        positive(value, format!("/ranges/{index}/{name}"))?;
-                    }
+        }
+        for (index, reference) in self.references.iter().enumerate() {
+            values.push((None, reference.value, format!("/references/{index}/value")));
+        }
+        for (index, range) in self.ranges.iter().enumerate() {
+            for (name, value) in [
+                ("low", Some(range.low)),
+                ("high", Some(range.high)),
+                ("mid", range.mid),
+            ] {
+                if let Some(value) = value {
+                    values.push((None, value, format!("/ranges/{index}/{name}")));
                 }
             }
         }
         for (pane_index, pane) in self.panes.iter().enumerate() {
-            let log = match self.chart_type {
-                ChartType::Multiples => top_log,
-                _ => pane.value_axis.scale == AxisScale::Log,
-            };
-            if !log {
-                continue;
+            let axis = (self.chart_type != ChartType::Multiples).then_some(pane_index);
+            for (layer_index, layer) in pane.layers.iter().enumerate() {
+                let path = format!("/panes/{pane_index}/layers/{layer_index}");
+                for (index, point) in layer.points.iter().enumerate() {
+                    for (name, value) in [
+                        ("value", point.value),
+                        ("lower", point.lower),
+                        ("upper", point.upper),
+                    ] {
+                        if let Some(value) = value {
+                            values.push((axis, value, format!("{path}/points/{index}/{name}")));
+                        }
+                    }
+                }
+                for (index, candle) in layer.data.iter().enumerate() {
+                    values.push((axis, candle.low, format!("{path}/data/{index}/low")));
+                    values.push((axis, candle.high, format!("{path}/data/{index}/high")));
+                }
+                for (name, value) in [
+                    ("value", layer.value),
+                    ("bottom", layer.bottom),
+                    ("top", layer.top),
+                ] {
+                    if let Some(value) = value {
+                        values.push((axis, value, format!("{path}/{name}")));
+                    }
+                }
             }
-            validate_log_pane(pane, &format!("/panes/{pane_index}"))?;
+        }
+        values
+    }
+
+    /// The value axes and their paths: the top-level one, and the own axis of every time chart
+    /// pane.
+    fn value_axes(&self) -> Vec<(Option<usize>, &ValueAxisSpec, String)> {
+        let mut axes = vec![(None, &self.value_axis, "/valueAxis".to_owned())];
+        if self.chart_type == ChartType::Time {
+            for (index, pane) in self.panes.iter().enumerate() {
+                axes.push((
+                    Some(index),
+                    &pane.value_axis,
+                    format!("/panes/{index}/valueAxis"),
+                ));
+            }
+        }
+        axes
+    }
+
+    /// A logarithmic axis places only values above zero, and neither a stack nor an area, which
+    /// are measured from zero. A declared `step` is a positive distance. An `exact` axis has both
+    /// ends, and every value lies between them, so that nothing reaches outside the plot.
+    fn validate_value_axes(&self) -> Result<(), ChartError> {
+        let values = self.axis_values();
+        for (axis_index, axis, path) in self.value_axes() {
+            let log = axis.scale == AxisScale::Log;
+            let refuse = |field: &str, reason: &str| {
+                Err(ChartError::new(
+                    "option_not_supported",
+                    format!("{path}/{field}"),
+                    reason.to_owned(),
+                ))
+            };
+            if log && self.stack.is_some() {
+                return refuse(
+                    "scale",
+                    "a stack is measured from zero and takes no logarithmic axis",
+                );
+            }
+            if log && (axis.step.is_some() || axis.exact) {
+                return refuse("step", "a logarithmic axis ticks at powers of ten");
+            }
+            if axis.exact && self.stack.is_some() {
+                return refuse("exact", "a stack's totals decide its axis");
+            }
+            if let Some(step) = axis.step {
+                validate_number(step, &format!("{path}/step"))?;
+                if step <= 0.0 {
+                    return Err(ChartError::new(
+                        "invalid_value",
+                        format!("{path}/step"),
+                        "the step between ticks must be above zero",
+                    ));
+                }
+            }
+            if let (true, Some(min), Some(max)) = (axis.exact, axis.min, axis.max)
+                && self.chart_type == ChartType::Bar
+                && !(min..=max).contains(&0.0)
+            {
+                return Err(ChartError::new(
+                    "invalid_axis_range",
+                    format!("{path}/min"),
+                    "bars start at zero, so an exact axis of a bar chart includes zero",
+                ));
+            }
+            if axis.exact && (axis.min.is_none() || axis.max.is_none()) {
+                return Err(ChartError::new(
+                    "invalid_axis_range",
+                    format!("{path}/exact"),
+                    "an exact axis needs both min and max",
+                ));
+            }
+            if log {
+                positive_bounds(axis, &path)?;
+            }
+            for (_, value, value_path) in values.iter().filter(|(owner, _, _)| *owner == axis_index)
+            {
+                if log {
+                    positive(*value, value_path.clone())?;
+                }
+                if let (true, Some(min), Some(max)) = (axis.exact, axis.min, axis.max)
+                    && !(min..=max).contains(value)
+                {
+                    return Err(ChartError::new(
+                        "value_outside_axis",
+                        value_path.clone(),
+                        format!("the value lies outside the exact axis from {min} to {max}"),
+                    ));
+                }
+            }
+            if log {
+                let panes: Vec<usize> = match axis_index {
+                    Some(pane) => vec![pane],
+                    None if self.chart_type == ChartType::Multiples => {
+                        (0..self.panes.len()).collect()
+                    }
+                    None => Vec::new(),
+                };
+                for pane in panes {
+                    reject_log_area(&self.panes[pane], pane)?;
+                }
+            }
         }
         Ok(())
     }
@@ -859,6 +984,8 @@ impl ChartSpec {
             || self.value_axis.thousands_separator
             || self.value_axis.scale != AxisScale::Linear
             || self.value_axis.reverse
+            || self.value_axis.step.is_some()
+            || self.value_axis.exact
         {
             return Err(ChartError::new(
                 "option_not_supported",
@@ -973,6 +1100,8 @@ impl ChartSpec {
             || self.value_axis.thousands_separator
             || self.value_axis.scale != AxisScale::Linear
             || self.value_axis.reverse
+            || self.value_axis.step.is_some()
+            || self.value_axis.exact
         {
             return Err(ChartError::new(
                 "option_not_supported",
@@ -1048,42 +1177,15 @@ fn positive_bounds(axis: &ValueAxisSpec, path: &str) -> Result<(), ChartError> {
     Ok(())
 }
 
-/// Every value of a pane on a logarithmic axis: observations and band edges, candles, reference
-/// lines, point markers and zone edges. An area is filled down to zero, so a pane with one takes
-/// no logarithmic axis.
-fn validate_log_pane(pane: &PaneSpec, pane_path: &str) -> Result<(), ChartError> {
-    positive_bounds(&pane.value_axis, &format!("{pane_path}/valueAxis"))?;
+/// An area is filled down to zero, so a pane with one takes no logarithmic axis.
+fn reject_log_area(pane: &PaneSpec, pane_index: usize) -> Result<(), ChartError> {
     for (layer_index, layer) in pane.layers.iter().enumerate() {
-        let path = format!("{pane_path}/layers/{layer_index}");
         if layer.mark == Mark::Area {
             return Err(ChartError::new(
                 "option_not_supported",
-                format!("{path}/mark"),
+                format!("/panes/{pane_index}/layers/{layer_index}/mark"),
                 "an area is filled down to zero and takes no logarithmic axis",
             ));
-        }
-        for (index, point) in layer.points.iter().enumerate() {
-            for (name, value) in [
-                ("value", point.value),
-                ("lower", point.lower),
-                ("upper", point.upper),
-            ] {
-                if let Some(value) = value {
-                    positive(value, format!("{path}/points/{index}/{name}"))?;
-                }
-            }
-        }
-        for (index, candle) in layer.data.iter().enumerate() {
-            positive(candle.low, format!("{path}/data/{index}/low"))?;
-        }
-        for (name, value) in [
-            ("value", layer.value),
-            ("bottom", layer.bottom),
-            ("top", layer.top),
-        ] {
-            if let Some(value) = value {
-                positive(value, format!("{path}/{name}"))?;
-            }
         }
     }
     Ok(())

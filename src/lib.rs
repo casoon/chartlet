@@ -1124,6 +1124,49 @@ mod tests {
     }
 
     #[test]
+    fn an_exact_axis_ends_where_it_says_and_ticks_by_its_step() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Forcing", "panes": [{
+            "valueAxis": {"min": -2.5, "max": 3.5, "exact": true, "step": 1},
+            "layers": [{"mark": "line", "name": "V", "points": [
+                {"time": "2020", "value": -1}, {"time": "2021", "value": 2.2}]}]}]}"#;
+        let svg = render_ok(spec).content;
+        let ticks: Vec<&str> = svg
+            .split("class=\"chartlet-tick\">")
+            .skip(1)
+            .filter_map(|rest| rest.split('<').next())
+            .filter(|tick| tick.contains('.'))
+            .collect();
+        assert_eq!(
+            ticks,
+            [
+                "\u{2212}2.5",
+                "\u{2212}1.5",
+                "\u{2212}0.5",
+                "0.5",
+                "1.5",
+                "2.5",
+                "3.5"
+            ]
+        );
+        let outside = spec.replace("\"value\": 2.2", "\"value\": 4");
+        assert_eq!(
+            render_err(&outside),
+            (
+                "value_outside_axis",
+                "/panes/0/layers/0/points/1/value".to_owned()
+            )
+        );
+        let half = spec.replace("\"max\": 3.5, ", "");
+        assert_eq!(render_err(&half).0, "invalid_axis_range");
+        let bars = SPEC.replacen(
+            '{',
+            "{\"valueAxis\": {\"min\": 5, \"max\": 20, \"exact\": true},",
+            1,
+        );
+        assert_eq!(render_err(&bars).0, "invalid_axis_range");
+    }
+
+    #[test]
     fn a_dense_axis_labels_every_few_categories() {
         let data: Vec<String> = (0..43)
             .map(|index| format!("{{\"label\": \"Country {index}\", \"value\": {index}}}"))

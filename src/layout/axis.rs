@@ -232,14 +232,19 @@ fn separate_thousands(digits: &str) -> String {
 
 /// Writes an axis tick with as many decimals as the tick step has, so that every tick of an axis
 /// carries the same number of digits: `0.0, 0.5, 1.0` rather than `0, 0.5, 1`.
-pub(crate) fn format_tick(value: f64, step: f64, style: NumberStyle) -> String {
-    let step = match style.format {
-        ValueFormat::Number => step,
-        ValueFormat::Percent => step * 100.0,
+/// Writes an axis tick of an axis that starts at `start` and ticks every `step`: as many decimals
+/// as the step or the start needs, whichever is more, so that −2.5, −1.5 … stay apart.
+pub(crate) fn format_tick(value: f64, step: f64, start: f64, style: NumberStyle) -> String {
+    let scaled = |number: f64| match style.format {
+        ValueFormat::Number => number,
+        ValueFormat::Percent => number * 100.0,
     };
-    let decimals = format!("{}", tidy(step))
-        .split_once('.')
-        .map_or(0, |(_, fraction)| fraction.len());
+    let decimals_of = |number: f64| {
+        format!("{}", tidy(scaled(number)))
+            .split_once('.')
+            .map_or(0, |(_, fraction)| fraction.len())
+    };
+    let decimals = decimals_of(step).max(decimals_of(start));
     format_value(
         value,
         NumberStyle {
@@ -257,6 +262,23 @@ fn tidy(value: f64) -> f64 {
         .parse()
         .expect("a formatted float parses back");
     if rounded == 0.0 { 0.0 } else { rounded }
+}
+
+/// A round tick distance for a range: 1, 2, 5 or 10 times a power of ten, about five ticks.
+fn nice_step(range: f64) -> f64 {
+    let raw_step = range / 5.0;
+    let magnitude = 10.0_f64.powf(raw_step.log10().floor());
+    let fraction = raw_step / magnitude;
+    let nice_fraction = if fraction <= 1.0 {
+        1.0
+    } else if fraction <= 2.0 {
+        2.0
+    } else if fraction <= 5.0 {
+        5.0
+    } else {
+        10.0
+    };
+    nice_fraction * magnitude
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -278,9 +300,28 @@ impl NumericScale {
         include_zero: bool,
         axis: &ValueAxisSpec,
     ) -> Self {
-        let scale = match axis.scale {
-            AxisScale::Linear => Self::from_values(values, include_zero, axis.bounds()),
-            AxisScale::Log => Self::logarithmic(values, axis.bounds()),
+        let scale = match (axis.scale, axis.exact, axis.min, axis.max) {
+            (AxisScale::Log, ..) => Self::logarithmic(values, axis.bounds()),
+            // Validated: every value lies between the exact ends.
+            (AxisScale::Linear, true, Some(min), Some(max)) => Self {
+                min,
+                max,
+                step: axis.step.unwrap_or_else(|| nice_step(max - min)),
+                log: false,
+                reversed: false,
+            },
+            (AxisScale::Linear, ..) => {
+                let scale = Self::from_values(values, include_zero, axis.bounds());
+                match axis.step {
+                    Some(step) => Self {
+                        min: tidy(tidy(scale.min / step).floor() * step),
+                        max: tidy(tidy(scale.max / step).ceil() * step),
+                        step,
+                        ..scale
+                    },
+                    None => scale,
+                }
+            }
         };
         Self {
             reversed: axis.reverse,
@@ -332,7 +373,7 @@ impl NumericScale {
     /// of ten needs on a logarithmic one.
     pub(crate) fn tick_label(self, value: f64, style: NumberStyle) -> String {
         if !self.log {
-            return format_tick(value, self.step, style);
+            return format_tick(value, self.step, self.min, style);
         }
         // A power of ten below one needs a decimal for each step down: 0.1, 0.01.
         let mut decimals = 0_u8;
@@ -392,19 +433,7 @@ impl NumericScale {
                 };
             }
         }
-        let raw_step = (max - min) / 5.0;
-        let magnitude = 10.0_f64.powf(raw_step.log10().floor());
-        let fraction = raw_step / magnitude;
-        let nice_fraction = if fraction <= 1.0 {
-            1.0
-        } else if fraction <= 2.0 {
-            2.0
-        } else if fraction <= 5.0 {
-            5.0
-        } else {
-            10.0
-        };
-        let step = nice_fraction * magnitude;
+        let step = nice_step(max - min);
         Self {
             min: tidy(tidy(min / step).floor() * step),
             max: tidy(tidy(max / step).ceil() * step),
@@ -451,7 +480,8 @@ impl NumericScale {
         Box::new(
             std::iter::successors(Some(0.0_f64), |index| Some(index + 1.0))
                 .map(move |index| tidy(self.min + index * self.step))
-                .take_while(move |tick| *tick <= self.max + self.step / 2.0),
+                // Rounding noise only: an exact axis ends at its max, not half a step beyond.
+                .take_while(move |tick| *tick <= self.max + self.step * 1e-6),
         )
     }
 }
@@ -554,12 +584,12 @@ mod tests {
     #[test]
     fn ticks_share_the_decimals_of_their_step() {
         let style = NumberStyle::default();
-        assert_eq!(format_tick(1.0, 0.5, style), "1.0");
-        assert_eq!(format_tick(-0.5, 0.5, style), "\u{2212}0.5");
-        assert_eq!(format_tick(20.0, 5.0, style), "20");
+        assert_eq!(format_tick(1.0, 0.5, 0.0, style), "1.0");
+        assert_eq!(format_tick(-0.5, 0.5, 0.0, style), "\u{2212}0.5");
+        assert_eq!(format_tick(20.0, 5.0, 0.0, style), "20");
         let percent = NumberStyle::from(ValueFormat::Percent);
-        assert_eq!(format_tick(0.1, 0.05, percent), "10%");
-        assert_eq!(format_tick(0.1, 0.025, percent), "10.0%");
+        assert_eq!(format_tick(0.1, 0.05, 0.0, percent), "10%");
+        assert_eq!(format_tick(0.1, 0.025, 0.0, percent), "10.0%");
     }
 
     #[test]
