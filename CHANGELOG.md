@@ -4,6 +4,30 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Added
+
+- Time charts: `precision` per data layer, and every layer writes its times as finely as its
+  own observations need — yearly means beside monthly values say only the year, and on a
+  numeric axis a finely spaced helper line no longer adds decimals to the other layers. A table
+  row is labelled as finely as the finest layer with a value there.
+- Time charts: `markers: false` on a line or area layer, such as a fitted line; its tooltips
+  stay on invisible targets.
+- A stacked pane takes up to eight area layers.
+
+### Changed
+
+- An exact value axis puts its ticks on multiples of the step, with the zero line:
+  −2.5 to 3.5 with step 1 ticks −2, −1, 0 … 3.
+
+### Fixed
+
+- A horizontal value axis labels only the ticks whose labels fit, so the wide labels of a
+  logarithmic axis no longer run into each other.
+- A horizontal range bar chart measures its value labels with the fallback reserve, so the
+  label at the right end is no longer cut off.
+
 ## [0.2.0] - 2026-10-02
 
 Adds stacked areas, points and range groups, exact value axes and the stylesheet in parts. The
