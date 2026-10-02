@@ -22,6 +22,7 @@ order: 1
 | Time series with uncertainty band, modeled | `lower`/`upper` per point, `"modeled": true` | [Temperature projection](../../../showcase/temperature-projection/) |
 | Threshold and date marker | `"mark": "annotation"` with `value` or `time` | [Annual mean and threshold](../../../showcase/annual-mean-threshold/) |
 | Time series with area, gaps and zoom | `"mark": "area"`, `null` values, `dash`, `zoomSteps` by time | [Data hall power draw](../../../showcase/sensor-readings/) |
+| Readings around a trend (scatter) | `"mark": "point"` next to a `line` layer | [Resting heart rate](../../../showcase/resting-heart-rate/) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [Checkout API error rate](../../../showcase/release-incidents/) |
 | Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio`; `"gaps": "collapse"` | [Daily share price](../../../showcase/share-price/) |
 | Profile or deep time on a numeric axis, reversed | `"timeAxis": { "kind": "number", "reverse": true }` | [Deep-sea oxygen isotopes](../../../showcase/deep-sea-isotopes/) |

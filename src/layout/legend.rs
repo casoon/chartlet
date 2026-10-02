@@ -1,11 +1,13 @@
 use super::{
     AREA_CLASSES, LABEL_LINE, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PlotArea, count, fit_text,
-    series_bar_class, timechart::line_class, title::two_lines,
+    series_bar_class,
+    timechart::{POINT_CLASSES, line_class},
+    title::two_lines,
 };
 use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
-    scene::{Element, Polyline, Rect, Text, TextAnchor},
+    scene::{Circle, Element, Polyline, Rect, Text, TextAnchor},
     spec::{ChartSpec, Dataset, LayerRef, Mark},
 };
 
@@ -134,9 +136,24 @@ pub(super) fn add_layer_legend(
                 tooltip: None,
             }));
         }
-        // A short piece of the line itself: color, pattern and weight, so that a legend entry
-        // never rests on color alone.
-        if entry.layer.mark != Mark::Ohlc {
+        // A point layer shows one of its dots; the others a short piece of the line itself:
+        // color, pattern and weight, so that a legend entry never rests on color alone.
+        if entry.layer.mark == Mark::Point {
+            elements.push(Element::Circle(Circle {
+                cx: x + LEGEND_LINE / 2.0,
+                cy: y + 5.0,
+                radius: 4.0,
+                class: if explicit {
+                    "chartlet-point"
+                } else {
+                    POINT_CLASSES[spec.palette_index(entry.layer)]
+                },
+                topic: None,
+                series_index: None,
+                style_index: explicit.then_some(entry.global),
+                tooltip: None,
+            }));
+        } else if entry.layer.mark != Mark::Ohlc {
             elements.push(Element::Polyline(Polyline {
                 points: vec![(x, y + 5.0), (x + LEGEND_LINE, y + 5.0)],
                 class: line_class(spec, entry),

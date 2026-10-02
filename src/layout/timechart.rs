@@ -68,7 +68,7 @@ const BAND_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-band chartlet-band-series-4",
 ];
 /// Markers of a layer that takes a palette color other than the first.
-const POINT_CLASSES: [&str; MAX_SERIES] = [
+pub(super) const POINT_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-point chartlet-point-series-1",
     "chartlet-point chartlet-point-series-2",
     "chartlet-point chartlet-point-series-3",
@@ -919,7 +919,7 @@ fn observation_tooltip(
 }
 
 /// One line, broken at every missing value, with its markers and, in a full-size chart, its
-/// value labels.
+/// value labels. A point layer draws the markers alone, however many there are.
 fn push_line(
     spec: &ChartSpec,
     entry: LayerRef,
@@ -931,25 +931,10 @@ fn push_line(
     let points = layer.resolved_points(frame.zone);
     let explicit = layer.resolved_color().is_some();
     let palette = spec.palette_index(layer);
-    let class = line_class(spec, entry);
-    // A missing value breaks the line; a lone value between two gaps keeps only its marker.
-    for segment in layer.resolved_segments(frame.zone) {
-        if segment.len() < 2 {
-            continue;
-        }
-        elements.push(Element::Polyline(Polyline {
-            points: layer.curve.points(
-                segment
-                    .iter()
-                    .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
-                    .collect(),
-            ),
-            class,
-            topic: None,
-            series_index: None,
-            style_index: explicit.then_some(entry.global),
-            tooltip: None,
-        }));
+    let is_point = layer.mark == Mark::Point;
+    // A point layer draws no line at all.
+    if !is_point {
+        push_line_segments(spec, entry, frame, elements);
     }
 
     // Markers and their labels are only drawn while the observations stay far enough apart
@@ -957,11 +942,15 @@ fn push_line(
     // observation, as long as the targets stay far enough apart to point at and the chart does
     // not limit tooltips to markers.
     let spark = detail == Detail::Spark;
-    let markers = !spark && points.len() <= MAX_TIME_MARKERS;
-    let hits = !markers && spec.tooltips == Tooltips::Observations && {
+    let dense = points.len() > MAX_TIME_MARKERS;
+    let markers = !spark && (!dense || is_point);
+    let fits = || {
         let xs: Vec<f64> = points.iter().map(|(epoch, _)| frame.x(*epoch)).collect();
-        tooltips_fit(&xs)
+        spec.tooltips == Tooltips::Observations && tooltips_fit(&xs)
     };
+    let hits = !markers && fits();
+    // Dense points are drawn smaller, and carry tooltips under the same rule as targets.
+    let marker_tooltips = !dense || fits();
     if !markers && !hits && !spark {
         return;
     }
@@ -1014,10 +1003,14 @@ fn push_line(
             continue;
         }
         elements.push(point(
-            if detail == Detail::Full { 4.0 } else { 2.5 },
-            Some(text),
+            if detail == Detail::Full && !dense {
+                4.0
+            } else {
+                2.5
+            },
+            marker_tooltips.then_some(text),
         ));
-        if detail == Detail::Full && spec.show_values {
+        if detail == Detail::Full && spec.show_values && !dense {
             elements.push(Element::Text(Text {
                 x,
                 y: y - 10.0,
@@ -1026,6 +1019,37 @@ fn push_line(
                 content: format_value(*value, frame.style),
             }));
         }
+    }
+}
+
+/// The line of a layer, broken at every missing value; a lone value between two gaps keeps only
+/// its marker.
+fn push_line_segments(
+    spec: &ChartSpec,
+    entry: LayerRef,
+    frame: &TimeFrame,
+    elements: &mut Vec<Element>,
+) {
+    let layer = entry.layer;
+    let class = line_class(spec, entry);
+    let explicit = layer.resolved_color().is_some();
+    for segment in layer.resolved_segments(frame.zone) {
+        if segment.len() < 2 {
+            continue;
+        }
+        elements.push(Element::Polyline(Polyline {
+            points: layer.curve.points(
+                segment
+                    .iter()
+                    .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
+                    .collect(),
+            ),
+            class,
+            topic: None,
+            series_index: None,
+            style_index: explicit.then_some(entry.global),
+            tooltip: None,
+        }));
     }
 }
 

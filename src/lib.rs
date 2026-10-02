@@ -1118,6 +1118,28 @@ mod tests {
     }
 
     #[test]
+    fn a_point_layer_draws_dots_without_a_line() {
+        let spec = include_str!("../examples/resting-heart-rate.json");
+        let svg = render_ok(spec).content;
+        // Only the weekly mean is a line; the readings are dots, one in the legend as well.
+        assert_eq!(svg.matches("<polyline").count(), 2, "{svg}");
+        assert_eq!(
+            svg.matches("class=\"chartlet-point chartlet-point-series-1\"")
+                .count(),
+            28
+        );
+        let dashed = spec.replacen(
+            "\"mark\": \"point\",",
+            "\"mark\": \"point\", \"dash\": \"dotted\",",
+            1,
+        );
+        assert_eq!(
+            render_err(&dashed),
+            ("option_not_supported", "/panes/0/layers/0/dash".to_owned())
+        );
+    }
+
+    #[test]
     fn a_sparkline_draws_only_its_line_at_a_small_size() {
         let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Visitors", "sparkline": true,
             "width": 120, "height": 32, "panes": [{"layers": [{"mark": "line", "name": "Visitors",

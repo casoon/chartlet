@@ -117,6 +117,12 @@ const catalogue = [
     blurb: 'Three channels over six weeks, told apart by color and line pattern, one value missing.',
   },
   {
+    slug: 'resting-heart-rate',
+    chart: 'Time series (points and line)',
+    useCase: 'Show readings around a trend',
+    blurb: 'Morning readings as dots, scattered around the line of their weekly mean.',
+  },
+  {
     slug: 'quake-frequency',
     chart: 'Line (logarithmic axis)',
     useCase: 'Show values across orders of magnitude',

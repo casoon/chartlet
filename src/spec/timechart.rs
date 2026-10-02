@@ -139,6 +139,8 @@ pub struct PaneSpec {
 pub enum Mark {
     Line,
     Area,
+    /// A dot for every observation and no line between them, as in a scatter plot.
+    Point,
     Ohlc,
     Band,
     Annotation,
@@ -998,7 +1000,7 @@ fn validate_pane_layers(
             Mark::Annotation => validate_annotation(layer, &layer_path, zone, warnings)?,
             Mark::Band => validate_zone(layer, &layer_path, zone, warnings)?,
             Mark::Ohlc => crate::ohlc::validate(layer, &layer_path, context, names, warnings)?,
-            Mark::Line | Mark::Area => {
+            Mark::Line | Mark::Area | Mark::Point => {
                 validate_layer(layer, &layer_path, context, names, warnings)?;
             }
         }
@@ -1235,10 +1237,10 @@ fn validate_layer(
     warnings: &mut Vec<ChartWarning>,
 ) -> Result<(), ChartError> {
     let (zone, plot_pixels) = (context.zone, context.plot_pixels);
-    let mark = if layer.mark == Mark::Area {
-        "an area"
-    } else {
-        "a line"
+    let mark = match layer.mark {
+        Mark::Area => "an area",
+        Mark::Point => "a point",
+        _ => "a line",
     };
 
     check_layer_color(layer, path, warnings);
@@ -1260,6 +1262,34 @@ fn validate_layer(
                 "option_not_supported",
                 format!("{path}/{field}"),
                 format!("{field} belongs to a {owner} layer, not to {mark} layer"),
+            ));
+        }
+    }
+    // Points draw no line, so nothing that shapes a line applies to them.
+    if layer.mark == Mark::Point {
+        for (field, present) in [
+            ("dash", layer.dash.is_some()),
+            ("stroke", layer.stroke != Stroke::Regular),
+            ("curve", layer.curve != Curve::Linear),
+            ("modeled", layer.modeled),
+        ] {
+            if present {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    format!("{path}/{field}"),
+                    format!("{field} shapes a line; a point layer draws none"),
+                ));
+            }
+        }
+        if let Some(index) = layer
+            .points
+            .iter()
+            .position(|point| point.lower.is_some() || point.upper.is_some())
+        {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("{path}/points/{index}"),
+                "lower and upper draw a band along a line; a point layer draws none",
             ));
         }
     }
@@ -1287,7 +1317,11 @@ fn validate_layer(
         return Err(ChartError::new(
             "empty_series",
             format!("{path}/points"),
-            "a line needs at least two observations",
+            if layer.mark == Mark::Point {
+                "a point layer needs at least two observations"
+            } else {
+                "a line needs at least two observations"
+            },
         ));
     }
     // A time axis is meant to carry many observations, so the density warning starts where the

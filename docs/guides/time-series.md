@@ -48,7 +48,7 @@ Timestamps must increase within a layer and lie between 1700-01-01 and 2200-01-0
 
 ## Layers
 
-A pane holds up to six data layers, each a `line`, an `area` or an `ohlc` candlestick layer, and up
+A pane holds up to six data layers, each a `line`, an `area`, a `point` or an `ohlc` candlestick layer, and up
 to six annotation layers: zones, reference lines and point markers together.
 Four palette colors are available for the whole chart: at most four line and area layers go
 without a `color` of their own, and a fifth one has to bring one (`too_many_layers` otherwise).
@@ -116,6 +116,21 @@ always starts at zero, so a chart with an area layer includes zero on its value 
 draws a swatch of the fill under the line sample, and the description names the filled layers.
 The area *between* two lines — a range, a corridor, an uncertainty — is not a second area mark:
 give the line `lower` and `upper` on every point, as described below.
+
+## Points
+
+`"mark": "point"` draws a dot for every observation and no line between them: readings that
+scatter around a trend, or measurements that are not a continuous series. A dot carries the
+tooltip of its observation; above 60 observations the dots are drawn smaller and lose their value
+labels, but are never left out. The legend shows a dot instead of a line sample. A point layer
+takes no line options — `dash`, `stroke`, `curve`, `modeled` — and no `lower`/`upper` band.
+
+```json
+"layers": [
+  { "mark": "point", "name": "Morning reading", "points": [ … ] },
+  { "mark": "line", "name": "Weekly mean", "points": [ … ] }
+]
+```
 
 ## Candlesticks
 

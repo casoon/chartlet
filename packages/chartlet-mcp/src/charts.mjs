@@ -294,7 +294,7 @@ function seriesFacts(spec) {
 function layerFacts(pane, index, layer) {
   const paneName = pane.title ?? pane.valueAxis?.title ?? `pane ${index + 1}`;
   const name = layer.name ?? null;
-  if ((layer.mark === "line" || layer.mark === "area") && Array.isArray(layer.points)) {
+  if (["line", "area", "point"].includes(layer.mark) && Array.isArray(layer.points)) {
     return [
       {
         pane: paneName,
