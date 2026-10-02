@@ -14,6 +14,8 @@ does.
 
 ### Changed
 
+- A compact time chart (below 320 pixels) makes its value-axis gutter as wide as its widest
+  tick label needs.
 - A time chart with neither a drawn title, a legend nor a value axis title above its first pane
   starts its plot near the top instead of keeping the title's room free.
 

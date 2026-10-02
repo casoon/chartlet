@@ -93,7 +93,7 @@ pub(super) fn layout_time(
     let zone = spec.time_zone().unwrap_or_default();
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
-    let left = f64::from(super::axis_gutter(spec.width));
+    let left = time_gutter(spec, zone, metrics);
     let end_labels = spec.legend == LegendPlacement::End;
     let right = f64::from(super::plot_margin(spec.width))
         + if end_labels {
@@ -723,6 +723,28 @@ enum Detail {
 /// every observation, every candle's high and low, every band edge, every horizontal reference
 /// line, every point marker and every zone edge, so that none of them falls outside the plot. An
 /// area is filled down to zero, so a pane with one always shows zero.
+/// The gutter left of a time chart's plot: fixed on a regular chart; on a compact one as wide as
+/// its widest value tick label needs, within the compact gutter.
+fn time_gutter(spec: &ChartSpec, zone: TimeZone, metrics: &impl TextMetrics) -> f64 {
+    let gutter = f64::from(super::axis_gutter(spec.width));
+    if spec.width >= super::COMPACT {
+        return gutter;
+    }
+    let widest = (0..spec.panes.len())
+        .flat_map(|pane| {
+            let scale = time_scale(spec, zone, Some(pane));
+            let style = spec.pane_style(pane);
+            scale
+                .ticks()
+                .map(move |value| scale.tick_label(value, style))
+                .collect::<Vec<_>>()
+        })
+        .map(|label| super::WithReserve(metrics).width(&label, LABEL_SIZE))
+        .fold(0.0, f64::max);
+    // The labels end 10 pixels left of the plot and keep a few pixels from the edge.
+    (widest + 16.0).clamp(28.0, gutter)
+}
+
 fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) -> NumericScale {
     let inside = |pane_index: usize| pane.is_none_or(|pane| pane == pane_index);
     let layers = || {

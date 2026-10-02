@@ -1418,13 +1418,24 @@ mod tests {
             {"mark": "line", "stroke": "medium", "markers": false, "points": [
             {"time": "2000", "value": 1}, {"time": "2010", "value": 2}]}]}]}"#;
         let svg = render_ok(spec).content;
-        assert!(svg.contains("class=\"chartlet-line chartlet-line-medium "), "{svg}");
+        assert!(
+            svg.contains("class=\"chartlet-line chartlet-line-medium "),
+            "{svg}"
+        );
         assert!(
             svg.contains(".chartlet-line-medium{stroke-width:2}"),
             "{svg}"
         );
         // No title, legend or value axis title: the plot starts 14 pixels from the top.
         assert!(svg.contains(" y1=\"14\""), "{svg}");
+        // Short value labels on a compact chart: a gutter narrower than the compact 56 pixels.
+        let left: f64 = svg
+            .split("<line x1=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .and_then(|x| x.parse().ok())
+            .expect("the first gridline");
+        assert!(left < 56.0, "{left}");
     }
 
     #[test]
