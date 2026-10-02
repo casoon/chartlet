@@ -1082,7 +1082,12 @@ mod tests {
         assert!(!svg.contains("class=\"chartlet-tick\""));
         assert!(!svg.contains("class=\"chartlet-grid\""));
         // One visible dot where the line ends; every observation keeps an invisible tooltip.
-        assert_eq!(svg.matches("class=\"chartlet-point\"").count(), 1, "{svg}");
+        assert_eq!(
+            svg.matches("class=\"chartlet-point chartlet-point-series-1\"")
+                .count(),
+            1,
+            "{svg}"
+        );
         assert_eq!(svg.matches("class=\"chartlet-hit\"").count(), 3, "{svg}");
         let wide = spec.replace("\"width\": 120", "\"width\": 800");
         assert_eq!(
@@ -1641,7 +1646,12 @@ mod tests {
     fn time_chart_renders_a_line_marks_and_a_time_axis() {
         let svg = render_json(TIME, RenderFormat::Svg, &RenderOptions::default()).unwrap();
         assert!(svg.content.contains("<polyline"));
-        assert_eq!(svg.content.matches("class=\"chartlet-point\"").count(), 3);
+        assert_eq!(
+            svg.content
+                .matches("class=\"chartlet-point chartlet-point-series-1\"")
+                .count(),
+            3
+        );
         assert!(
             svg.content
                 .contains("<title>2026-03-01 – Orders: 10</title>")
@@ -1756,7 +1766,10 @@ mod tests {
         )
         .expect("60 observations stay readable");
         assert_eq!(
-            sparse.content.matches("class=\"chartlet-point\"").count(),
+            sparse
+                .content
+                .matches("class=\"chartlet-point chartlet-point-series-1\"")
+                .count(),
             60
         );
 
@@ -1768,7 +1781,13 @@ mod tests {
         )
         .unwrap();
         assert!(dense.content.contains("<polyline"));
-        assert_eq!(dense.content.matches("class=\"chartlet-point\"").count(), 0);
+        assert_eq!(
+            dense
+                .content
+                .matches("class=\"chartlet-point chartlet-point-series-1\"")
+                .count(),
+            0
+        );
     }
 
     #[test]
@@ -3542,7 +3561,11 @@ mod tests {
         assert!(output.warnings.is_empty(), "{:?}", output.warnings);
         // Two pieces of line around the gap, and a marker for each of the four values.
         assert_eq!(svg.matches("<polyline").count(), 2);
-        assert_eq!(svg.matches("class=\"chartlet-point\"").count(), 4);
+        assert_eq!(
+            svg.matches("class=\"chartlet-point chartlet-point-series-1\"")
+                .count(),
+            4
+        );
         assert!(svg.contains("1 value is missing."), "{svg}");
 
         let html = html_ok(&spec);
@@ -3556,7 +3579,11 @@ mod tests {
         let lone = week(&sensor("Load", "", ["10", "null", "12", "null", "15"]), "");
         let svg = render_ok(&lone).content;
         assert!(!svg.contains("<polyline"), "{svg}");
-        assert_eq!(svg.matches("class=\"chartlet-point\"").count(), 3);
+        assert_eq!(
+            svg.matches("class=\"chartlet-point chartlet-point-series-1\"")
+                .count(),
+            3
+        );
         assert!(svg.contains("2 values are missing."));
 
         // Small multiples break their lines the same way.

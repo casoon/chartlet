@@ -23,7 +23,7 @@ const SERIES_LINE_CLASSES: [&str; MAX_SERIES] = [
 ];
 /// The markers of those lines, in the colors of their lines.
 const SERIES_POINT_CLASSES: [&str; MAX_SERIES] = [
-    "chartlet-point",
+    "chartlet-point chartlet-point-series-1",
     "chartlet-point chartlet-point-series-2",
     "chartlet-point chartlet-point-series-3",
     "chartlet-point chartlet-point-series-4",

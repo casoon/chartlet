@@ -69,7 +69,7 @@ const BAND_CLASSES: [&str; MAX_SERIES] = [
 ];
 /// Markers of a layer that takes a palette color other than the first.
 const POINT_CLASSES: [&str; MAX_SERIES] = [
-    "chartlet-point",
+    "chartlet-point chartlet-point-series-1",
     "chartlet-point chartlet-point-series-2",
     "chartlet-point chartlet-point-series-3",
     "chartlet-point chartlet-point-series-4",
