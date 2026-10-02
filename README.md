@@ -15,9 +15,9 @@ the browser: no chart JavaScript, no hydration, no layout shift.
 - **Honest about problems:** invalid input is rejected with a code, a path and a fix; layout
   compromises such as shortened labels are reported as warnings instead of happening silently.
 
-> **Status:** 0.4. Bar charts (single, grouped and stacked, vertical and horizontal), categorical
+> **Status:** 0.5. Bar charts (single, grouped and stacked, vertical and horizontal), categorical
 > line charts, time series with uncertainty bands, reference lines, points and stacked areas,
-> warming stripes, calendar heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.5, 0.6, …) may still change the specification; a
+> warming stripes, calendar heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.6, 0.7, …) may still change the specification; a
 > patch release never does.
 
 ## Quick start
@@ -85,9 +85,9 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
 | Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
-| Small multiples with a finding under each panel, one column on phones | `note` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
+| Small multiples with a finding under each panel, one column on phones | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
-| Compact chart for a panel in a grid of columns | `"width": 240` (200–319 px: narrower gutter, same text size) | – |
+| Compact chart for a panel in a grid of columns | `"width": 240`, `"height": 180` (from 200 × 160 px: narrower gutter, same text size), `"timeAxis": { "step": 50 }` for the ticks the panel's claim needs | – |
 
 Each example has its rendered `.svg` and `.html` next to it. The SVG files are also the
 reference output of the test suite.
@@ -121,7 +121,8 @@ annual data is labelled by year. `null` as a value breaks the line, its band and
 `"mark": "area"` fills the region between a line and zero, and `"stack": "normal"` on a pane
 stacks its areas; `"mark": "point"` draws dots without a line, `"markers": false` a line without
 dots; `"curve": "step"` with `stepEnd` draws period values such as annual means; `precision` per
-layer names yearly means by their year beside monthly values; `dash` (`solid`, `dashed`, `dotted`)
+layer names yearly means by their year beside monthly values; `timeAxis.step` sets the distance
+between time ticks; `dash` (`solid`, `dashed`, `dotted`)
 and `stroke` (`thin`, `regular`, `bold`) tell lines apart beyond color. A pane holds up to six
 data layers, four of them in palette colors, and `zoomSteps` take timestamps on a time chart.
 `"mark": "ohlc"` draws candlesticks from `data: [{ time, open, high, low, close }]` — hollow when
@@ -214,7 +215,7 @@ reported as `dense_chart`. Small multiples take 2 to 12 panes.
 |---|---|
 | `--format svg` | Standalone SVG with `<title>` and `<desc>` and the title drawn in the chart (default). |
 | `--format html` | `<figure>` with caption, SVG, source and data table; the caption is the visible title, the SVG draws none. With `mobile` in the specification, both variants behind a container query. |
-| `--format png` | PNG of the print or social variant with a bundled font, `--scale` 0.25–4. Optional: `cargo install chartlet --features png`. |
+| `--format png` | PNG of the print, social or mobile variant with a bundled font, `--scale` 0.25–4. Optional: `cargo install chartlet --features png`. |
 | `--table details` | Puts the HTML data table in a native, initially closed `<details>` (default). |
 | `--table visible` | Shows the data table permanently. |
 | `--id-prefix <prefix>` | Stable ID of the chart root and prefix for its other IDs; needed when the same chart appears twice on one page. |

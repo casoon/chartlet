@@ -32,7 +32,7 @@ order: 1
 | Warming stripes | `"type": "stripes"` with `stripes` | [Warming stripes](../../../showcase/warming-stripes/) |
 | Calendar heatmap, by month or week | `"type": "calendar"` with `calendar` | [Daily anomaly calendar](../../../showcase/daily-anomaly-calendar/) |
 | Range bars with central value | `"type": "rangebar"` with `ranges` | [Warming contributions](../../../showcase/warming-contributions/) |
-| Small multiples with a finding under each panel | `note` per pane, `"mobile": { "columns": 1 }` | [Which cause matches the warming?](../../../showcase/warming-causes/) |
+| Small multiples with a finding under each panel | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [Which cause matches the warming?](../../../showcase/warming-causes/) |
 | Range bars in groups, on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [Soil animals](../../../showcase/soil-animals/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 

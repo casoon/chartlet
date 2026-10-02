@@ -214,7 +214,7 @@ const catalogue = [
     slug: 'warming-causes',
     chart: 'Small multiples (panel notes)',
     useCase: 'Compare candidates against one measurement',
-    blurb: 'Measured warming beside three model runs, each panel with its verdict under the title and one column on phones.',
+    blurb: 'Measured warming beside three model runs, each panel with its verdict under the title — the one that matches set apart — and one column on phones.',
   },
   {
     slug: 'soil-animals',

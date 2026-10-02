@@ -71,7 +71,7 @@ let output = render_png(&spec, &PngOptions { variant: Variant::Social, scale: 1.
 std::fs::write("revenue.png", output.png)?;
 ```
 
-with `chartlet = { version = "0.4", features = ["png"] }` in `Cargo.toml`.
+with `chartlet = { version = "0.5", features = ["png"] }` in `Cargo.toml`.
 
 ## Astro and the render API
 
