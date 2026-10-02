@@ -1140,6 +1140,40 @@ mod tests {
     }
 
     #[test]
+    fn range_groups_take_palette_colors_and_a_legend() {
+        let spec = include_str!("../examples/soil-animals.json");
+        let svg = render_ok(spec).content;
+        // Three groups: a span in each color, and a swatch per group in the legend.
+        for (series, spans) in [(1, 2), (2, 3), (3, 3)] {
+            assert_eq!(
+                svg.matches(&format!(
+                    "class=\"chartlet-range chartlet-range-series-{series}\""
+                ))
+                .count(),
+                spans + 1,
+                "{svg}"
+            );
+        }
+        assert!(svg.contains(">Mesofauna</text>"));
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .expect("renders")
+            .content;
+        assert!(html.contains("Nematodes (Microfauna)"), "{html}");
+        let partial = spec.replacen(", \"group\": \"Microfauna\"", "", 1);
+        assert_eq!(
+            render_err(&partial),
+            ("missing_group", "/ranges/0/group".to_owned())
+        );
+        let five =
+            spec.replacen("\"Microfauna\"", "\"A\"", 1)
+                .replacen("\"Mesofauna\"", "\"B\"", 1);
+        assert_eq!(
+            render_err(&five),
+            ("too_many_series", "/ranges/5/group".to_owned())
+        );
+    }
+
+    #[test]
     fn a_sparkline_draws_only_its_line_at_a_small_size() {
         let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Visitors", "sparkline": true,
             "width": 120, "height": 32, "panes": [{"layers": [{"mark": "line", "name": "Visitors",

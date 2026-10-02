@@ -538,7 +538,13 @@
         "low": { "type": "number" },
         "high": { "type": "number" },
         "mid": { "type": "number" },
-        "modeled": { "type": "boolean", "default": false }
+        "modeled": { "type": "boolean", "default": false },
+        "group": {
+          "description": "The group of the span, drawn in its own palette color with a legend entry. Either every range names a group or none does; at most 4 groups.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        }
       }
     },
     "pane": {

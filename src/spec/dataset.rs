@@ -114,10 +114,16 @@ impl ChartSpec {
                 .ranges
                 .iter()
                 .map(|range| {
-                    if range.modeled {
-                        format!("{} ({})", range.label, words.modeled)
-                    } else {
+                    let notes: Vec<&str> = range
+                        .group
+                        .as_deref()
+                        .into_iter()
+                        .chain(range.modeled.then_some(words.modeled))
+                        .collect();
+                    if notes.is_empty() {
                         range.label.clone()
+                    } else {
+                        format!("{} ({})", range.label, notes.join(", "))
                     }
                 })
                 .collect(),

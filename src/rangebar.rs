@@ -1,6 +1,7 @@
 //! Range bars: one span per category from its low to its high value, with an optional central
 //! estimate drawn across it. A modeled span is hatched, so that the difference between measured
-//! and modeled does not rest on color.
+//! and modeled does not rest on color. Spans may belong to groups, each in a palette color with
+//! an entry in the legend.
 
 use crate::{
     error::ChartWarning,
@@ -16,7 +17,17 @@ use crate::{
     text,
 };
 
-/// Extra top margin for the legend that explains the hatching.
+/// The span of each group, in the palette colors.
+const GROUP_CLASSES: [&str; crate::spec::MAX_SERIES] = [
+    "chartlet-range chartlet-range-series-1",
+    "chartlet-range chartlet-range-series-2",
+    "chartlet-range chartlet-range-series-3",
+    "chartlet-range chartlet-range-series-4",
+];
+/// Gap between two legend entries.
+const LEGEND_GAP: f64 = 16.0;
+
+/// Extra top margin for the legend that explains the groups and the hatching.
 const LEGEND_HEIGHT: f64 = 24.0;
 /// Width of the legend swatch with the space before its text.
 const LEGEND_SWATCH: f64 = 16.0;
@@ -46,7 +57,35 @@ fn tooltip(spec: &ChartSpec, range: &RangeSpec) -> String {
     } else {
         String::new()
     };
-    format!("{}: {}{modeled}", range.label, span_label(spec, range))
+    let group = range
+        .group
+        .as_ref()
+        .map(|group| format!(" ({group})"))
+        .unwrap_or_default();
+    format!(
+        "{}{group}: {}{modeled}",
+        range.label,
+        span_label(spec, range)
+    )
+}
+
+/// The class of a span: its group's palette color, or the accent color without groups.
+fn range_class(spec: &ChartSpec, range: &RangeSpec) -> &'static str {
+    range.group.as_deref().map_or("chartlet-range", |group| {
+        let index = spec
+            .range_groups()
+            .iter()
+            .position(|known| *known == group)
+            .expect("every group is among the chart's groups");
+        GROUP_CLASSES[index]
+    })
+}
+
+/// Whether the chart has a legend: for its groups, or for the hatching of modeled spans.
+fn has_legend(spec: &ChartSpec) -> bool {
+    spec.ranges
+        .iter()
+        .any(|range| range.modeled || range.group.is_some())
 }
 
 pub(crate) fn layout(
@@ -72,21 +111,17 @@ pub(crate) fn layout(
 }
 
 /// The top of the plot: below the title, which may take two lines of up to `title_width`, and
-/// below the legend that explains the hatching if any span is modeled.
+/// below the legend of the groups and of the hatching, if there is one.
 fn plot_top(spec: &ChartSpec, title_width: f64, metrics: &impl TextMetrics) -> f64 {
-    let legend = if spec.ranges.iter().any(|range| range.modeled) {
-        LEGEND_HEIGHT
-    } else {
-        0.0
-    };
+    let legend = if has_legend(spec) { LEGEND_HEIGHT } else { 0.0 };
     78.0 + title_extra(spec, title_width, metrics) + legend
 }
 
-/// One entry that says what the hatching means, if any span is modeled, below a title up to
-/// `title_width` wide. It starts at `left`, the left of the plot, unless its text, measured with the fallback reserve, would then reach into
-/// the chart's right margin, as it does after a wide gutter of category labels on a narrow
-/// chart; it then starts at the left edge of the content. Shortened only if it does not fit even
-/// there.
+/// The legend below a title up to `title_width` wide: one entry per group, then one that says
+/// what the hatching means if any span is modeled. It starts at `left`, the left of the plot,
+/// unless its text, measured with the fallback reserve, would then reach into the chart's right
+/// margin, as it does after a wide gutter of category labels on a narrow chart; it then starts at
+/// the left edge of the content. An entry is shortened only if it does not fit even there.
 fn push_legend(
     elements: &mut Vec<Element>,
     warnings: &mut Vec<ChartWarning>,
@@ -94,44 +129,76 @@ fn push_legend(
     (left, title_width): (f64, f64),
     metrics: &impl TextMetrics,
 ) {
-    if !spec.ranges.iter().any(|range| range.modeled) {
+    let mut entries: Vec<(&[&'static str], String, String)> = spec
+        .range_groups()
+        .into_iter()
+        .enumerate()
+        .map(|(index, group)| {
+            let first = spec
+                .ranges
+                .iter()
+                .position(|range| range.group.as_deref() == Some(group))
+                .expect("a group comes from a range");
+            (
+                std::slice::from_ref(&GROUP_CLASSES[index]),
+                group.to_owned(),
+                format!("/ranges/{first}/group"),
+            )
+        })
+        .collect();
+    if spec.ranges.iter().any(|range| range.modeled) {
+        entries.push((
+            &["chartlet-range", "chartlet-range-hatch"],
+            spec.locale.words().hatched_modeled.to_owned(),
+            "/locale".to_owned(),
+        ));
+    }
+    if entries.is_empty() {
         return;
     }
-    let text = spec.locale.words().hatched_modeled;
     let right = f64::from(spec.width) - f64::from(PLOT_MARGIN);
-    let x = if left + LEGEND_SWATCH + WithReserve(metrics).width(text, LABEL_SIZE) <= right {
+    let total: f64 = entries
+        .iter()
+        .map(|(_, text, _)| LEGEND_SWATCH + WithReserve(metrics).width(text, LABEL_SIZE))
+        .sum::<f64>()
+        + LEGEND_GAP * count(entries.len() - 1);
+    let mut x = if left + total <= right {
         left
     } else {
         CONTENT_LEFT
     };
-    let content = fit_text(
-        text,
-        right - x - LEGEND_SWATCH,
-        LABEL_SIZE,
-        metrics,
-        warnings,
-        "/locale",
-    );
     let y = 46.0 + title_extra(spec, title_width, metrics);
-    for class in ["chartlet-range", "chartlet-range-hatch"] {
-        elements.push(Element::Rect(Rect {
-            x,
-            y,
-            width: 10.0,
-            height: 10.0,
-            class,
-            series_index: None,
-            style_index: None,
-            tooltip: None,
+    for (classes, text, path) in entries {
+        let content = fit_text(
+            &text,
+            (right - x - LEGEND_SWATCH).max(0.0),
+            LABEL_SIZE,
+            metrics,
+            warnings,
+            &path,
+        );
+        for class in classes {
+            elements.push(Element::Rect(Rect {
+                x,
+                y,
+                width: 10.0,
+                height: 10.0,
+                class,
+                series_index: None,
+                style_index: None,
+                tooltip: None,
+            }));
+        }
+        let width = metrics.width(&content, LABEL_SIZE);
+        elements.push(Element::Text(Text {
+            x: x + LEGEND_SWATCH,
+            y: y + 9.0,
+            class: "chartlet-legend",
+            anchor: TextAnchor::Start,
+            content,
         }));
+        x += LEGEND_SWATCH + width + LEGEND_GAP;
     }
-    elements.push(Element::Text(Text {
-        x: x + LEGEND_SWATCH,
-        y: y + 9.0,
-        class: "chartlet-legend",
-        anchor: TextAnchor::Start,
-        content,
-    }));
 }
 
 /// The bar of one span, its hatching if modeled, and its central mark. `along` maps a value onto
@@ -162,7 +229,7 @@ fn push_span(
             tooltip: Some(tooltip(spec, range)),
         })
     };
-    elements.push(rect("chartlet-range"));
+    elements.push(rect(range_class(spec, range)));
     if range.modeled {
         elements.push(rect("chartlet-range-hatch"));
     }
@@ -215,7 +282,11 @@ fn layout_horizontal(
             .clamp(8.0, 200.0)
             + 16.0
     } else {
-        24.0
+        // The last tick label is centered on the end of the axis; half of it must fit.
+        let last = scale.ticks().last().map_or(0.0, |value| {
+            metrics.width(&scale.tick_label(value, spec.axis_style()), LABEL_SIZE)
+        });
+        f64::max(24.0, last / 2.0 + 4.0)
     };
     let bottom = if spec.value_axis.title.is_some() {
         56.0
@@ -378,6 +449,22 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .filter(|range| range.modeled)
         .map(|range| range.label.as_str())
         .collect();
+    let groups: Vec<String> = spec
+        .range_groups()
+        .into_iter()
+        .map(|group| {
+            let labels: Vec<&str> = spec
+                .ranges
+                .iter()
+                .filter(|range| range.group.as_deref() == Some(group))
+                .map(|range| range.label.as_str())
+                .collect();
+            format!("{group}: {}", labels.join(", "))
+        })
+        .collect();
+    if !groups.is_empty() {
+        description.push_str(&text::range_groups(spec.locale, &groups.join("; ")));
+    }
     if !modeled.is_empty() {
         description.push_str(&text::modeled_ranges(spec.locale, &modeled.join(", ")));
     }

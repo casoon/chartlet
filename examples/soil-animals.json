@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "type": "rangebar",
+  "title": "Soil animals under one square metre",
+  "source": "Sample data, rounded",
+  "orientation": "horizontal",
+  "valueAxis": { "title": "Individuals per square metre", "scale": "log", "thousandsSeparator": true },
+  "showValues": false,
+  "ranges": [
+    { "label": "Nematodes", "low": 1000000, "high": 20000000, "group": "Microfauna" },
+    { "label": "Rotifers", "low": 25000, "high": 600000, "group": "Microfauna" },
+    { "label": "Springtails", "low": 10000, "high": 400000, "group": "Mesofauna" },
+    { "label": "Mites", "low": 20000, "high": 400000, "group": "Mesofauna" },
+    { "label": "Potworms", "low": 3000, "high": 300000, "group": "Mesofauna" },
+    { "label": "Millipedes", "low": 20, "high": 700, "group": "Macrofauna" },
+    { "label": "Centipedes", "low": 20, "high": 400, "group": "Macrofauna" },
+    { "label": "Earthworms", "low": 10, "high": 1000, "mid": 120, "group": "Macrofauna" }
+  ]
+}

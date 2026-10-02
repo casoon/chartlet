@@ -205,6 +205,13 @@ const catalogue = [
       'One cell per day of a year, colored on the same diverging scale as the stripes, with a key for minimum, reference and maximum. Illustrative values.',
   },
   {
+    slug: 'soil-animals',
+    chart: 'Range bars (groups)',
+    useCase: 'Compare spans across orders of magnitude',
+    blurb:
+      'How many soil animals live under a square metre, as spans on a logarithmic axis, colored by size class with a legend.',
+  },
+  {
     slug: 'warming-contributions',
     chart: 'Range bars',
     useCase: 'Compare estimates with their uncertainty',

@@ -616,6 +616,15 @@ pub(crate) fn rangebar_opening(
 }
 
 /// The sentence that names the modeled spans of a range chart.
+/// The groups of a range bar chart, each with the labels of its spans, as `group: labels`
+/// separated by semicolons.
+pub(crate) fn range_groups(locale: Locale, groups: &str) -> String {
+    match locale {
+        Locale::En => format!(" Colors show groups: {groups}."),
+        Locale::De => format!(" Farben zeigen Gruppen: {groups}."),
+    }
+}
+
 pub(crate) fn modeled_ranges(locale: Locale, labels: &str) -> String {
     match locale {
         Locale::En => format!(" Modeled, drawn hatched: {labels}."),
