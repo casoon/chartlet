@@ -279,17 +279,25 @@ fn format_numeric(units: i64, decimals: u8, zone: TimeZone) -> String {
 }
 
 /// Ticks of a numeric axis: round steps of 1, 2 or 5 times a power of ten, at most `max_ticks`.
-fn numeric_ticks(min: i64, max: i64, zone: TimeZone, max_ticks: usize) -> Vec<Tick> {
+fn numeric_ticks(
+    min: i64,
+    max: i64,
+    zone: TimeZone,
+    max_ticks: usize,
+    fixed: Option<f64>,
+) -> Vec<Tick> {
     #[allow(clippy::cast_precision_loss)]
     let (low, high) = (min as f64 / NUMERIC_UNITS, max as f64 / NUMERIC_UNITS);
     #[allow(clippy::cast_precision_loss)]
     let raw = (high - low).max(f64::MIN_POSITIVE) / max_ticks.max(1) as f64;
     let magnitude = 10.0_f64.powf(raw.log10().floor());
-    let step = [1.0, 2.0, 5.0, 10.0]
-        .into_iter()
-        .map(|factor| factor * magnitude)
-        .find(|step| *step >= raw)
-        .unwrap_or(10.0 * magnitude);
+    let step = fixed.unwrap_or_else(|| {
+        [1.0, 2.0, 5.0, 10.0]
+            .into_iter()
+            .map(|factor| factor * magnitude)
+            .find(|step| *step >= raw)
+            .unwrap_or(10.0 * magnitude)
+    });
     let decimals = (0..=6_u8)
         .find(|decimals| {
             let scaled = step * 10.0_f64.powi(i32::from(*decimals));
@@ -449,11 +457,14 @@ pub(crate) fn ticks(
     zone: TimeZone,
     max_ticks: usize,
     allow_sub_day: bool,
+    fixed: Option<f64>,
 ) -> Vec<Tick> {
     if zone.is_numeric() {
-        return numeric_ticks(min, max, zone, max_ticks);
+        return numeric_ticks(min, max, zone, max_ticks, fixed);
     }
-    let step = tick_step(min, max, zone, max_ticks, allow_sub_day);
+    let step = fixed_or_chosen(fixed, || {
+        tick_step(min, max, zone, max_ticks, allow_sub_day)
+    });
     let mut ticks = Vec::new();
     let mut current = step.first(min, zone);
     // The chosen step always terminates; the bound only keeps a rounding surprise from spinning.
@@ -477,11 +488,14 @@ pub(crate) fn collapsed_ticks(
     zone: TimeZone,
     max_ticks: usize,
     allow_sub_day: bool,
+    fixed: Option<f64>,
 ) -> Vec<Tick> {
     let (Some(&min), Some(&max)) = (slots.first(), slots.last()) else {
         return Vec::new();
     };
-    let step = tick_step(min, max, zone, max_ticks, allow_sub_day);
+    let step = fixed_or_chosen(fixed, || {
+        tick_step(min, max, zone, max_ticks, allow_sub_day)
+    });
     let mut ticks: Vec<Tick> = Vec::new();
     let mut current = step.first(min, zone);
     while current <= max && ticks.len() < 64 {
@@ -495,6 +509,13 @@ pub(crate) fn collapsed_ticks(
         current = step.next(current, zone);
     }
     ticks
+}
+
+/// A declared step of whole years, or the one `choose` picks from the width.
+fn fixed_or_chosen(fixed: Option<f64>, choose: impl FnOnce() -> Step) -> Step {
+    // Validated: a calendar axis declares whole years, at most a few thousand.
+    #[allow(clippy::cast_possible_truncation)]
+    fixed.map_or_else(choose, |years| Step::Months(years as i64 * 12))
 }
 
 /// The finest step that keeps the ticks across `min..=max` within about `max_ticks`.
@@ -796,7 +817,7 @@ mod tests {
     fn yearly_spans_use_quarterly_steps() {
         let min = parse_iso("2026-01-15", UTC).expect("date");
         let max = parse_iso("2026-12-31", UTC).expect("date");
-        let labels: Vec<String> = ticks(min, max, UTC, 8, true)
+        let labels: Vec<String> = ticks(min, max, UTC, 8, true, None)
             .into_iter()
             .map(|tick| tick.label)
             .collect();
@@ -807,7 +828,7 @@ mod tests {
     fn monthly_spans_use_month_steps() {
         let min = parse_iso("2026-01-01", UTC).expect("date");
         let max = parse_iso("2026-08-31", UTC).expect("date");
-        let labels: Vec<String> = ticks(min, max, UTC, 8, true)
+        let labels: Vec<String> = ticks(min, max, UTC, 8, true, None)
             .into_iter()
             .map(|tick| tick.label)
             .collect();
@@ -822,10 +843,13 @@ mod tests {
 
     #[test]
     fn short_spans_use_hour_and_day_steps() {
-        assert_eq!(ticks(MARCH, MARCH + 5 * 3_600, UTC, 8, true).len(), 6);
-        assert_eq!(ticks(MARCH, MARCH + 6 * 86_400, UTC, 8, true).len(), 7);
+        assert_eq!(ticks(MARCH, MARCH + 5 * 3_600, UTC, 8, true, None).len(), 6);
+        assert_eq!(
+            ticks(MARCH, MARCH + 6 * 86_400, UTC, 8, true, None).len(),
+            7
+        );
         // A five-week span falls back to whole weeks, counted from a Monday.
-        let weekly = ticks(MARCH, MARCH + 40 * 86_400, UTC, 8, true);
+        let weekly = ticks(MARCH, MARCH + 40 * 86_400, UTC, 8, true, None);
         assert_eq!(weekly.len(), 6);
         assert!(
             weekly
@@ -838,7 +862,7 @@ mod tests {
     fn long_spans_use_year_steps_on_round_decades() {
         let min = parse_iso("1900-01-01", UTC).expect("date");
         let max = parse_iso("2199-01-01", UTC).expect("date");
-        let labels: Vec<String> = ticks(min, max, UTC, 8, true)
+        let labels: Vec<String> = ticks(min, max, UTC, 8, true, None)
             .into_iter()
             .map(|tick| tick.label)
             .collect();
@@ -847,13 +871,13 @@ mod tests {
 
     #[test]
     fn single_timestamp_span_still_produces_ticks() {
-        assert_eq!(ticks(MARCH, MARCH, UTC, 8, true).len(), 1);
+        assert_eq!(ticks(MARCH, MARCH, UTC, 8, true, None).len(), 1);
     }
 
     #[test]
     fn a_daily_series_keeps_daily_ticks() {
         // Two days of midnight observations: date labels instead of a repeated 00:00.
-        let daily = ticks(MARCH, MARCH + 2 * 86_400, UTC, 8, false);
+        let daily = ticks(MARCH, MARCH + 2 * 86_400, UTC, 8, false, None);
         assert_eq!(daily.len(), 3);
         assert!(
             daily
@@ -862,7 +886,7 @@ mod tests {
         );
 
         // The same span with a time of day in the data keeps the finer steps.
-        let intraday = ticks(MARCH, MARCH + 2 * 86_400, UTC, 8, true);
+        let intraday = ticks(MARCH, MARCH + 2 * 86_400, UTC, 8, true, None);
         assert!(intraday.len() > 3);
         assert!(
             intraday

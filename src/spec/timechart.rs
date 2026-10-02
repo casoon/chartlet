@@ -76,6 +76,10 @@ pub struct TimeAxisSpec {
     /// coarsest form that tells the observations apart is chosen from the data.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub precision: Option<TimePrecision>,
+    /// The distance between ticks instead of one chosen from the width: whole years on a
+    /// calendar axis, units on a numeric one. Ticks sit on multiples of it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step: Option<f64>,
 }
 
 /// The precision a time axis names its observations in.
@@ -115,6 +119,7 @@ impl TimeAxisSpec {
             && self.kind == TimeAxisKind::Calendar
             && !self.reverse
             && self.precision.is_none()
+            && self.step.is_none()
     }
 }
 
@@ -127,6 +132,7 @@ impl Default for TimeAxisSpec {
             kind: TimeAxisKind::default(),
             reverse: false,
             precision: None,
+            step: None,
         }
     }
 }
@@ -505,6 +511,23 @@ impl ChartSpec {
     fn validate_time_axis(&self) -> Result<crate::time::TimeZone, ChartError> {
         let zone = self.time_zone()?;
         validate_optional_text(self.time_axis.title.as_ref(), "/timeAxis/title", 100)?;
+        if let Some(step) = self.time_axis.step {
+            let calendar = self.time_axis.kind != TimeAxisKind::Number;
+            let valid = step.is_finite()
+                && step > 0.0
+                && (!calendar || (step.fract() == 0.0 && step <= 1_000.0));
+            if !valid {
+                return Err(ChartError::new(
+                    "invalid_axis_range",
+                    "/timeAxis/step",
+                    if calendar {
+                        "step on a calendar axis is a whole number of years, 1 to 1000"
+                    } else {
+                        "step must be a number above zero"
+                    },
+                ));
+            }
+        }
         if self.time_axis.kind == TimeAxisKind::Number {
             // A numeric axis has no calendar: no timezone, no calendar gaps to close, and zoom
             // steps name dates.

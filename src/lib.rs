@@ -1333,6 +1333,32 @@ mod tests {
         "value": 1}, {"time": "2010", "value": 2}]}]}]}"#;
 
     #[test]
+    fn a_declared_time_step_places_the_ticks() {
+        let points: Vec<String> = (1850..=2019)
+            .map(|year| format!(r#"{{"time": "{year}", "value": {}}}"#, year % 3))
+            .collect();
+        let spec = format!(
+            r#"{{"schemaVersion": 1, "type": "time", "title": "Forcing", "width": 260,
+            "height": 240, "showValues": false, "timeAxis": {{"step": 50}},
+            "panes": [{{"layers": [{{"mark": "line", "points": [{}]}}]}}]}}"#,
+            points.join(",")
+        );
+        let svg = render_ok(&spec).content;
+        for year in ["1850", "1900", "1950", "2000"] {
+            assert!(svg.contains(&format!(">{year}</text>")), "{year}: {svg}");
+        }
+        // Ticks every year would run into each other: only the labels that fit are written.
+        let yearly = spec.replace("\"step\": 50", "\"step\": 1");
+        let svg = render_ok(&yearly).content;
+        assert!(svg.matches("class=\"chartlet-tick\"").count() < 20, "{svg}");
+        let fraction = spec.replace("\"step\": 50", "\"step\": 2.5");
+        assert_eq!(
+            render_err(&fraction),
+            ("invalid_axis_range", "/timeAxis/step".to_owned())
+        );
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;

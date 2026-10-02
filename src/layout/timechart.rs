@@ -544,6 +544,7 @@ pub(super) fn layout_multiples(
             slots: slots.clone(),
             zone,
             precision,
+            tick_step: spec.time_axis.step,
             scale: if spec.independent_axes {
                 time_scale(spec, zone, Some(pane_index))
             } else {
@@ -597,6 +598,8 @@ pub(crate) struct TimeFrame {
     slots: Option<Vec<i64>>,
     pub(crate) zone: TimeZone,
     pub(crate) precision: Precision,
+    /// The declared distance between time ticks, if any.
+    tick_step: Option<f64>,
     scale: NumericScale,
     /// How the pane writes its values: its own value axis on a time chart, the shared one in
     /// small multiples.
@@ -1273,9 +1276,20 @@ fn push_time_ticks(
     let plot = frame.plot;
     let sub_day = frame.precision == Precision::Minute;
     let ticks = match &frame.slots {
-        Some(slots) => time::collapsed_ticks(slots, frame.zone, max_ticks, sub_day),
-        None => time::ticks(frame.span.0, frame.span.1, frame.zone, max_ticks, sub_day),
+        Some(slots) => {
+            time::collapsed_ticks(slots, frame.zone, max_ticks, sub_day, frame.tick_step)
+        }
+        None => time::ticks(
+            frame.span.0,
+            frame.span.1,
+            frame.zone,
+            max_ticks,
+            sub_day,
+            frame.tick_step,
+        ),
     };
+    // A label that would run into the one before it is left out; its gridline stays.
+    let mut last_end = f64::NEG_INFINITY;
     for tick in ticks {
         let x = frame.x(tick.epoch);
         elements.push(Element::Line(Line {
@@ -1289,8 +1303,18 @@ fn push_time_ticks(
             continue;
         }
         let half = metrics.width(&tick.label, LABEL_SIZE) / 2.0;
+        let x = x.min(canvas_width - 4.0 - half);
+        let (start, end) = if frame.reversed {
+            (-(x + half), -(x - half))
+        } else {
+            (x - half, x + half)
+        };
+        if start < last_end + 6.0 {
+            continue;
+        }
+        last_end = end;
         elements.push(Element::Text(Text {
-            x: x.min(canvas_width - 4.0 - half),
+            x,
             y: plot.top + plot.height + 24.0,
             class: "chartlet-tick",
             anchor: TextAnchor::Middle,
@@ -1343,6 +1367,7 @@ fn pane_frames(
             slots: slots.clone(),
             zone,
             precision,
+            tick_step: spec.time_axis.step,
             scale: time_scale(spec, zone, Some(pane_index)),
             style: spec.pane_style(pane_index),
             reversed: spec.time_axis.reverse,

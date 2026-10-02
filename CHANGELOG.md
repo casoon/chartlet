@@ -4,6 +4,17 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Added
+
+- Time charts: `timeAxis.step`, the distance between time ticks — whole years on a calendar
+  axis, units on a numeric one.
+
+### Fixed
+
+- A time tick label that would run into the one before it is left out; its gridline stays.
+
 ## [0.4.0] - 2026-10-02
 
 Compact charts, panel notes and step ends. The specification keeps `schemaVersion: 1`; every
