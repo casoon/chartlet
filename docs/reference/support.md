@@ -4,7 +4,7 @@ description: What has been verified, what is designed but not yet tested, and wh
 order: 4
 ---
 
-chartlet is at 0.2; screen reader and user testing are still pending. Statuses: **Verified**, **Experimental** (works, but may change between minor releases), **Designed, not yet verified**, **Planned**,
+chartlet is at 0.3; screen reader and user testing are still pending. Statuses: **Verified**, **Experimental** (works, but may change between minor releases), **Designed, not yet verified**, **Planned**,
 **Not supported**.
 
 ## Embedding
