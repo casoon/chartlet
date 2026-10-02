@@ -320,6 +320,17 @@ impl ChartSpec {
 
     /// The precision of every label that names an observation, chosen from the data layers.
     pub(crate) fn time_precision(&self, zone: crate::time::TimeZone) -> crate::time::Precision {
+        use crate::time::Precision;
+        if let Some(precision) = self.time_axis.precision
+            && !zone.is_numeric()
+        {
+            return match precision {
+                super::TimePrecision::Year => Precision::Year,
+                super::TimePrecision::Month => Precision::Month,
+                super::TimePrecision::Day => Precision::Day,
+                super::TimePrecision::Minute => Precision::Minute,
+            };
+        }
         let epochs: Vec<i64> = self
             .data_layers()
             .flat_map(|entry| entry.layer.resolved_times(zone))

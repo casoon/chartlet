@@ -63,7 +63,7 @@ impl TimeValue {
                 epoch
             }
             Self::Text(text) => parse_iso(text, zone).ok_or(
-                "expected an ISO 8601 date such as 2026-03-01 or 2026-03-01T12:00:00Z, or a year such as 1850",
+                "expected an ISO 8601 date such as 2026-03-01 or 2026-03-01T12:00:00Z, a month such as 2026-03, or a year such as 1850",
             )?,
         };
         if !(MIN_TIMESTAMP..MAX_TIMESTAMP).contains(&epoch) {
@@ -186,12 +186,14 @@ fn format_year(epoch: i64, zone: TimeZone) -> String {
     format!("{year:04}")
 }
 
-/// How finely the labels of a time chart name an observation: a year, a date, or a date with a
-/// time of day. The coarsest form that tells every observation apart is chosen from the data, so
-/// an annual series reads `1850` rather than `1850-01-01`.
+/// How finely the labels of a time chart name an observation: a year, a month, a date, or a date
+/// with a time of day. The coarsest form that tells every observation apart is chosen from the
+/// data, so an annual series reads `1850` rather than `1850-01-01` and a monthly one `2026-03`;
+/// `timeAxis.precision` can set it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Precision {
     Year,
+    Month,
     Day,
     Minute,
     /// A numeric axis, with as many decimals as its most precise value needs.
@@ -206,13 +208,35 @@ impl Precision {
         }
         if any_has_time_of_day(timestamps.clone(), zone) {
             Self::Minute
-        } else if timestamps.into_iter().all(|epoch| {
+        } else if timestamps.clone().all(|epoch| {
             let (_, month, day, _, _) = local_fields(epoch, zone);
             month == 1 && day == 1
         }) {
             Self::Year
+        } else if timestamps
+            .into_iter()
+            .all(|epoch| local_fields(epoch, zone).2 == 1)
+        {
+            Self::Month
         } else {
             Self::Day
+        }
+    }
+
+    /// The finer of two precisions: an annotation is named at least as finely as the chart's
+    /// observations, so that a marker on March 1st of a daily series reads as a day, not a month.
+    pub(crate) fn at_least(self, other: Self) -> Self {
+        let rank = |precision: Self| match precision {
+            Self::Year => 0,
+            Self::Month => 1,
+            Self::Day => 2,
+            Self::Minute => 3,
+            Self::Number(decimals) => 4 + u32::from(decimals),
+        };
+        if rank(other) > rank(self) {
+            other
+        } else {
+            self
         }
     }
 
@@ -220,6 +244,7 @@ impl Precision {
     pub(crate) fn format(self, epoch: i64, zone: TimeZone) -> String {
         match self {
             Self::Year => format_year(epoch, zone),
+            Self::Month => format_month(epoch, zone),
             Self::Day => format_date(epoch, zone),
             Self::Minute => format_datetime(epoch, zone),
             Self::Number(decimals) => format_numeric(epoch, decimals, zone),
@@ -506,6 +531,15 @@ pub(crate) fn parse_iso(text: &str, zone: TimeZone) -> Option<i64> {
     if bytes.len() == 4 && bytes.iter().all(u8::is_ascii_digit) {
         let year: i64 = text.parse().ok()?;
         return Some(days_from_civil(year, 1, 1) * SECONDS_PER_DAY - zone.offset());
+    }
+    // A month such as 2026-03 stands for its first day.
+    if bytes.len() == 7 && bytes[4] == b'-' {
+        let year: i64 = text.get(0..4)?.parse().ok()?;
+        let month: u32 = text.get(5..7)?.parse().ok()?;
+        if !(1..=12).contains(&month) {
+            return None;
+        }
+        return Some(days_from_civil(year, month, 1) * SECONDS_PER_DAY - zone.offset());
     }
     if bytes.len() < 10 || bytes[4] != b'-' || bytes[7] != b'-' {
         return None;

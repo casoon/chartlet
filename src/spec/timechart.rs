@@ -69,6 +69,20 @@ pub struct TimeAxisSpec {
     /// read from the oldest on the left to today on the right.
     #[serde(default, skip_serializing_if = "is_false")]
     pub reverse: bool,
+    /// How finely tooltips, the data table and the description name an observation. Absent, the
+    /// coarsest form that tells the observations apart is chosen from the data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub precision: Option<TimePrecision>,
+}
+
+/// The precision a time axis names its observations in.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TimePrecision {
+    Year,
+    Month,
+    Day,
+    Minute,
 }
 
 impl TimeAxisKind {
@@ -86,6 +100,7 @@ impl TimeAxisSpec {
             && self.title.is_none()
             && self.kind == TimeAxisKind::Calendar
             && !self.reverse
+            && self.precision.is_none()
     }
 }
 
@@ -97,6 +112,7 @@ impl Default for TimeAxisSpec {
             title: None,
             kind: TimeAxisKind::default(),
             reverse: false,
+            precision: None,
         }
     }
 }
@@ -441,6 +457,7 @@ impl ChartSpec {
                     self.time_axis.timezone != default_timezone(),
                 ),
                 ("/timeAxis/gaps", self.time_axis.gaps != Gaps::Show),
+                ("/timeAxis/precision", self.time_axis.precision.is_some()),
                 ("/zoomSteps", !self.zoom_steps.is_empty()),
             ] {
                 if present {

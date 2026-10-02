@@ -33,7 +33,7 @@ const YEAR_TICK_SPACING: u32 = 64;
 const fn time_tick_spacing(precision: Precision) -> u32 {
     match precision {
         Precision::Year | Precision::Number(_) => YEAR_TICK_SPACING,
-        Precision::Day | Precision::Minute => TIME_TICK_SPACING,
+        Precision::Month | Precision::Day | Precision::Minute => TIME_TICK_SPACING,
     }
 }
 

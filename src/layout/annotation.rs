@@ -29,7 +29,7 @@ pub(crate) fn zone_extent(
     let times = if epochs.is_empty() {
         None
     } else {
-        let precision = Precision::of(epochs.into_iter(), zone);
+        let precision = Precision::of(epochs.into_iter(), zone).at_least(spec.time_precision(zone));
         crate::text::zone_times(
             spec.locale,
             from.map(|epoch| precision.format(epoch, zone)).as_deref(),
@@ -50,7 +50,12 @@ pub(crate) fn zone_extent(
 }
 
 /// Where a point marker sits, for its tooltip and the description: its time and its value.
-pub(crate) fn marker_position(layer: &LayerSpec, zone: TimeZone, style: NumberStyle) -> String {
+pub(crate) fn marker_position(
+    layer: &LayerSpec,
+    zone: TimeZone,
+    chart: Precision,
+    style: NumberStyle,
+) -> String {
     let epoch = layer
         .time
         .as_ref()
@@ -59,7 +64,9 @@ pub(crate) fn marker_position(layer: &LayerSpec, zone: TimeZone, style: NumberSt
     let value = layer.value.expect("validated point markers carry a value");
     format!(
         "{}, {}",
-        Precision::of(std::iter::once(epoch), zone).format(epoch, zone),
+        Precision::of(std::iter::once(epoch), zone)
+            .at_least(chart)
+            .format(epoch, zone),
         format_value(value, style)
     )
 }
@@ -161,7 +168,7 @@ pub(super) fn push_marker(
     let style_index = layer.resolved_color().is_some().then_some(entry.global);
     let tooltip = Some(format!(
         "{label}: {}",
-        marker_position(layer, frame.zone, frame.style)
+        marker_position(layer, frame.zone, frame.precision, frame.style)
     ));
     let reach = radius * 1.25;
     space
@@ -334,7 +341,7 @@ pub(super) fn push_rule(
         } else {
             (x + 4.0, TextAnchor::Start)
         };
-        let precision = Precision::of(std::iter::once(epoch), frame.zone);
+        let precision = Precision::of(std::iter::once(epoch), frame.zone).at_least(frame.precision);
         (
             vec![(x, plot.top), (x, bottom)],
             Text {

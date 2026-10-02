@@ -23,7 +23,7 @@ pub(crate) use stripes::Diverging;
 pub use stripes::StripesSpec;
 pub use timechart::{
     Curve, Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimeAxisKind,
-    TimeAxisSpec, TimePoint,
+    TimeAxisSpec, TimePoint, TimePrecision,
 };
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};

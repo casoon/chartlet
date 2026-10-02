@@ -31,8 +31,8 @@ pub use spec::{
     AxisScale, CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec,
     ChartSpec, ChartType, Corner, Curve, Dash, DataPoint, Gaps, LayerSpec, LegendPlacement, Mark,
     MobileSpec, OhlcPoint, Orientation, PaneSpec, RangeSpec, ReferenceSpec, SeriesSpec, Shape,
-    Stack, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
+    Stack, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1124,6 +1124,33 @@ mod tests {
     }
 
     #[test]
+    fn months_read_as_months_and_the_precision_can_be_set() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Monthly", "panes": [{"layers": [
+            {"mark": "line", "name": "V", "points": [{"time": "2026-01", "value": 1},
+             {"time": "2026-02", "value": 2}, {"time": "2026-03", "value": 3}]}]}]}"#;
+        let svg = render_ok(spec).content;
+        assert!(svg.contains("<title>2026-02 – V: 2</title>"), "{svg}");
+        let german = render_ok(&spec.replace(
+            "\"type\": \"time\",",
+            "\"type\": \"time\", \"locale\": \"de\",",
+        ));
+        assert!(
+            german.content.contains("<title>02.2026 – V: 2</title>"),
+            "{}",
+            german.content
+        );
+        let mid_year = r#"{"schemaVersion": 1, "type": "time", "title": "Annual",
+            "timeAxis": {"precision": "year"}, "panes": [{"layers": [
+            {"mark": "line", "name": "V", "points": [{"time": "1950-07-01", "value": 1},
+             {"time": "1951-07-01", "value": 2}]}]}]}"#;
+        assert!(
+            render_ok(mid_year)
+                .content
+                .contains("<title>1950 – V: 1</title>")
+        );
+    }
+
+    #[test]
     fn a_step_line_holds_each_value_until_the_next() {
         let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Steps", "panes": [{"layers": [
             {"mark": "line", "name": "Mean", "curve": "step",
@@ -1735,7 +1762,7 @@ mod tests {
             ),
             (
                 "\"March 1st\"",
-                "expected an ISO 8601 date such as 2026-03-01 or 2026-03-01T12:00:00Z, or a year such as 1850",
+                "expected an ISO 8601 date such as 2026-03-01 or 2026-03-01T12:00:00Z, a month such as 2026-03, or a year such as 1850",
             ),
         ] {
             let broken = TIME.replace("\"time\": \"2026-03-01\"", &format!("\"time\": {time}"));

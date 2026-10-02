@@ -35,7 +35,7 @@ boundaries rather than in the middle of a band.
 ## Timestamps
 
 `time` is either Unix seconds or an ISO 8601 string: `1772323200`, `"2026-03-01"`,
-`"2026-03-01T12:00:00Z"`, or `"2026-03-01T12:00:00+02:00"`. A bare year such as `"1850"` stands
+`"2026-03-01T12:00:00Z"`, or `"2026-03-01T12:00:00+02:00"`; a month such as `"2026-03"` stands for its first day. A bare year such as `"1850"` stands
 for January 1st; when every observation falls on January 1st, tooltips, description and table
 label them by year.
 

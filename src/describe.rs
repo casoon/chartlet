@@ -488,7 +488,9 @@ fn describe_rules(spec: &ChartSpec, zone: time::TimeZone, description: &mut Stri
             Some(format!(
                 "{label} {} {}",
                 words.at,
-                time::Precision::of(std::iter::once(epoch), zone).format(epoch, zone)
+                time::Precision::of(std::iter::once(epoch), zone)
+                    .at_least(spec.time_precision(zone))
+                    .format(epoch, zone)
             ))
         })
         .collect::<Vec<_>>();
@@ -530,7 +532,12 @@ fn describe_zones_and_markers(spec: &ChartSpec, zone: time::TimeZone, descriptio
             Some(format!(
                 "{label} {} {}",
                 words.at,
-                layout::marker_position(entry.layer, zone, spec.pane_style(entry.pane))
+                layout::marker_position(
+                    entry.layer,
+                    zone,
+                    spec.time_precision(zone),
+                    spec.pane_style(entry.pane),
+                )
             ))
         })
         .collect();
