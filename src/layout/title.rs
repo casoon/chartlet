@@ -7,6 +7,20 @@ use crate::{
 };
 
 const TITLE_SIZE: f64 = 22.0;
+/// The title of a chart narrower than [`NARROW`], such as a mobile variant: smaller, so that a
+/// title of usual length fits on two lines.
+const SMALL_TITLE_SIZE: f64 = 18.0;
+/// Below this width a chart draws its title smaller.
+pub(crate) const NARROW: u32 = 480;
+
+/// The font size of the title of `spec`.
+fn title_size(spec: &ChartSpec) -> f64 {
+    if spec.width < NARROW {
+        SMALL_TITLE_SIZE
+    } else {
+        TITLE_SIZE
+    }
+}
 /// Height of the drawn title with its spacing; a chart without a drawn title gains it.
 const TITLE_BLOCK: f64 = 44.0;
 
@@ -34,7 +48,7 @@ pub(super) fn two_lines<'a>(
 pub(crate) fn title_extra(spec: &ChartSpec, max_width: f64, metrics: &impl TextMetrics) -> f64 {
     if !spec.show_title {
         -TITLE_BLOCK
-    } else if two_lines(&spec.title, max_width, TITLE_SIZE, metrics).is_some() {
+    } else if two_lines(&spec.title, max_width, title_size(spec), metrics).is_some() {
         TITLE_LINE
     } else {
         0.0
@@ -66,9 +80,10 @@ pub(crate) fn horizontal_title(
 /// Whether the title fits `max_width` on one line or two without being shortened.
 pub(crate) fn title_fits(spec: &ChartSpec, max_width: f64, metrics: &impl TextMetrics) -> bool {
     let title = spec.title.as_str();
-    metrics.width(title, TITLE_SIZE) <= max_width
-        || two_lines(title, max_width, TITLE_SIZE, metrics)
-            .is_some_and(|(_, rest)| metrics.width(rest, TITLE_SIZE) <= max_width)
+    let size = title_size(spec);
+    metrics.width(title, size) <= max_width
+        || two_lines(title, max_width, size, metrics)
+            .is_some_and(|(_, rest)| metrics.width(rest, size) <= max_width)
 }
 
 /// Draws the chart title at `x`: on one line if it fits `max_width`, otherwise on two, broken at
@@ -87,20 +102,25 @@ pub(crate) fn push_title(
         return;
     }
     let title = spec.title.as_str();
-    let lines = match two_lines(title, max_width, TITLE_SIZE, metrics) {
+    let size = title_size(spec);
+    let lines = match two_lines(title, max_width, size, metrics) {
         Some((first, rest)) => vec![
             first.to_owned(),
-            fit_text(rest, max_width, TITLE_SIZE, metrics, warnings, "/title"),
+            fit_text(rest, max_width, size, metrics, warnings, "/title"),
         ],
         None => vec![fit_text(
-            title, max_width, TITLE_SIZE, metrics, warnings, "/title",
+            title, max_width, size, metrics, warnings, "/title",
         )],
     };
     for (index, content) in lines.into_iter().enumerate() {
         elements.push(Element::Text(Text {
             x,
             y: 30.0 + count(index) * TITLE_LINE,
-            class: "chartlet-title",
+            class: if spec.width < NARROW {
+                "chartlet-title chartlet-title-small"
+            } else {
+                "chartlet-title"
+            },
             anchor: TextAnchor::Start,
             content,
         }));

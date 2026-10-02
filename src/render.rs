@@ -31,6 +31,8 @@ const LINE_SERIES_STYLE: &str = ".chartlet-legend{font-size:12px;fill:var(--char
 /// Outlined series of a bar chart with `patterns`: the background inside, the series color
 /// around it.
 const OUTLINE_STYLE: &str = ".chartlet-outline{fill:var(--chartlet-background);stroke-width:2}.chartlet-series-2.chartlet-outline{stroke:var(--chartlet-color-2)}.chartlet-series-4.chartlet-outline{stroke:var(--chartlet-color-4)}";
+/// The smaller title of a narrow chart, such as a mobile variant.
+const SMALL_TITLE_STYLE: &str = ".chartlet-title-small{font-size:18px}";
 /// The reference lines of a bar chart, drawn like the reference lines of a time chart in
 /// [`LAYER_EXTRA_STYLE`].
 const REFERENCE_STYLE: &str = ".chartlet-rule{fill:none;stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-rule-label{font-size:12px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
@@ -279,7 +281,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -321,6 +323,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
             REFERENCE_STYLE
         },
         if spec.patterns { OUTLINE_STYLE } else { "" },
+        if spec.width < crate::layout::NARROW {
+            SMALL_TITLE_STYLE
+        } else {
+            ""
+        },
         if is_topicmap { TOPICMAP_STYLE } else { "" },
         if is_atlas { ATLAS_STYLE } else { "" },
         if is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc) {
@@ -337,7 +344,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// time chart and of a range bar chart, never meet.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType]) -> String {
     use ChartType::{Atlas, Bar, Calendar, Line, Multiples, Rangebar, Stripes, Time, Topicmap};
-    let groups: [(&str, &[ChartType]); 17] = [
+    let groups: [(&str, &[ChartType]); 18] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SERIES_STYLE, &[Bar]),
@@ -352,6 +359,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType]) -> String {
         (RANGEBAR_STYLE, &[Rangebar]),
         (REFERENCE_STYLE, &[Bar]),
         (OUTLINE_STYLE, &[Bar]),
+        (SMALL_TITLE_STYLE, &[]),
         (TOPICMAP_STYLE, &[Topicmap]),
         (ATLAS_STYLE, &[Atlas]),
         (OHLC_STYLE, &[Time]),

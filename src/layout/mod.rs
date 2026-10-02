@@ -27,7 +27,7 @@ pub(crate) use labels::WithReserve;
 use line::layout_line;
 pub(crate) use timechart::{TimeFrame, tooltip_name};
 use timechart::{layout_multiples, layout_time};
-pub(crate) use title::{CONTENT_LEFT, horizontal_title, push_title, title_extra};
+pub(crate) use title::{CONTENT_LEFT, NARROW, horizontal_title, push_title, title_extra};
 use topicmap::layout_topicmap;
 
 pub(crate) const LABEL_SIZE: f64 = 12.0;
@@ -363,7 +363,9 @@ mod tests {
             .elements
             .iter()
             .filter_map(|element| match element {
-                crate::scene::Element::Text(text) if text.class == class => {
+                crate::scene::Element::Text(text)
+                    if text.class.split(' ').any(|name| name == class) =>
+                {
                     Some((text.y, text.content.clone()))
                 }
                 _ => None,
@@ -641,11 +643,11 @@ mod tests {
     #[test]
     fn a_horizontal_rangebar_title_spans_the_chart_when_the_gutter_leaves_too_little_room() {
         // With HalfEm the gutter for "Other human drivers" is 143 pixels; on a 320-pixel chart
-        // the plot is 153 pixels wide, too narrow for the title even on two lines.
+        // the plot is 153 pixels wide, too narrow for the title even on two lines of the small title.
         let json = |width: u32| {
             format!(
                 r#"{{"schemaVersion": 1, "type": "rangebar", "orientation": "horizontal",
-                    "title": "Contributions to global warming", "width": {width},
+                    "title": "Contributions to global warming since 1850", "width": {width},
                     "showValues": false,
                     "ranges": [
                         {{"label": "Observed", "low": 0.9, "high": 1.2}},
@@ -658,7 +660,9 @@ mod tests {
                 .elements
                 .iter()
                 .filter_map(|element| match element {
-                    crate::scene::Element::Text(text) if text.class == "chartlet-title" => {
+                    crate::scene::Element::Text(text)
+                        if text.class.starts_with("chartlet-title") =>
+                    {
                         Some((text.x, text.content.clone()))
                     }
                     _ => None,
@@ -670,13 +674,13 @@ mod tests {
 
         assert_eq!(
             title(&wide),
-            [(143.0, "Contributions to global warming".into())]
+            [(143.0, "Contributions to global warming since 1850".into())]
         );
         assert_eq!(
             title(&narrow),
             [
-                (16.0, "Contributions to global".into()),
-                (16.0, "warming".into())
+                (16.0, "Contributions to global warming".into()),
+                (16.0, "since 1850".into())
             ]
         );
         assert!(warnings.is_empty(), "{warnings:?}");
@@ -699,7 +703,9 @@ mod tests {
                 .elements
                 .iter()
                 .filter_map(|element| match element {
-                    crate::scene::Element::Text(text) if text.class == "chartlet-title" => {
+                    crate::scene::Element::Text(text)
+                        if text.class.starts_with("chartlet-title") =>
+                    {
                         Some((text.x, text.content.clone()))
                     }
                     _ => None,
@@ -715,10 +721,7 @@ mod tests {
         );
         assert_eq!(
             title(&narrow),
-            [
-                (16.0, "Contributions to global".into()),
-                (16.0, "warming".into())
-            ]
+            [(16.0, "Contributions to global warming".into())]
         );
         assert!(warnings.is_empty(), "{warnings:?}");
     }
