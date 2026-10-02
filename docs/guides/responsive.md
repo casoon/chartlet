@@ -22,7 +22,7 @@ composed for it rather than a smaller copy.
 | Field | Default | Description |
 | --- | --- | --- |
 | `mobile.width` | required | Width of the mobile layout in pixels, 200–600. |
-| `mobile.height` | 360 | Height in pixels, 240–1600. It does not follow the aspect ratio of the chart: a narrow chart usually needs to be taller, not shorter. |
+| `mobile.height` | 360 | Height in pixels, 160–1600. It does not follow the aspect ratio of the chart: a narrow chart usually needs to be taller, not shorter. |
 | `mobile.breakpoint` | 640 | Container width in CSS pixels below which the mobile variant is shown, 320–1600. |
 
 The mobile variant is available for every chart type. It is laid out by the same rules as the chart

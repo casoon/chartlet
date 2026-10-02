@@ -4778,7 +4778,7 @@ mod tests {
         for (mobile, path) in [
             (r#"{"width": 199}"#, "/mobile/width"),
             (r#"{"width": 601}"#, "/mobile/width"),
-            (r#"{"width": 360, "height": 239}"#, "/mobile/height"),
+            (r#"{"width": 360, "height": 159}"#, "/mobile/height"),
             (r#"{"width": 360, "height": 1601}"#, "/mobile/height"),
             (r#"{"width": 360, "breakpoint": 319}"#, "/mobile/breakpoint"),
             (

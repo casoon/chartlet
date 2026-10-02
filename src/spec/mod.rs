@@ -813,17 +813,17 @@ impl ChartSpec {
                 "width must be between 200 and 2400",
             ));
         }
-        if !(240..=1_600).contains(&self.height) {
+        if !(160..=1_600).contains(&self.height) {
             return Err(ChartError::new(
                 "invalid_dimension",
                 "/height",
-                "height must be between 240 and 1600",
+                "height must be between 160 and 1600",
             ));
         }
         if let Some(mobile) = &self.mobile {
             for (path, value, range) in [
                 ("/mobile/width", mobile.width, 200..=600),
-                ("/mobile/height", mobile.height, 240..=1_600),
+                ("/mobile/height", mobile.height, 160..=1_600),
                 ("/mobile/breakpoint", mobile.breakpoint, 320..=1_600),
             ] {
                 if !range.contains(&value) {
