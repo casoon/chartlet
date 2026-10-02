@@ -1,0 +1,154 @@
+{
+  "schemaVersion": 1,
+  "type": "multiples",
+  "title": "Which cause matches the warming?",
+  "source": "Sample data, simplified",
+  "width": 800,
+  "height": 420,
+  "columns": 3,
+  "showValues": false,
+  "valueAxis": {
+    "title": "°C",
+    "min": -0.5,
+    "max": 1.5
+  },
+  "mobile": {
+    "width": 360,
+    "height": 760,
+    "columns": 1
+  },
+  "panes": [
+    {
+      "title": "Sun",
+      "note": "Does not match: solar activity has not risen since 1960",
+      "layers": [
+        {
+          "mark": "line",
+          "name": "Measured",
+          "points": [
+            { "time": "1900", "value": -0.05 },
+            { "time": "1910", "value": 0.15 },
+            { "time": "1920", "value": 0.15 },
+            { "time": "1930", "value": 0.35 },
+            { "time": "1940", "value": 0.35 },
+            { "time": "1950", "value": 0.55 },
+            { "time": "1960", "value": 0.55 },
+            { "time": "1970", "value": 0.75 },
+            { "time": "1980", "value": 0.75 },
+            { "time": "1990", "value": 0.95 },
+            { "time": "2000", "value": 0.95 },
+            { "time": "2010", "value": 1.15 },
+            { "time": "2020", "value": 1.15 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Model",
+          "points": [
+            { "time": "1900", "value": 0.1 },
+            { "time": "1910", "value": 0.1 },
+            { "time": "1920", "value": 0.1 },
+            { "time": "1930", "value": 0.1 },
+            { "time": "1940", "value": 0.1 },
+            { "time": "1950", "value": 0.1 },
+            { "time": "1960", "value": 0.05 },
+            { "time": "1970", "value": 0.05 },
+            { "time": "1980", "value": 0.05 },
+            { "time": "1990", "value": 0.05 },
+            { "time": "2000", "value": 0.05 },
+            { "time": "2010", "value": 0.05 },
+            { "time": "2020", "value": 0.05 }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Volcanoes",
+      "note": "Does not match: only short cooling",
+      "layers": [
+        {
+          "mark": "line",
+          "name": "Measured",
+          "points": [
+            { "time": "1900", "value": -0.05 },
+            { "time": "1910", "value": 0.15 },
+            { "time": "1920", "value": 0.15 },
+            { "time": "1930", "value": 0.35 },
+            { "time": "1940", "value": 0.35 },
+            { "time": "1950", "value": 0.55 },
+            { "time": "1960", "value": 0.55 },
+            { "time": "1970", "value": 0.75 },
+            { "time": "1980", "value": 0.75 },
+            { "time": "1990", "value": 0.95 },
+            { "time": "2000", "value": 0.95 },
+            { "time": "2010", "value": 1.15 },
+            { "time": "2020", "value": 1.15 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Model",
+          "points": [
+            { "time": "1900", "value": -0.1 },
+            { "time": "1910", "value": -0.1 },
+            { "time": "1920", "value": -0.1 },
+            { "time": "1930", "value": -0.1 },
+            { "time": "1940", "value": -0.1 },
+            { "time": "1950", "value": -0.1 },
+            { "time": "1960", "value": -0.1 },
+            { "time": "1970", "value": -0.1 },
+            { "time": "1980", "value": -0.1 },
+            { "time": "1990", "value": -0.1 },
+            { "time": "2000", "value": -0.1 },
+            { "time": "2010", "value": -0.1 },
+            { "time": "2020", "value": -0.1 }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Greenhouse gases",
+      "note": "Matches the measured warming",
+      "layers": [
+        {
+          "mark": "line",
+          "name": "Measured",
+          "points": [
+            { "time": "1900", "value": -0.05 },
+            { "time": "1910", "value": 0.15 },
+            { "time": "1920", "value": 0.15 },
+            { "time": "1930", "value": 0.35 },
+            { "time": "1940", "value": 0.35 },
+            { "time": "1950", "value": 0.55 },
+            { "time": "1960", "value": 0.55 },
+            { "time": "1970", "value": 0.75 },
+            { "time": "1980", "value": 0.75 },
+            { "time": "1990", "value": 0.95 },
+            { "time": "2000", "value": 0.95 },
+            { "time": "2010", "value": 1.15 },
+            { "time": "2020", "value": 1.15 }
+          ]
+        },
+        {
+          "mark": "line",
+          "name": "Model",
+          "points": [
+            { "time": "1900", "value": 0.0 },
+            { "time": "1910", "value": 0.11 },
+            { "time": "1920", "value": 0.22 },
+            { "time": "1930", "value": 0.33 },
+            { "time": "1940", "value": 0.43 },
+            { "time": "1950", "value": 0.54 },
+            { "time": "1960", "value": 0.65 },
+            { "time": "1970", "value": 0.76 },
+            { "time": "1980", "value": 0.87 },
+            { "time": "1990", "value": 0.98 },
+            { "time": "2000", "value": 1.08 },
+            { "time": "2010", "value": 1.19 },
+            { "time": "2020", "value": 1.3 }
+          ]
+        }
+      ]
+    }
+  ]
+}

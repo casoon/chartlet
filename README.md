@@ -85,7 +85,9 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
 | Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
+| Small multiples with a finding under each panel, one column on phones | `note` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
+| Compact chart for a panel in a grid of columns | `"width": 240` (200–319 px: narrower gutter, same text size) | – |
 
 Each example has its rendered `.svg` and `.html` next to it. The SVG files are also the
 reference output of the test suite.
@@ -117,7 +119,9 @@ say “modeled”. An `"annotation"` layer draws a labelled reference line: `val
 threshold, `time` for a vertical marker. A bare year such as `"1850"` is a valid timestamp, and
 annual data is labelled by year. `null` as a value breaks the line, its band and its area.
 `"mark": "area"` fills the region between a line and zero, and `"stack": "normal"` on a pane
-stacks its areas; `"mark": "point"` draws dots without a line; `dash` (`solid`, `dashed`, `dotted`)
+stacks its areas; `"mark": "point"` draws dots without a line, `"markers": false` a line without
+dots; `"curve": "step"` with `stepEnd` draws period values such as annual means; `precision` per
+layer names yearly means by their year beside monthly values; `dash` (`solid`, `dashed`, `dotted`)
 and `stroke` (`thin`, `regular`, `bold`) tell lines apart beyond color. A pane holds up to six
 data layers, four of them in palette colors, and `zoomSteps` take timestamps on a time chart.
 `"mark": "ohlc"` draws candlesticks from `data: [{ time, open, high, low, close }]` — hollow when

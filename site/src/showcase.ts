@@ -211,6 +211,12 @@ const catalogue = [
       'One cell per day of a year, colored on the same diverging scale as the stripes, with a key for minimum, reference and maximum. Illustrative values.',
   },
   {
+    slug: 'warming-causes',
+    chart: 'Small multiples (panel notes)',
+    useCase: 'Compare candidates against one measurement',
+    blurb: 'Measured warming beside three model runs, each panel with its verdict under the title and one column on phones.',
+  },
+  {
     slug: 'soil-animals',
     chart: 'Range bars (groups)',
     useCase: 'Compare spans across orders of magnitude',
