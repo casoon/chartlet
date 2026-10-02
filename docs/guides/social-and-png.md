@@ -46,7 +46,8 @@ chartlet render revenue.json --format png --scale 2 -o revenue@2x.png
 
 - A PNG is rasterized from the print variant, the chart at `width` × `height`, or with
   `--variant social` from the social variant. `--variant desktop` is taken as `print`;
-  `--variant mobile` fails with `option_not_supported`.
+  `--variant mobile` rasterizes the mobile layout with the same literal colors, and fails with
+  `option_not_supported` for a chart without `mobile`.
 - `--scale` sets the image pixels per SVG pixel, 0.25 to 4 (default 1); outside that range it
   fails with `invalid_scale`. `--scale 2` gives a 1600 × 900 image of an 800 × 450 chart.
 - Text is drawn with Inter (regular and semibold, Latin and Latin Extended), which the crate

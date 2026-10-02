@@ -101,7 +101,7 @@ fn the_png_has_the_size_of_the_variant_times_the_scale() {
 }
 
 #[test]
-fn the_png_rejects_the_mobile_variant_and_an_out_of_range_scale() {
+fn the_png_takes_the_mobile_variant_only_where_there_is_one_and_rejects_a_bad_scale() {
     let monthly = spec(include_str!("../examples/monthly-revenue.json"));
     let mobile = render_png(
         &monthly,
@@ -112,6 +112,19 @@ fn the_png_rejects_the_mobile_variant_and_an_out_of_range_scale() {
     )
     .unwrap_err();
     assert_eq!(mobile.code, "option_not_supported");
+    // A chart with a mobile variant rasterizes its mobile layout at the mobile width.
+    let responsive = spec(include_str!("../examples/mobile-revenue.json"));
+    let png = render_png(
+        &responsive,
+        &PngOptions {
+            variant: Variant::Mobile,
+            scale: 1.0,
+        },
+    )
+    .expect("renders")
+    .png;
+    let width = u32::from_be_bytes(png[16..20].try_into().expect("an IHDR width"));
+    assert_eq!(width, responsive.mobile.as_ref().expect("a mobile variant").width);
     for scale in [0.0, 4.5, f32::NAN] {
         let error = render_png(
             &monthly,

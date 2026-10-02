@@ -10,6 +10,8 @@ does.
 
 - Time charts: `timeAxis.step`, the distance between time ticks — whole years on a calendar
   axis, units on a numeric one.
+- PNG of the mobile variant: `--variant mobile --format png`, with the literal colors of the
+  print variant.
 
 ### Fixed
 

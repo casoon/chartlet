@@ -13,7 +13,7 @@ chartlet render <spec.json | -> [options]
 | --- | --- |
 | `--format svg` | Standalone SVG with `<title>` and `<desc>` and the title drawn in the chart (default). |
 | `--format html` | `<figure>` with caption, SVG, source and data table; the caption is the visible title, the SVG draws none. With `mobile` in the specification, both variants behind a container query. |
-| `--format png` | PNG of the print variant, or of the social variant with `--variant social`, drawn with the bundled Inter font. Needs chartlet built with the `png` feature (`cargo install chartlet --features png`). |
+| `--format png` | PNG of the print variant, of the social variant with `--variant social`, or of the mobile layout with `--variant mobile`, drawn with the bundled Inter font. Needs chartlet built with the `png` feature (`cargo install chartlet --features png`). |
 | `--scale <factor>` | With `--format png`: image pixels per SVG pixel, 0.25–4 (default 1). |
 | `--table details` | Puts the HTML data table in a native, initially closed `<details>` (default). |
 | `--table visible` | Shows the data table permanently. |

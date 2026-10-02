@@ -581,8 +581,8 @@ fn warn_unresolved_colors(spec: &ChartSpec, variant: &str, warnings: &mut Vec<Ch
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PngOptions {
     /// [`Variant::Print`] rasterizes the chart at `width` × `height`, [`Variant::Social`] the
-    /// 1200 × 630 canvas. [`Variant::Desktop`] is taken as [`Variant::Print`]: a PNG needs the
-    /// resolved stylesheet. [`Variant::Mobile`] is not supported.
+    /// 1200 × 630 canvas, [`Variant::Mobile`] the mobile layout. [`Variant::Desktop`] is taken as
+    /// [`Variant::Print`]: a PNG needs the resolved stylesheet.
     pub variant: Variant,
     /// Image pixels per SVG pixel, 0.25–4; 2 for a high-density screen.
     pub scale: f32,
@@ -613,7 +613,7 @@ pub struct PngOutput {
 /// # Errors
 ///
 /// Returns a structured error when the specification is invalid, the scale is out of range, or
-/// the variant is the mobile one.
+/// the mobile variant is asked for and the specification has none.
 #[cfg(feature = "png")]
 pub fn render_png(spec: &ChartSpec, options: &PngOptions) -> Result<PngOutput, ChartError> {
     if !(0.25..=png::MAX_SCALE).contains(&options.scale) {
@@ -623,15 +623,22 @@ pub fn render_png(spec: &ChartSpec, options: &PngOptions) -> Result<PngOutput, C
             "scale must be between 0.25 and 4",
         ));
     }
-    let variant = match options.variant {
-        Variant::Desktop | Variant::Print => Variant::Print,
-        Variant::Social => Variant::Social,
+    // The mobile variant is rasterized like the chart itself: its layout with the resolved
+    // stylesheet of the print variant.
+    let mobile;
+    let (spec, variant) = match options.variant {
+        Variant::Desktop | Variant::Print => (spec, Variant::Print),
+        Variant::Social => (spec, Variant::Social),
         Variant::Mobile => {
-            return Err(ChartError::new(
-                "option_not_supported",
-                "/render/variant",
-                "a PNG is rendered from the print or the social variant",
-            ));
+            spec.validate()?;
+            mobile = spec.mobile_variant().ok_or_else(|| {
+                ChartError::new(
+                    "option_not_supported",
+                    "/render/variant",
+                    "the chart has no mobile variant; add mobile to the specification",
+                )
+            })?;
+            (&mobile, Variant::Print)
         }
     };
     let output = render(
