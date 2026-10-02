@@ -4,6 +4,20 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Added
+
+- Compact charts from 200 pixels wide (mobile variants too): below 320 pixels the value-axis
+  gutter and the margin are narrower, so a panel rendered at its width keeps its text size.
+- Small multiples: `panes[].note`, a short finding under a panel title.
+- Step lines: `stepEnd`, where the last step ends without an observation of its own.
+
+### Changed
+
+- Small-multiples panel titles take two lines before they are shortened.
+- A declared `timeAxis.precision` changes how times are named, no longer the tick spacing.
+
 ## [0.3.0] - 2026-10-02
 
 Fixes and additions from moving a large site to 0.2.0. The specification keeps

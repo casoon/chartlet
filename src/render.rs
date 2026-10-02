@@ -56,6 +56,8 @@ const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall
 
 /// Small multiples draw thinner lines, because their plots are small.
 const MULTIPLES_STYLE: &str = ".chartlet-multiples .chartlet-line{stroke-width:2}.chartlet-panel-title{font-size:13px;font-weight:650;fill:var(--chartlet-text)}";
+/// The note under a panel title, in small multiples that have one.
+const PANEL_NOTE_STYLE: &str = ".chartlet-panel-note{font-size:12px;fill:var(--chartlet-muted)}";
 
 /// Cells of a calendar without a value: outlined, not filled.
 const CALENDAR_STYLE: &str =
@@ -283,7 +285,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -312,6 +314,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
             ""
         },
         if is_multiples { MULTIPLES_STYLE } else { "" },
+        if is_multiples && spec.panes.iter().any(|pane| pane.note.is_some()) {
+            PANEL_NOTE_STYLE
+        } else {
+            ""
+        },
         if is_diverging {
             crate::diverging::STYLE
         } else {
@@ -354,7 +361,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{Atlas, Bar, Calendar, Line, Multiples, Rangebar, Stripes, Time, Topicmap};
-    let groups: [(&str, &[ChartType]); 19] = [
+    let groups: [(&str, &[ChartType]); 20] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -365,6 +372,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (MARK_EXTRA_STYLE, &[Line, Time, Multiples]),
         (ANNOTATION_EXTRA_STYLE, &[Time, Multiples]),
         (MULTIPLES_STYLE, &[Multiples]),
+        (PANEL_NOTE_STYLE, &[Multiples]),
         (crate::diverging::STYLE, &[Stripes, Calendar]),
         (CALENDAR_STYLE, &[Calendar]),
         (RANGEBAR_STYLE, &[Rangebar]),

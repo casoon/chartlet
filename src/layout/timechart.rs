@@ -363,29 +363,129 @@ fn push_end_labels(
     }
 }
 
-/// The title above one panel of small multiples, in the panel's cell starting at `cell_top`.
-fn panel_title(
-    pane: &crate::spec::PaneSpec,
-    pane_index: usize,
-    plot: PlotArea,
-    cell_top: f64,
+/// A text of a panel's heading on up to two lines of `width`; only the second is shortened if
+/// it still does not fit.
+fn panel_lines(
+    text: &str,
+    width: f64,
+    size: f64,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+    path: &str,
+) -> Vec<String> {
+    match super::title::two_lines(text, width, size, metrics) {
+        Some((first, rest)) => vec![
+            first.to_owned(),
+            fit_text(rest, width, size, metrics, warnings, path),
+        ],
+        None => vec![fit_text(text, width, size, metrics, warnings, path)],
+    }
+}
+
+/// The lines of a panel's title and of its note.
+type PanelHead = (Vec<String>, Vec<String>);
+
+/// Height of a line of a panel title and of a panel note.
+const PANEL_TITLE_LINE: f64 = 16.0;
+const PANEL_NOTE_LINE: f64 = 15.0;
+
+/// The heading of every panel: its title and its note, each on up to two lines. Every panel
+/// reserves as many lines as the longest heading needs, so that the plots stay aligned.
+fn panel_heads(
+    spec: &ChartSpec,
+    width: f64,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
-) -> Element {
-    Element::Text(Text {
-        x: plot.left,
-        y: cell_top + 18.0,
-        class: "chartlet-panel-title",
-        anchor: TextAnchor::Start,
-        content: fit_text(
-            pane.title.as_deref().unwrap_or_default(),
-            plot.width,
-            13.0,
-            metrics,
-            warnings,
-            &format!("/panes/{pane_index}/title"),
-        ),
-    })
+) -> (Vec<PanelHead>, f64, usize) {
+    let heads: Vec<PanelHead> = spec
+        .panes
+        .iter()
+        .enumerate()
+        .map(|(index, pane)| {
+            let title = panel_lines(
+                pane.title.as_deref().unwrap_or_default(),
+                width,
+                13.0,
+                metrics,
+                warnings,
+                &format!("/panes/{index}/title"),
+            );
+            let note = pane.note.as_deref().map_or_else(Vec::new, |note| {
+                panel_lines(
+                    note,
+                    width,
+                    LABEL_SIZE,
+                    metrics,
+                    warnings,
+                    &format!("/panes/{index}/note"),
+                )
+            });
+            (title, note)
+        })
+        .collect();
+    let title_lines = heads
+        .iter()
+        .map(|(title, _)| title.len())
+        .max()
+        .unwrap_or(1);
+    let note_lines = heads.iter().map(|(_, note)| note.len()).max().unwrap_or(0);
+    let height = 14.0 + PANEL_TITLE_LINE * count(title_lines) + PANEL_NOTE_LINE * count(note_lines);
+    (heads, height, title_lines)
+}
+
+/// The heading of one panel above its plot, starting at `cell_top`.
+fn push_panel_head(
+    (title, note): &PanelHead,
+    title_lines: usize,
+    plot: PlotArea,
+    cell_top: f64,
+    elements: &mut Vec<Element>,
+) {
+    for (index, line) in title.iter().enumerate() {
+        elements.push(Element::Text(Text {
+            x: plot.left,
+            y: cell_top + 18.0 + PANEL_TITLE_LINE * count(index),
+            class: "chartlet-panel-title",
+            anchor: TextAnchor::Start,
+            content: line.clone(),
+        }));
+    }
+    let below = cell_top + 18.0 + PANEL_TITLE_LINE * count(title_lines - 1);
+    for (index, line) in note.iter().enumerate() {
+        elements.push(Element::Text(Text {
+            x: plot.left,
+            y: below + PANEL_NOTE_LINE * count(index + 1),
+            class: "chartlet-panel-note",
+            anchor: TextAnchor::Start,
+            content: line.clone(),
+        }));
+    }
+}
+
+/// The title of the shared time axis below the grid of small multiples.
+fn push_multiples_time_title(
+    spec: &ChartSpec,
+    elements: &mut Vec<Element>,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
+    let (width, height) = (f64::from(spec.width), f64::from(spec.height));
+    if let Some(axis_title) = &spec.time_axis.title {
+        elements.push(Element::Text(Text {
+            x: width / 2.0,
+            y: height - 14.0,
+            class: "chartlet-axis-title",
+            anchor: TextAnchor::Middle,
+            content: fit_text(
+                axis_title,
+                width - 2.0 * MULTIPLES_MARGIN,
+                LABEL_SIZE,
+                metrics,
+                warnings,
+                "/timeAxis/title",
+            ),
+        }));
+    }
 }
 
 pub(super) fn layout_multiples(
@@ -410,6 +510,12 @@ pub(super) fn layout_multiples(
         };
     let cell_width = (width - 2.0 * MULTIPLES_MARGIN) / f64::from(columns);
     let cell_height = (grid_bottom - grid_top) / count(rows);
+    let (heads, head_height, title_lines) = panel_heads(
+        spec,
+        cell_width - f64::from(PANEL_GUTTER + PANEL_MARGIN),
+        warnings,
+        metrics,
+    );
 
     let (span, slots) = time_axis(spec, zone);
     let precision = spec.time_precision(zone);
@@ -420,16 +526,16 @@ pub(super) fn layout_multiples(
     )
     .expect("a usize is at least 32 bits wide");
 
-    for (pane_index, pane) in spec.panes.iter().enumerate() {
+    for (pane_index, head) in heads.iter().enumerate() {
         let column = pane_index % usize::try_from(columns).expect("columns are limited");
         let row = pane_index / usize::try_from(columns).expect("columns are limited");
         let cell_left = MULTIPLES_MARGIN + cell_width * count(column);
         let cell_top = grid_top + cell_height * count(row);
         let plot = PlotArea {
             left: cell_left + f64::from(PANEL_GUTTER),
-            top: cell_top + 30.0,
+            top: cell_top + head_height,
             width: cell_width - f64::from(PANEL_GUTTER + PANEL_MARGIN),
-            height: cell_height - 30.0 - 28.0,
+            height: cell_height - head_height - 28.0,
             vertical_bars: true,
         };
         let frame = TimeFrame {
@@ -447,9 +553,7 @@ pub(super) fn layout_multiples(
             reversed: spec.time_axis.reverse,
         };
 
-        elements.push(panel_title(
-            pane, pane_index, plot, cell_top, warnings, metrics,
-        ));
+        push_panel_head(head, title_lines, plot, cell_top, &mut elements);
         push_value_grid(&frame, &mut elements);
         push_time_ticks(&frame, max_ticks, true, width, metrics, &mut elements);
         elements.push(frame.hook(pane_index));
@@ -464,7 +568,7 @@ pub(super) fn layout_multiples(
         );
     }
 
-    if cell_height - 58.0 < 60.0 {
+    if cell_height - head_height - 28.0 < 60.0 {
         warnings.push(ChartWarning::new(
             "dense_chart",
             "/height",
@@ -472,22 +576,7 @@ pub(super) fn layout_multiples(
         ));
     }
 
-    if let Some(axis_title) = &spec.time_axis.title {
-        elements.push(Element::Text(Text {
-            x: width / 2.0,
-            y: height - 14.0,
-            class: "chartlet-axis-title",
-            anchor: TextAnchor::Middle,
-            content: fit_text(
-                axis_title,
-                width - 2.0 * MULTIPLES_MARGIN,
-                LABEL_SIZE,
-                metrics,
-                warnings,
-                "/timeAxis/title",
-            ),
-        }));
-    }
+    push_multiples_time_title(spec, &mut elements, warnings, metrics);
 
     Scene {
         width: spec.width,

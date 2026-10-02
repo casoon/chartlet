@@ -557,6 +557,12 @@
           "minLength": 1,
           "maxLength": 100
         },
+        "note": {
+          "description": "Small multiples only: a short finding under the panel title, such as a verdict; up to two lines, also in the description.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
         "heightRatio": {
           "description": "Time charts: the pane's share of the plot height against the other panes. Small multiples keep the default.",
           "type": "integer",

@@ -1002,6 +1002,20 @@ impl ChartSpec {
     /// Rejects a block that belongs to another chart type, so that it is never silently ignored.
     fn reject_foreign_blocks(&self) -> Result<(), ChartError> {
         let own = self.chart_type;
+        for (index, pane) in self.panes.iter().enumerate() {
+            let Some(note) = &pane.note else {
+                continue;
+            };
+            let path = format!("/panes/{index}/note");
+            if own != ChartType::Multiples {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    path,
+                    "a note sits under the title of a small-multiples panel",
+                ));
+            }
+            validate_text(note, &path, 160)?;
+        }
         if own != ChartType::Time
             && let Some(index) = self.panes.iter().position(|pane| pane.stack.is_some())
         {

@@ -221,6 +221,8 @@ fn time_description(spec: &ChartSpec) -> String {
         )
     };
 
+    describe_panel_notes(spec, &mut description);
+
     // Panels on axes of their own measure different things; one highest value across them would
     // compare what cannot be compared.
     if spec.independent_axes {
@@ -431,6 +433,24 @@ fn describe_extremes(
         )
     }
     .expect("writing to String cannot fail");
+}
+
+/// The notes under the panel titles of small multiples, if any panel has one.
+fn describe_panel_notes(spec: &ChartSpec, description: &mut String) {
+    let notes: Vec<String> = spec
+        .panes
+        .iter()
+        .filter_map(|pane| {
+            Some(format!(
+                "{}: {}",
+                pane.title.as_deref()?,
+                pane.note.as_deref()?
+            ))
+        })
+        .collect();
+    if !notes.is_empty() {
+        description.push_str(&text::panel_notes(spec.locale, &notes.join("; ")));
+    }
 }
 
 /// The sentences about filled areas, if any layer is one: stacked areas from the bottom up, then

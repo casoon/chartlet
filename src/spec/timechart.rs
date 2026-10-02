@@ -138,6 +138,9 @@ pub struct PaneSpec {
     /// Heading of a small-multiples panel; a time chart's single pane has none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    /// A short finding under a panel's title, such as a verdict: small multiples only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
     /// Share of the plot area this pane takes; a single pane always takes all of it.
     #[serde(default = "default_height_ratio")]
     pub height_ratio: u32,

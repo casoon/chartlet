@@ -1291,6 +1291,48 @@ mod tests {
     }
 
     #[test]
+    fn panel_titles_wrap_and_notes_sit_below_them() {
+        let panel = |title: &str, note: &str| {
+            format!(
+                r#"{{"title": "{title}", "note": "{note}", "layers": [{{"mark": "line",
+                "points": [{{"time": "2000", "value": 1}}, {{"time": "2010", "value": 2}}]}}]}}"#
+            )
+        };
+        let spec = format!(
+            r#"{{"schemaVersion": 1, "type": "multiples", "title": "Causes", "width": 720,
+            "height": 360, "columns": 3, "panes": [{}, {}]}}"#,
+            panel("The sun and its long cycles of activity", "Does not match"),
+            panel("Greenhouse gases", "Matches"),
+        );
+        let output = render_ok(&spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        // The long title takes two lines; the plots of both panels start below the same head.
+        assert_eq!(
+            svg.matches("class=\"chartlet-panel-title\"").count(),
+            3,
+            "{svg}"
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-panel-note\"").count(),
+            2,
+            "{svg}"
+        );
+        assert!(svg.contains(".chartlet-panel-note{"));
+        assert!(svg.contains("Notes: The sun and its long cycles of activity: Does not match"));
+
+        let time = SPEC_TIME_FOR_NOTE.to_owned();
+        assert_eq!(
+            render_err(&time),
+            ("option_not_supported", "/panes/0/note".to_owned())
+        );
+    }
+
+    const SPEC_TIME_FOR_NOTE: &str = r#"{"schemaVersion": 1, "type": "time", "title": "t",
+        "panes": [{"note": "n", "layers": [{"mark": "line", "points": [{"time": "2000",
+        "value": 1}, {"time": "2010", "value": 2}]}]}]}"#;
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;

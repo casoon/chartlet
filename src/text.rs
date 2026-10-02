@@ -401,6 +401,14 @@ pub(crate) fn bands(locale: Locale, banded: usize, hatched: bool) -> String {
 }
 
 /// The sentence about area layers; `names` lists them, empty for a single unnamed one.
+/// The notes under the panel titles of small multiples, as `title: note` separated by semicolons.
+pub(crate) fn panel_notes(locale: Locale, notes: &str) -> String {
+    match locale {
+        Locale::En => format!(" Notes: {notes}."),
+        Locale::De => format!(" Hinweise: {notes}."),
+    }
+}
+
 /// Stacked areas, named from the bottom up.
 pub(crate) fn stacked_areas(locale: Locale, names: &str) -> String {
     match locale {
