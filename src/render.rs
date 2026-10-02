@@ -57,7 +57,7 @@ const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall
 /// Small multiples draw thinner lines, because their plots are small.
 const MULTIPLES_STYLE: &str = ".chartlet-multiples .chartlet-line{stroke-width:2}.chartlet-panel-title{font-size:13px;font-weight:650;fill:var(--chartlet-text)}";
 /// The note under a panel title, in small multiples that have one.
-const PANEL_NOTE_STYLE: &str = ".chartlet-panel-note{font-size:12px;fill:var(--chartlet-muted)}";
+const PANEL_NOTE_STYLE: &str = ".chartlet-panel-note{font-size:12px;fill:var(--chartlet-muted)}.chartlet-panel-note-strong{fill:var(--chartlet-text);font-weight:600}";
 
 /// Cells of a calendar without a value: outlined, not filled.
 const CALENDAR_STYLE: &str =

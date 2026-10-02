@@ -1004,6 +1004,13 @@ impl ChartSpec {
         let own = self.chart_type;
         for (index, pane) in self.panes.iter().enumerate() {
             let Some(note) = &pane.note else {
+                if pane.note_emphasis {
+                    return Err(ChartError::new(
+                        "option_not_supported",
+                        format!("/panes/{index}/noteEmphasis"),
+                        "noteEmphasis needs a note",
+                    ));
+                }
                 continue;
             };
             let path = format!("/panes/{index}/note");

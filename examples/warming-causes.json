@@ -109,6 +109,7 @@
     {
       "title": "Greenhouse gases",
       "note": "Matches the measured warming",
+      "noteEmphasis": true,
       "layers": [
         {
           "mark": "line",

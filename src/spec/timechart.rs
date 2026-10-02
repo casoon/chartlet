@@ -147,6 +147,9 @@ pub struct PaneSpec {
     /// A short finding under a panel's title, such as a verdict: small multiples only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// Draws the note in the text color and semibold instead of muted, to set one finding apart.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub note_emphasis: bool,
     /// Share of the plot area this pane takes; a single pane always takes all of it.
     #[serde(default = "default_height_ratio")]
     pub height_ratio: u32,

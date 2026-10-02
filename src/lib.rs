@@ -1327,6 +1327,21 @@ mod tests {
         );
         assert!(svg.contains(".chartlet-panel-note{"));
         assert!(svg.contains("Notes: The sun and its long cycles of activity: Does not match"));
+        let strong = spec.replacen(
+            "\"note\": \"Matches\"",
+            "\"note\": \"Matches\", \"noteEmphasis\": true",
+            1,
+        );
+        assert!(
+            render_ok(&strong)
+                .content
+                .contains("class=\"chartlet-panel-note chartlet-panel-note-strong\">Matches<")
+        );
+        let bare = spec.replacen("\"note\": \"Matches\"", "\"noteEmphasis\": true", 1);
+        assert_eq!(
+            render_err(&bare),
+            ("option_not_supported", "/panes/1/noteEmphasis".to_owned())
+        );
 
         let time = SPEC_TIME_FOR_NOTE.to_owned();
         assert_eq!(

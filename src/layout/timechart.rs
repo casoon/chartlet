@@ -382,8 +382,8 @@ fn panel_lines(
     }
 }
 
-/// The lines of a panel's title and of its note.
-type PanelHead = (Vec<String>, Vec<String>);
+/// The lines of a panel's title and of its note, and the class of the note.
+type PanelHead = (Vec<String>, Vec<String>, &'static str);
 
 /// Height of a line of a panel title and of a panel note.
 const PANEL_TITLE_LINE: f64 = 16.0;
@@ -420,22 +420,31 @@ fn panel_heads(
                     &format!("/panes/{index}/note"),
                 )
             });
-            (title, note)
+            let class = if pane.note_emphasis {
+                "chartlet-panel-note chartlet-panel-note-strong"
+            } else {
+                "chartlet-panel-note"
+            };
+            (title, note, class)
         })
         .collect();
     let title_lines = heads
         .iter()
-        .map(|(title, _)| title.len())
+        .map(|(title, ..)| title.len())
         .max()
         .unwrap_or(1);
-    let note_lines = heads.iter().map(|(_, note)| note.len()).max().unwrap_or(0);
+    let note_lines = heads
+        .iter()
+        .map(|(_, note, _)| note.len())
+        .max()
+        .unwrap_or(0);
     let height = 14.0 + PANEL_TITLE_LINE * count(title_lines) + PANEL_NOTE_LINE * count(note_lines);
     (heads, height, title_lines)
 }
 
 /// The heading of one panel above its plot, starting at `cell_top`.
 fn push_panel_head(
-    (title, note): &PanelHead,
+    (title, note, note_class): &PanelHead,
     title_lines: usize,
     plot: PlotArea,
     cell_top: f64,
@@ -455,7 +464,7 @@ fn push_panel_head(
         elements.push(Element::Text(Text {
             x: plot.left,
             y: below + PANEL_NOTE_LINE * count(index + 1),
-            class: "chartlet-panel-note",
+            class: note_class,
             anchor: TextAnchor::Start,
             content: line.clone(),
         }));

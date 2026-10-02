@@ -124,7 +124,10 @@ fn the_png_takes_the_mobile_variant_only_where_there_is_one_and_rejects_a_bad_sc
     .expect("renders")
     .png;
     let width = u32::from_be_bytes(png[16..20].try_into().expect("an IHDR width"));
-    assert_eq!(width, responsive.mobile.as_ref().expect("a mobile variant").width);
+    assert_eq!(
+        width,
+        responsive.mobile.as_ref().expect("a mobile variant").width
+    );
     for scale in [0.0, 4.5, f32::NAN] {
         let error = render_png(
             &monthly,

@@ -568,6 +568,11 @@
           "minLength": 1,
           "maxLength": 160
         },
+        "noteEmphasis": {
+          "description": "Small multiples, with a note: draws the note in the text color and semibold instead of muted.",
+          "type": "boolean",
+          "default": false
+        },
         "heightRatio": {
           "description": "Time charts: the pane's share of the plot height against the other panes. Small multiples keep the default.",
           "type": "integer",

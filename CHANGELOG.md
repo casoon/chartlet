@@ -10,6 +10,7 @@ does.
 
 - Time charts: `timeAxis.step`, the distance between time ticks — whole years on a calendar
   axis, units on a numeric one.
+- Small multiples: `noteEmphasis` sets a panel's note apart, in the text color and semibold.
 - Charts from 160 pixels tall (mobile variants too), for small panels.
 - PNG of the mobile variant: `--variant mobile --format png`, with the literal colors of the
   print variant.
