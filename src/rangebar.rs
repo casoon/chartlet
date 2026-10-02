@@ -348,8 +348,8 @@ fn layout_vertical(
 ) -> Vec<Element> {
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
-    let left = f64::from(crate::layout::AXIS_GUTTER);
-    let right = f64::from(crate::layout::PLOT_MARGIN);
+    let left = f64::from(crate::layout::axis_gutter(spec.width));
+    let right = f64::from(crate::layout::plot_margin(spec.width));
     let bottom = if spec.category_axis.title.is_some() {
         82.0
     } else {

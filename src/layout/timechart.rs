@@ -1,8 +1,8 @@
 use std::fmt::Write as _;
 
 use super::{
-    AREA_CLASSES, AXIS_GUTTER, LABEL_LINE, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PANEL_GUTTER,
-    PANEL_MARGIN, PLOT_MARGIN, PlotArea,
+    AREA_CLASSES, LABEL_LINE, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PANEL_GUTTER, PANEL_MARGIN,
+    PlotArea,
     annotation::{push_marker, push_marker_label, push_rule, push_zone},
     axis::{NumericScale, format_value},
     count, fit_text,
@@ -88,9 +88,9 @@ pub(super) fn layout_time(
     let zone = spec.time_zone().unwrap_or_default();
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
-    let left = f64::from(AXIS_GUTTER);
+    let left = f64::from(super::axis_gutter(spec.width));
     let end_labels = spec.legend == LegendPlacement::End;
-    let right = f64::from(PLOT_MARGIN)
+    let right = f64::from(super::plot_margin(spec.width))
         + if end_labels {
             end_label_room(spec, width, metrics)
         } else {

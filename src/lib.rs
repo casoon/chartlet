@@ -1278,6 +1278,19 @@ mod tests {
     }
 
     #[test]
+    fn a_compact_chart_keeps_room_for_its_plot() {
+        let spec = SPEC.replacen('{', "{\"width\": 240,", 1);
+        let svg = render_ok(&spec).content;
+        // The plot starts after the compact gutter of 56 pixels.
+        assert!(svg.contains("<line x1=\"56\""), "{svg}");
+        let too_narrow = SPEC.replacen('{', "{\"width\": 199,", 1);
+        assert_eq!(
+            render_err(&too_narrow),
+            ("invalid_dimension", "/width".to_owned())
+        );
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;
@@ -4688,7 +4701,7 @@ mod tests {
     #[test]
     fn mobile_sizes_are_validated_with_their_paths() {
         for (mobile, path) in [
-            (r#"{"width": 279}"#, "/mobile/width"),
+            (r#"{"width": 199}"#, "/mobile/width"),
             (r#"{"width": 601}"#, "/mobile/width"),
             (r#"{"width": 360, "height": 239}"#, "/mobile/height"),
             (r#"{"width": 360, "height": 1601}"#, "/mobile/height"),

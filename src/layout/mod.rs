@@ -43,6 +43,19 @@ const LEGEND_ROW: f64 = 46.0;
 /// Gutter left of the plot for the value-axis ticks, and the margin right of it.
 pub(crate) const AXIS_GUTTER: u32 = 72;
 pub(crate) const PLOT_MARGIN: u32 = 24;
+/// Below this width a chart is compact, such as a panel in a grid of columns: a narrower gutter
+/// and margin leave its plot room, at the same text size.
+pub(crate) const COMPACT: u32 = 320;
+
+/// The gutter left of the plot of a chart `width` wide.
+pub(crate) const fn axis_gutter(width: u32) -> u32 {
+    if width < COMPACT { 56 } else { AXIS_GUTTER }
+}
+
+/// The margin right of the plot of a chart `width` wide.
+pub(crate) const fn plot_margin(width: u32) -> u32 {
+    if width < COMPACT { 12 } else { PLOT_MARGIN }
+}
 
 /// The horizontal pixels a plot keeps out of a chart of `width`: the gutter for the value-axis
 /// ticks and the margin on the right come off. Measured in whole pixels, so the density check in
@@ -156,7 +169,7 @@ fn horizontal_tick_step(
 }
 
 pub(crate) const fn plot_pixels(width: u32) -> u32 {
-    width.saturating_sub(AXIS_GUTTER + PLOT_MARGIN)
+    width.saturating_sub(axis_gutter(width) + plot_margin(width))
 }
 
 /// Gutter left of each panel's plot for its value ticks, and the margin right of it.

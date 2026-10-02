@@ -7,15 +7,16 @@
 use std::fmt::Write as _;
 
 use super::{
-    AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea,
+    LABEL_SIZE, PlotArea,
     axis::{
         NumericScale, add_bottom_category_title, format_value, label_step, push_side_label,
         push_stepped_category_label, warn_if_labels_thinned,
     },
+    axis_gutter,
     bar::label_gutter,
     base_elements_with_title, count,
     legend::{add_legend, legend_space},
-    series_bar_class,
+    plot_margin, series_bar_class,
     title::{horizontal_title, title_extra},
     tooltip, warn_if_labels_omitted,
 };
@@ -144,7 +145,10 @@ fn plot_area(
 ) -> (PlotArea, (f64, f64), f64) {
     let vertical = spec.orientation == Orientation::Vertical;
     let (left, right) = if vertical {
-        (f64::from(AXIS_GUTTER), f64::from(PLOT_MARGIN))
+        (
+            f64::from(axis_gutter(spec.width)),
+            f64::from(plot_margin(spec.width)),
+        )
     } else {
         (label_gutter(dataset, metrics), 68.0)
     };

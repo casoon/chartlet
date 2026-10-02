@@ -1,10 +1,11 @@
 use super::{
-    AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea,
+    LABEL_SIZE, PlotArea,
     axis::{
         NumericScale, add_bottom_category_title, format_value, label_step, warn_if_labels_thinned,
     },
-    base_elements, count, fit_text,
+    axis_gutter, base_elements, count, fit_text,
     legend::{add_line_legend, line_legend_space},
+    plot_margin,
     title::title_extra,
     tooltip,
 };
@@ -40,8 +41,8 @@ pub(super) fn layout_line(
     let several = dataset.series.len() > 1;
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
-    let left = f64::from(AXIS_GUTTER);
-    let right = f64::from(PLOT_MARGIN);
+    let left = f64::from(axis_gutter(spec.width));
+    let right = f64::from(plot_margin(spec.width));
     let plot_width = width - left - right;
     let head = title_extra(spec, plot_width, metrics);
     let legend = if several {

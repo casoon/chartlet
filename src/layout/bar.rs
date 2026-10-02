@@ -1,13 +1,13 @@
 use super::{
-    AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea,
+    LABEL_SIZE, PlotArea,
     axis::{
         NumericScale, add_bottom_category_title, format_value, label_step, push_side_label,
         push_stepped_category_label, warn_if_labels_thinned,
     },
-    base_elements, base_elements_with_title, count,
+    axis_gutter, base_elements, base_elements_with_title, count,
     labels::{LabelBox, WithReserve, boxes_overlap, label_box},
     legend::{add_legend, legend_space},
-    series_bar_class,
+    plot_margin, series_bar_class,
     title::{horizontal_title, title_extra},
     tooltip, warn_if_labels_omitted,
 };
@@ -27,8 +27,8 @@ pub(super) fn layout_vertical(
 ) -> Scene {
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
-    let left = f64::from(AXIS_GUTTER);
-    let right = f64::from(PLOT_MARGIN);
+    let left = f64::from(axis_gutter(spec.width));
+    let right = f64::from(plot_margin(spec.width));
     let plot_width = width - left - right;
     let head = title_extra(spec, plot_width, metrics);
     let top = 78.0 + head + legend_space(dataset, plot_width, metrics);

@@ -102,7 +102,7 @@
       "description": "The knowledge landscape of a type: \"atlas\" chart.",
       "$ref": "#/$defs/atlas"
     },
-    "width": { "type": "integer", "minimum": 320, "maximum": 2400, "default": 800 },
+    "width": { "type": "integer", "minimum": 200, "maximum": 2400, "default": 800 },
     "height": { "type": "integer", "minimum": 240, "maximum": 1600, "default": 450 },
     "mobile": {
       "description": "A second layout for narrow containers. The HTML profile shows it below the breakpoint by a container query; the SVG profile renders it with the variant option.",
@@ -110,7 +110,7 @@
       "additionalProperties": false,
       "required": ["width"],
       "properties": {
-        "width": { "type": "integer", "minimum": 280, "maximum": 600 },
+        "width": { "type": "integer", "minimum": 200, "maximum": 600 },
         "height": { "type": "integer", "minimum": 240, "maximum": 1600, "default": 360 },
         "breakpoint": {
           "description": "Container width in CSS pixels below which the mobile variant is shown.",
