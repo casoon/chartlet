@@ -959,7 +959,7 @@ fn push_line(
     // not limit tooltips to markers.
     let spark = detail == Detail::Spark;
     let dense = points.len() > MAX_TIME_MARKERS;
-    let markers = !spark && (!dense || is_point);
+    let markers = !spark && (!dense || is_point) && layer.markers != Some(false);
     let fits = || {
         let xs: Vec<f64> = points.iter().map(|(epoch, _)| frame.x(*epoch)).collect();
         spec.tooltips == Tooltips::Observations && tooltips_fit(&xs)

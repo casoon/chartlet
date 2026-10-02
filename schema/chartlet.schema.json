@@ -692,6 +692,10 @@
         "precision": {
           "description": "Data layers on a calendar axis: how this layer's times are written in tooltips, the table and the description; overrides timeAxis.precision.",
           "enum": ["year", "month", "day", "minute"]
+        },
+        "markers": {
+          "description": "Line and area only: false draws no markers, such as for a fitted line; tooltips stay on invisible targets.",
+          "type": "boolean"
         }
       },
       "allOf": [

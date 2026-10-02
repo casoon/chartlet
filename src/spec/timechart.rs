@@ -235,6 +235,10 @@ pub struct LayerSpec {
     /// values. Overrides `timeAxis.precision`; calendar axes only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub precision: Option<TimePrecision>,
+    /// `false` draws a line or area without markers, such as a fitted line from two points;
+    /// its observations keep their tooltips on invisible targets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub markers: Option<bool>,
 }
 
 /// Which observations of a `type: "time"` chart carry a tooltip.
@@ -521,6 +525,15 @@ impl ChartSpec {
                     "a numeric axis writes its positions as they are; precision names calendar times",
                 ));
             }
+        }
+        if let Some(entry) = self.indexed_layers().find(|entry| {
+            entry.layer.markers.is_some() && !matches!(entry.layer.mark, Mark::Line | Mark::Area)
+        }) {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("/panes/{}/layers/{}/markers", entry.pane, entry.local),
+                "markers belongs to a line or area layer",
+            ));
         }
         // Precision is how a data layer writes its times; annotations and zones name theirs.
         if let Some(entry) = self

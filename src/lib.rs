@@ -1208,6 +1208,24 @@ mod tests {
     }
 
     #[test]
+    fn a_line_without_markers_keeps_its_tooltips() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Fit", "showValues": false,
+            "panes": [{"layers": [{"mark": "line", "name": "Fit", "markers": false, "points": [
+            {"time": "2020", "value": 1}, {"time": "2021", "value": 2}]}]}]}"#;
+        let svg = render_ok(spec).content;
+        assert!(!svg.contains("class=\"chartlet-point"), "{svg}");
+        assert_eq!(svg.matches("class=\"chartlet-hit\"").count(), 2, "{svg}");
+        let point = spec.replace("\"mark\": \"line\"", "\"mark\": \"point\"");
+        assert_eq!(
+            render_err(&point),
+            (
+                "option_not_supported",
+                "/panes/0/layers/0/markers".to_owned()
+            )
+        );
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;
