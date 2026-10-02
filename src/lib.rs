@@ -1439,6 +1439,27 @@ mod tests {
     }
 
     #[test]
+    fn a_unit_follows_the_top_tick_and_names_the_columns() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Sun", "showTitle": false,
+            "width": 340, "height": 190, "showValues": false, "panes": [{"valueAxis": {"min": -2,
+            "max": 4, "exact": true, "step": 1, "unit": "W/m²"}, "layers": [{"mark": "line",
+            "name": "Sun", "points": [{"time": "2000", "value": 1}, {"time": "2010", "value": 2}]}]}]}"#;
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .expect("renders")
+            .content;
+        assert!(html.contains(">4 W/m²</text>"), "{html}");
+        assert_eq!(html.matches("W/m²</text>").count(), 1, "{html}");
+        assert!(html.contains(">Sun (W/m²)</th>"), "{html}");
+        // No title above the plot: the plot starts near the top.
+        assert!(html.contains(" y1=\"14\""), "{html}");
+        let bar = SPEC.replacen('{', "{\"valueAxis\": {\"unit\": \"€\"},", 1);
+        assert_eq!(
+            render_err(&bar),
+            ("option_not_supported", "/valueAxis/unit".to_owned())
+        );
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;
@@ -5347,10 +5368,24 @@ mod tests {
         let center = f64::midpoint(corners[0], corners[1]);
         assert!((center - monday).abs() < 0.01, "{marker}");
         // A zone covers the observations between its edges: from Monday to Tuesday.
-        assert!(svg.contains(&format!(
-            "<rect x=\"{monday}\" y=\"78\" width=\"{}\" height=\"336\" class=\"chartlet-zone\">",
-            tuesday - monday
-        )));
+        let zone = svg
+            .split(" class=\"chartlet-zone\"")
+            .next()
+            .and_then(|head| head.rsplit("<rect ").next())
+            .expect("a zone");
+        let attribute = |name: &str| -> f64 {
+            zone.split(&format!("{name}=\""))
+                .nth(1)
+                .and_then(|rest| rest.split('"').next())
+                .and_then(|value| value.parse().ok())
+                .expect("a numeric attribute")
+        };
+        assert!((attribute("x") - monday).abs() < 0.01, "{zone}");
+        assert!(
+            (attribute("width") - (tuesday - monday)).abs() < 0.01,
+            "{zone}"
+        );
+        assert!((attribute("y") - 78.0).abs() < 0.01, "{zone}");
         // Tooltips and description keep the real times.
         assert!(svg.contains("<title>Rule: 2026-03-07</title>"));
         assert!(svg.contains("Reference lines: Rule at 2026-03-07."));

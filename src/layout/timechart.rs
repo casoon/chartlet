@@ -532,9 +532,10 @@ pub(super) fn layout_multiples(
         };
     let cell_width = (width - 2.0 * MULTIPLES_MARGIN) / f64::from(columns);
     let cell_height = (grid_bottom - grid_top) / count(rows);
+    let panel_gutter = multiples_gutter(spec, zone, metrics);
     let (heads, head_height, title_lines) = panel_heads(
         spec,
-        cell_width - f64::from(PANEL_GUTTER + PANEL_MARGIN),
+        cell_width - panel_gutter - f64::from(PANEL_MARGIN),
         warnings,
         metrics,
     );
@@ -554,9 +555,9 @@ pub(super) fn layout_multiples(
         let cell_left = MULTIPLES_MARGIN + cell_width * count(column);
         let cell_top = grid_top + cell_height * count(row);
         let plot = PlotArea {
-            left: cell_left + f64::from(PANEL_GUTTER),
+            left: cell_left + panel_gutter,
             top: cell_top + head_height,
-            width: cell_width - f64::from(PANEL_GUTTER + PANEL_MARGIN),
+            width: cell_width - panel_gutter - f64::from(PANEL_MARGIN),
             height: cell_height - head_height - 28.0,
             vertical_bars: true,
         };
@@ -577,7 +578,7 @@ pub(super) fn layout_multiples(
         };
 
         push_panel_head(head, title_lines, plot, cell_top, &mut elements);
-        push_value_grid(&frame, &mut elements);
+        push_value_grid(&frame, spec.axis_unit(pane_index), &mut elements);
         push_time_ticks(&frame, max_ticks, true, width, metrics, &mut elements);
         elements.push(frame.hook(pane_index));
         draw_pane(
@@ -723,26 +724,56 @@ enum Detail {
 /// every observation, every candle's high and low, every band edge, every horizontal reference
 /// line, every point marker and every zone edge, so that none of them falls outside the plot. An
 /// area is filled down to zero, so a pane with one always shows zero.
-/// The gutter left of a time chart's plot: fixed on a regular chart; on a compact one as wide as
-/// its widest value tick label needs, within the compact gutter.
-fn time_gutter(spec: &ChartSpec, zone: TimeZone, metrics: &impl TextMetrics) -> f64 {
-    let gutter = f64::from(super::axis_gutter(spec.width));
-    if spec.width >= super::COMPACT {
+/// The gutter left of each panel of small multiples: the regular panel gutter, wider where the
+/// unit after the top tick label needs it.
+fn multiples_gutter(spec: &ChartSpec, zone: TimeZone, metrics: &impl TextMetrics) -> f64 {
+    let gutter = f64::from(PANEL_GUTTER);
+    let Some(unit) = spec.value_axis.unit.as_deref() else {
         return gutter;
-    }
-    let widest = (0..spec.panes.len())
+    };
+    let style = spec.number_style();
+    // Panels on axes of their own each have their ticks; otherwise they share one scale.
+    let panes: Vec<Option<usize>> = if spec.independent_axes {
+        (0..spec.panes.len()).map(Some).collect()
+    } else {
+        vec![None]
+    };
+    let widest = panes
+        .into_iter()
         .flat_map(|pane| {
-            let scale = time_scale(spec, zone, Some(pane));
-            let style = spec.pane_style(pane);
+            let scale = time_scale(spec, zone, pane);
             scale
                 .ticks()
-                .map(move |value| scale.tick_label(value, style))
+                .map(move |value| format!("{} {unit}", scale.tick_label(value, style)))
                 .collect::<Vec<_>>()
         })
         .map(|label| super::WithReserve(metrics).width(&label, LABEL_SIZE))
         .fold(0.0, f64::max);
-    // The labels end 10 pixels left of the plot and keep a few pixels from the edge.
-    (widest + 16.0).clamp(28.0, gutter)
+    gutter.max(widest + 16.0)
+}
+
+/// The gutter left of a time chart's plot: as wide as its widest value tick label needs, at most
+/// the regular gutter of its width.
+fn time_gutter(spec: &ChartSpec, zone: TimeZone, metrics: &impl TextMetrics) -> f64 {
+    let gutter = f64::from(super::axis_gutter(spec.width));
+    let widest = (0..spec.panes.len())
+        .flat_map(|pane| {
+            let scale = time_scale(spec, zone, Some(pane));
+            let style = spec.pane_style(pane);
+            // Measured as if every label carried the unit: one of them does, the top one.
+            let unit = spec
+                .axis_unit(pane)
+                .map(|unit| format!(" {unit}"))
+                .unwrap_or_default();
+            scale
+                .ticks()
+                .map(move |value| format!("{}{unit}", scale.tick_label(value, style)))
+                .collect::<Vec<_>>()
+        })
+        .map(|label| super::WithReserve(metrics).width(&label, LABEL_SIZE))
+        .fold(0.0, f64::max);
+    // The labels end 10 pixels left of the plot and keep 12 from the edge of the chart.
+    (widest + 22.0).clamp(28.0, gutter)
 }
 
 fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) -> NumericScale {
@@ -1282,10 +1313,18 @@ pub(super) fn line_class(spec: &ChartSpec, entry: LayerRef) -> &'static str {
 }
 
 /// The horizontal grid lines and value ticks of one plot.
-fn push_value_grid(frame: &TimeFrame, elements: &mut Vec<Element>) {
+fn push_value_grid(frame: &TimeFrame, unit: Option<&str>, elements: &mut Vec<Element>) {
     let plot = frame.plot;
-    for value in frame.scale.ticks() {
+    // The unit follows the label of the tick nearest the top of the plot.
+    let top = frame
+        .scale
+        .ticks()
+        .enumerate()
+        .min_by(|(_, a), (_, b)| frame.y(*a).total_cmp(&frame.y(*b)))
+        .map(|(index, _)| index);
+    for (index, value) in frame.scale.ticks().enumerate() {
         let y = frame.y(value);
+        let label = frame.scale.tick_label(value, frame.style);
         elements.push(Element::Line(Line {
             x1: plot.left,
             y1: y,
@@ -1302,14 +1341,17 @@ fn push_value_grid(frame: &TimeFrame, elements: &mut Vec<Element>) {
             y: y + 4.0,
             class: "chartlet-tick",
             anchor: TextAnchor::End,
-            content: frame.scale.tick_label(value, frame.style),
+            content: match unit {
+                Some(unit) if Some(index) == top => format!("{label} {unit}"),
+                _ => label,
+            },
         }));
     }
 }
 
 /// The vertical grid lines and time ticks of one plot, the tick labels only with `labels`. A label
-/// that would reach past the right edge of the chart moves left until it fits, since a tick can
-/// sit at the very end of the span.
+/// that would reach past an edge of the chart moves inward until it fits, since a tick can sit at
+/// either end of the span and the gutter left of the plot may be narrow.
 fn push_time_ticks(
     frame: &TimeFrame,
     max_ticks: usize,
@@ -1348,7 +1390,7 @@ fn push_time_ticks(
             continue;
         }
         let half = metrics.width(&tick.label, LABEL_SIZE) / 2.0;
-        let x = x.min(canvas_width - 4.0 - half);
+        let x = x.min(canvas_width - 4.0 - half).max(4.0 + half);
         let (start, end) = if frame.reversed {
             (-(x + half), -(x - half))
         } else {
@@ -1434,7 +1476,7 @@ fn push_pane_axes(
     metrics: &impl TextMetrics,
 ) {
     let plot = frame.plot;
-    push_value_grid(frame, elements);
+    push_value_grid(frame, spec.axis_unit(pane_index), elements);
     let max_ticks = usize::try_from(
         (plot_pixels(spec.width) / time_tick_spacing(spec.observed_precision(frame.zone))).max(2),
     )

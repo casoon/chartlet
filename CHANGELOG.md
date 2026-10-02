@@ -4,6 +4,19 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Added
+
+- Time charts and small multiples: `valueAxis.unit`, the unit after the top tick label and the
+  data table's column names, instead of a title above the plot.
+
+### Changed
+
+- Every time chart makes its value-axis gutter as wide as its widest tick label needs, at most
+  the former 72 pixels, so the plot is wider; time tick labels at the left edge move inward like
+  those at the right edge.
+
 ## [0.6.0] - 2026-10-02
 
 Small panels, continued, and semibold text in PNG output. The specification keeps

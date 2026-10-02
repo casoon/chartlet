@@ -350,6 +350,21 @@ pub struct ValueAxisSpec {
     /// lie between them.
     #[serde(default, skip_serializing_if = "is_false")]
     pub exact: bool,
+    /// The unit of the values, such as `W/m²`, written after the top tick label instead of in a
+    /// title above the plot, and after the column names of the data table.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub unit: Option<String>,
+}
+
+impl ChartSpec {
+    /// The unit of the value axis that pane `pane` of a time chart or of small multiples is
+    /// drawn on.
+    pub(crate) fn axis_unit(&self, pane: usize) -> Option<&str> {
+        match self.chart_type {
+            ChartType::Time => self.panes.get(pane)?.value_axis.unit.as_deref(),
+            _ => self.value_axis.unit.as_deref(),
+        }
+    }
 }
 
 /// How a value axis spaces its values.
@@ -655,6 +670,15 @@ impl ChartSpec {
                     reason.to_owned(),
                 ))
             };
+            if let Some(unit) = &axis.unit {
+                if !matches!(self.chart_type, ChartType::Time | ChartType::Multiples) {
+                    return refuse(
+                        "unit",
+                        "a unit at the top tick belongs to a time chart or small multiples; use the axis title",
+                    );
+                }
+                validate_text(unit, &format!("{path}/unit"), 20)?;
+            }
             if log && self.stack.is_some() {
                 return refuse(
                     "scale",

@@ -416,6 +416,12 @@
           "type": "boolean",
           "default": false
         },
+        "unit": {
+          "description": "Time charts and small multiples: the unit of the values, written after the top tick label and after the column names of the data table, instead of a title above the plot.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20
+        },
         "reverse": {
           "description": "Run the axis the other way: larger values down or left.",
           "type": "boolean",

@@ -429,6 +429,14 @@ impl ChartSpec {
     ///
     /// Timestamps and layer values are owned because the row labels are formatted timestamps
     /// rather than text taken from the specification.
+    /// A column name followed by the unit of its pane's value axis, if the axis has one.
+    fn with_unit(&self, name: Option<String>, pane: usize) -> Option<String> {
+        match (name, self.axis_unit(pane)) {
+            (Some(name), Some(unit)) => Some(format!("{name} ({unit})")),
+            (name, _) => name,
+        }
+    }
+
     /// The table of a time chart: a row per time, labelled as finely as the finest layer with an
     /// observation at that time.
     pub(crate) fn time_dataset(&self, zone: crate::time::TimeZone, bounds: bool) -> Dataset {
@@ -466,6 +474,7 @@ impl ChartSpec {
         let mut series = Vec::new();
         for (entry, name) in self.data_layers().zip(self.layer_names()) {
             let layer = entry.layer;
+            let name = self.with_unit(name, entry.pane);
             // Every pane of a time chart writes its values by its own value axis.
             let style = (self.chart_type == ChartType::Time).then(|| self.pane_style(entry.pane));
             if layer.mark == Mark::Ohlc {
