@@ -4,7 +4,11 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
-## [Unreleased]
+## [0.6.0] - 2026-10-02
+
+Small panels, continued, and semibold text in PNG output. The specification keeps
+`schemaVersion: 1`; every specification that rendered with 0.5.0 still renders, with the
+changes in output listed under Changed and Fixed.
 
 ### Added
 
