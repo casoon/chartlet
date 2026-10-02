@@ -1226,6 +1226,24 @@ mod tests {
     }
 
     #[test]
+    fn a_declared_precision_names_times_but_keeps_the_ticks() {
+        let points: Vec<String> = (1989..=2022)
+            .map(|year| format!(r#"{{"time": "{year}-07-01", "value": {}}}"#, year % 7))
+            .collect();
+        let spec = format!(
+            r#"{{"schemaVersion": 1, "type": "time", "title": "pH", "width": 720, "height": 340,
+            "panes": [{{"layers": [{{"mark": "line", "name": "pH", "points": [{}]}}]}}]}}"#,
+            points.join(",")
+        );
+        let declared = spec.replacen('{', "{\"timeAxis\": {\"precision\": \"year\"},", 1);
+        let ticks = |svg: &str| svg.matches("class=\"chartlet-tick\"").count();
+        assert_eq!(
+            ticks(&render_ok(&declared).content),
+            ticks(&render_ok(&spec).content)
+        );
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;

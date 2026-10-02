@@ -415,7 +415,8 @@ pub(super) fn layout_multiples(
     let precision = spec.time_precision(zone);
     let shared = time_scale(spec, zone, None);
     let max_ticks = usize::try_from(
-        (panel_plot_pixels(spec.width, columns) / time_tick_spacing(precision)).max(2),
+        (panel_plot_pixels(spec.width, columns) / time_tick_spacing(spec.observed_precision(zone)))
+            .max(2),
     )
     .expect("a usize is at least 32 bits wide");
 
@@ -1250,9 +1251,10 @@ fn push_pane_axes(
 ) {
     let plot = frame.plot;
     push_value_grid(frame, elements);
-    let max_ticks =
-        usize::try_from((plot_pixels(spec.width) / time_tick_spacing(frame.precision)).max(2))
-            .expect("a usize is at least 32 bits wide");
+    let max_ticks = usize::try_from(
+        (plot_pixels(spec.width) / time_tick_spacing(spec.observed_precision(frame.zone))).max(2),
+    )
+    .expect("a usize is at least 32 bits wide");
     push_time_ticks(
         frame,
         max_ticks,

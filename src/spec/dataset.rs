@@ -324,7 +324,6 @@ impl ChartSpec {
         index.min(MAX_SERIES - 1)
     }
 
-    /// The precision of every label that names an observation, chosen from the data layers.
     /// How finely one data layer's times are written: as the layer declares, else as the time
     /// axis declares, else as finely as its own observations need.
     pub(crate) fn layer_precision(
@@ -338,12 +337,19 @@ impl ChartSpec {
         }
     }
 
+    /// How finely the chart names its times: as the time axis declares, else as finely as its
+    /// observations need.
     pub(crate) fn time_precision(&self, zone: crate::time::TimeZone) -> crate::time::Precision {
-        if let Some(precision) = self.time_axis.precision
-            && !zone.is_numeric()
-        {
-            return precision.into();
+        match self.time_axis.precision {
+            Some(precision) if !zone.is_numeric() => precision.into(),
+            _ => self.observed_precision(zone),
         }
+    }
+
+    /// How finely the observations of all data layers need their times named, whatever the
+    /// specification declares. The time axis spaces its ticks by it, so that a declared
+    /// precision changes how times are named but not how many ticks there are.
+    pub(crate) fn observed_precision(&self, zone: crate::time::TimeZone) -> crate::time::Precision {
         let epochs: Vec<i64> = self
             .data_layers()
             .flat_map(|entry| entry.layer.resolved_times(zone))
