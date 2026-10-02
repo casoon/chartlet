@@ -15,9 +15,9 @@ the browser: no chart JavaScript, no hydration, no layout shift.
 - **Honest about problems:** invalid input is rejected with a code, a path and a fix; layout
   compromises such as shortened labels are reported as warnings instead of happening silently.
 
-> **Status:** 0.6. Bar charts (single, grouped and stacked, vertical and horizontal), categorical
+> **Status:** 0.7. Bar charts (single, grouped and stacked, vertical and horizontal), categorical
 > line charts, time series with uncertainty bands, reference lines, points and stacked areas,
-> warming stripes, calendar heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.7, 0.8, …) may still change the specification; a
+> warming stripes, calendar heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.8, 0.9, …) may still change the specification; a
 > patch release never does.
 
 ## Quick start
@@ -87,7 +87,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
 | Small multiples with a finding under each panel, one column on phones | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
-| Compact chart for a panel in a grid of columns | `"width": 240`, `"height": 180` (from 200 × 160 px: narrower gutter, same text size), `"timeAxis": { "step": 50, "min": "1850" }` for the ticks the panel's claim needs, `"stroke": "medium"` | – |
+| Compact chart for a panel in a grid of columns | `"width": 240`, `"height": 180` (from 200 × 160 px: narrower gutter, same text size), `"timeAxis": { "step": 50, "min": "1850" }` for the ticks the panel's claim needs, `"stroke": "medium"`, `"valueAxis": { "unit": "W/m²" }` at the top tick instead of an axis title | – |
 
 Each example has its rendered `.svg` and `.html` next to it. The SVG files are also the
 reference output of the test suite.

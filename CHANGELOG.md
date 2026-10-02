@@ -4,7 +4,11 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
-## [Unreleased]
+## [0.7.0] - 2026-10-02
+
+Wider plots for time charts and a unit at the top tick. The specification keeps
+`schemaVersion: 1`; every specification that rendered with 0.6.0 still renders, with the
+changes in output listed under Changed.
 
 ### Added
 
