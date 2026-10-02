@@ -242,6 +242,10 @@ pub struct LayerSpec {
     /// its observations keep their tooltips on invisible targets.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub markers: Option<bool>,
+    /// Where the last step of a `curve: "step"` layer ends: the last value holds until this time,
+    /// which is no observation of its own — no marker, tooltip or table row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step_end: Option<TimeValue>,
 }
 
 /// Which observations of a `type: "time"` chart carry a tooltip.
@@ -528,6 +532,19 @@ impl ChartSpec {
                     "a numeric axis writes its positions as they are; precision names calendar times",
                 ));
             }
+        }
+        if let Some(entry) = self.indexed_layers().find(|entry| {
+            entry.layer.step_end.is_some()
+                && (entry.layer.curve != Curve::Step
+                    || !matches!(entry.layer.mark, Mark::Line | Mark::Area)
+                    || self.time_axis.gaps == Gaps::Collapse
+                    || self.panes[entry.pane].stack.is_some())
+        }) {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("/panes/{}/layers/{}/stepEnd", entry.pane, entry.local),
+                "stepEnd belongs to a line or area layer with curve \"step\", not with collapsed gaps or in a stacked pane",
+            ));
         }
         if let Some(entry) = self.indexed_layers().find(|entry| {
             entry.layer.markers.is_some() && !matches!(entry.layer.mark, Mark::Line | Mark::Area)
@@ -955,6 +972,33 @@ fn check_layer_color(layer: &LayerSpec, path: &str, warnings: &mut Vec<ChartWarn
             ),
         ));
     }
+}
+
+/// The end of the last step lies after the last observation.
+fn validate_step_end(
+    layer: &LayerSpec,
+    path: &str,
+    zone: crate::time::TimeZone,
+) -> Result<(), ChartError> {
+    let Some(step_end) = &layer.step_end else {
+        return Ok(());
+    };
+    let step_path = format!("{path}/stepEnd");
+    let end = step_end
+        .resolve(zone)
+        .map_err(|message| ChartError::new("invalid_time", step_path.clone(), message))?;
+    if layer
+        .resolved_times(zone)
+        .last()
+        .is_some_and(|last| end <= *last)
+    {
+        return Err(ChartError::new(
+            "unordered_time",
+            step_path,
+            "stepEnd must lie after the last observation",
+        ));
+    }
+    Ok(())
 }
 
 /// Every observation resolves to a timestamp and follows the one before it; a `null` value marks
@@ -1498,6 +1542,7 @@ fn validate_layer(
     }
 
     validate_points(layer, path, zone, warnings)?;
+    validate_step_end(layer, path, zone)?;
 
     if !layer.has_two_points(zone) {
         return Err(ChartError::new(

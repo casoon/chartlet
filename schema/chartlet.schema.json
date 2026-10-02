@@ -693,6 +693,10 @@
           "description": "Data layers on a calendar axis: how this layer's times are written in tooltips, the table and the description; overrides timeAxis.precision.",
           "enum": ["year", "month", "day", "minute"]
         },
+        "stepEnd": {
+          "description": "Line and area with curve \"step\": where the last step ends; the last value holds until then. No observation of its own: no marker, tooltip or table row.",
+          "$ref": "#/$defs/timeValue"
+        },
         "markers": {
           "description": "Line and area only: false draws no markers, such as for a fitted line; tooltips stay on invisible targets.",
           "type": "boolean"

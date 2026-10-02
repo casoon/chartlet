@@ -1244,6 +1244,40 @@ mod tests {
     }
 
     #[test]
+    fn the_last_step_holds_until_its_end_without_an_observation_there() {
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Annual means",
+            "showValues": false, "panes": [{"layers": [{"mark": "line", "name": "Mean",
+            "curve": "step", "stepEnd": "2026", "points": [{"time": "2024", "value": 1},
+            {"time": "2025", "value": 2}]}]}]}"#;
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .expect("renders")
+            .content;
+        // Two observations, two tooltips and two rows; the line runs on to the end of 2025.
+        assert_eq!(html.matches("<title>20").count(), 2, "{html}");
+        assert!(!html.contains("<th scope=\"row\">2026</th>"), "{html}");
+        let line = html
+            .split("<polyline points=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .expect("the line");
+        assert_eq!(line.split(' ').count(), 4, "{line}");
+
+        let linear = spec.replace("\"curve\": \"step\", ", "");
+        assert_eq!(
+            render_err(&linear),
+            (
+                "option_not_supported",
+                "/panes/0/layers/0/stepEnd".to_owned()
+            )
+        );
+        let early = spec.replace("\"stepEnd\": \"2026\"", "\"stepEnd\": \"2025\"");
+        assert_eq!(
+            render_err(&early),
+            ("unordered_time", "/panes/0/layers/0/stepEnd".to_owned())
+        );
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;

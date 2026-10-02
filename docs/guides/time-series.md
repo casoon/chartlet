@@ -315,7 +315,9 @@ legend. The plot makes room for the widest name; names that would overlap move a
 
 A value that stands for a whole period — an annual mean, a tariff, a quota — reads best as a step:
 `"curve": "step"` on a line or area layer holds each value until the next observation and then
-jumps. The area between two lines, such as a target and a projection, is a band: give the line
+jumps. The last value holds until `stepEnd`, when given — `"stepEnd": "2026"` ends the step of
+the 2025 mean at the end of 2025 without adding an observation for 2026. The area between two
+lines, such as a target and a projection, is a band: give the line
 its points with `lower` and `upper`, and `"modeled": true` hatches it.
 
 ## Numbers instead of dates

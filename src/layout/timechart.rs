@@ -17,8 +17,8 @@ use crate::{
     metrics::TextMetrics,
     scene::{Circle, Element, Hook, Line, Polyline, Scene, Text, TextAnchor},
     spec::{
-        ChartSpec, ChartType, Dash, LayerRef, LegendPlacement, MAX_SERIES, Mark, NumberStyle,
-        Stroke, Tooltips,
+        ChartSpec, ChartType, Dash, LayerRef, LayerSpec, LegendPlacement, MAX_SERIES, Mark,
+        NumberStyle, Stroke, Tooltips,
     },
     time,
     time::{Precision, TimeZone},
@@ -800,6 +800,8 @@ fn push_area(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mu
                 .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
                 .collect(),
         );
+        extend_last_step(entry.layer, frame, last, &mut outline);
+        let end = outline.last().map_or(frame.x(last), |point| point.0);
         if let Some(base) = &base {
             let below = entry.layer.curve.points(
                 segment
@@ -810,7 +812,7 @@ fn push_area(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mu
             );
             outline.extend(below.into_iter().rev());
         } else {
-            outline.push((frame.x(last), frame.y(0.0)));
+            outline.push((end, frame.y(0.0)));
             outline.push((frame.x(first), frame.y(0.0)));
         }
         elements.push(Element::Polyline(Polyline {
@@ -1043,6 +1045,27 @@ fn push_line(
     }
 }
 
+/// Holds the last value of a step layer until its `stepEnd`, if `last` is the layer's last
+/// observation.
+fn extend_last_step(layer: &LayerSpec, frame: &TimeFrame, last: i64, points: &mut Vec<(f64, f64)>) {
+    let Some(end) = layer
+        .step_end
+        .as_ref()
+        .and_then(|time| time.resolve(frame.zone).ok())
+    else {
+        return;
+    };
+    if layer
+        .resolved_points(frame.zone)
+        .last()
+        .map(|point| point.0)
+        == Some(last)
+        && let Some(&(_, y)) = points.last()
+    {
+        points.push((frame.x(end), y));
+    }
+}
+
 /// The line of a layer, broken at every missing value; a lone value between two gaps keeps only
 /// its marker.
 fn push_line_segments(
@@ -1064,13 +1087,15 @@ fn push_line_segments(
         if segment.len() < 2 {
             continue;
         }
+        let mut points = layer.curve.points(
+            segment
+                .iter()
+                .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
+                .collect(),
+        );
+        extend_last_step(layer, frame, segment[segment.len() - 1].0, &mut points);
         elements.push(Element::Polyline(Polyline {
-            points: layer.curve.points(
-                segment
-                    .iter()
-                    .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
-                    .collect(),
-            ),
+            points,
             class,
             topic: None,
             series_index: None,
@@ -1293,7 +1318,7 @@ fn time_span(spec: &ChartSpec, zone: TimeZone) -> (i64, i64) {
         .flat_map(|entry| entry.layer.resolved_times(zone));
     let rules = spec
         .layers()
-        .flat_map(|layer| [&layer.time, &layer.from, &layer.to])
+        .flat_map(|layer| [&layer.time, &layer.from, &layer.to, &layer.step_end])
         .filter_map(Option::as_ref)
         .filter_map(|time| time.resolve(zone).ok());
     for epoch in data.chain(rules) {
