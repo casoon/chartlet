@@ -4,6 +4,36 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Added
+
+- Time charts: `"mark": "point"` draws a dot per observation and no line, as in a scatter plot.
+- Time charts: `"stack": "normal"` on a pane stacks its area layers; the crosshair of the
+  interactive module places stacked values on top of the stack.
+- Time charts: `"tooltips": "markers"` keeps tooltips on drawn markers only, so dense lines stay
+  small.
+- Time charts: months (`"2026-03"`) as times, and `timeAxis.precision` (`year`, `month`, `day`,
+  `minute`) for how tooltips, the table and the description write times.
+- Range bars: `group` per range, drawn in a palette color with a legend entry per group.
+- Value axis: `step` sets the tick interval and `exact` keeps `min` and `max` as the ends.
+- The shared stylesheet in parts: `stylesheet_common()` and `stylesheet_types()`,
+  `stylesheet({ types: [] })` and `stylesheet({ types, common: false })`, `chartlet stylesheet
+  --common` and `--no-common`. The common part comes first; a type's part styles only charts of
+  that type.
+
+### Changed
+
+- More than 16 categories on a horizontal axis whose labels do not fit: every n-th category is
+  labelled, with the room of n bands, and the warning `labels_thinned`.
+- Charts narrower than 480 pixels draw their title at 18 pixels.
+- In the shared stylesheet, each type's rules now come together, type by type.
+
+### Fixed
+
+- The markers of the first series in a time chart with several layers take its palette color.
+- A horizontal range bar chart keeps room for its last tick label.
+
 ## [0.1.0] - 2026-10-01
 
 The first release without the alpha tag. The specification keeps `schemaVersion: 1`; every
