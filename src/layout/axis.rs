@@ -373,7 +373,7 @@ impl NumericScale {
     /// of ten needs on a logarithmic one.
     pub(crate) fn tick_label(self, value: f64, style: NumberStyle) -> String {
         if !self.log {
-            return format_tick(value, self.step, self.min, style);
+            return format_tick(value, self.step, self.first_tick(), style);
         }
         // A power of ten below one needs a decimal for each step down: 0.1, 0.01.
         let mut decimals = 0_u8;
@@ -461,6 +461,12 @@ impl NumericScale {
     /// Ticks are computed from their index instead of by repeated addition, so rounding errors
     /// do not accumulate along the axis. A logarithmic axis ticks every power of ten, and over
     /// two decades or fewer also 2 and 5 times each.
+    /// The first tick of a linear axis: the first multiple of the step at or above its start, so
+    /// that an exact axis from −2.5 with step 1 has its ticks at −2, −1, 0 and its zero line.
+    fn first_tick(self) -> f64 {
+        tidy((self.min / self.step - 1e-9).ceil() * self.step)
+    }
+
     pub(crate) fn ticks(self) -> Box<dyn Iterator<Item = f64>> {
         if self.log {
             let multiples: &[f64] = if self.max / self.min <= 100.0 * (1.0 + 1e-9) {
@@ -477,9 +483,10 @@ impl NumericScale {
                     .collect();
             return Box::new(ticks.into_iter());
         }
+        let first = self.first_tick();
         Box::new(
             std::iter::successors(Some(0.0_f64), |index| Some(index + 1.0))
-                .map(move |index| tidy(self.min + index * self.step))
+                .map(move |index| tidy(first + index * self.step))
                 // Rounding noise only: an exact axis ends at its max, not half a step beyond.
                 .take_while(move |tick| *tick <= self.max + self.step * 1e-6),
         )

@@ -1372,7 +1372,7 @@ mod tests {
     }
 
     #[test]
-    fn an_exact_axis_ends_where_it_says_and_ticks_by_its_step() {
+    fn an_exact_axis_ends_where_it_says_and_ticks_at_multiples_of_its_step() {
         let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Forcing", "panes": [{
             "valueAxis": {"min": -2.5, "max": 3.5, "exact": true, "step": 1},
             "layers": [{"mark": "line", "name": "V", "points": [
@@ -1382,20 +1382,12 @@ mod tests {
             .split("class=\"chartlet-tick\">")
             .skip(1)
             .filter_map(|rest| rest.split('<').next())
-            .filter(|tick| tick.contains('.'))
+            // The time axis writes years; the value ticks are the short ones.
+            .filter(|tick| tick.chars().count() <= 2)
             .collect();
-        assert_eq!(
-            ticks,
-            [
-                "\u{2212}2.5",
-                "\u{2212}1.5",
-                "\u{2212}0.5",
-                "0.5",
-                "1.5",
-                "2.5",
-                "3.5"
-            ]
-        );
+        // The ends stay at −2.5 and 3.5; the ticks sit on multiples of the step, zero included.
+        assert_eq!(ticks, ["\u{2212}2", "\u{2212}1", "0", "1", "2", "3"]);
+        assert!(svg.contains("class=\"chartlet-zero\""));
         let outside = spec.replace("\"value\": 2.2", "\"value\": 4");
         assert_eq!(
             render_err(&outside),
