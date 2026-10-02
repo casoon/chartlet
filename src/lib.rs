@@ -1140,6 +1140,32 @@ mod tests {
     }
 
     #[test]
+    fn a_horizontal_log_axis_writes_only_labels_that_fit_and_keeps_its_end_label() {
+        let spec = r#"{"schemaVersion":1,"type":"rangebar","orientation":"horizontal","title":"t",
+            "width":480,"height":240,"valueAxis":{"scale":"log"},"ranges":[
+            {"label":"A","low":1000000,"high":10000000},{"label":"B","low":10,"high":300}]}"#;
+        let svg = render_ok(spec).content;
+        // Seven gridlines from 10 to 10,000,000, but only every other tick labelled.
+        assert_eq!(svg.matches("class=\"chartlet-grid\"").count(), 7, "{svg}");
+        assert_eq!(svg.matches("class=\"chartlet-tick\"").count(), 4, "{svg}");
+        let end = svg.find(">1000000 to 10000000<").expect("the end label");
+        let x: f64 = svg[..end]
+            .rsplit("<text x=\"")
+            .next()
+            .and_then(|tail| tail.split('"').next())
+            .and_then(|x| x.parse().ok())
+            .expect("the label's x");
+        assert!(
+            x + crate::metrics::TextMetrics::width(
+                &crate::metrics::BuiltinMetrics,
+                "1000000 to 10000000",
+                12.0
+            ) <= 480.0,
+            "{svg}"
+        );
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;

@@ -65,6 +65,96 @@ pub(crate) fn tooltips_fit(xs: &[f64]) -> bool {
     gaps[gaps.len() / 2] >= MIN_TOOLTIP_SPACING
 }
 
+/// The gridlines of the value axis with their tick labels: left of a vertical axis, below a
+/// horizontal one.
+fn push_value_ticks(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    scale: &NumericScale,
+    plot: PlotArea,
+    metrics: &impl TextMetrics,
+) {
+    let label_step = horizontal_tick_step(spec, scale, plot, metrics);
+    for (index, value) in scale.ticks().enumerate() {
+        if plot.vertical_bars {
+            let y = scale.map(value, plot.top + plot.height, plot.top);
+            elements.push(Element::Line(Line {
+                x1: plot.left,
+                y1: y,
+                x2: plot.left + plot.width,
+                y2: y,
+                class: if scale.is_zero(value) {
+                    "chartlet-zero"
+                } else {
+                    "chartlet-grid"
+                },
+            }));
+            elements.push(Element::Text(Text {
+                x: plot.left - 10.0,
+                y: y + 4.0,
+                class: "chartlet-tick",
+                anchor: TextAnchor::End,
+                content: scale.tick_label(value, spec.axis_style()),
+            }));
+        } else {
+            let x = scale.map(value, plot.left, plot.left + plot.width);
+            elements.push(Element::Line(Line {
+                x1: x,
+                y1: plot.top,
+                x2: x,
+                y2: plot.top + plot.height,
+                class: if scale.is_zero(value) {
+                    "chartlet-zero"
+                } else {
+                    "chartlet-grid"
+                },
+            }));
+            if index.is_multiple_of(label_step) {
+                elements.push(Element::Text(Text {
+                    x,
+                    y: plot.top + plot.height + 22.0,
+                    class: "chartlet-tick",
+                    anchor: TextAnchor::Middle,
+                    content: scale.tick_label(value, spec.axis_style()),
+                }));
+            }
+        }
+    }
+}
+
+/// Which tick labels a horizontal value axis writes: every one, or every `step`-th where wide
+/// labels such as those of a logarithmic axis would otherwise run into each other. The gridlines
+/// stay at every tick. A vertical axis writes every label.
+fn horizontal_tick_step(
+    spec: &ChartSpec,
+    scale: &NumericScale,
+    plot: PlotArea,
+    metrics: &impl TextMetrics,
+) -> usize {
+    if plot.vertical_bars {
+        return 1;
+    }
+    let ticks: Vec<(f64, f64)> = scale
+        .ticks()
+        .map(|value| {
+            let x = scale.map(value, plot.left, plot.left + plot.width);
+            let width =
+                WithReserve(metrics).width(&scale.tick_label(value, spec.axis_style()), LABEL_SIZE);
+            (x, width)
+        })
+        .collect();
+    (1..ticks.len().max(2))
+        .find(|step| {
+            ticks
+                .iter()
+                .step_by(*step)
+                .collect::<Vec<_>>()
+                .windows(2)
+                .all(|pair| pair[1].0 - pair[0].0 >= f64::midpoint(pair[0].1, pair[1].1) + 6.0)
+        })
+        .unwrap_or(ticks.len().max(1))
+}
+
 pub(crate) const fn plot_pixels(width: u32) -> u32 {
     width.saturating_sub(AXIS_GUTTER + PLOT_MARGIN)
 }
@@ -177,49 +267,7 @@ pub(crate) fn base_elements_with_title(
         warnings,
     );
 
-    for value in scale.ticks() {
-        if plot.vertical_bars {
-            let y = scale.map(value, plot.top + plot.height, plot.top);
-            elements.push(Element::Line(Line {
-                x1: plot.left,
-                y1: y,
-                x2: plot.left + plot.width,
-                y2: y,
-                class: if scale.is_zero(value) {
-                    "chartlet-zero"
-                } else {
-                    "chartlet-grid"
-                },
-            }));
-            elements.push(Element::Text(Text {
-                x: plot.left - 10.0,
-                y: y + 4.0,
-                class: "chartlet-tick",
-                anchor: TextAnchor::End,
-                content: scale.tick_label(value, spec.axis_style()),
-            }));
-        } else {
-            let x = scale.map(value, plot.left, plot.left + plot.width);
-            elements.push(Element::Line(Line {
-                x1: x,
-                y1: plot.top,
-                x2: x,
-                y2: plot.top + plot.height,
-                class: if scale.is_zero(value) {
-                    "chartlet-zero"
-                } else {
-                    "chartlet-grid"
-                },
-            }));
-            elements.push(Element::Text(Text {
-                x,
-                y: plot.top + plot.height + 22.0,
-                class: "chartlet-tick",
-                anchor: TextAnchor::Middle,
-                content: scale.tick_label(value, spec.axis_style()),
-            }));
-        }
-    }
+    push_value_ticks(&mut elements, spec, scale, plot, metrics);
 
     if let Some(title) = &spec.value_axis.title {
         let title = fit_text(

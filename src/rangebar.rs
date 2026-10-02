@@ -277,7 +277,7 @@ fn layout_horizontal(
     let right = if spec.show_values {
         spec.ranges
             .iter()
-            .map(|range| metrics.width(&span_label(spec, range), LABEL_SIZE))
+            .map(|range| WithReserve(metrics).width(&span_label(spec, range), LABEL_SIZE))
             .fold(0.0, f64::max)
             .clamp(8.0, 200.0)
             + 16.0
