@@ -85,6 +85,17 @@ pub enum TimePrecision {
     Minute,
 }
 
+impl From<TimePrecision> for crate::time::Precision {
+    fn from(precision: TimePrecision) -> Self {
+        match precision {
+            TimePrecision::Year => Self::Year,
+            TimePrecision::Month => Self::Month,
+            TimePrecision::Day => Self::Day,
+            TimePrecision::Minute => Self::Minute,
+        }
+    }
+}
+
 impl TimeAxisKind {
     // serde hands this function a reference, so the signature follows serde's shape.
     #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -219,6 +230,11 @@ pub struct LayerSpec {
     /// the next, for values that apply to a whole period.
     #[serde(default, skip_serializing_if = "Curve::is_linear")]
     pub curve: Curve,
+    /// How finely this layer's times are written in tooltips, the table and the description,
+    /// for a layer coarser than the rest of the chart, such as yearly means beside monthly
+    /// values. Overrides `timeAxis.precision`; calendar axes only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub precision: Option<TimePrecision>,
 }
 
 /// Which observations of a `type: "time"` chart carry a tooltip.
@@ -495,6 +511,27 @@ impl ChartSpec {
                     ));
                 }
             }
+            if let Some(entry) = self
+                .indexed_layers()
+                .find(|entry| entry.layer.precision.is_some())
+            {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    format!("/panes/{}/layers/{}/precision", entry.pane, entry.local),
+                    "a numeric axis writes its positions as they are; precision names calendar times",
+                ));
+            }
+        }
+        // Precision is how a data layer writes its times; annotations and zones name theirs.
+        if let Some(entry) = self
+            .indexed_layers()
+            .find(|entry| entry.layer.precision.is_some() && !entry.layer.is_data())
+        {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("/panes/{}/layers/{}/precision", entry.pane, entry.local),
+                "precision belongs to a data layer",
+            ));
         }
         Ok(zone)
     }

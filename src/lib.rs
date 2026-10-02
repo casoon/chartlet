@@ -1166,6 +1166,48 @@ mod tests {
     }
 
     #[test]
+    fn every_layer_writes_its_times_as_finely_as_it_needs() {
+        // Monthly values beside yearly means placed mid-year: the means say only the year.
+        let spec = r#"{"schemaVersion": 1, "type": "time", "title": "CO2", "panes": [{"layers": [
+            {"mark": "line", "name": "Monthly", "points": [{"time": "2020-01", "value": 1},
+                {"time": "2020-02", "value": 2}, {"time": "2020-03", "value": 3}]},
+            {"mark": "line", "name": "Yearly", "precision": "year", "points": [
+                {"time": "2019-07-01", "value": 1}, {"time": "2020-07-01", "value": 2}]}]}]}"#;
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .expect("renders")
+            .content;
+        assert!(html.contains("<title>2020 – Yearly: 2</title>"), "{html}");
+        assert!(
+            html.contains("<title>2020-02 – Monthly: 2</title>"),
+            "{html}"
+        );
+        assert!(html.contains("<th scope=\"row\">2019</th>"), "{html}");
+
+        // On a numeric axis, a finely spaced helper line does not add decimals to the points.
+        let numeric = r#"{"schemaVersion": 1, "type": "time", "title": "Quakes",
+            "timeAxis": {"kind": "number"}, "panes": [{"layers": [
+            {"mark": "point", "name": "Counted", "points": [{"time": 4.5, "value": 3},
+                {"time": 5, "value": 2}]},
+            {"mark": "line", "name": "Fit", "points": [{"time": 4.45, "value": 3},
+                {"time": 5.05, "value": 2}]}]}]}"#;
+        let svg = render_ok(numeric).content;
+        assert!(svg.contains("<title>4.5 – Counted: 3</title>"), "{svg}");
+        assert!(svg.contains("<title>4.45 – Fit: 3</title>"), "{svg}");
+        let on_numeric = numeric.replacen(
+            "\"name\": \"Fit\",",
+            "\"name\": \"Fit\", \"precision\": \"year\",",
+            1,
+        );
+        assert_eq!(
+            render_err(&on_numeric),
+            (
+                "option_not_supported",
+                "/panes/0/layers/1/precision".to_owned()
+            )
+        );
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;

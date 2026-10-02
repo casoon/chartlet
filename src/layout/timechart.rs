@@ -912,9 +912,10 @@ fn observation_tooltip(
     (epoch, value): (i64, f64),
     band: Option<(f64, f64)>,
     name: Option<&str>,
+    precision: Precision,
 ) -> String {
     let mut text = tooltip(
-        &frame.precision.format(epoch, frame.zone),
+        &precision.format(epoch, frame.zone),
         value,
         frame.style,
         name,
@@ -972,6 +973,7 @@ fn push_line(
     let last = points.len().saturating_sub(1);
     let band = layer.resolved_band(frame.zone);
     let name = tooltip_name(spec, entry);
+    let precision = spec.layer_precision(layer, frame.zone);
     // A stacked area's markers sit on top of the stack, but tell the layer's own value.
     let drawn = spec.drawn_points(entry, frame.zone);
     for (index, (epoch, value)) in points.iter().enumerate() {
@@ -983,6 +985,7 @@ fn push_line(
             (*epoch, *value),
             band.get(index).map(|(_, lower, upper)| (*lower, *upper)),
             name.as_deref(),
+            precision,
         );
         let point = |radius: f64, tooltip: Option<String>| {
             Element::Circle(Circle {

@@ -198,6 +198,7 @@ pub(crate) fn push_candles(
     elements: &mut Vec<Element>,
 ) {
     let candles = entry.layer.resolved_candles(frame.zone);
+    let precision = spec.layer_precision(entry.layer, frame.zone);
     let xs: Vec<f64> = candles.iter().map(|(epoch, _)| frame.x(*epoch)).collect();
     let dense = candles.len()
         > usize::try_from(dense_limit(spec.width)).expect("a usize is at least 32 bits wide");
@@ -230,7 +231,7 @@ pub(crate) fn push_candles(
         };
         let values = [open, high, low, close].map(|value| format_value(*value, frame.style));
         let values = text::candle_values(spec.locale, &values);
-        let time = frame.precision.format(*epoch, frame.zone);
+        let time = precision.format(*epoch, frame.zone);
         elements.push(Element::Rect(Rect {
             x: x - width / 2.0,
             y,

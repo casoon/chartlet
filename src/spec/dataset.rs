@@ -39,7 +39,7 @@ impl ChartSpec {
         match self.chart_type {
             ChartType::Time | ChartType::Multiples => {
                 let zone = self.time_zone().unwrap_or_default();
-                self.time_dataset(zone, self.time_precision(zone), true)
+                self.time_dataset(zone, true)
             }
             ChartType::Topicmap => self.topicmap_dataset(),
             ChartType::Atlas => self.atlas_dataset(),
@@ -325,17 +325,24 @@ impl ChartSpec {
     }
 
     /// The precision of every label that names an observation, chosen from the data layers.
+    /// How finely one data layer's times are written: as the layer declares, else as the time
+    /// axis declares, else as finely as its own observations need.
+    pub(crate) fn layer_precision(
+        &self,
+        layer: &super::LayerSpec,
+        zone: crate::time::TimeZone,
+    ) -> crate::time::Precision {
+        match layer.precision.or(self.time_axis.precision) {
+            Some(precision) if !zone.is_numeric() => precision.into(),
+            _ => crate::time::Precision::of(layer.resolved_times(zone).into_iter(), zone),
+        }
+    }
+
     pub(crate) fn time_precision(&self, zone: crate::time::TimeZone) -> crate::time::Precision {
-        use crate::time::Precision;
         if let Some(precision) = self.time_axis.precision
             && !zone.is_numeric()
         {
-            return match precision {
-                super::TimePrecision::Year => Precision::Year,
-                super::TimePrecision::Month => Precision::Month,
-                super::TimePrecision::Day => Precision::Day,
-                super::TimePrecision::Minute => Precision::Minute,
-            };
+            return precision.into();
         }
         let epochs: Vec<i64> = self
             .data_layers()
@@ -416,12 +423,9 @@ impl ChartSpec {
     ///
     /// Timestamps and layer values are owned because the row labels are formatted timestamps
     /// rather than text taken from the specification.
-    pub(crate) fn time_dataset(
-        &self,
-        zone: crate::time::TimeZone,
-        precision: crate::time::Precision,
-        bounds: bool,
-    ) -> Dataset {
+    /// The table of a time chart: a row per time, labelled as finely as the finest layer with an
+    /// observation at that time.
+    pub(crate) fn time_dataset(&self, zone: crate::time::TimeZone, bounds: bool) -> Dataset {
         let mut categories: Vec<i64> = self
             .data_layers()
             .flat_map(|entry| entry.layer.resolved_times(zone))
@@ -500,10 +504,27 @@ impl ChartSpec {
             }
         }
 
+        let layers: Vec<(Vec<i64>, crate::time::Precision)> = self
+            .data_layers()
+            .map(|entry| {
+                (
+                    entry.layer.resolved_times(zone),
+                    self.layer_precision(entry.layer, zone),
+                )
+            })
+            .collect();
         Dataset {
             categories: categories
                 .iter()
-                .map(|epoch| precision.format(*epoch, zone))
+                .map(|epoch| {
+                    layers
+                        .iter()
+                        .filter(|(times, _)| times.contains(epoch))
+                        .map(|(_, precision)| *precision)
+                        .reduce(crate::time::Precision::at_least)
+                        .expect("every row comes from a layer")
+                        .format(*epoch, zone)
+                })
                 .collect(),
             series,
         }

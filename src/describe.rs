@@ -163,8 +163,7 @@ fn time_description(spec: &ChartSpec) -> String {
     let locale = spec.locale;
     let words = locale.words();
     let zone = spec.time_zone().unwrap_or_default();
-    let precision = spec.time_precision(zone);
-    let dataset = spec.time_dataset(zone, precision, false);
+    let dataset = spec.time_dataset(zone, false);
     let show = |value| layout::format_value(value, spec.number_style());
     let points = dataset.categories.len();
     let range = format!(
@@ -285,8 +284,7 @@ fn stacked_description(spec: &ChartSpec) -> String {
     let locale = spec.locale;
     let words = locale.words();
     let zone = spec.time_zone().unwrap_or_default();
-    let precision = spec.time_precision(zone);
-    let dataset = spec.time_dataset(zone, precision, false);
+    let dataset = spec.time_dataset(zone, false);
     let range = format!(
         "{} {} {} {}",
         words.from,
@@ -347,12 +345,14 @@ fn stacked_description(spec: &ChartSpec) -> String {
             .iter()
             .filter(|entry| entry.layer.mark == spec::Mark::Ohlc)
         {
+            let precision = spec.layer_precision(entry.layer, zone);
             description.push_str(&ohlc::describe(spec, *entry, zone, precision, style));
         }
         let observations: Vec<(f64, String)> = layers
             .iter()
             .filter(|entry| entry.layer.mark != spec::Mark::Ohlc)
             .flat_map(|entry| {
+                let precision = spec.layer_precision(entry.layer, zone);
                 entry
                     .layer
                     .resolved_points(zone)

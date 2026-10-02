@@ -688,6 +688,10 @@
           "description": "Line and area only: linear (default) joins observations directly; step holds each value until the next observation.",
           "enum": ["linear", "step"],
           "default": "linear"
+        },
+        "precision": {
+          "description": "Data layers on a calendar axis: how this layer's times are written in tooltips, the table and the description; overrides timeAxis.precision.",
+          "enum": ["year", "month", "day", "minute"]
         }
       },
       "allOf": [
