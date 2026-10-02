@@ -17,5 +17,6 @@ The files are the `inter-latin-*-normal.woff` and `inter-latin-ext-*-normal.woff
 npm package `@fontsource/inter` 5.2.8, unpacked from WOFF into the TrueType data they wrap; the
 font data itself is unchanged.
 
-Text outside these subsets, such as Greek or Cyrillic, has no glyphs in a PNG. The SVG and HTML
-output do not use these files.
+Text outside these subsets, such as Greek, Cyrillic, subscript digits (CO₂) or ‰, has no glyphs
+in a PNG; the warning `glyph_missing` names such characters. The SVG and HTML output do not use
+these files.

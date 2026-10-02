@@ -615,7 +615,7 @@
       "required": ["mark"],
       "properties": {
         "mark": {
-          "description": "line and area draw data; ohlc draws candlesticks (time charts only); band is a zone; annotation is a reference line or, with both time and value, a point marker.",
+          "description": "line and area draw data, point draws a dot per observation and no line; ohlc draws candlesticks (time charts only); band is a zone; annotation is a reference line or, with both time and value, a point marker.",
           "enum": ["line", "area", "point", "ohlc", "band", "annotation"]
         },
         "name": { "type": "string", "minLength": 1, "maxLength": 100 },

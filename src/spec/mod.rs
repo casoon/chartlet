@@ -32,6 +32,8 @@ const MAX_DATA_POINTS: usize = 100;
 /// Limited so that every series keeps a color that stays distinguishable for common
 /// color-vision deficiencies.
 pub(crate) const MAX_SERIES: usize = 4;
+/// The most ticks a declared step may put on an axis.
+pub(crate) const MAX_AXIS_TICKS: f64 = 50.0;
 /// Reference lines on a bar chart; beyond this the lines crowd the bars they explain.
 pub(crate) const MAX_REFERENCES: usize = 4;
 /// Fixed decimal places; beyond this a value stops being readable as a number.
@@ -656,6 +658,80 @@ impl ChartSpec {
         axes
     }
 
+    /// The positive and the negative total of every category of a stacked bar chart.
+    fn stack_totals(&self) -> Vec<f64> {
+        (0..self.categories.len())
+            .flat_map(|index| {
+                let values = self.series.iter().filter_map(|series| series.values[index]);
+                let positive: f64 = values.clone().filter(|value| *value > 0.0).sum();
+                let negative: f64 = values.filter(|value| *value < 0.0).sum();
+                [positive, negative]
+            })
+            .collect()
+    }
+
+    /// A declared value step yields at most [`MAX_AXIS_TICKS`] ticks across the values and the
+    /// declared ends, and an exact axis at least two: a tiny step would otherwise draw millions.
+    fn validate_tick_count(
+        &self,
+        (axis, axis_index): (&ValueAxisSpec, Option<usize>),
+        step: f64,
+        values: &[(Option<usize>, f64, String)],
+        path: &str,
+    ) -> Result<(), ChartError> {
+        let own = values
+            .iter()
+            .filter(|(owner, _, _)| *owner == axis_index)
+            .map(|(_, value, _)| *value);
+        // A stacked pane reaches the totals of its areas.
+        let zone = self.time_zone().unwrap_or_default();
+        let stacked: Vec<f64> = match axis_index {
+            Some(pane) if self.panes[pane].stack.is_some() => self
+                .data_layers()
+                .filter(|entry| entry.pane == pane)
+                .flat_map(|entry| self.drawn_points(entry, zone))
+                .map(|(_, value)| value)
+                // Stacked areas grow from zero.
+                .chain([0.0])
+                .collect(),
+            _ => Vec::new(),
+        };
+        let mut values: Vec<f64> = own.chain(stacked).chain(axis.min).chain(axis.max).collect();
+        // Bars are measured from zero; a stack reaches the totals of its categories, a percent
+        // stack runs from 0 to 1.
+        if self.chart_type == ChartType::Bar {
+            values.push(0.0);
+            match self.stack {
+                Some(Stack::Percent) => values = vec![0.0, 1.0],
+                Some(Stack::Normal) => values.extend(self.stack_totals()),
+                None => {}
+            }
+        }
+        let (low, high) = values
+            .iter()
+            .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), value| {
+                (low.min(*value), high.max(*value))
+            });
+        if !low.is_finite() {
+            return Ok(());
+        }
+        let ticks = (high / step).floor() - (low / step).ceil() + 1.0;
+        let few = axis.exact && ticks < 2.0;
+        if ticks > MAX_AXIS_TICKS || few {
+            return Err(ChartError::new(
+                "invalid_axis_range",
+                format!("{path}/step"),
+                format!(
+                    "a step of {step} gives {} ticks across {} to {}; choose one that gives 2 to {MAX_AXIS_TICKS}",
+                    ticks.max(0.0),
+                    low + 0.0,
+                    high + 0.0
+                ),
+            ));
+        }
+        Ok(())
+    }
+
     /// A logarithmic axis places only values above zero, and neither a stack nor an area, which
     /// are measured from zero. A declared `step` is a positive distance. An `exact` axis has both
     /// ends, and every value lies between them, so that nothing reaches outside the plot.
@@ -735,6 +811,9 @@ impl ChartSpec {
                         format!("the value lies outside the exact axis from {min} to {max}"),
                     ));
                 }
+            }
+            if let Some(step) = axis.step {
+                self.validate_tick_count((axis, axis_index), step, &values, &path)?;
             }
             if log {
                 let panes: Vec<usize> = match axis_index {

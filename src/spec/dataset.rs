@@ -429,11 +429,17 @@ impl ChartSpec {
     ///
     /// Timestamps and layer values are owned because the row labels are formatted timestamps
     /// rather than text taken from the specification.
-    /// A column name followed by the unit of its pane's value axis, if the axis has one.
-    fn with_unit(&self, name: Option<String>, pane: usize) -> Option<String> {
+    /// A column name followed by the unit of its pane's value axis, if the axis has one and the
+    /// name heads a `table` column; the description writes the unit after the values instead.
+    fn with_unit(&self, name: Option<String>, pane: usize, table: bool) -> Option<String> {
+        if !table {
+            return name;
+        }
         match (name, self.axis_unit(pane)) {
             (Some(name), Some(unit)) => Some(format!("{name} ({unit})")),
-            (name, _) => name,
+            // A single unnamed layer is the table's "Value" column; the unit still belongs to it.
+            (None, Some(unit)) => Some(format!("{} ({unit})", self.locale.words().value)),
+            (name, None) => name,
         }
     }
 
@@ -474,7 +480,7 @@ impl ChartSpec {
         let mut series = Vec::new();
         for (entry, name) in self.data_layers().zip(self.layer_names()) {
             let layer = entry.layer;
-            let name = self.with_unit(name, entry.pane);
+            let name = self.with_unit(name, entry.pane, bounds);
             // Every pane of a time chart writes its values by its own value axis.
             let style = (self.chart_type == ChartType::Time).then(|| self.pane_style(entry.pane));
             if layer.mark == Mark::Ohlc {
@@ -578,6 +584,11 @@ impl ChartSpec {
                 .is_ok_and(|epoch| (from..=to).contains(&epoch))
         };
         let mut spec = self.clone();
+        // A window shows its own span: the declared ends and tick step of the whole axis do not
+        // apply to it.
+        spec.time_axis.min = None;
+        spec.time_axis.max = None;
+        spec.time_axis.step = None;
         for pane in &mut spec.panes {
             pane.layers
                 .retain(|layer| layer.time.as_ref().is_none_or(inside));
@@ -592,6 +603,22 @@ impl ChartSpec {
                         && resolve(&layer.to).is_none_or(|end| end > from))
             });
             for layer in &mut pane.layers {
+                // The last step ends at `stepEnd` only in a window that holds the last
+                // observation, and then at the latest at the window's end.
+                let last = layer
+                    .points
+                    .last()
+                    .and_then(|point| point.time.resolve(zone).ok());
+                #[allow(clippy::cast_precision_loss)]
+                if let Some(end) = layer
+                    .step_end
+                    .as_ref()
+                    .and_then(|time| time.resolve(zone).ok())
+                {
+                    layer.step_end = last
+                        .filter(|last| (from..=to).contains(last))
+                        .map(|_| TimeValue::Number(end.min(to) as f64));
+                }
                 layer.points.retain(|point| inside(&point.time));
                 layer.data.retain(|candle| inside(&candle.time));
                 if layer.mark == Mark::Band {

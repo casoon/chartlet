@@ -400,7 +400,6 @@ pub(crate) fn bands(locale: Locale, banded: usize, hatched: bool) -> String {
     }
 }
 
-/// The sentence about area layers; `names` lists them, empty for a single unnamed one.
 /// The notes under the panel titles of small multiples, as `title: note` separated by semicolons.
 pub(crate) fn panel_notes(locale: Locale, notes: &str) -> String {
     match locale {
@@ -421,6 +420,7 @@ pub(crate) fn stacked_areas(locale: Locale, names: &str) -> String {
     }
 }
 
+/// The sentence about area layers; `names` lists them, empty for a single unnamed one.
 pub(crate) fn areas(locale: Locale, names: &[String]) -> String {
     match (locale, names.len()) {
         (Locale::En, 0) => " The area below the line is filled down to zero.".to_owned(),
@@ -635,7 +635,6 @@ pub(crate) fn rangebar_opening(
     }
 }
 
-/// The sentence that names the modeled spans of a range chart.
 /// The groups of a range bar chart, each with the labels of its spans, as `group: labels`
 /// separated by semicolons.
 pub(crate) fn range_groups(locale: Locale, groups: &str) -> String {
@@ -645,6 +644,7 @@ pub(crate) fn range_groups(locale: Locale, groups: &str) -> String {
     }
 }
 
+/// The sentence that names the modeled spans of a range chart.
 pub(crate) fn modeled_ranges(locale: Locale, labels: &str) -> String {
     match locale {
         Locale::En => format!(" Modeled, drawn hatched: {labels}."),

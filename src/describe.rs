@@ -164,7 +164,7 @@ fn time_description(spec: &ChartSpec) -> String {
     let words = locale.words();
     let zone = spec.time_zone().unwrap_or_default();
     let dataset = spec.time_dataset(zone, false);
-    let show = |value| layout::format_value(value, spec.number_style());
+    let show = |value| value_with_unit(spec, value);
     let points = dataset.categories.len();
     let range = format!(
         "{} {} {} {}",
@@ -372,7 +372,7 @@ fn stacked_description(spec: &ChartSpec) -> String {
         describe_extremes(
             &observations,
             (spec.panes.len() > 1).then_some(label.as_str()),
-            style,
+            (style, spec.axis_unit(pane_index)),
             locale,
             &mut description,
         );
@@ -386,7 +386,7 @@ fn stacked_description(spec: &ChartSpec) -> String {
 fn describe_extremes(
     observations: &[(f64, String)],
     label: Option<&str>,
-    style: spec::NumberStyle,
+    (style, unit): (spec::NumberStyle, Option<&str>),
     locale: spec::Locale,
     description: &mut String,
 ) {
@@ -411,7 +411,7 @@ fn describe_extremes(
             .collect::<Vec<_>>()
             .join(", ")
     };
-    let show = |value| layout::format_value(value, style);
+    let show = |value| with_unit(layout::format_value(value, style), unit);
     let prefix = label.map_or_else(String::new, |label| format!(" {label} –"));
     if highest.total_cmp(&lowest).is_eq() {
         write!(
@@ -650,4 +650,21 @@ fn topicmap_description(spec: &ChartSpec) -> String {
         description.push_str(&text::neighbours(spec.locale, &named));
     }
     description
+}
+
+/// A written value followed by the unit of its value axis, if the axis has one.
+fn with_unit(value: String, unit: Option<&str>) -> String {
+    match unit {
+        Some(unit) => format!("{value} {unit}"),
+        None => value,
+    }
+}
+
+/// A value as a single-pane time chart or small multiples write it, with the unit of their value
+/// axis.
+fn value_with_unit(spec: &ChartSpec, value: f64) -> String {
+    with_unit(
+        layout::format_value(value, spec.number_style()),
+        spec.axis_unit(0),
+    )
 }

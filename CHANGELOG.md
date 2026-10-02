@@ -4,6 +4,38 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Fixed
+
+- A time axis counts the ticks a step actually places instead of estimating them, and spaces its
+  ticks by the width its plot actually has: a narrow chart no longer ends up with a single tick,
+  and labels with a time of day get the room they need.
+- A low pane of a time chart labels only the value ticks that stand a label's height apart; its
+  gridlines stay.
+- The value label of a short negative horizontal bar no longer runs into the category labels;
+  its category leaves out its value labels instead (`value_labels_omitted`).
+- PNG output warns with `glyph_missing` about characters its fonts have no glyph for.
+- A declared `valueAxis.step` must give at most 50 ticks (an exact axis at least 2), and a
+  declared `timeAxis.step` 1 to 50; a tiny step could draw millions and hang the renderer.
+  Stacked bar charts now use a declared `valueAxis.step`, which they ignored.
+- Tooltips and the description write a value axis `unit` after the values.
+- A plot keeps at least 40 pixels of height and reports `dense_chart` instead of turning upside
+  down on a small chart; a calendar reports cells smaller than 4 pixels.
+- The value-axis gutter of time charts grows past 72 pixels where long labels, such as a value
+  with its unit, need it (up to 40 % of the chart); small multiples measure their panel gutter
+  the same way, report labels that do not fit, and shorten or leave out a unit that has no room.
+- Zoom windows show their own span: `timeAxis.min`, `max` and `step` apply to the whole axis
+  only, and `stepEnd` only to a window that holds the last observation.
+- `stepEnd` after trailing missing values no longer draws over the gap.
+- A declared coarser `timeAxis.precision` no longer removes ticks within a day.
+- An unnamed layer's data table column carries the value axis `unit`.
+- The legend of range bar groups wraps instead of running off a narrow chart.
+- A sparkline refuses `valueAxis.unit`, `valueAxis.step` and `timeAxis.step`, which need axes.
+- A PNG of a chart without a mobile variant fails with `missing_mobile`, like the SVG.
+- `labels_thinned` names `/data` for charts with `data`, and its message reads "one category in
+  n".
+
 ## [0.7.0] - 2026-10-02
 
 Wider plots for time charts and a unit at the top tick. The specification keeps

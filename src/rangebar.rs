@@ -6,10 +6,9 @@
 use crate::{
     error::ChartWarning,
     layout::{
-        CONTENT_LEFT, LABEL_SIZE, NumericScale, PLOT_MARGIN, PlotArea, WithReserve,
-        add_bottom_category_title, base_elements, base_elements_with_title, count, fit_text,
-        format_value, horizontal_title, push_category_label, push_side_label, title_extra,
-        warn_if_labels_omitted,
+        CONTENT_LEFT, LABEL_SIZE, NumericScale, PlotArea, WithReserve, add_bottom_category_title,
+        base_elements, base_elements_with_title, count, fit_text, format_value, horizontal_title,
+        push_category_label, push_side_label, title_extra, warn_if_labels_omitted,
     },
     metrics::TextMetrics,
     scene::{Element, Line, Rect, Scene, Text, TextAnchor},
@@ -81,13 +80,6 @@ fn range_class(spec: &ChartSpec, range: &RangeSpec) -> &'static str {
     })
 }
 
-/// Whether the chart has a legend: for its groups, or for the hatching of modeled spans.
-fn has_legend(spec: &ChartSpec) -> bool {
-    spec.ranges
-        .iter()
-        .any(|range| range.modeled || range.group.is_some())
-}
-
 pub(crate) fn layout(
     spec: &ChartSpec,
     warnings: &mut Vec<ChartWarning>,
@@ -110,26 +102,27 @@ pub(crate) fn layout(
     }
 }
 
+/// Extra top margin for each further row of the legend.
+const LEGEND_ROW: f64 = 20.0;
+
 /// The top of the plot: below the title, which may take two lines of up to `title_width`, and
 /// below the legend of the groups and of the hatching, if there is one.
-fn plot_top(spec: &ChartSpec, title_width: f64, metrics: &impl TextMetrics) -> f64 {
-    let legend = if has_legend(spec) { LEGEND_HEIGHT } else { 0.0 };
+fn plot_top(spec: &ChartSpec, title_width: f64, left: f64, metrics: &impl TextMetrics) -> f64 {
+    let legend = match legend_layout(spec, left, metrics)
+        .iter()
+        .map(|(_, _, row)| *row)
+        .max()
+    {
+        Some(rows) => LEGEND_HEIGHT + LEGEND_ROW * count(rows),
+        None => 0.0,
+    };
     78.0 + title_extra(spec, title_width, metrics) + legend
 }
 
-/// The legend below a title up to `title_width` wide: one entry per group, then one that says
-/// what the hatching means if any span is modeled. It starts at `left`, the left of the plot,
-/// unless its text, measured with the fallback reserve, would then reach into the chart's right
-/// margin, as it does after a wide gutter of category labels on a narrow chart; it then starts at
-/// the left edge of the content. An entry is shortened only if it does not fit even there.
-fn push_legend(
-    elements: &mut Vec<Element>,
-    warnings: &mut Vec<ChartWarning>,
-    spec: &ChartSpec,
-    (left, title_width): (f64, f64),
-    metrics: &impl TextMetrics,
-) {
-    let mut entries: Vec<(&[&'static str], String, String)> = spec
+/// The legend entries: one per group, then one that says what the hatching means if any span is
+/// modeled; each with its swatch classes, its text and the path its text comes from.
+fn legend_entries(spec: &ChartSpec) -> Vec<(&'static [&'static str], String, String)> {
+    let mut entries: Vec<(&'static [&'static str], String, String)> = spec
         .range_groups()
         .into_iter()
         .enumerate()
@@ -153,31 +146,73 @@ fn push_legend(
             "/locale".to_owned(),
         ));
     }
-    if entries.is_empty() {
-        return;
-    }
-    let right = f64::from(spec.width) - f64::from(PLOT_MARGIN);
-    let total: f64 = entries
+    entries
+}
+
+/// Where each legend entry goes, as its index, its left edge and its row. The legend starts at
+/// `left`, the left of the plot, unless its text, measured with the fallback reserve, would then
+/// reach into the chart's right margin, as it does after a wide gutter of category labels on a
+/// narrow chart; it then starts at the left edge of the content, and an entry that does not fit
+/// beside the one before it starts a new row.
+fn legend_layout(
+    spec: &ChartSpec,
+    left: f64,
+    metrics: &impl TextMetrics,
+) -> Vec<(usize, f64, usize)> {
+    let entries = legend_entries(spec);
+    let right = legend_right(spec);
+    let widths: Vec<f64> = entries
         .iter()
         .map(|(_, text, _)| LEGEND_SWATCH + WithReserve(metrics).width(text, LABEL_SIZE))
-        .sum::<f64>()
-        + LEGEND_GAP * count(entries.len() - 1);
-    let mut x = if left + total <= right {
+        .collect();
+    let total = widths.iter().sum::<f64>() + LEGEND_GAP * count(widths.len().saturating_sub(1));
+    let start = if left + total <= right {
         left
     } else {
         CONTENT_LEFT
     };
-    let y = 46.0 + title_extra(spec, title_width, metrics);
-    for (classes, text, path) in entries {
+    let (mut x, mut row) = (start, 0);
+    let mut placed = Vec::new();
+    for (index, width) in widths.into_iter().enumerate() {
+        if x > start && x + width > right {
+            x = start;
+            row += 1;
+        }
+        placed.push((index, x, row));
+        x += width + LEGEND_GAP;
+    }
+    placed
+}
+
+/// The right edge the legend keeps to: the chart's right margin.
+fn legend_right(spec: &ChartSpec) -> f64 {
+    f64::from(spec.width) - f64::from(crate::layout::plot_margin(spec.width))
+}
+
+/// The legend below a title up to `title_width` wide, as [`legend_layout`] places it. An entry is
+/// shortened only if it does not fit even on a row of its own.
+fn push_legend(
+    elements: &mut Vec<Element>,
+    warnings: &mut Vec<ChartWarning>,
+    spec: &ChartSpec,
+    (left, title_width): (f64, f64),
+    metrics: &impl TextMetrics,
+) {
+    let entries = legend_entries(spec);
+    let right = legend_right(spec);
+    let top = 46.0 + title_extra(spec, title_width, metrics);
+    for (index, x, row) in legend_layout(spec, left, metrics) {
+        let (classes, text, path) = &entries[index];
+        let y = top + LEGEND_ROW * count(row);
         let content = fit_text(
-            &text,
+            text,
             (right - x - LEGEND_SWATCH).max(0.0),
             LABEL_SIZE,
             metrics,
             warnings,
-            &path,
+            path,
         );
-        for class in classes {
+        for class in *classes {
             elements.push(Element::Rect(Rect {
                 x,
                 y,
@@ -189,7 +224,6 @@ fn push_legend(
                 tooltip: None,
             }));
         }
-        let width = metrics.width(&content, LABEL_SIZE);
         elements.push(Element::Text(Text {
             x: x + LEGEND_SWATCH,
             y: y + 9.0,
@@ -197,7 +231,6 @@ fn push_legend(
             anchor: TextAnchor::Start,
             content,
         }));
-        x += LEGEND_SWATCH + width + LEGEND_GAP;
     }
 }
 
@@ -294,12 +327,12 @@ fn layout_horizontal(
         36.0
     };
     let title = horizontal_title(spec, (left, width - left - right), metrics);
-    let top = plot_top(spec, title.1, metrics);
+    let top = plot_top(spec, title.1, left, metrics);
     let plot = PlotArea {
         left,
         top,
         width: width - left - right,
-        height: height - top - bottom,
+        height: crate::layout::plot_height(height - top - bottom, warnings),
         vertical_bars: false,
     };
     let mut elements = base_elements_with_title(spec, scale, plot, title, warnings, metrics);
@@ -355,12 +388,12 @@ fn layout_vertical(
     } else {
         62.0
     };
-    let top = plot_top(spec, width - left - right, metrics);
+    let top = plot_top(spec, width - left - right, left, metrics);
     let plot = PlotArea {
         left,
         top,
         width: width - left - right,
-        height: height - top - bottom,
+        height: crate::layout::plot_height(height - top - bottom, warnings),
         vertical_bars: true,
     };
     let mut elements = base_elements(spec, scale, plot, warnings, metrics);

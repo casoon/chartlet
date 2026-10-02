@@ -522,6 +522,46 @@ pub struct OhlcPoint {
 }
 
 impl ChartSpec {
+    /// A declared time step places 1 to 50 ticks across everything the axis shows: none leaves
+    /// the axis without labels, more draw too many.
+    fn validate_time_tick_count(
+        &self,
+        zone: crate::time::TimeZone,
+        step: f64,
+    ) -> Result<(), ChartError> {
+        let times: Vec<i64> = self
+            .data_layers()
+            .flat_map(|entry| entry.layer.resolved_times(zone))
+            .chain(
+                self.layers()
+                    .flat_map(|layer| [&layer.time, &layer.from, &layer.to, &layer.step_end])
+                    .chain([&self.time_axis.min, &self.time_axis.max])
+                    .filter_map(Option::as_ref)
+                    .filter_map(|time| time.resolve(zone).ok()),
+            )
+            .collect();
+        let (Some(&min), Some(&max)) = (times.iter().min(), times.iter().max()) else {
+            return Ok(());
+        };
+        let limit = 50;
+        let ticks = crate::time::declared_tick_count(min, max, zone, step, limit);
+        if (1..=limit).contains(&ticks) {
+            return Ok(());
+        }
+        Err(ChartError::new(
+            "invalid_axis_range",
+            "/timeAxis/step",
+            format!(
+                "a step of {step} places {} on this time axis; choose one that places 1 to {limit} ticks",
+                if ticks > limit {
+                    format!("more than {limit} ticks")
+                } else {
+                    "no tick".to_owned()
+                }
+            ),
+        ))
+    }
+
     /// The declared ends and tick step of the time axis: ends that resolve, in order and not on a
     /// collapsed axis; a step above zero, whole years on a calendar axis.
     fn validate_time_axis_ends(&self, zone: crate::time::TimeZone) -> Result<(), ChartError> {
@@ -572,6 +612,9 @@ impl ChartSpec {
                     },
                 ));
             }
+        }
+        if let Some(step) = self.time_axis.step {
+            self.validate_time_tick_count(zone, step)?;
         }
         Ok(())
     }
@@ -708,6 +751,7 @@ impl ChartSpec {
         }
         for (field, present) in [
             ("/timeAxis/title", self.time_axis.title.is_some()),
+            ("/timeAxis/step", self.time_axis.step.is_some()),
             ("/zoomSteps", !self.zoom_steps.is_empty()),
             ("/mobile", self.mobile.is_some()),
             ("/legend", self.legend != super::LegendPlacement::Top),
@@ -720,11 +764,18 @@ impl ChartSpec {
             }
         }
         for (pane_index, pane) in self.panes.iter().enumerate() {
-            if pane.value_axis.title.is_some() {
-                return refuse(
-                    format!("/panes/{pane_index}/valueAxis/title"),
-                    "has no axes",
-                );
+            // Ticks, their step and the unit after the top one belong to axes a sparkline has not.
+            for (field, present) in [
+                ("title", pane.value_axis.title.is_some()),
+                ("unit", pane.value_axis.unit.is_some()),
+                ("step", pane.value_axis.step.is_some()),
+            ] {
+                if present {
+                    return refuse(
+                        format!("/panes/{pane_index}/valueAxis/{field}"),
+                        "has no axes",
+                    );
+                }
             }
             for (index, layer) in pane.layers.iter().enumerate() {
                 if !matches!(layer.mark, Mark::Line | Mark::Area) {
@@ -980,7 +1031,6 @@ impl ChartSpec {
         Ok(warnings)
     }
 
-    /// The number of grid columns of small multiples: as declared, or up to three.
     /// What lies below each observation of a stacked area: the sum of the area layers before
     /// it in its pane. `None` for a layer that is not stacked.
     pub(crate) fn stack_base(
@@ -1021,6 +1071,7 @@ impl ChartSpec {
         }
     }
 
+    /// The number of grid columns of small multiples: as declared, or up to three.
     pub(crate) fn multiples_columns(&self) -> u32 {
         self.columns.unwrap_or_else(|| {
             u32::try_from(self.panes.len().min(3)).expect("at most three columns")
@@ -1168,9 +1219,6 @@ fn validate_band_point(
     Ok(())
 }
 
-/// The layers of one pane: data layers within their limit and at most as many without a color of
-/// their own as the palette has colors, reference lines within their own limit, and a name on
-/// every data layer once there is more than one.
 /// A stacked pane: at least two area layers, by value, with the same times and curve, a value at
 /// every time, none below zero and no band.
 fn validate_pane_stack(
@@ -1252,6 +1300,9 @@ fn validate_pane_stack(
     Ok(())
 }
 
+/// The layers of one pane: data layers within their limit and at most as many without a color of
+/// their own as the palette has colors, reference lines within their own limit, and a name on
+/// every data layer once there is more than one.
 fn validate_pane_layers(
     pane: &PaneSpec,
     pane_path: &str,

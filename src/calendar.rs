@@ -66,13 +66,26 @@ pub(crate) fn layout(
     let top = 72.0 + title_extra(spec, width - 2.0 * MARGIN, metrics);
     let (values, length) = values_by_day(calendar);
     let year = i64::from(calendar.year);
+    let grid = Grid {
+        left: MARGIN + GUTTER,
+        top,
+        width: width - 2.0 * MARGIN - GUTTER,
+        height: crate::layout::plot_height(height - top - KEY_SPACE, warnings),
+    };
+    // A day's cell smaller than a few pixels no longer shows its color.
+    let (rows, columns) = match calendar.layout {
+        CalendarLayout::Months => (12.0, 31.0),
+        CalendarLayout::Weeks => (7.0, 54.0),
+    };
+    if grid.height / rows < 4.0 || grid.width / columns < 4.0 {
+        warnings.push(ChartWarning::new(
+            "dense_chart",
+            "/width",
+            "a day's cell is less than 4 pixels at this size; raise width and height",
+        ));
+    }
     let cells = Cells {
-        grid: Grid {
-            left: MARGIN + GUTTER,
-            top,
-            width: width - 2.0 * MARGIN - GUTTER,
-            height: height - top - KEY_SPACE,
-        },
+        grid,
         scale: calendar.diverging(),
         values,
         year,

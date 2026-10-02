@@ -111,7 +111,10 @@ fn the_png_takes_the_mobile_variant_only_where_there_is_one_and_rejects_a_bad_sc
         },
     )
     .unwrap_err();
-    assert_eq!(mobile.code, "option_not_supported");
+    assert_eq!(
+        (mobile.code, mobile.path.as_str()),
+        ("missing_mobile", "/mobile")
+    );
     // A chart with a mobile variant rasterizes its mobile layout at the mobile width.
     let responsive = spec(include_str!("../examples/mobile-revenue.json"));
     let png = render_png(
@@ -140,4 +143,25 @@ fn the_png_takes_the_mobile_variant_only_where_there_is_one_and_rejects_a_bad_sc
         assert_eq!(error.code, "invalid_scale");
         assert_eq!(error.path, "/render/scale");
     }
+}
+
+#[test]
+fn the_png_warns_about_characters_its_font_has_no_glyph_for() {
+    let json = r#"{"schemaVersion": 1, "type": "bar", "title": "CO₂ in ‰, äöü €", "width": 480,
+        "height": 240, "data": [{"label": "a", "value": 1}]}"#;
+    let output = render_png(&spec(json), &PngOptions::default()).expect("renders");
+    let warning = output
+        .warnings
+        .iter()
+        .find(|warning| warning.code == "glyph_missing")
+        .expect("a glyph_missing warning");
+    assert!(warning.message.contains("₂‰"), "{}", warning.message);
+    let latin = json.replace("CO₂ in ‰, ", "");
+    let output = render_png(&spec(&latin), &PngOptions::default()).expect("renders");
+    assert!(
+        output
+            .warnings
+            .iter()
+            .all(|warning| warning.code != "glyph_missing")
+    );
 }

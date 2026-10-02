@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use resvg::{tiny_skia, usvg};
 
-use crate::error::ChartError;
+use crate::error::{ChartError, ChartWarning};
 
 /// Inter, regular and semibold, in the Latin and Latin Extended subsets; see `fonts/README.md`.
 const FONTS: [&[u8]; 4] = [
@@ -75,6 +75,106 @@ pub(crate) fn rasterize(svg: &str, scale: f32) -> Result<Vec<u8>, ChartError> {
             "png_failed",
             "/render/format",
             format!("could not encode the PNG: {error}"),
+        )
+    })
+}
+
+/// The characters the bundled fonts have a glyph for, read from the format 4 character maps of
+/// the regular faces; the semibold faces cover the same characters.
+fn covered() -> &'static [u32] {
+    static COVERED: std::sync::OnceLock<Vec<u32>> = std::sync::OnceLock::new();
+    COVERED.get_or_init(|| {
+        let mut codes: Vec<u32> = [FONTS[0], FONTS[2]]
+            .into_iter()
+            .flat_map(cmap_codes)
+            .collect();
+        codes.sort_unstable();
+        codes.dedup();
+        codes
+    })
+}
+
+fn read_u16(data: &[u8], at: usize) -> u16 {
+    u16::from_be_bytes([data[at], data[at + 1]])
+}
+
+fn read_u32(data: &[u8], at: usize) -> u32 {
+    u32::from_be_bytes([data[at], data[at + 1], data[at + 2], data[at + 3]])
+}
+
+/// The code points a TrueType font's Windows Unicode (3, 1) character map, format 4, gives a
+/// glyph other than the missing glyph. The bundled files are known to carry one.
+fn cmap_codes(font: &[u8]) -> Vec<u32> {
+    let tables = usize::from(read_u16(font, 4));
+    let cmap = (0..tables)
+        .map(|index| 12 + 16 * index)
+        .find(|record| &font[*record..*record + 4] == b"cmap")
+        .map(|record| read_u32(font, record + 8) as usize)
+        .expect("the bundled fonts have a character map");
+    let subtables = usize::from(read_u16(font, cmap + 2));
+    let table = (0..subtables)
+        .map(|index| cmap + 4 + 8 * index)
+        .find(|record| read_u16(font, *record) == 3 && read_u16(font, *record + 2) == 1)
+        .map(|record| cmap + read_u32(font, record + 4) as usize)
+        .expect("the bundled fonts have a Windows Unicode character map");
+    let segments = usize::from(read_u16(font, table + 6)) / 2;
+    let ends = table + 14;
+    let starts = ends + 2 * segments + 2;
+    let deltas = starts + 2 * segments;
+    let offsets = deltas + 2 * segments;
+    let mut codes = Vec::new();
+    for segment in 0..segments {
+        let end = read_u16(font, ends + 2 * segment);
+        let start = read_u16(font, starts + 2 * segment);
+        let delta = read_u16(font, deltas + 2 * segment);
+        let offset_at = offsets + 2 * segment;
+        let offset = usize::from(read_u16(font, offset_at));
+        for code in start..=end {
+            if code == 0xFFFF {
+                continue;
+            }
+            let glyph = if offset == 0 {
+                code.wrapping_add(delta)
+            } else {
+                let at = offset_at + offset + 2 * usize::from(code - start);
+                match read_u16(font, at) {
+                    0 => 0,
+                    glyph => glyph.wrapping_add(delta),
+                }
+            };
+            if glyph != 0 {
+                codes.push(u32::from(code));
+            }
+        }
+    }
+    codes
+}
+
+/// A warning naming the characters of the drawn text, such as a subscript two or a Greek
+/// letter, that the bundled fonts have no glyph for: the PNG draws an empty box for each.
+pub(crate) fn missing_glyphs(svg: &str) -> Option<ChartWarning> {
+    let mut missing: Vec<char> = Vec::new();
+    for text in svg.split("<text").skip(1) {
+        let content = text
+            .split_once('>')
+            .and_then(|(_, rest)| rest.split_once("</text>"))
+            .map_or("", |(content, _)| content);
+        for character in content.chars() {
+            let covered =
+                character.is_whitespace() || covered().binary_search(&u32::from(character)).is_ok();
+            if !covered && !missing.contains(&character) {
+                missing.push(character);
+            }
+        }
+    }
+    (!missing.is_empty()).then(|| {
+        ChartWarning::new(
+            "glyph_missing",
+            "/render/format",
+            format!(
+                "the PNG font has no glyph for {}; these characters are drawn as boxes, while the SVG and HTML output show them",
+                missing.iter().collect::<String>()
+            ),
         )
     })
 }

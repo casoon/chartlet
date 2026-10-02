@@ -41,7 +41,7 @@ pub(crate) fn layout(
         )
     };
     let plot_width = width - 2.0 * margin;
-    let plot_height = height - top - bottom;
+    let plot_height = crate::layout::plot_height(height - top - bottom, warnings);
     let stripe = plot_width / count(stripes.values.len());
     let scale = stripes.diverging();
 

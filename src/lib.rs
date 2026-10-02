@@ -633,9 +633,9 @@ pub fn render_png(spec: &ChartSpec, options: &PngOptions) -> Result<PngOutput, C
             spec.validate()?;
             mobile = spec.mobile_variant().ok_or_else(|| {
                 ChartError::new(
-                    "option_not_supported",
-                    "/render/variant",
-                    "the chart has no mobile variant; add mobile to the specification",
+                    "missing_mobile",
+                    "/mobile",
+                    "the specification has no mobile variant; add \"mobile\": { \"width\": 360 }",
                 )
             })?;
             (&mobile, Variant::Print)
@@ -649,9 +649,13 @@ pub fn render_png(spec: &ChartSpec, options: &PngOptions) -> Result<PngOutput, C
             ..RenderOptions::default()
         },
     )?;
+    let mut warnings = output.warnings;
+    if let Some(warning) = png::missing_glyphs(&output.content) {
+        warnings.push(warning);
+    }
     Ok(PngOutput {
         png: png::rasterize(&output.content, options.scale)?,
-        warnings: output.warnings,
+        warnings,
     })
 }
 
@@ -1369,8 +1373,8 @@ mod tests {
         for year in ["1850", "1900", "1950", "2000"] {
             assert!(svg.contains(&format!(">{year}</text>")), "{year}: {svg}");
         }
-        // Ticks every year would run into each other: only the labels that fit are written.
-        let yearly = spec.replace("\"step\": 50", "\"step\": 1");
+        // Ticks every five years would run into each other: only the labels that fit are written.
+        let yearly = spec.replace("\"step\": 50", "\"step\": 5");
         let svg = render_ok(&yearly).content;
         assert!(svg.matches("class=\"chartlet-tick\"").count() < 20, "{svg}");
         let fraction = spec.replace("\"step\": 50", "\"step\": 2.5");
@@ -1456,6 +1460,195 @@ mod tests {
         assert_eq!(
             render_err(&bar),
             ("option_not_supported", "/valueAxis/unit".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_short_negative_bar_keeps_its_label_out_of_the_category_labels() {
+        let spec = r#"{"schemaVersion": 1, "type": "bar", "title": "Change", "width": 360,
+            "height": 360, "orientation": "horizontal", "valueAxis": {"format": "percent"},
+            "data": [{"label": "First quarter", "value": 0.12},
+            {"label": "Second quarter", "value": -0.04}, {"label": "Fourth quarter", "value": 0.15}]}"#;
+        let output = render_ok(spec);
+        assert!(
+            !output.content.contains(">\u{2212}4%<"),
+            "{}",
+            output.content
+        );
+        assert!(output.content.contains(">12%<"));
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "value_labels_omitted")
+        );
+    }
+
+    #[test]
+    fn a_low_pane_labels_only_the_value_ticks_that_fit() {
+        let points: Vec<String> = (1..=28)
+            .map(|day| format!(r#"{{"time": "2026-02-{day:02}", "value": {}}}"#, day % 9))
+            .collect();
+        let spec = format!(
+            r#"{{"schemaVersion": 1, "type": "time", "title": "Volume", "width": 360,
+            "height": 200, "showValues": false, "panes": [{{"layers": [{{"mark": "line",
+            "points": [{}]}}]}}]}}"#,
+            points.join(",")
+        );
+        let svg = render_ok(&spec).content;
+        let grid = svg.matches("class=\"chartlet-grid\"").count()
+            + svg.matches("class=\"chartlet-zero\"").count();
+        let ys: Vec<f64> = svg
+            .split("text-anchor=\"end\" class=\"chartlet-tick\"")
+            .filter_map(|head| head.rsplit(" y=\"").next()?.split('"').next()?.parse().ok())
+            .collect();
+        // Labelled value ticks stand at least a label's height apart.
+        assert!(
+            ys.windows(2).all(|pair| (pair[0] - pair[1]).abs() >= 12.0),
+            "{ys:?}"
+        );
+        assert!(grid > ys.len(), "{svg}");
+    }
+
+    #[test]
+    fn qa_0_7_second_review_findings_stay_fixed() {
+        let line = |extra: &str, points: &str| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "time", "title": "T", "showValues": false {extra},
+                "panes": [{{"layers": [{{"mark": "line", "points": [{points}]}}]}}]}}"#
+            )
+        };
+        let unit = r#"{"schemaVersion": 1, "type": "time", "title": "S", "panes": [{"valueAxis":
+            {"unit": "kg"}, "layers": [{"mark": "line", "points": [{"time": "2020", "value": 1},
+            {"time": "2021", "value": 2}]}]}]}"#;
+        // A stacked bar chart takes a step across its totals; a percent stack across 0 to 1.
+        let stacked = r#"{"schemaVersion": 1, "type": "bar", "title": "S", "stack": "normal",
+            "valueAxis": {"step": 50}, "categories": ["a", "b"], "series": [
+            {"name": "x", "values": [100, 100]}, {"name": "y", "values": [100, 100]},
+            {"name": "z", "values": [100, 100]}, {"name": "w", "values": [100, 100]}]}"#;
+        assert!(render_ok(stacked).content.contains(">350</text>"));
+        let percent = stacked
+            .replace("\"normal\"", "\"percent\"")
+            .replace("\"step\": 50", "\"step\": 0.25");
+        assert!(render_ok(&percent).content.contains(">75%</text>"));
+
+        // Stacks grow from zero as drawn, whatever `reverse` says.
+        let reversed = stacked.replace("\"step\": 50", "\"reverse\": true");
+        let options = |id: &str| RenderOptions {
+            id_prefix: Some(id.to_owned()),
+            ..RenderOptions::default()
+        };
+        let plain = stacked.replace("\"valueAxis\": {\"step\": 50}, ", "");
+        assert_eq!(
+            render_json(&reversed, RenderFormat::Svg, &options("r")).map(|out| out.content),
+            render_json(&plain, RenderFormat::Svg, &options("r")).map(|out| out.content)
+        );
+
+        // Tooltips and the description write the unit after the value.
+        let svg = render_ok(unit).content;
+        assert!(svg.contains("<title>2021: 2 kg</title>"), "{svg}");
+        assert!(svg.contains("Highest: 2 kg"), "{svg}");
+        assert!(!svg.contains("(kg)"), "{svg}");
+
+        // A declared step that places a single year tick is accepted.
+        let decade = line(
+            r#", "timeAxis": {"step": 10}"#,
+            r#"{"time": "2003", "value": 1}, {"time": "2012", "value": 2}"#,
+        );
+        assert!(render_ok(&decade).content.contains(">2010</text>"));
+    }
+
+    #[test]
+    fn qa_0_7_findings_stay_fixed() {
+        let line = |extra: &str, points: &str| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "time", "title": "T", "showValues": false {extra},
+                "panes": [{{"layers": [{{"mark": "line", "curve": "step", "stepEnd": "2025",
+                "points": [{points}]}}]}}]}}"#
+            )
+        };
+        let years = r#"{"time": "2020", "value": 1}, {"time": "2021", "value": 2},
+            {"time": "2022", "value": null}, {"time": "2023", "value": null}"#;
+        // A trailing gap stays open: the last step does not run on to stepEnd.
+        let svg = render_ok(&line("", years)).content;
+        let polyline = svg
+            .split("<polyline points=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .expect("the line");
+        assert_eq!(polyline.split(' ').count(), 3, "{polyline}");
+
+        // A zoom window shows its own span, not the declared ends of the whole axis.
+        let zoomed = line(
+            r#", "timeAxis": {"min": "2010", "max": "2030"},
+            "zoomSteps": [{"label": "All", "from": "2020", "to": "2023"},
+            {"label": "Start", "from": "2020", "to": "2021"}]"#,
+            r#"{"time": "2020", "value": 1}, {"time": "2021", "value": 2},
+            {"time": "2022", "value": 3}, {"time": "2023", "value": 2}"#,
+        );
+        let html = render_json(&zoomed, RenderFormat::Html, &RenderOptions::default())
+            .expect("renders")
+            .content;
+        let window = html.split("-z1\"").nth(1).expect("the second window");
+        assert!(
+            !window.contains(">2030<") && !window.contains(">2010<"),
+            "{window}"
+        );
+
+        // A sparkline has no axis for a unit; an unnamed layer's column still names it.
+        let spark = r#"{"schemaVersion": 1, "type": "time", "title": "S", "sparkline": true,
+            "width": 120, "height": 32, "panes": [{"valueAxis": {"unit": "kg"}, "layers": [
+            {"mark": "line", "points": [{"time": "2020", "value": 1}, {"time": "2021", "value": 2}]}]}]}"#;
+        assert_eq!(
+            render_err(spark),
+            ("option_not_supported", "/panes/0/valueAxis/unit".to_owned())
+        );
+        let unit = spark
+            .replace("\"sparkline\": true,", "")
+            .replace("\"width\": 120, \"height\": 32,", "");
+        let html = render_json(&unit, RenderFormat::Html, &RenderOptions::default())
+            .expect("renders")
+            .content;
+        assert!(html.contains(">Value (kg)</th>"), "{html}");
+
+        // A range bar legend that does not fit on one row wraps; every group keeps its key.
+        let ranges: String = [
+            "Small companies",
+            "Medium companies",
+            "Large companies",
+            "Public sector bodies",
+        ]
+        .iter()
+        .enumerate()
+        .map(|(index, group)| {
+            format!(r#"{{"label": "{index}", "low": 1, "high": 2, "group": "{group}"}}"#)
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+        let groups = format!(
+            r#"{{"schemaVersion": 1, "type": "rangebar", "title": "R", "width": 320,
+            "height": 420, "ranges": [{ranges}]}}"#
+        );
+        let output = render_ok(&groups);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let rows: std::collections::BTreeSet<&str> = output
+            .content
+            .split("class=\"chartlet-legend\"")
+            .filter_map(|head| head.rsplit(" y=\"").next()?.split('"').next())
+            .collect();
+        assert!(rows.len() > 2, "{rows:?}");
+
+        // The smallest chart keeps a plot of its own height and says it is too small.
+        let small = r#"{"schemaVersion": 1, "type": "line", "title": "Staff by month",
+            "width": 200, "height": 160, "categoryAxis": {"title": "Month"},
+            "valueAxis": {"title": "Employees"}, "data": [{"label": "Jan", "value": 1},
+            {"label": "Feb", "value": 5}, {"label": "Mar", "value": 3}]}"#;
+        let output = render_ok(small);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "dense_chart")
         );
     }
 

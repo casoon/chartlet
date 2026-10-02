@@ -99,13 +99,23 @@ pub(crate) fn push_stepped_category_label(
 }
 
 /// Reports that a dense axis labels only every `step`-th category.
-pub(crate) fn warn_if_labels_thinned(step: usize, warnings: &mut Vec<ChartWarning>) {
+pub(crate) fn warn_if_labels_thinned(
+    spec: &ChartSpec,
+    step: usize,
+    warnings: &mut Vec<ChartWarning>,
+) {
     if step > 1 {
+        // The categories come from `data` or, with several series, from `categories`.
+        let path = if spec.data.is_empty() {
+            "/categories"
+        } else {
+            "/data"
+        };
         warnings.push(ChartWarning::new(
             "labels_thinned",
-            "/categories",
+            path,
             format!(
-                "only every {step}th category is labelled, so that the labels fit; the data table lists every category"
+                "one category in {step} is labelled, so that the labels fit; the data table lists every category"
             ),
         ));
     }
@@ -230,10 +240,9 @@ fn separate_thousands(digits: &str) -> String {
     grouped
 }
 
-/// Writes an axis tick with as many decimals as the tick step has, so that every tick of an axis
-/// carries the same number of digits: `0.0, 0.5, 1.0` rather than `0, 0.5, 1`.
 /// Writes an axis tick of an axis that starts at `start` and ticks every `step`: as many decimals
-/// as the step or the start needs, whichever is more, so that −2.5, −1.5 … stay apart.
+/// as the step or the start needs, whichever is more, so that every tick of an axis carries the
+/// same number of digits (`0.0, 0.5, 1.0` rather than `0, 0.5, 1`) and −2.5, −1.5 … stay apart.
 pub(crate) fn format_tick(value: f64, step: f64, start: f64, style: NumberStyle) -> String {
     let scaled = |number: f64| match style.format {
         ValueFormat::Number => number,
@@ -458,15 +467,15 @@ impl NumericScale {
         (self.min, self.max)
     }
 
-    /// Ticks are computed from their index instead of by repeated addition, so rounding errors
-    /// do not accumulate along the axis. A logarithmic axis ticks every power of ten, and over
-    /// two decades or fewer also 2 and 5 times each.
     /// The first tick of a linear axis: the first multiple of the step at or above its start, so
     /// that an exact axis from −2.5 with step 1 has its ticks at −2, −1, 0 and its zero line.
     fn first_tick(self) -> f64 {
         tidy((self.min / self.step - 1e-9).ceil() * self.step)
     }
 
+    /// Ticks are computed from their index instead of by repeated addition, so rounding errors
+    /// do not accumulate along the axis. A logarithmic axis ticks every power of ten, and over
+    /// two decades or fewer also 2 and 5 times each.
     pub(crate) fn ticks(self) -> Box<dyn Iterator<Item = f64>> {
         if self.log {
             let multiples: &[f64] = if self.max / self.min <= 100.0 * (1.0 + 1e-9) {
@@ -488,7 +497,9 @@ impl NumericScale {
             std::iter::successors(Some(0.0_f64), |index| Some(index + 1.0))
                 .map(move |index| tidy(first + index * self.step))
                 // Rounding noise only: an exact axis ends at its max, not half a step beyond.
-                .take_while(move |tick| *tick <= self.max + self.step * 1e-6),
+                .take_while(move |tick| *tick <= self.max + self.step * 1e-6)
+                // Validation keeps a declared step to a few dozen ticks; this only bounds the work.
+                .take(201),
         )
     }
 }

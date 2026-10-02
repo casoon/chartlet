@@ -8,7 +8,7 @@ use super::{
     count, fit_text,
     labels::LabelSpace,
     legend::{add_layer_legend, legend_rows},
-    panel_plot_pixels, plot_pixels,
+    panel_plot_pixels,
     title::{push_title, title_extra},
     tooltip, tooltips_fit,
 };
@@ -25,15 +25,18 @@ use crate::{
 };
 
 /// Target distance between two time-axis ticks, in pixels: dates need room for `2026-02-02`, a
-/// year label is less than half as wide.
+/// year label is less than half as wide, a date with a time of day such as `2026-03-01 12:00`
+/// needs more.
 const TIME_TICK_SPACING: u32 = 90;
 const YEAR_TICK_SPACING: u32 = 64;
+const MINUTE_TICK_SPACING: u32 = 120;
 
 /// The tick spacing that fits the labels an axis of this precision writes.
 const fn time_tick_spacing(precision: Precision) -> u32 {
     match precision {
         Precision::Year | Precision::Number(_) => YEAR_TICK_SPACING,
-        Precision::Month | Precision::Day | Precision::Minute => TIME_TICK_SPACING,
+        Precision::Month | Precision::Day => TIME_TICK_SPACING,
+        Precision::Minute => MINUTE_TICK_SPACING,
     }
 }
 
@@ -93,7 +96,7 @@ pub(super) fn layout_time(
     let zone = spec.time_zone().unwrap_or_default();
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
-    let left = time_gutter(spec, zone, metrics);
+    let left = time_gutter(spec, zone, warnings, metrics);
     let end_labels = spec.legend == LegendPlacement::End;
     let right = f64::from(super::plot_margin(spec.width))
         + if end_labels {
@@ -130,7 +133,7 @@ pub(super) fn layout_time(
         left,
         top,
         width: width - left - right,
-        height: height - top - bottom,
+        height: super::plot_height(height - top - bottom, warnings),
         vertical_bars: true,
     };
 
@@ -532,7 +535,7 @@ pub(super) fn layout_multiples(
         };
     let cell_width = (width - 2.0 * MULTIPLES_MARGIN) / f64::from(columns);
     let cell_height = (grid_bottom - grid_top) / count(rows);
-    let panel_gutter = multiples_gutter(spec, zone, metrics);
+    let panel_gutter = multiples_gutter(spec, zone, warnings, metrics);
     let (heads, head_height, title_lines) = panel_heads(
         spec,
         cell_width - panel_gutter - f64::from(PANEL_MARGIN),
@@ -568,6 +571,8 @@ pub(super) fn layout_multiples(
             zone,
             precision,
             tick_step: spec.time_axis.step,
+            sub_day: spec.observed_precision(zone) == Precision::Minute,
+            unit: spec.axis_unit(pane_index).map(str::to_owned),
             scale: if spec.independent_axes {
                 time_scale(spec, zone, Some(pane_index))
             } else {
@@ -578,7 +583,15 @@ pub(super) fn layout_multiples(
         };
 
         push_panel_head(head, title_lines, plot, cell_top, &mut elements);
-        push_value_grid(&frame, spec.axis_unit(pane_index), &mut elements);
+        let unit = fitted_unit(
+            spec.axis_unit(pane_index),
+            &frame,
+            cell_left,
+            "/valueAxis/unit",
+            warnings,
+            metrics,
+        );
+        push_value_grid(&frame, unit.as_deref(), &mut elements);
         push_time_ticks(&frame, max_ticks, true, width, metrics, &mut elements);
         elements.push(frame.hook(pane_index));
         draw_pane(
@@ -623,6 +636,11 @@ pub(crate) struct TimeFrame {
     pub(crate) precision: Precision,
     /// The declared distance between time ticks, if any.
     tick_step: Option<f64>,
+    /// Whether the observations carry a time of day, so that ticks may fall within a day; taken
+    /// from the data, not from a declared precision.
+    sub_day: bool,
+    /// The unit of the pane's value axis, which tooltips write after a value.
+    pub(crate) unit: Option<String>,
     scale: NumericScale,
     /// How the pane writes its values: its own value axis on a time chart, the shared one in
     /// small multiples.
@@ -720,17 +738,15 @@ enum Detail {
     Spark,
 }
 
-/// The value scale of one pane of a time chart, or of all small multiples when `pane` is `None`:
-/// every observation, every candle's high and low, every band edge, every horizontal reference
-/// line, every point marker and every zone edge, so that none of them falls outside the plot. An
-/// area is filled down to zero, so a pane with one always shows zero.
 /// The gutter left of each panel of small multiples: the regular panel gutter, wider where the
-/// unit after the top tick label needs it.
-fn multiples_gutter(spec: &ChartSpec, zone: TimeZone, metrics: &impl TextMetrics) -> f64 {
+/// tick labels or the unit after the top one need it, at most 40 % of a panel.
+fn multiples_gutter(
+    spec: &ChartSpec,
+    zone: TimeZone,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> f64 {
     let gutter = f64::from(PANEL_GUTTER);
-    let Some(unit) = spec.value_axis.unit.as_deref() else {
-        return gutter;
-    };
     let style = spec.number_style();
     // Panels on axes of their own each have their ticks; otherwise they share one scale.
     let panes: Vec<Option<usize>> = if spec.independent_axes {
@@ -738,23 +754,45 @@ fn multiples_gutter(spec: &ChartSpec, zone: TimeZone, metrics: &impl TextMetrics
     } else {
         vec![None]
     };
-    let widest = panes
+    let labels: Vec<String> = panes
         .into_iter()
         .flat_map(|pane| {
             let scale = time_scale(spec, zone, pane);
             scale
                 .ticks()
-                .map(move |value| format!("{} {unit}", scale.tick_label(value, style)))
+                .map(move |value| scale.tick_label(value, style))
                 .collect::<Vec<_>>()
         })
-        .map(|label| super::WithReserve(metrics).width(&label, LABEL_SIZE))
-        .fold(0.0, f64::max);
-    gutter.max(widest + 16.0)
+        .collect();
+    let width = |text: &str| super::WithReserve(metrics).width(text, LABEL_SIZE);
+    let plain = labels.iter().map(|label| width(label)).fold(0.0, f64::max);
+    let with_unit = spec.value_axis.unit.as_deref().map_or(plain, |unit| {
+        labels
+            .iter()
+            .map(|label| width(&format!("{label} {unit}")))
+            .fold(0.0, f64::max)
+    });
+    // At most 40 % of a panel, so that its plot keeps its width; the unit gives way first.
+    let cell =
+        (f64::from(spec.width) - 2.0 * MULTIPLES_MARGIN) / f64::from(spec.multiples_columns());
+    let most = (cell * 0.4).max(gutter);
+    if plain + 16.0 > most {
+        warnings.push(ChartWarning::new(
+            "dense_chart",
+            "/columns",
+            "the value tick labels need more room than the panels leave them; use fewer columns or a wider chart",
+        ));
+    }
+    gutter.max(with_unit + 16.0).min(most)
 }
 
-/// The gutter left of a time chart's plot: as wide as its widest value tick label needs, at most
-/// the regular gutter of its width.
-fn time_gutter(spec: &ChartSpec, zone: TimeZone, metrics: &impl TextMetrics) -> f64 {
+/// The gutter left of a time chart's plot: as wide as its widest value tick label needs.
+fn time_gutter(
+    spec: &ChartSpec,
+    zone: TimeZone,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> f64 {
     let gutter = f64::from(super::axis_gutter(spec.width));
     let widest = (0..spec.panes.len())
         .flat_map(|pane| {
@@ -772,10 +810,29 @@ fn time_gutter(spec: &ChartSpec, zone: TimeZone, metrics: &impl TextMetrics) -> 
         })
         .map(|label| super::WithReserve(metrics).width(&label, LABEL_SIZE))
         .fold(0.0, f64::max);
-    // The labels end 10 pixels left of the plot and keep 12 from the edge of the chart.
-    (widest + 22.0).clamp(28.0, gutter)
+    // The labels end 10 pixels left of the plot and keep 12 from the edge of the chart. Short
+    // labels take less than the regular gutter; long ones, such as a value with its unit, more,
+    // up to 40 % of the chart.
+    let needed = widest + 22.0;
+    let most = f64::from(spec.width) * 0.4;
+    if needed > most.max(gutter) {
+        warnings.push(ChartWarning::new(
+            "dense_chart",
+            "/width",
+            "the value tick labels are wider than the chart leaves them and are cut at its left edge; raise width or use fewer digits",
+        ));
+    }
+    if needed <= gutter {
+        needed.max(28.0)
+    } else {
+        needed.min(most).max(gutter)
+    }
 }
 
+/// The value scale of one pane of a time chart, or of all small multiples when `pane` is `None`:
+/// every observation, every candle's high and low, every band edge, every horizontal reference
+/// line, every point marker and every zone edge, so that none of them falls outside the plot. An
+/// area is filled down to zero, so a pane with one always shows zero.
 fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) -> NumericScale {
     let inside = |pane_index: usize| pane.is_none_or(|pane| pane == pane_index);
     let layers = || {
@@ -1090,6 +1147,9 @@ fn observation_tooltip(
         frame.style,
         name,
     );
+    if let Some(unit) = &frame.unit {
+        write!(text, " {unit}").expect("writing to String cannot fail");
+    }
     if let Some((lower, upper)) = band {
         write!(
             text,
@@ -1222,11 +1282,11 @@ fn extend_last_step(layer: &LayerSpec, frame: &TimeFrame, last: i64, points: &mu
     else {
         return;
     };
-    if layer
-        .resolved_points(frame.zone)
-        .last()
-        .map(|point| point.0)
-        == Some(last)
+    // Only a layer whose last observation has a value holds it on; after a trailing gap the
+    // line stays broken.
+    let last_point = layer.points.last();
+    if last_point.is_some_and(|point| point.value.is_some())
+        && last_point.and_then(|point| point.time.resolve(frame.zone).ok()) == Some(last)
         && let Some(&(_, y)) = points.last()
     {
         points.push((frame.x(end), y));
@@ -1313,18 +1373,56 @@ pub(super) fn line_class(spec: &ChartSpec, entry: LayerRef) -> &'static str {
 }
 
 /// The horizontal grid lines and value ticks of one plot.
-fn push_value_grid(frame: &TimeFrame, unit: Option<&str>, elements: &mut Vec<Element>) {
-    let plot = frame.plot;
-    // The unit follows the label of the tick nearest the top of the plot.
-    let top = frame
+/// The unit after the top value tick label of a pane, shortened where it does not fit between
+/// `left_edge` and the plot next to the widest tick label.
+fn fitted_unit(
+    unit: Option<&str>,
+    frame: &TimeFrame,
+    left_edge: f64,
+    path: &str,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Option<String> {
+    let unit = unit?;
+    let widest = frame
         .scale
         .ticks()
+        .map(|value| metrics.width(&frame.scale.tick_label(value, frame.style), LABEL_SIZE))
+        .fold(0.0, f64::max);
+    let room = frame.plot.left - 10.0 - left_edge - widest - 4.0;
+    let fitted = fit_text(unit, room.max(0.0), LABEL_SIZE, metrics, warnings, path);
+    // A unit shortened to nothing but the ellipsis says nothing; it stays in the table.
+    (fitted != "…").then_some(fitted)
+}
+
+fn push_value_grid(frame: &TimeFrame, unit: Option<&str>, elements: &mut Vec<Element>) {
+    let plot = frame.plot;
+    let ticks: Vec<(f64, f64)> = frame
+        .scale
+        .ticks()
+        .map(|value| (value, frame.y(value)))
+        .collect();
+    // In a low pane the ticks can stand closer than a label is tall: then every `step`-th tick is
+    // labelled, the gridlines stay.
+    let spacing = ticks
+        .windows(2)
+        .map(|pair| (pair[1].1 - pair[0].1).abs())
+        .fold(f64::INFINITY, f64::min);
+    // Bounded by the tick count, which is small.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let step = if spacing.is_finite() && spacing < LABEL_SIZE + 2.0 {
+        ((LABEL_SIZE + 2.0) / spacing.max(1.0)).ceil() as usize
+    } else {
+        1
+    };
+    // The unit follows the label nearest the top of the plot.
+    let top = ticks
+        .iter()
         .enumerate()
-        .min_by(|(_, a), (_, b)| frame.y(*a).total_cmp(&frame.y(*b)))
+        .filter(|(index, _)| index % step == 0)
+        .min_by(|(_, a), (_, b)| a.1.total_cmp(&b.1))
         .map(|(index, _)| index);
-    for (index, value) in frame.scale.ticks().enumerate() {
-        let y = frame.y(value);
-        let label = frame.scale.tick_label(value, frame.style);
+    for (index, &(value, y)) in ticks.iter().enumerate() {
         elements.push(Element::Line(Line {
             x1: plot.left,
             y1: y,
@@ -1336,6 +1434,10 @@ fn push_value_grid(frame: &TimeFrame, unit: Option<&str>, elements: &mut Vec<Ele
                 "chartlet-grid"
             },
         }));
+        if index % step != 0 {
+            continue;
+        }
+        let label = frame.scale.tick_label(value, frame.style);
         elements.push(Element::Text(Text {
             x: plot.left - 10.0,
             y: y + 4.0,
@@ -1361,7 +1463,7 @@ fn push_time_ticks(
     elements: &mut Vec<Element>,
 ) {
     let plot = frame.plot;
-    let sub_day = frame.precision == Precision::Minute;
+    let sub_day = frame.sub_day;
     let ticks = match &frame.slots {
         Some(slots) => {
             time::collapsed_ticks(slots, frame.zone, max_ticks, sub_day, frame.tick_step)
@@ -1455,6 +1557,8 @@ fn pane_frames(
             zone,
             precision,
             tick_step: spec.time_axis.step,
+            sub_day: spec.observed_precision(zone) == Precision::Minute,
+            unit: spec.axis_unit(pane_index).map(str::to_owned),
             scale: time_scale(spec, zone, Some(pane_index)),
             style: spec.pane_style(pane_index),
             reversed: spec.time_axis.reverse,
@@ -1476,9 +1580,21 @@ fn push_pane_axes(
     metrics: &impl TextMetrics,
 ) {
     let plot = frame.plot;
-    push_value_grid(frame, spec.axis_unit(pane_index), elements);
+    let unit = fitted_unit(
+        spec.axis_unit(pane_index),
+        frame,
+        4.0,
+        &format!("/panes/{pane_index}/valueAxis/unit"),
+        warnings,
+        metrics,
+    );
+    push_value_grid(frame, unit.as_deref(), elements);
+    // The plot's own width, which the measured gutter leaves it, decides how many ticks fit.
+    // Plot widths are far below u32::MAX.
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let plot_width = frame.plot.width.max(0.0) as u32;
     let max_ticks = usize::try_from(
-        (plot_pixels(spec.width) / time_tick_spacing(spec.observed_precision(frame.zone))).max(2),
+        (plot_width / time_tick_spacing(spec.observed_precision(frame.zone))).max(2),
     )
     .expect("a usize is at least 32 bits wide");
     push_time_ticks(

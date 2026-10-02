@@ -60,7 +60,7 @@ pub(super) fn layout_line(
         left,
         top,
         width: plot_width,
-        height: height - top - bottom,
+        height: super::plot_height(height - top - bottom, warnings),
         vertical_bars: true,
     };
     let scale = NumericScale::for_axis(dataset.values(), false, &spec.value_axis);
@@ -213,7 +213,7 @@ fn add_line_data(
             category_label(elements, index);
         }
     }
-    warn_if_labels_thinned(step, warnings);
+    warn_if_labels_thinned(spec, step, warnings);
 }
 
 /// The plot hook of a line chart: category indices along the axis, as [`category_x`] places

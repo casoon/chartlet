@@ -343,18 +343,16 @@ enum Step {
 }
 
 impl Step {
-    /// Rough number of ticks this step produces across the span; used to pick the finest step
-    /// that still fits.
-    fn tick_count(self, min: i64, max: i64, zone: TimeZone) -> i64 {
-        match self {
-            Self::Seconds(step) => (max - min) / step + 1,
-            Self::Months(months) => {
-                let (min_year, min_month, _, _, _) = local_fields(min, zone);
-                let (max_year, max_month, _, _, _) = local_fields(max, zone);
-                let span = (max_year - min_year) * 12 + i64::from(max_month) - i64::from(min_month);
-                span / months + 1
-            }
+    /// The ticks this step places across the span, counted up to one beyond `limit`: a step
+    /// whose boundaries fall well inside the span is not refused for ticks it would not draw.
+    fn exact_count(self, min: i64, max: i64, zone: TimeZone, limit: i64) -> i64 {
+        let mut count = 0;
+        let mut current = self.first(min, zone);
+        while current <= max && count <= limit {
+            count += 1;
+            current = self.next(current, zone);
         }
+        count
     }
 
     /// First tick at or after `min`, sitting on a boundary of this step.
@@ -511,6 +509,29 @@ pub(crate) fn collapsed_ticks(
     ticks
 }
 
+/// How many ticks a declared step places across `min..=max`, counted up to `limit + 1`: whole
+/// years on a calendar axis, units on a numeric one.
+pub(crate) fn declared_tick_count(
+    min: i64,
+    max: i64,
+    zone: TimeZone,
+    step: f64,
+    limit: i64,
+) -> i64 {
+    if zone.is_numeric() {
+        #[allow(clippy::cast_precision_loss)]
+        let (low, high) = (min as f64 / NUMERIC_UNITS, max as f64 / NUMERIC_UNITS);
+        // Bounded by the comparison with `limit` below; tick limits are small.
+        #[allow(clippy::cast_possible_truncation, clippy::cast_precision_loss)]
+        let count = ((high / step + 1e-9).floor() - (low / step - 1e-9).ceil() + 1.0)
+            .clamp(0.0, (limit + 1) as f64) as i64;
+        return count;
+    }
+    // Validated: a calendar axis declares whole years, at most a thousand.
+    #[allow(clippy::cast_possible_truncation)]
+    Step::Months(step as i64 * 12).exact_count(min, max, zone, limit)
+}
+
 /// A declared step of whole years, or the one `choose` picks from the width.
 fn fixed_or_chosen(fixed: Option<f64>, choose: impl FnOnce() -> Step) -> Step {
     // Validated: a calendar axis declares whole years, at most a few thousand.
@@ -524,7 +545,7 @@ fn tick_step(min: i64, max: i64, zone: TimeZone, max_ticks: usize, allow_sub_day
     STEPS
         .into_iter()
         .filter(|step| allow_sub_day || !step.is_sub_day())
-        .find(|step| step.tick_count(min, max, zone) <= limit)
+        .find(|step| step.exact_count(min, max, zone, limit) <= limit)
         .unwrap_or(Step::Months(1200))
 }
 

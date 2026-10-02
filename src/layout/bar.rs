@@ -37,7 +37,7 @@ pub(super) fn layout_vertical(
     } else {
         62.0
     };
-    let plot_height = height - top - bottom;
+    let plot_height = super::plot_height(height - top - bottom, warnings);
     let scale = value_scale(spec, dataset);
     let baseline = scale.map(scale.base(), top + plot_height, top);
     let band = plot_width / count(dataset.categories.len());
@@ -111,7 +111,7 @@ pub(super) fn layout_vertical(
             &dataset.category_path(index),
         );
     }
-    warn_if_labels_thinned(step, warnings);
+    warn_if_labels_thinned(spec, step, warnings);
     warn_if_labels_omitted(spec.show_values && crowded.contains(&true), warnings);
     reference::push(spec, scale, plot, bars, &mut elements, warnings, metrics);
 
@@ -151,7 +151,7 @@ pub(super) fn layout_horizontal(
     } else {
         36.0
     };
-    let plot_height = height - top - bottom;
+    let plot_height = super::plot_height(height - top - bottom, warnings);
     let scale = value_scale(spec, dataset);
     let baseline = scale.map(scale.base(), left, left + plot_width);
     let band = plot_height / count(dataset.categories.len());
@@ -188,7 +188,7 @@ pub(super) fn layout_horizontal(
             ),
         )
     };
-    let crowded = crowded_groups(dataset, bar_and_label, metrics);
+    let crowded = crowded_horizontal(dataset, bar_and_label, left, metrics);
 
     for (index, category) in dataset.categories.iter().enumerate() {
         let center = top + band * (count(index) + 0.5);
@@ -253,6 +253,48 @@ fn vertical_value_label(rising: bool, center_x: f64, value_y: f64, content: Stri
         anchor: TextAnchor::Middle,
         content,
     }
+}
+
+/// Which categories of a horizontal bar chart leave out their value labels: those whose labels
+/// collide, see [`crowded_groups`], and those whose label left of a short negative bar would run
+/// into the category labels left of the plot at `left`.
+fn crowded_horizontal(
+    dataset: &Dataset,
+    bar_and_label: impl Fn(usize, usize, f64) -> ((f64, f64, f64, f64), Text) + Copy,
+    left: f64,
+    metrics: &impl TextMetrics,
+) -> Vec<bool> {
+    crowded_groups(dataset, bar_and_label, metrics)
+        .into_iter()
+        .zip(labels_reach_left(dataset, bar_and_label, left, metrics))
+        .map(|(crowded, reaches)| crowded || reaches)
+        .collect()
+}
+
+/// Per category whether a value label left of a short negative bar would run into the category
+/// labels left of the plot at `left`.
+fn labels_reach_left(
+    dataset: &Dataset,
+    bar_and_label: impl Fn(usize, usize, f64) -> ((f64, f64, f64, f64), Text),
+    left: f64,
+    metrics: &impl TextMetrics,
+) -> Vec<bool> {
+    (0..dataset.categories.len())
+        .map(|index| {
+            dataset
+                .series
+                .iter()
+                .enumerate()
+                .any(|(series_index, series)| {
+                    series.values[index].is_some_and(|value| {
+                        let (_, label) = bar_and_label(index, series_index, value);
+                        matches!(label.anchor, TextAnchor::End)
+                            && label.x - WithReserve(metrics).width(&label.content, LABEL_SIZE)
+                                < left
+                    })
+                })
+        })
+        .collect()
 }
 
 fn horizontal_value_label(

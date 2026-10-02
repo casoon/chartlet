@@ -168,6 +168,26 @@ fn horizontal_tick_step(
         .unwrap_or(ticks.len().max(1))
 }
 
+/// The height a plot keeps at least: below it an axis cannot show its values, and a smaller or
+/// negative height would turn the plot upside down.
+const MIN_PLOT_HEIGHT: f64 = 40.0;
+
+/// The height of a plot from what the chart leaves it, at least [`MIN_PLOT_HEIGHT`]; a plot
+/// that has to be raised to it is reported, since it then reaches below the chart's content.
+pub(crate) fn plot_height(available: f64, warnings: &mut Vec<ChartWarning>) -> f64 {
+    if available < MIN_PLOT_HEIGHT {
+        warnings.push(ChartWarning::new(
+            "dense_chart",
+            "/height",
+            format!(
+                "the plot is less than {MIN_PLOT_HEIGHT} pixels tall at this size; raise height or leave out the title, legend or axis titles"
+            ),
+        ));
+        return MIN_PLOT_HEIGHT;
+    }
+    available
+}
+
 pub(crate) const fn plot_pixels(width: u32) -> u32 {
     width.saturating_sub(axis_gutter(width) + plot_margin(width))
 }

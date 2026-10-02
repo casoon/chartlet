@@ -25,7 +25,7 @@ use crate::{
     metrics::TextMetrics,
     reference,
     scene::{Element, Rect, Scene, Text, TextAnchor},
-    spec::{ChartSpec, Dataset, Orientation, Stack},
+    spec::{ChartSpec, Dataset, Orientation, Stack, ValueAxisSpec},
 };
 
 /// One segment of a stack: where it starts and ends on the value axis, and the value it stands
@@ -141,6 +141,7 @@ impl Frame {
 fn plot_area(
     spec: &ChartSpec,
     dataset: &Dataset,
+    warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> (PlotArea, (f64, f64), f64) {
     let vertical = spec.orientation == Orientation::Vertical;
@@ -174,7 +175,7 @@ fn plot_area(
         left,
         top,
         width,
-        height: f64::from(spec.height) - top - bottom,
+        height: super::plot_height(f64::from(spec.height) - top - bottom, warnings),
         vertical_bars: vertical,
     };
     (plot, title, head)
@@ -187,7 +188,7 @@ pub(super) fn layout(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let percent = spec.stack == Some(Stack::Percent);
-    let (plot, title, head) = plot_area(spec, dataset, metrics);
+    let (plot, title, head) = plot_area(spec, dataset, warnings, metrics);
     let stacks = segments(spec, dataset);
     let ends = stacks
         .iter()
@@ -195,11 +196,14 @@ pub(super) fn layout(
         .flatten()
         .map(|segment| segment.end)
         .chain(percent.then_some(1.0));
-    let scale = NumericScale::from_values(
-        ends.chain(reference::values(spec)),
-        true,
-        spec.value_axis.bounds(),
-    );
+    // The value axis as declared, a step included; validation keeps stacks off exact and
+    // logarithmic axes. Stacks always grow from zero outward as drawn, so the axis is not
+    // reversed, as before.
+    let axis = ValueAxisSpec {
+        reverse: false,
+        ..spec.value_axis.clone()
+    };
+    let scale = NumericScale::for_axis(ends.chain(reference::values(spec)), true, &axis);
     let mut elements = base_elements_with_title(spec, &scale, plot, title, warnings, metrics);
     add_legend(spec, dataset, plot, head, &mut elements, warnings, metrics);
     let bars = elements.len();
@@ -264,7 +268,7 @@ pub(super) fn layout(
         }
     }
     warn_if_labels_omitted(labels_omitted, warnings);
-    warn_if_labels_thinned(step, warnings);
+    warn_if_labels_thinned(spec, step, warnings);
     reference::push(spec, scale, plot, bars, &mut elements, warnings, metrics);
     if frame.vertical {
         add_bottom_category_title(
