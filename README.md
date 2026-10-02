@@ -15,9 +15,9 @@ the browser: no chart JavaScript, no hydration, no layout shift.
 - **Honest about problems:** invalid input is rejected with a code, a path and a fix; layout
   compromises such as shortened labels are reported as warnings instead of happening silently.
 
-> **Status:** 0.2. Bar charts (single and grouped, vertical and horizontal), categorical
-> line charts, time series with uncertainty bands and reference lines, warming stripes, calendar
-> heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.3, 0.4, …) may still change the specification; a
+> **Status:** 0.2. Bar charts (single, grouped and stacked, vertical and horizontal), categorical
+> line charts, time series with uncertainty bands, reference lines, points and stacked areas,
+> warming stripes, calendar heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.3, 0.4, …) may still change the specification; a
 > patch release never does.
 
 ## Quick start
@@ -76,11 +76,14 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Time series with uncertainty band, modeled (hatched, dashed) | `lower`/`upper` per point, `"modeled": true` per layer | [temperature-projection](examples/temperature-projection.json) |
 | Reference lines: threshold and date marker | `"mark": "annotation"` with `value` or `time` and `label` | [annual-mean-threshold](examples/annual-mean-threshold.json) |
 | Time series with area, gaps, line patterns and zoom | `"mark": "area"`, `null` values, `dash`, `"stroke": "bold"`, `zoomSteps` by time | [sensor-readings](examples/sensor-readings.json) |
+| Stacked areas, named where they end | `"stack": "normal"` on a pane of `area` layers, `"legend": "end"` | [generation-mix](examples/generation-mix.json) |
+| Readings as dots around a trend line | `"mark": "point"` next to a `line` layer | [resting-heart-rate](examples/resting-heart-rate.json) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [release-incidents](examples/release-incidents.json) |
 | Candlesticks with a volume pane on one time axis, weekends closed up | `"mark": "ohlc"` with `data`; up to four `panes` with `heightRatio`; `"gaps": "collapse"` | [share-price](examples/share-price.json) |
 | Warming stripes on a diverging scale | `"type": "stripes"` with `stripes` | [warming-stripes](examples/warming-stripes.json) |
 | Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
+| Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 
@@ -113,7 +116,8 @@ A line layer can carry an uncertainty band: give every point `lower` and `upper`
 say “modeled”. An `"annotation"` layer draws a labelled reference line: `value` for a horizontal
 threshold, `time` for a vertical marker. A bare year such as `"1850"` is a valid timestamp, and
 annual data is labelled by year. `null` as a value breaks the line, its band and its area.
-`"mark": "area"` fills the region between a line and zero; `dash` (`solid`, `dashed`, `dotted`)
+`"mark": "area"` fills the region between a line and zero, and `"stack": "normal"` on a pane
+stacks its areas; `"mark": "point"` draws dots without a line; `dash` (`solid`, `dashed`, `dotted`)
 and `stroke` (`thin`, `regular`, `bold`) tell lines apart beyond color. A pane holds up to six
 data layers, four of them in palette colors, and `zoomSteps` take timestamps on a time chart.
 `"mark": "ohlc"` draws candlesticks from `data: [{ time, open, high, low, close }]` — hollow when
