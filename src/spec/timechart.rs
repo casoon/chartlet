@@ -80,6 +80,12 @@ pub struct TimeAxisSpec {
     /// calendar axis, units on a numeric one. Ticks sit on multiples of it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step: Option<f64>,
+    /// Positions the axis reaches at least, such as a round year before the first observation;
+    /// they extend the axis and never cut an observation off.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min: Option<TimeValue>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max: Option<TimeValue>,
 }
 
 /// The precision a time axis names its observations in.
@@ -120,6 +126,8 @@ impl TimeAxisSpec {
             && !self.reverse
             && self.precision.is_none()
             && self.step.is_none()
+            && self.min.is_none()
+            && self.max.is_none()
     }
 }
 
@@ -133,6 +141,8 @@ impl Default for TimeAxisSpec {
             reverse: false,
             precision: None,
             step: None,
+            min: None,
+            max: None,
         }
     }
 }
@@ -510,10 +520,40 @@ pub struct OhlcPoint {
 }
 
 impl ChartSpec {
-    /// The time axis options both time charts and small multiples share.
-    fn validate_time_axis(&self) -> Result<crate::time::TimeZone, ChartError> {
-        let zone = self.time_zone()?;
-        validate_optional_text(self.time_axis.title.as_ref(), "/timeAxis/title", 100)?;
+    /// The declared ends and tick step of the time axis: ends that resolve, in order and not on a
+    /// collapsed axis; a step above zero, whole years on a calendar axis.
+    fn validate_time_axis_ends(&self, zone: crate::time::TimeZone) -> Result<(), ChartError> {
+        let mut ends = [None, None];
+        for (index, (field, bound)) in [("min", &self.time_axis.min), ("max", &self.time_axis.max)]
+            .into_iter()
+            .enumerate()
+        {
+            let Some(bound) = bound else {
+                continue;
+            };
+            let path = format!("/timeAxis/{field}");
+            if self.time_axis.gaps == Gaps::Collapse {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    path,
+                    "a collapsed axis runs from the first observation to the last",
+                ));
+            }
+            ends[index] = Some(
+                bound
+                    .resolve(zone)
+                    .map_err(|message| ChartError::new("invalid_time", path, message))?,
+            );
+        }
+        if let [Some(min), Some(max)] = ends
+            && min >= max
+        {
+            return Err(ChartError::new(
+                "invalid_axis_range",
+                "/timeAxis/max",
+                "max must lie after min",
+            ));
+        }
         if let Some(step) = self.time_axis.step {
             let calendar = self.time_axis.kind != TimeAxisKind::Number;
             let valid = step.is_finite()
@@ -531,6 +571,16 @@ impl ChartSpec {
                 ));
             }
         }
+        Ok(())
+    }
+}
+
+impl ChartSpec {
+    /// The time axis options both time charts and small multiples share.
+    fn validate_time_axis(&self) -> Result<crate::time::TimeZone, ChartError> {
+        let zone = self.time_zone()?;
+        validate_optional_text(self.time_axis.title.as_ref(), "/timeAxis/title", 100)?;
+        self.validate_time_axis_ends(zone)?;
         if self.time_axis.kind == TimeAxisKind::Number {
             // A numeric axis has no calendar: no timezone, no calendar gaps to close, and zoom
             // steps name dates.

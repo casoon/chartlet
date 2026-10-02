@@ -1381,6 +1381,37 @@ mod tests {
     }
 
     #[test]
+    fn a_declared_end_extends_the_time_axis() {
+        let points: Vec<String> = (1991..=2025)
+            .map(|year| format!(r#"{{"time": "{year}", "value": {}}}"#, year % 5))
+            .collect();
+        let spec = format!(
+            r#"{{"schemaVersion": 1, "type": "time", "title": "O2", "width": 380, "height": 190,
+            "showValues": false, "timeAxis": {{"step": 10, "min": "1990"}},
+            "panes": [{{"layers": [{{"mark": "line", "points": [{}]}}]}}]}}"#,
+            points.join(",")
+        );
+        let output = render_ok(&spec);
+        assert!(
+            output.content.contains(">1990</text>"),
+            "{}",
+            output.content
+        );
+        // The axis end is no observation: the description still starts in 1991.
+        assert!(output.content.contains("1991"), "{}", output.content);
+        let reversed = spec.replace("\"min\": \"1990\"", "\"min\": \"1990\", \"max\": \"1980\"");
+        assert_eq!(
+            render_err(&reversed),
+            ("invalid_axis_range", "/timeAxis/max".to_owned())
+        );
+        let collapsed = spec.replace("\"step\": 10,", "\"step\": 10, \"gaps\": \"collapse\",");
+        assert_eq!(
+            render_err(&collapsed),
+            ("option_not_supported", "/timeAxis/min".to_owned())
+        );
+    }
+
+    #[test]
     fn range_groups_take_palette_colors_and_a_legend() {
         let spec = include_str!("../examples/soil-animals.json");
         let svg = render_ok(spec).content;

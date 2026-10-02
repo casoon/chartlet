@@ -1430,8 +1430,8 @@ fn push_pane_axes(
     }
 }
 
-/// The first and last timestamp any data layer, vertical reference line, point marker or zone
-/// edge uses, a missing value included. Validation guarantees every data layer holds at least two observations that
+/// The first and last timestamp any data layer, vertical reference line, point marker, zone
+/// edge, step end or declared end of the time axis uses, a missing value included. Validation guarantees every data layer holds at least two observations that
 /// increase, and a zoom window at least two of one layer, so the span is never empty.
 fn time_span(spec: &ChartSpec, zone: TimeZone) -> (i64, i64) {
     let mut min = i64::MAX;
@@ -1442,6 +1442,7 @@ fn time_span(spec: &ChartSpec, zone: TimeZone) -> (i64, i64) {
     let rules = spec
         .layers()
         .flat_map(|layer| [&layer.time, &layer.from, &layer.to, &layer.step_end])
+        .chain([&spec.time_axis.min, &spec.time_axis.max])
         .filter_map(Option::as_ref)
         .filter_map(|time| time.resolve(zone).ok());
     for epoch in data.chain(rules) {

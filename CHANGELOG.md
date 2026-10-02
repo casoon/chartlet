@@ -6,6 +6,11 @@ does.
 
 ## [Unreleased]
 
+### Added
+
+- Time charts: `timeAxis.min` and `timeAxis.max` extend the time axis to a position such as a
+  round year before the first observation.
+
 ### Fixed
 
 - PNG output draws semibold text semibold: the bundled semibold faces join the Inter family, so

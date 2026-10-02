@@ -449,6 +449,14 @@
           "description": "How finely tooltips, the data table and the description name an observation; absent, the coarsest form that tells the observations apart.",
           "enum": ["year", "month", "day", "minute"]
         },
+        "min": {
+          "description": "A position the time axis reaches at least, such as a round year before the first observation; it extends the axis and never cuts an observation off. Not with collapsed gaps.",
+          "$ref": "#/$defs/timeValue"
+        },
+        "max": {
+          "description": "A position the time axis reaches at least after the last observation. Not with collapsed gaps.",
+          "$ref": "#/$defs/timeValue"
+        },
         "step": {
           "description": "The distance between time ticks: whole years (1–1000) on a calendar axis, units on a numeric axis; ticks sit on its multiples. Labels that would overlap are left out.",
           "type": "number",
