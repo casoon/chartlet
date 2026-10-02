@@ -170,6 +170,21 @@ test("reports the outcome as structured diagnostics without throwing", () => {
     someTypes,
     execFileSync(binary, ["stylesheet", "--types", "bar,time"], { encoding: "utf8" }).trimEnd(),
   );
+  // The parts: the common part first, then each type's part, in any order.
+  const common = stylesheet({ types: [] });
+  assert.equal(common, execFileSync(binary, ["stylesheet", "--common"], { encoding: "utf8" }).trimEnd());
+  assert.ok(!common.includes(".chartlet-type-"));
+  const bar = stylesheet({ types: ["bar"], common: false });
+  const time = stylesheet({ types: ["time"], common: false });
+  assert.equal(common + bar + time, someTypes);
+  assert.equal(common + time + bar, stylesheet({ types: ["time", "bar"] }));
+  assert.equal(
+    time,
+    execFileSync(binary, ["stylesheet", "--types", "time", "--no-common"], {
+      encoding: "utf8",
+    }).trimEnd(),
+  );
+  assert.equal(common + stylesheet({ common: false }), css);
   assert.throws(() => stylesheet({ types: ["pie"] }), /unknown chart type/);
 
   const pie = renderChartDetailed({ ...spec, type: "pie" });

@@ -72,14 +72,30 @@ pub enum Styles {
 /// every chart, so a site serves it once as a cacheable file.
 #[must_use]
 pub fn stylesheet() -> String {
-    render::shared_stylesheet(&ChartType::ALL)
+    render::shared_stylesheet(&ChartType::ALL, true)
 }
 
 /// The shared stylesheet with only the rules of `chart_types`: enough for a site that renders no
-/// other types.
+/// other types. It is [`stylesheet_common`] followed by [`stylesheet_types`], and the part of
+/// each type comes in the order of `chart_types`.
 #[must_use]
 pub fn stylesheet_for(chart_types: &[ChartType]) -> String {
-    render::shared_stylesheet(chart_types)
+    render::shared_stylesheet(chart_types, true)
+}
+
+/// The part of the shared stylesheet that every chart relies on, whatever its type: colors,
+/// text, grid and axes. A page that loads type parts separately loads this part first.
+#[must_use]
+pub fn stylesheet_common() -> String {
+    render::shared_stylesheet(&[], true)
+}
+
+/// The parts of the shared stylesheet that only charts of `chart_types` use, without the common
+/// part. Each type's rules style only charts of that type, so the parts of separate calls can be
+/// loaded as separate files, in any order, after [`stylesheet_common`].
+#[must_use]
+pub fn stylesheet_types(chart_types: &[ChartType]) -> String {
+    render::shared_stylesheet(chart_types, false)
 }
 
 /// Which layout the SVG profile renders. The HTML profile always carries the chart and, when the
@@ -1905,6 +1921,25 @@ mod tests {
             "{}",
             output.warnings[0].message
         );
+    }
+
+    #[test]
+    fn the_shared_stylesheet_is_the_common_part_and_one_part_per_type() {
+        let common = crate::stylesheet_common();
+        assert!(!common.contains(".chartlet-type-"));
+        let (bar, time) = (
+            crate::stylesheet_types(&[crate::ChartType::Bar]),
+            crate::stylesheet_types(&[crate::ChartType::Time]),
+        );
+        assert_eq!(
+            crate::stylesheet_for(&[crate::ChartType::Time, crate::ChartType::Bar]),
+            format!("{common}{time}{bar}")
+        );
+        let every_type: String = crate::ChartType::ALL
+            .iter()
+            .map(|chart_type| crate::stylesheet_types(&[*chart_type]))
+            .collect();
+        assert_eq!(crate::stylesheet(), format!("{common}{every_type}"));
     }
 
     #[test]

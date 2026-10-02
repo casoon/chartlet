@@ -342,11 +342,15 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// The light palette and the dark theme apply to every chart; every other group is scoped to the
 /// chart types that use it, so that two groups styling the same class, such as the hatching of a
 /// time chart and of a range bar chart, never meet.
-pub(crate) fn shared_stylesheet(chart_types: &[ChartType]) -> String {
+/// The shared stylesheet: with `common`, first the part every chart relies on, then the part of
+/// each of `chart_types` in their order. A type's part styles only charts of that type, so the
+/// parts of two types never style the same element and may be concatenated in any order.
+pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{Atlas, Bar, Calendar, Line, Multiples, Rangebar, Stripes, Time, Topicmap};
     let groups: [(&str, &[ChartType]); 18] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
+        (SMALL_TITLE_STYLE, &[]),
         (SERIES_STYLE, &[Bar]),
         (FILTER_STYLE, &[Bar]),
         (LINE_SERIES_STYLE, &[Line, Time, Multiples]),
@@ -359,26 +363,27 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType]) -> String {
         (RANGEBAR_STYLE, &[Rangebar]),
         (REFERENCE_STYLE, &[Bar]),
         (OUTLINE_STYLE, &[Bar]),
-        (SMALL_TITLE_STYLE, &[]),
         (TOPICMAP_STYLE, &[Topicmap]),
         (ATLAS_STYLE, &[Atlas]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
-    for (group, types) in groups {
-        // An empty list of types: the group applies to every chart.
-        if types.is_empty() {
+    // An empty list of types: the group applies to every chart.
+    if common {
+        for (group, _) in groups.iter().filter(|(_, types)| types.is_empty()) {
             stylesheet.push_str(&scope_stylesheet(group, ".chartlet-root", false));
         }
-        for chart_type in types
+    }
+    for (index, chart_type) in chart_types.iter().enumerate() {
+        if chart_types[..index].contains(chart_type) {
+            continue;
+        }
+        let scope = format!(".{}", type_class(*chart_type));
+        for (group, _) in groups
             .iter()
-            .filter(|chart_type| chart_types.contains(chart_type))
+            .filter(|(_, types)| types.contains(chart_type))
         {
-            stylesheet.push_str(&scope_stylesheet(
-                group,
-                &format!(".{}", type_class(*chart_type)),
-                false,
-            ));
+            stylesheet.push_str(&scope_stylesheet(group, &scope, false));
         }
     }
     stylesheet

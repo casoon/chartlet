@@ -7,7 +7,7 @@ use std::{
 
 use chartlet::{
     ChartType, ChartWarning, RenderFormat, RenderOptions, Styles, TableMode, Variant, render_json,
-    stylesheet, stylesheet_for,
+    stylesheet, stylesheet_common, stylesheet_for, stylesheet_types,
 };
 use serde_json::{Value, json};
 
@@ -275,25 +275,40 @@ fn path_after(
         .ok_or_else(|| format!("{option} requires a path"))
 }
 
-/// `chartlet stylesheet [--types bar,time]`: the shared stylesheet, for every chart type or for
-/// the listed ones.
+/// `chartlet stylesheet [--types bar,time] [--no-common] | --common`: the shared stylesheet, for
+/// every chart type or for the listed ones; `--no-common` leaves out the common part and
+/// `--common` writes only that part.
 fn shared_stylesheet(mut arguments: impl Iterator<Item = String>) -> Result<String, String> {
-    match arguments.next().as_deref() {
-        None => Ok(stylesheet()),
-        Some("--types") => {
-            let names = arguments
-                .next()
-                .ok_or_else(|| "--types requires a list such as bar,time".to_owned())?;
-            let types = names
-                .split(',')
-                .map(|name| {
-                    ChartType::from_name(name.trim())
-                        .ok_or_else(|| format!("unknown chart type {name:?}"))
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-            Ok(stylesheet_for(&types))
+    let mut types = None;
+    let mut common = true;
+    let mut common_only = false;
+    while let Some(argument) = arguments.next() {
+        match argument.as_str() {
+            "--types" => {
+                let names = arguments
+                    .next()
+                    .ok_or_else(|| "--types requires a list such as bar,time".to_owned())?;
+                let list = names
+                    .split(',')
+                    .map(|name| {
+                        ChartType::from_name(name.trim())
+                            .ok_or_else(|| format!("unknown chart type {name:?}"))
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                types = Some(list);
+            }
+            "--no-common" => common = false,
+            "--common" => common_only = true,
+            unknown => return Err(format!("unknown argument {unknown:?}\n\n{}", usage())),
         }
-        Some(unknown) => Err(format!("unknown argument {unknown:?}\n\n{}", usage())),
+    }
+    match (types, common, common_only) {
+        (None, true, true) => Ok(stylesheet_common()),
+        (_, _, true) => Err("--common takes neither --types nor --no-common".to_owned()),
+        (None, true, false) => Ok(stylesheet()),
+        (None, false, false) => Ok(stylesheet_types(&ChartType::ALL)),
+        (Some(types), true, false) => Ok(stylesheet_for(&types)),
+        (Some(types), false, false) => Ok(stylesheet_types(&types)),
     }
 }
 
@@ -340,7 +355,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 
 fn usage() -> String {
     "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json]
-       chartlet stylesheet [--types bar,time,...]".to_owned()
+       chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
 }
 
 /// Writes binary content, such as a PNG, to stdout as it is.

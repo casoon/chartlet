@@ -130,7 +130,20 @@ renders with `--styles external`. A chart looks the same either way.
 
 The full file covers every chart type. A site that renders only some of them can serve just
 those: `stylesheet({ types: ['bar', 'time'] })` or `chartlet stylesheet --types bar,time` keeps
-the common rules (about 4 KB) and the rules of the named types.
+the common rules (about 2 KB) and the rules of the named types.
+
+A site that links a stylesheet per type, only on the pages that use it, takes the parts apart:
+
+| Part | JavaScript | CLI |
+|---|---|---|
+| Common: colors, text, grid, axes | `stylesheet({ types: [] })` | `chartlet stylesheet --common` |
+| One or more types, without the common part | `stylesheet({ types: ['time'], common: false })` | `chartlet stylesheet --types time --no-common` |
+
+These are guarantees, not details of the output: the common part is the same for every type and
+comes first; each type's part styles only charts of that type, mostly through `.chartlet-type-<type>`,
+so the parts of two types never style the same element and load in any order after the common part. The full stylesheet for some
+types is the common part followed by the part of each type in the order named. Rust has the same
+as `stylesheet_common()` and `stylesheet_types(&[…])`.
 
 ## Interactive module
 

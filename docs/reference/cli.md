@@ -1,7 +1,7 @@
 ---
 title: CLI options
 sidebarLabel: CLI options
-description: Output formats and options of chartlet render.
+description: Output formats and options of chartlet render, and chartlet stylesheet.
 order: 2
 ---
 
@@ -70,3 +70,15 @@ The fields are described under [Provenance](../guides/warnings-and-errors.md#pro
 
 The SVG scales with its container, uses CSS classes for all styling and embeds no fonts, scripts or
 external resources.
+
+## chartlet stylesheet
+
+```sh
+chartlet stylesheet [--types bar,time,...] [--no-common]
+chartlet stylesheet --common
+```
+
+Prints the shared stylesheet that charts rendered with `--styles external` rely on: for every
+chart type, or with `--types` for the listed ones. `--no-common` leaves out the common part,
+`--common` prints only that part. The common part comes first; each type's part styles only charts
+of that type, so separately printed parts load in any order after the common part.

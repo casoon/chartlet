@@ -24,7 +24,8 @@ use std::{
 
 use chartlet::{
     ChartSpec, ChartType, ChartWarning, Manifest, RenderFormat, RenderOptions, Styles, TableMode,
-    TextAlternative, Variant, render_json, stylesheet, stylesheet_for, text_alternative,
+    TextAlternative, Variant, render_json, stylesheet, stylesheet_for, stylesheet_types,
+    text_alternative,
 };
 use serde_json::{Value, json};
 
@@ -70,7 +71,7 @@ fn respond(request: &[u8]) -> Value {
     if let Ok(request) = serde_json::from_slice::<Value>(request)
         && request["stylesheet"] == true
     {
-        return shared_stylesheet(&request["types"]);
+        return shared_stylesheet(&request["types"], request["common"] != false);
     }
     let mut warnings = Vec::new();
     let result = run(request, &mut warnings);
@@ -193,9 +194,14 @@ fn error_json(error: &chartlet::ChartError) -> Value {
 }
 
 /// The shared stylesheet, for every chart type or for the names in `types`.
-fn shared_stylesheet(types: &Value) -> Value {
+fn shared_stylesheet(types: &Value, common: bool) -> Value {
     let Some(names) = types.as_array() else {
-        return json!({ "ok": true, "stylesheet": stylesheet() });
+        let stylesheet = if common {
+            stylesheet()
+        } else {
+            stylesheet_types(&ChartType::ALL)
+        };
+        return json!({ "ok": true, "stylesheet": stylesheet });
     };
     let mut chart_types = Vec::new();
     for name in names {
@@ -210,7 +216,12 @@ fn shared_stylesheet(types: &Value) -> Value {
             }
         }
     }
-    json!({ "ok": true, "stylesheet": stylesheet_for(&chart_types) })
+    let stylesheet = if common {
+        stylesheet_for(&chart_types)
+    } else {
+        stylesheet_types(&chart_types)
+    };
+    json!({ "ok": true, "stylesheet": stylesheet })
 }
 
 fn failure(message: &str) -> Value {

@@ -73,7 +73,7 @@ export function createRenderer(module) {
     // The shared stylesheet that charts rendered with `styles: "external"` rely on, for every
     // chart type or for those in `options.types`.
     stylesheet(options = {}) {
-      const response = send({ stylesheet: true, types: options.types });
+      const response = send({ stylesheet: true, types: options.types, common: options.common });
       if (!response.ok) {
         throw new Error(`chartlet: ${response.error.message}`);
       }

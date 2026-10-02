@@ -90,8 +90,17 @@ export interface ChartTextAlternative {
 }
 
 export interface StylesheetOptions {
-  /** Only the rules of these chart types, such as `["bar", "time"]`; all types when absent. */
+  /**
+   * Only the rules of these chart types, such as `["bar", "time"]`; all types when absent. An
+   * empty list gives the common part alone.
+   */
   types?: string[];
+  /**
+   * `false` leaves out the common part that every chart relies on, giving only the parts of
+   * `types`. Each type's part styles only charts of that type, so parts fetched separately load
+   * in any order after the common part.
+   */
+  common?: boolean;
 }
 
 /** The shared stylesheet that charts rendered with `styles: "external"` rely on. */
