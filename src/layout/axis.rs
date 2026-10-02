@@ -55,6 +55,62 @@ fn label_lines(
     }
 }
 
+/// Above this many categories an axis may label only every few of them.
+const DENSE_CATEGORIES: usize = 16;
+
+/// How many categories one label covers on an axis that runs horizontally with bands `band`
+/// wide: 1, every category labelled, unless there are more than [`DENSE_CATEGORIES`] and some
+/// label would not fit its band even on two lines; then every `step`-th category is labelled, with
+/// the room of `step` bands. The data table still lists every category.
+pub(crate) fn label_step(categories: &[String], band: f64, metrics: &impl TextMetrics) -> usize {
+    if categories.len() <= DENSE_CATEGORIES {
+        return 1;
+    }
+    let fits = |label: &str, room: f64| {
+        metrics.width(label, LABEL_SIZE) <= room
+            || two_lines(label, room, LABEL_SIZE, metrics)
+                .is_some_and(|(_, rest)| metrics.width(rest, LABEL_SIZE) <= room)
+    };
+    (1..categories.len())
+        .find(|step| {
+            categories
+                .iter()
+                .all(|label| fits(label, band * count(*step) - 8.0))
+        })
+        .unwrap_or(categories.len())
+}
+
+/// Draws the label of category `index` below the plot if the axis labels it, see [`label_step`],
+/// with the room of `step` bands.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn push_stepped_category_label(
+    elements: &mut Vec<Element>,
+    label: &str,
+    at: (f64, f64),
+    (index, step, band): (usize, usize, f64),
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+    path: &str,
+) {
+    if index.is_multiple_of(step) {
+        let room = (band * count(step) - 8.0).max(20.0);
+        push_category_label(elements, label, at, room, metrics, warnings, path);
+    }
+}
+
+/// Reports that a dense axis labels only every `step`-th category.
+pub(crate) fn warn_if_labels_thinned(step: usize, warnings: &mut Vec<ChartWarning>) {
+    if step > 1 {
+        warnings.push(ChartWarning::new(
+            "labels_thinned",
+            "/categories",
+            format!(
+                "only every {step}th category is labelled, so that the labels fit; the data table lists every category"
+            ),
+        ));
+    }
+}
+
 /// Draws the label of a category below a plot whose categories run horizontally, centered at
 /// `x` with its first baseline at `y`, on up to two lines, see [`label_lines`].
 pub(crate) fn push_category_label(

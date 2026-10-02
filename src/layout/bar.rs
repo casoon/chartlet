@@ -1,7 +1,8 @@
 use super::{
     AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea,
     axis::{
-        NumericScale, add_bottom_category_title, format_value, push_category_label, push_side_label,
+        NumericScale, add_bottom_category_title, format_value, label_step, push_side_label,
+        push_stepped_category_label, warn_if_labels_thinned,
     },
     base_elements, base_elements_with_title, count,
     labels::{LabelBox, WithReserve, boxes_overlap, label_box},
@@ -68,6 +69,7 @@ pub(super) fn layout_vertical(
         )
     };
     let crowded = crowded_groups(dataset, bar_and_label, metrics);
+    let step = label_step(&dataset.categories, band, metrics);
 
     for (index, category) in dataset.categories.iter().enumerate() {
         let center = left + band * (count(index) + 0.5);
@@ -99,16 +101,17 @@ pub(super) fn layout_vertical(
             }
         }
 
-        push_category_label(
+        push_stepped_category_label(
             &mut elements,
             category,
             (center, top + plot_height + 24.0),
-            (band - 8.0).max(20.0),
+            (index, step, band),
             metrics,
             warnings,
             &dataset.category_path(index),
         );
     }
+    warn_if_labels_thinned(step, warnings);
     warn_if_labels_omitted(spec.show_values && crowded.contains(&true), warnings);
     reference::push(spec, scale, plot, bars, &mut elements, warnings, metrics);
 

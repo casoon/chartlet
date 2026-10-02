@@ -1,7 +1,9 @@
 use super::{
     AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea,
-    axis::{NumericScale, add_bottom_category_title, format_value},
-    base_elements, fit_text,
+    axis::{
+        NumericScale, add_bottom_category_title, format_value, label_step, warn_if_labels_thinned,
+    },
+    base_elements, count, fit_text,
     legend::{add_line_legend, line_legend_space},
     title::title_extra,
     tooltip,
@@ -131,10 +133,14 @@ fn add_line_data(
     } else {
         plot.width
     };
+    let step = label_step(&dataset.categories, spacing, metrics);
     let mut category_label = |elements: &mut Vec<Element>, index: usize| {
+        if !index.is_multiple_of(step) {
+            return;
+        }
         let label = fit_text(
             &dataset.categories[index],
-            (spacing - 8.0).max(20.0),
+            (spacing * count(step) - 8.0).max(20.0),
             LABEL_SIZE,
             metrics,
             warnings,
@@ -206,6 +212,7 @@ fn add_line_data(
             category_label(elements, index);
         }
     }
+    warn_if_labels_thinned(step, warnings);
 }
 
 /// The plot hook of a line chart: category indices along the axis, as [`category_x`] places

@@ -9,7 +9,8 @@ use std::fmt::Write as _;
 use super::{
     AXIS_GUTTER, LABEL_SIZE, PLOT_MARGIN, PlotArea,
     axis::{
-        NumericScale, add_bottom_category_title, format_value, push_category_label, push_side_label,
+        NumericScale, add_bottom_category_title, format_value, label_step, push_side_label,
+        push_stepped_category_label, warn_if_labels_thinned,
     },
     bar::label_gutter,
     base_elements_with_title, count,
@@ -212,6 +213,11 @@ pub(super) fn layout(
         scale,
     };
     let mut labels_omitted = false;
+    let step = if frame.vertical {
+        label_step(&dataset.categories, band, metrics)
+    } else {
+        1
+    };
     for (index, category) in dataset.categories.iter().enumerate() {
         for (series_index, segment) in stacks[index].iter().enumerate() {
             if let Some(segment) = segment {
@@ -237,8 +243,16 @@ pub(super) fn layout(
         let path = dataset.category_path(index);
         if frame.vertical {
             let at = (frame.center(index), plot.top + plot.height + 24.0);
-            let room = (band - 8.0).max(20.0);
-            push_category_label(&mut elements, category, at, room, metrics, warnings, &path);
+            let place = (index, step, band);
+            push_stepped_category_label(
+                &mut elements,
+                category,
+                at,
+                place,
+                metrics,
+                warnings,
+                &path,
+            );
         } else {
             let at = (plot.left - 12.0, frame.center(index));
             let room = (plot.left - 28.0, band);
@@ -246,6 +260,7 @@ pub(super) fn layout(
         }
     }
     warn_if_labels_omitted(labels_omitted, warnings);
+    warn_if_labels_thinned(step, warnings);
     reference::push(spec, scale, plot, bars, &mut elements, warnings, metrics);
     if frame.vertical {
         add_bottom_category_title(

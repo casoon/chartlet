@@ -257,6 +257,7 @@ Warnings are written to standard error, and the chart is still produced:
 |---|---|
 | `text_truncated` | A label or title was shortened to fit. Titles (drawn only in the SVG profile) and the category labels of bar and range bar charts wrap onto a second line first; what does not fit on two lines is shortened. |
 | `value_labels_omitted` | Some value labels had no room next to their bars. On a bar chart a category shows all of its value labels or none: none when one of them would overlap another value label or another bar of its own or a neighbouring category. |
+| `labels_thinned` | More than 16 categories whose labels do not fit their bands even on two lines: only every few categories are labelled, each with the room of several bands. The data table lists every category. |
 | `dense_chart` | More than 16 categories, or more observations in a time layer than the plot has horizontal pixels; the chart may be hard to read at this size. |
 | `color_not_supported` | A layer's `color` was outside the contract and replaced by the neutral gray. |
 | `color_not_resolved` | Print and social variants only: a layer declares its color as `var(--name)`, which they cannot resolve; it is drawn in the text color. Declare a literal color so that layers stay distinguishable. |

@@ -1124,6 +1124,32 @@ mod tests {
     }
 
     #[test]
+    fn a_dense_axis_labels_every_few_categories() {
+        let data: Vec<String> = (0..43)
+            .map(|index| format!("{{\"label\": \"Country {index}\", \"value\": {index}}}"))
+            .collect();
+        let spec = format!(
+            "{{\"schemaVersion\": 1, \"type\": \"bar\", \"title\": \"Dense\", \"width\": 720, \"data\": [{}]}}",
+            data.join(",")
+        );
+        let output = render_ok(&spec);
+        let labels = output.content.matches("class=\"chartlet-label\"").count();
+        assert!(labels < 43 && labels > 5, "{labels} labels");
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "labels_thinned")
+        );
+        assert!(
+            !output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "text_truncated")
+        );
+    }
+
+    #[test]
     fn months_read_as_months_and_the_precision_can_be_set() {
         let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Monthly", "panes": [{"layers": [
             {"mark": "line", "name": "V", "points": [{"time": "2026-01", "value": 1},
