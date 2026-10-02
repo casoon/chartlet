@@ -82,6 +82,7 @@ fn without_hooks(content: &str) -> String {
         "data-chartlet-locale",
         "data-chartlet-table",
         "data-part",
+        "data-stacked",
         "data-x",
         "data-value",
         "data-name",

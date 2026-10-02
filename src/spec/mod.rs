@@ -1002,6 +1002,15 @@ impl ChartSpec {
     /// Rejects a block that belongs to another chart type, so that it is never silently ignored.
     fn reject_foreign_blocks(&self) -> Result<(), ChartError> {
         let own = self.chart_type;
+        if own != ChartType::Time
+            && let Some(index) = self.panes.iter().position(|pane| pane.stack.is_some())
+        {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("/panes/{index}/stack"),
+                "stacked areas belong to the pane of a time chart",
+            ));
+        }
         for (field, present, owner) in [
             ("/stripes", self.stripes.is_some(), ChartType::Stripes),
             ("/calendar", self.calendar.is_some(), ChartType::Calendar),

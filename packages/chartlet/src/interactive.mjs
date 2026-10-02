@@ -41,6 +41,7 @@ export function readChart(root) {
       series: Number(cell.dataset.series),
       pane: Number(cell.dataset.pane),
       part: cell.dataset.part,
+      stacked: cell.dataset.stacked != null,
     }));
     rows = [...table.tBodies[0].rows].map((row) => {
       const cells = [...row.cells].slice(1);
@@ -177,7 +178,15 @@ export function crosshair(chart) {
           const value = row.value[index];
           if (column.pane !== plot.pane || chart.hidden.has(column.series) || value == null) return;
           if (column.part !== "value" && column.part !== "close") return;
-          const y = toPixel(...plot.y, plot.log ? Math.log10(value) : value);
+          // A stacked area is drawn on top of the stacked areas before it in its pane.
+          let drawn = value;
+          if (column.stacked) {
+            drawn = 0;
+            chart.columns.forEach((other, before) => {
+              if (before <= index && other.stacked && other.pane === column.pane) drawn += row.value[before] ?? 0;
+            });
+          }
+          const y = toPixel(...plot.y, plot.log ? Math.log10(drawn) : drawn);
           layer.append(element("circle", { cx: x, cy: y, r: 4, fill: "Canvas", stroke: "currentColor", "stroke-width": 2 }, SVG));
         });
       }

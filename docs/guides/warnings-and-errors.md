@@ -40,7 +40,8 @@ Errors added with bands, reference lines, zones, point markers, stripes, calenda
 `incomplete_band`, `invalid_band`, `missing_label`, `missing_position`, `too_many_annotations`,
 `missing_stripes`, `missing_calendar`, `invalid_year`, `invalid_scale`, `invalid_date`,
 `date_outside_year`, `duplicate_date`, `invalid_range`, `mid_outside_range`, `not_enough_panes`,
-`invalid_columns`, `missing_title`, `duplicate_title`, `missing_group`.
+`invalid_columns`, `missing_title`, `duplicate_title`, `missing_group`, `unaligned_stack`,
+`negative_in_stack`.
 
 `time_out_of_range` at an annotation's `time` or a zone's path: with `"gaps": "collapse"` a
 reference line or point marker lies before the first or after the last observation, or a zone

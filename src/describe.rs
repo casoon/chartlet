@@ -433,11 +433,23 @@ fn describe_extremes(
     .expect("writing to String cannot fail");
 }
 
-/// The sentence about filled areas, if any layer is one.
+/// The sentences about filled areas, if any layer is one: stacked areas from the bottom up, then
+/// the areas filled down to zero.
 fn describe_areas(spec: &ChartSpec, description: &mut String) {
+    let zone = spec.time_zone().unwrap_or_default();
+    let stacked: Vec<&str> = spec
+        .data_layers()
+        .filter(|entry| spec.stack_base(*entry, zone).is_some())
+        .filter_map(|entry| entry.layer.name.as_deref())
+        .collect();
+    if !stacked.is_empty() {
+        description.push_str(&text::stacked_areas(spec.locale, &stacked.join(", ")));
+    }
     let areas: Vec<LayerRef> = spec
         .data_layers()
-        .filter(|entry| entry.layer.mark == spec::Mark::Area)
+        .filter(|entry| {
+            entry.layer.mark == spec::Mark::Area && spec.stack_base(*entry, zone).is_none()
+        })
         .collect();
     if areas.is_empty() {
         return;

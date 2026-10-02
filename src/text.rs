@@ -401,6 +401,18 @@ pub(crate) fn bands(locale: Locale, banded: usize, hatched: bool) -> String {
 }
 
 /// The sentence about area layers; `names` lists them, empty for a single unnamed one.
+/// Stacked areas, named from the bottom up.
+pub(crate) fn stacked_areas(locale: Locale, names: &str) -> String {
+    match locale {
+        Locale::En => {
+            format!(" Stacked areas, from the bottom up: {names}; the top edge shows their total.")
+        }
+        Locale::De => format!(
+            " Gestapelte Flächen, von unten nach oben: {names}; die Oberkante zeigt ihre Summe."
+        ),
+    }
+}
+
 pub(crate) fn areas(locale: Locale, names: &[String]) -> String {
     match (locale, names.len()) {
         (Locale::En, 0) => " The area below the line is filled down to zero.".to_owned(),

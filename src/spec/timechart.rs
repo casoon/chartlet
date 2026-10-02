@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, MAX_SERIES, ValueAxisSpec, ZoomBound, is_false, validate_number,
+    ChartSpec, LayerRef, MAX_SERIES, Stack, ValueAxisSpec, ZoomBound, is_false, validate_number,
     validate_optional_text, validate_text,
 };
 use crate::{
@@ -131,6 +131,10 @@ pub struct PaneSpec {
     pub value_axis: ValueAxisSpec,
     #[serde(default)]
     pub layers: Vec<LayerSpec>,
+    /// `"normal"` stacks the area layers of a time chart's pane in layer order, each on top of
+    /// the ones before it, so that the top edge shows their total.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stack: Option<Stack>,
 }
 
 /// How a layer draws its data.
@@ -646,6 +650,7 @@ impl ChartSpec {
                 named: data_layers > 1,
             };
             validate_pane_layers(pane, &pane_path, &context, &mut names, &mut warnings)?;
+            validate_pane_stack(pane, &pane_path, zone)?;
         }
         // One legend: at most as many layers take a palette color as the palette has colors.
         if let Some(entry) = self
@@ -825,6 +830,46 @@ impl ChartSpec {
     }
 
     /// The number of grid columns of small multiples: as declared, or up to three.
+    /// What lies below each observation of a stacked area: the sum of the area layers before
+    /// it in its pane. `None` for a layer that is not stacked.
+    pub(crate) fn stack_base(
+        &self,
+        entry: LayerRef,
+        zone: crate::time::TimeZone,
+    ) -> Option<Vec<f64>> {
+        let pane = &self.panes[entry.pane];
+        if pane.stack.is_none() || entry.layer.mark != Mark::Area {
+            return None;
+        }
+        let mut base = vec![0.0; entry.layer.points.len()];
+        for layer in pane.layers[..entry.local]
+            .iter()
+            .filter(|layer| layer.mark == Mark::Area)
+        {
+            for (sum, (_, value)) in base.iter_mut().zip(layer.resolved_points(zone)) {
+                *sum += value;
+            }
+        }
+        Some(base)
+    }
+
+    /// A layer's observations where they are drawn: a stacked area on top of the ones below.
+    pub(crate) fn drawn_points(
+        &self,
+        entry: LayerRef,
+        zone: crate::time::TimeZone,
+    ) -> Vec<(i64, f64)> {
+        let points = entry.layer.resolved_points(zone);
+        match self.stack_base(entry, zone) {
+            Some(base) => points
+                .into_iter()
+                .zip(base)
+                .map(|((epoch, value), below)| (epoch, value + below))
+                .collect(),
+            None => points,
+        }
+    }
+
     pub(crate) fn multiples_columns(&self) -> u32 {
         self.columns.unwrap_or_else(|| {
             u32::try_from(self.panes.len().min(3)).expect("at most three columns")
@@ -948,6 +993,87 @@ fn validate_band_point(
 /// The layers of one pane: data layers within their limit and at most as many without a color of
 /// their own as the palette has colors, reference lines within their own limit, and a name on
 /// every data layer once there is more than one.
+/// A stacked pane: at least two area layers, by value, with the same times and curve, a value at
+/// every time, none below zero and no band.
+fn validate_pane_stack(
+    pane: &PaneSpec,
+    path: &str,
+    zone: crate::time::TimeZone,
+) -> Result<(), ChartError> {
+    let Some(stack) = pane.stack else {
+        return Ok(());
+    };
+    let refuse = |path: String, code: &'static str, message: &str| {
+        Err(ChartError::new(code, path, message.to_owned()))
+    };
+    if stack == Stack::Percent {
+        return refuse(
+            format!("{path}/stack"),
+            "option_not_supported",
+            "a time pane stacks its areas by value only; use \"normal\"",
+        );
+    }
+    let areas: Vec<(usize, &LayerSpec)> = pane
+        .layers
+        .iter()
+        .enumerate()
+        .filter(|(_, layer)| layer.mark == Mark::Area)
+        .collect();
+    let Some((first_index, first)) = areas.first().copied().filter(|_| areas.len() >= 2) else {
+        return refuse(
+            format!("{path}/stack"),
+            "option_not_supported",
+            "stack needs at least two area layers in the pane",
+        );
+    };
+    let times = first.resolved_times(zone);
+    for (index, layer) in &areas {
+        let layer_path = format!("{path}/layers/{index}");
+        if let Some(point) = layer.points.iter().position(|point| point.value.is_none()) {
+            return refuse(
+                format!("{layer_path}/points/{point}/value"),
+                "unaligned_stack",
+                "a stacked area needs a value at every time; use 0 where there is none",
+            );
+        }
+        if let Some(point) = layer
+            .points
+            .iter()
+            .position(|point| point.value.is_some_and(|value| value < 0.0))
+        {
+            return refuse(
+                format!("{layer_path}/points/{point}/value"),
+                "negative_in_stack",
+                "stacked areas take values of zero or more",
+            );
+        }
+        if layer.has_band() {
+            return refuse(
+                format!("{layer_path}/points"),
+                "option_not_supported",
+                "a stacked area has no lower/upper band",
+            );
+        }
+        if layer.resolved_times(zone) != times {
+            return refuse(
+                format!("{layer_path}/points"),
+                "unaligned_stack",
+                &format!(
+                    "a stacked area needs the same times as the first, {path}/layers/{first_index}"
+                ),
+            );
+        }
+        if layer.curve != first.curve {
+            return refuse(
+                format!("{layer_path}/curve"),
+                "option_not_supported",
+                "the stacked areas of a pane share one curve",
+            );
+        }
+    }
+    Ok(())
+}
+
 fn validate_pane_layers(
     pane: &PaneSpec,
     pane_path: &str,

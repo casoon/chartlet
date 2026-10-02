@@ -1174,6 +1174,65 @@ mod tests {
     }
 
     #[test]
+    fn stacked_areas_rest_on_each_other() {
+        let spec = include_str!("../examples/generation-mix.json");
+        let options = RenderOptions {
+            hooks: true,
+            ..RenderOptions::default()
+        };
+        let output = render_json(spec, RenderFormat::Html, &options).expect("renders");
+        // The scale reaches the total of the highest stack, 2,920 TWh in 2016.
+        assert!(
+            output.content.contains(">3,000</text>"),
+            "{}",
+            output.content
+        );
+        assert_eq!(output.content.matches(" data-stacked=\"\"").count(), 4);
+        assert!(
+            output
+                .content
+                .contains("Stacked areas, from the bottom up: Fossil, Nuclear")
+        );
+        // A tooltip tells the layer's own value, not the top of the stack.
+        assert!(
+            output.content.contains("Wind and solar: 760"),
+            "{}",
+            output.content
+        );
+
+        let percent = spec.replace("\"stack\": \"normal\"", "\"stack\": \"percent\"");
+        assert_eq!(
+            render_err(&percent),
+            ("option_not_supported", "/panes/0/stack".to_owned())
+        );
+        let gap = spec.replacen("\"value\": 1520", "\"value\": null", 1);
+        assert_eq!(
+            render_err(&gap),
+            (
+                "unaligned_stack",
+                "/panes/0/layers/0/points/1/value".to_owned()
+            )
+        );
+        let negative = spec.replacen("\"value\": 1520", "\"value\": -1", 1);
+        assert_eq!(
+            render_err(&negative),
+            (
+                "negative_in_stack",
+                "/panes/0/layers/0/points/1/value".to_owned()
+            )
+        );
+        let shifted = spec.replacen(
+            "\"time\": \"2024\", \"value\": 620",
+            "\"time\": \"2023\", \"value\": 620",
+            1,
+        );
+        assert_eq!(
+            render_err(&shifted),
+            ("unaligned_stack", "/panes/0/layers/1/points".to_owned())
+        );
+    }
+
+    #[test]
     fn a_sparkline_draws_only_its_line_at_a_small_size() {
         let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Visitors", "sparkline": true,
             "width": 120, "height": 32, "panes": [{"layers": [{"mark": "line", "name": "Visitors",

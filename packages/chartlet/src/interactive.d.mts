@@ -12,6 +12,8 @@ export interface ChartColumn {
   series: number;
   pane: number;
   part: "value" | "lower" | "upper" | "open" | "high" | "low" | "close";
+  /** A stacked area, drawn on top of the stacked areas before it in its pane. */
+  stacked?: boolean;
 }
 
 /** A row of the data table. */

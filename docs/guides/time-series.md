@@ -117,6 +117,24 @@ draws a swatch of the fill under the line sample, and the description names the 
 The area *between* two lines — a range, a corridor, an uncertainty — is not a second area mark:
 give the line `lower` and `upper` on every point, as described below.
 
+`"stack": "normal"` on a pane stacks its areas in layer order, each on top of the ones before it,
+so that the top edge shows their total — generation by source, visitors by channel. The areas
+need the same times and curve and a value of zero or more at every time; use 0 where a source
+has nothing. Markers and end labels sit on top of the stack, while tooltips, the data table and
+the description give each layer's own value. A line in the same pane, such as demand, is not
+stacked. `legend: "end"` names the layers where they end, from the bottom up. The series toggles
+of the interactive module hide a stacked area without moving the others, so its band stays empty.
+
+```json
+"panes": [{
+  "stack": "normal",
+  "layers": [
+    { "mark": "area", "name": "Fossil", "points": [ … ] },
+    { "mark": "area", "name": "Wind and solar", "points": [ … ] }
+  ]
+}]
+```
+
 ## Points
 
 `"mark": "point"` draws a dot for every observation and no line between them: readings that

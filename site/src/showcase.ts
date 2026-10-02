@@ -117,6 +117,12 @@ const catalogue = [
     blurb: 'Three channels over six weeks, told apart by color and line pattern, one value missing.',
   },
   {
+    slug: 'generation-mix',
+    chart: 'Time series (stacked areas)',
+    useCase: 'Show a total and its parts over time',
+    blurb: 'Electricity by source, each area on top of the ones below, named where it ends.',
+  },
+  {
     slug: 'resting-heart-rate',
     chart: 'Time series (points and line)',
     useCase: 'Show readings around a trend',

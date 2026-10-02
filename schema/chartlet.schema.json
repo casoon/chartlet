@@ -565,6 +565,10 @@
           "default": 1
         },
         "valueAxis": { "$ref": "#/$defs/valueAxis" },
+        "stack": {
+          "description": "Time charts: \"normal\" stacks the pane's area layers in layer order, each on top of the ones before it. At least two area layers with the same times and curve, a value of zero or more at every time, no lower/upper band.",
+          "const": "normal"
+        },
         "layers": {
           "description": "Up to 6 data layers — on a time chart at most 4 line and area layers of the whole chart without their own color — and up to 6 annotation layers (zones, reference lines and point markers together).",
           "type": "array",

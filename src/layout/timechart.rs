@@ -334,7 +334,7 @@ fn push_end_labels(
             .data_layers()
             .filter(|entry| entry.pane == pane_index)
             .filter_map(|entry| {
-                let (_, value) = *entry.layer.resolved_points(frame.zone).last()?;
+                let (_, value) = *spec.drawn_points(entry, frame.zone).last()?;
                 let path = format!("/panes/{}/layers/{}/name", entry.pane, entry.local);
                 Some((frame.y(value) + 4.0, end_label(spec, entry), path))
             })
@@ -618,9 +618,7 @@ fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) -> NumericS
     let mut values = Vec::new();
     for entry in spec.data_layers().filter(|entry| inside(entry.pane)) {
         values.extend(
-            entry
-                .layer
-                .resolved_points(zone)
+            spec.drawn_points(entry, zone)
                 .into_iter()
                 .map(|(_, value)| value),
         );
@@ -778,13 +776,19 @@ fn draw_pane(
 }
 
 /// The region between an area layer's line and zero, one closed outline per run of values: along
-/// the line and back along the zero line. It takes the layer's color at the band's low opacity;
-/// the line itself is drawn on top with the other lines.
+/// the line and back along the zero line. A stacked area goes back along the top of the area
+/// below it instead, which has the same times and no gaps. It takes the layer's color at the
+/// band's low opacity; the line itself is drawn on top with the other lines.
 fn push_area(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mut Vec<Element>) {
     let explicit = entry.layer.resolved_color().is_some();
     let palette = spec.palette_index(entry.layer);
-    let base = frame.y(0.0);
-    for segment in entry.layer.resolved_segments(frame.zone) {
+    let base = spec.stack_base(entry, frame.zone);
+    let segments = if base.is_some() {
+        vec![spec.drawn_points(entry, frame.zone)]
+    } else {
+        entry.layer.resolved_segments(frame.zone)
+    };
+    for segment in segments {
         if segment.len() < 2 {
             continue;
         }
@@ -795,8 +799,19 @@ fn push_area(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mu
                 .map(|(epoch, value)| (frame.x(*epoch), frame.y(*value)))
                 .collect(),
         );
-        outline.push((frame.x(last), base));
-        outline.push((frame.x(first), base));
+        if let Some(base) = &base {
+            let below = entry.layer.curve.points(
+                segment
+                    .iter()
+                    .zip(base)
+                    .map(|((epoch, _), below)| (frame.x(*epoch), frame.y(*below)))
+                    .collect(),
+            );
+            outline.extend(below.into_iter().rev());
+        } else {
+            outline.push((frame.x(last), frame.y(0.0)));
+            outline.push((frame.x(first), frame.y(0.0)));
+        }
         elements.push(Element::Polyline(Polyline {
             points: outline,
             class: if explicit {
@@ -957,9 +972,11 @@ fn push_line(
     let last = points.len().saturating_sub(1);
     let band = layer.resolved_band(frame.zone);
     let name = tooltip_name(spec, entry);
+    // A stacked area's markers sit on top of the stack, but tell the layer's own value.
+    let drawn = spec.drawn_points(entry, frame.zone);
     for (index, (epoch, value)) in points.iter().enumerate() {
         let x = frame.x(*epoch);
-        let y = frame.y(*value);
+        let y = frame.y(drawn[index].1);
         let text = observation_tooltip(
             spec,
             frame,
@@ -1033,7 +1050,13 @@ fn push_line_segments(
     let layer = entry.layer;
     let class = line_class(spec, entry);
     let explicit = layer.resolved_color().is_some();
-    for segment in layer.resolved_segments(frame.zone) {
+    // A stacked area has no gaps; its line runs along the top of the stack.
+    let segments = if spec.stack_base(entry, frame.zone).is_some() {
+        vec![spec.drawn_points(entry, frame.zone)]
+    } else {
+        layer.resolved_segments(frame.zone)
+    };
+    for segment in segments {
         if segment.len() < 2 {
             continue;
         }

@@ -792,8 +792,10 @@ fn emit_hook(hook: &Hook, spec: &ChartSpec, output: &mut String) {
 /// column the series it belongs to (its index among the data layers, or among the series of a
 /// category chart), the pane and which part of the series it holds; per row its position on the
 /// axis (Unix seconds on a time axis, the row index otherwise); and every value unformatted.
+/// The hooks of the data table: per value column its series, pane, part and whether it is a
+/// stacked area, drawn on top of the stacked areas before it; per row its position and values.
 struct TableHooks {
-    columns: Vec<(usize, usize, &'static str)>,
+    columns: Vec<(usize, usize, &'static str, bool)>,
     x: Vec<f64>,
     values: Vec<Vec<Option<f64>>>,
 }
@@ -813,7 +815,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
     if !matches!(spec.chart_type, ChartType::Time | ChartType::Multiples) {
         return TableHooks {
             columns: (0..dataset.series.len())
-                .map(|index| (index, 0, "value"))
+                .map(|index| (index, 0, "value", false))
                 .collect(),
             x: (0..rows)
                 .map(|row| f64::from(u32::try_from(row).expect("rows are limited")))
@@ -837,7 +839,12 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
         } else {
             &["value"]
         };
-        columns.extend(parts.iter().map(|part| (series, entry.pane, *part)));
+        let stacked = spec.stack_base(entry, zone).is_some();
+        columns.extend(
+            parts
+                .iter()
+                .map(|part| (series, entry.pane, *part, stacked)),
+        );
     }
     // The specification allows 1700 to 2200, well within the integers an f64 holds exactly.
     #[allow(clippy::cast_precision_loss)]
@@ -856,8 +863,13 @@ fn emit_data_block(spec: &ChartSpec, output: &mut String) {
         .iter()
         .skip(1)
         .zip(&hooks.columns)
-        .map(|(name, (series, pane, part))| {
-            serde_json::json!({ "name": name, "series": series, "pane": pane, "part": part })
+        .map(|(name, (series, pane, part, stacked))| {
+            let mut column =
+                serde_json::json!({ "name": name, "series": series, "pane": pane, "part": part });
+            if *stacked {
+                column["stacked"] = serde_json::Value::Bool(true);
+            }
+            column
         })
         .collect();
     let rows: Vec<serde_json::Value> = table
@@ -1204,8 +1216,11 @@ fn render_data_table(
     for (index, column) in table.columns.iter().enumerate() {
         let column_hooks = match (&table_hooks, index.checked_sub(1)) {
             (Some(table_hooks), Some(index)) => {
-                let (series, pane, part) = table_hooks.columns[index];
-                format!(" data-series=\"{series}\" data-pane=\"{pane}\" data-part=\"{part}\"")
+                let (series, pane, part, stacked) = table_hooks.columns[index];
+                let stacked = if stacked { " data-stacked=\"\"" } else { "" };
+                format!(
+                    " data-series=\"{series}\" data-pane=\"{pane}\" data-part=\"{part}\"{stacked}"
+                )
             }
             _ => String::new(),
         };
