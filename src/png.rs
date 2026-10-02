@@ -25,6 +25,26 @@ pub(crate) fn rasterize(svg: &str, scale: f32) -> Result<Vec<u8>, ChartError> {
     for font in FONTS {
         fonts.load_font_data(font.to_vec());
     }
+    // The semibold subsets name their family "Inter SemiBold" and carry no typographic family,
+    // so a lookup for Inter at weight 600 would fall back to the regular face. They join the
+    // Inter family here.
+    let semibold: Vec<usvg::fontdb::FaceInfo> = fonts
+        .faces()
+        .filter(|face| {
+            face.families
+                .iter()
+                .any(|(name, _)| name == "Inter SemiBold")
+        })
+        .cloned()
+        .collect();
+    for mut face in semibold {
+        fonts.remove_face(face.id);
+        face.families = vec![(
+            "Inter".to_owned(),
+            usvg::fontdb::Language::English_UnitedStates,
+        )];
+        fonts.push_face_info(face);
+    }
     fonts.set_sans_serif_family("Inter");
     let options = usvg::Options {
         font_family: "Inter".to_owned(),

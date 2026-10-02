@@ -4,6 +4,13 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Fixed
+
+- PNG output draws semibold text semibold: the bundled semibold faces join the Inter family, so
+  titles, axis titles, values and emphasized notes no longer fall back to the regular weight.
+
 ## [0.5.0] - 2026-10-02
 
 Small panels and their ticks. The specification keeps `schemaVersion: 1`; every specification
