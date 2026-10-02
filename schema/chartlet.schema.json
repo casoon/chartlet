@@ -49,6 +49,11 @@
       "type": "boolean",
       "default": false
     },
+    "tooltips": {
+      "description": "type: \"time\" only: \"observations\" (default) gives every observation a tooltip while observations stand at least 4 pixels apart, on an invisible target where no marker is drawn; \"markers\" gives tooltips only to drawn markers, which keeps dense lines small.",
+      "enum": ["observations", "markers"],
+      "default": "observations"
+    },
     "legend": {
       "description": "type: \"time\" only: top (default) names the series in a legend above the plot; end names each line at its last observation, right of the plot.",
       "enum": ["top", "end"],

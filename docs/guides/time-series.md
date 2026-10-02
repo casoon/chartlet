@@ -352,6 +352,11 @@ candles: every observation keeps its tooltip, on an invisible target where no ma
 as long as neighbouring observations stand at least 4 pixels apart; denser layers have none. The
 values always remain in the data table, which is part of the HTML profile.
 
+The invisible targets cost bytes: a line of 365 daily values is several times larger with them.
+`"tooltips": "markers"` keeps tooltips on drawn markers only, so a line too dense for markers
+has none — the right choice for a page with many dense charts, or with the crosshair of the
+interactive module, which reads the values from the data table anyway.
+
 The limits are measured, not guessed. At the default width of 800 pixels, four layers of 2000
 observations each render to 131 KB of SVG (355 KB of HTML) in about 14 ms; six layers, the
 maximum, render to 196 KB of SVG. Beyond one observation

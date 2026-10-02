@@ -215,6 +215,27 @@ pub struct LayerSpec {
     pub curve: Curve,
 }
 
+/// Which observations of a `type: "time"` chart carry a tooltip.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Tooltips {
+    /// Every observation, while observations stand at least 4 pixels apart: on its marker, or
+    /// on an invisible target where the line is too dense for markers.
+    #[default]
+    Observations,
+    /// Only drawn markers; a line too dense for markers has no tooltips, which keeps the SVG
+    /// small. The values stay in the data table and the description.
+    Markers,
+}
+
+impl Tooltips {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub(crate) const fn is_observations(&self) -> bool {
+        matches!(self, Self::Observations)
+    }
+}
+
 /// How a line or an area runs from one observation to the next.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]

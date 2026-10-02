@@ -23,7 +23,7 @@ pub(crate) use stripes::Diverging;
 pub use stripes::StripesSpec;
 pub use timechart::{
     Curve, Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimeAxisKind,
-    TimeAxisSpec, TimePoint, TimePrecision,
+    TimeAxisSpec, TimePoint, TimePrecision, Tooltips,
 };
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
@@ -122,6 +122,9 @@ pub struct ChartSpec {
     /// legend, at a size down to 60 × 16. Title and description stay its accessible name.
     #[serde(default, skip_serializing_if = "is_false")]
     pub sparkline: bool,
+    /// Which observations of a `type: "time"` chart carry a tooltip.
+    #[serde(default, skip_serializing_if = "Tooltips::is_observations")]
+    pub tooltips: Tooltips,
     /// Where a `type: "time"` chart names its series: in a legend above the plot, or at the end
     /// of every line.
     #[serde(default, skip_serializing_if = "LegendPlacement::is_top")]
@@ -1012,6 +1015,11 @@ impl ChartSpec {
                 ChartType::Time,
             ),
             ("/sparkline", self.sparkline, ChartType::Time),
+            (
+                "/tooltips",
+                self.tooltips == Tooltips::Markers,
+                ChartType::Time,
+            ),
             ("/patterns", self.patterns, ChartType::Bar),
             (
                 "/independentAxes",

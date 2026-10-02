@@ -18,7 +18,7 @@ use crate::{
     scene::{Circle, Element, Hook, Line, Polyline, Scene, Text, TextAnchor},
     spec::{
         ChartSpec, ChartType, Dash, LayerRef, LegendPlacement, MAX_SERIES, Mark, NumberStyle,
-        Stroke,
+        Stroke, Tooltips,
     },
     time,
     time::{Precision, TimeZone},
@@ -954,10 +954,11 @@ fn push_line(
 
     // Markers and their labels are only drawn while the observations stay far enough apart
     // for them to be readable. Beyond that, an invisible target keeps the tooltip of each
-    // observation, as long as the targets stay far enough apart to point at.
+    // observation, as long as the targets stay far enough apart to point at and the chart does
+    // not limit tooltips to markers.
     let spark = detail == Detail::Spark;
     let markers = !spark && points.len() <= MAX_TIME_MARKERS;
-    let hits = !markers && {
+    let hits = !markers && spec.tooltips == Tooltips::Observations && {
         let xs: Vec<f64> = points.iter().map(|(epoch, _)| frame.x(*epoch)).collect();
         tooltips_fit(&xs)
     };

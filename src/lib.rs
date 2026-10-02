@@ -32,7 +32,8 @@ pub use spec::{
     ChartSpec, ChartType, Corner, Curve, Dash, DataPoint, Gaps, LayerSpec, LegendPlacement, Mark,
     MobileSpec, OhlcPoint, Orientation, PaneSpec, RangeSpec, ReferenceSpec, SeriesSpec, Shape,
     Stack, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision,
-    TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
+    Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound,
+    ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1084,6 +1085,36 @@ mod tests {
         assert!(svg.contains("<rect x=\"0\" y=\"0\""), "{svg}");
         assert!(!svg.contains("class=\"chartlet-title\""));
         assert!(!svg.contains("class=\"chartlet-tick\""));
+    }
+
+    #[test]
+    fn tooltips_markers_leaves_a_dense_line_without_targets() {
+        let points: Vec<String> = (0..120)
+            .map(|minute| {
+                format!(
+                    r#"{{"time": "2026-03-01T{:02}:{:02}:00Z", "value": {}}}"#,
+                    minute / 60,
+                    minute % 60,
+                    minute % 7
+                )
+            })
+            .collect();
+        let spec = format!(
+            r#"{{"schemaVersion": 1, "type": "time", "title": "Visits", "panes": [{{"layers":
+            [{{"mark": "line", "name": "Visits", "points": [{}]}}]}}]}}"#,
+            points.join(",")
+        );
+        let every = render_ok(&spec).content;
+        assert_eq!(every.matches("class=\"chartlet-hit\"").count(), 120);
+        let markers = spec.replacen('{', "{\"tooltips\": \"markers\",", 1);
+        let svg = render_ok(&markers).content;
+        assert!(!svg.contains("class=\"chartlet-hit\""));
+        assert!(svg.len() * 2 < every.len());
+        let bar = SPEC.replacen('{', "{\"tooltips\": \"markers\",", 1);
+        assert_eq!(
+            render_err(&bar),
+            ("option_not_supported", "/tooltips".to_owned())
+        );
     }
 
     #[test]
