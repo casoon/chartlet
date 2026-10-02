@@ -4,7 +4,12 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
-## [Unreleased]
+## [0.7.1] - 2026-10-02
+
+Fixes only, from a render sweep across sizes, languages and variants and three code reviews of
+0.7.0. Specifications that rendered with 0.7.0 still render, except a declared axis `step` that
+would give more than 50 ticks (or none), which is now refused instead of drawing an unreadable or
+endless axis.
 
 ### Fixed
 
