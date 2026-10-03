@@ -1,6 +1,6 @@
 {
   "name": "@casoon/chartlet-mcp",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "MCP server that inspects data and validates, renders and describes chartlet charts",
   "type": "module",
   "license": "MIT",
@@ -19,7 +19,7 @@
     "LICENSE"
   ],
   "dependencies": {
-    "@casoon/chartlet": "^0.7.1",
+    "@casoon/chartlet": "^0.8.0",
     "@modelcontextprotocol/ext-apps": "^2.0.3",
     "@modelcontextprotocol/server": "^2.2.0",
     "zod": "^4.6.5"
