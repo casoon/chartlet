@@ -782,6 +782,11 @@ fn emit_element(
                 emit_hook(hook, spec, output);
             }
         }
+        Element::Group(classes) => {
+            write!(output, "<g class=\"{classes}\">").expect("write");
+        }
+        Element::GroupEnd => output.push_str("</g>"),
+        Element::Hotspot(_) => {}
     }
 }
 
@@ -1074,6 +1079,18 @@ pub(crate) struct Panel {
     pub label: String,
     pub svg: String,
     pub mobile: Option<String>,
+    /// For a diagram, where its nodes stand in each layout, desktop first: the HTML profile lays
+    /// a focus link over every node. Empty for every other chart.
+    pub stages: Vec<Stage>,
+}
+
+/// The nodes of one laid-out diagram: the SVG's root ID, its size, and where each node stands.
+#[derive(Debug, Clone)]
+pub(crate) struct Stage {
+    pub root: String,
+    pub width: u32,
+    pub height: u32,
+    pub hotspots: Vec<crate::scene::Hotspot>,
 }
 
 pub(crate) fn html(
@@ -1168,7 +1185,8 @@ fn html_document(
         .as_ref()
         .map(|topicmap| topicmap.topics.len())
         .filter(|topics| *topics > 1);
-    let wrapped = has_series || zoom || picker.is_some() || breakpoint.is_some();
+    let focus = !zoom && panels.first().is_some_and(|panel| !panel.stages.is_empty());
+    let wrapped = has_series || zoom || picker.is_some() || breakpoint.is_some() || focus;
     if let Some(breakpoint) = breakpoint {
         write!(
             output,
@@ -1181,6 +1199,9 @@ fn html_document(
     }
     if let Some(topics) = picker {
         emit_topic_picker(topics, panels, spec, id_prefix, &mut output);
+    }
+    if focus {
+        emit_focus_controls(&panels[0], spec, id_prefix, &mut output);
     }
     if has_series {
         write!(
@@ -1221,7 +1242,7 @@ fn html_document(
     // figure whose text layer is its data table.
     output.push_str("<figure class=\"chartlet-figure\" data-viz=\"chart\">");
     write!(output, "<figcaption>{}</figcaption>", escape(&spec.title)).expect("write");
-    emit_panels(panels, zoom, &mut output);
+    emit_panels(panels, zoom, id_prefix, &mut output);
     if let Some(source) = &spec.source {
         write!(
             output,
@@ -1240,14 +1261,15 @@ fn html_document(
 }
 
 /// The charts of the figure: one per zoom step, each with its mobile variant beside it.
-fn emit_panels(panels: &[Panel], zoom: bool, output: &mut String) {
+fn emit_panels(panels: &[Panel], zoom: bool, id_prefix: &str, output: &mut String) {
     for (i, panel) in panels.iter().enumerate() {
+        let desktop = staged(&panel.svg, panel.stages.first(), id_prefix);
         let variants = match &panel.mobile {
             Some(mobile) => format!(
-                "<div class=\"chartlet-variant-desktop\">{}</div><div class=\"chartlet-variant-mobile\">{mobile}</div>",
-                panel.svg
+                "<div class=\"chartlet-variant-desktop\">{desktop}</div><div class=\"chartlet-variant-mobile\">{}</div>",
+                staged(mobile, panel.stages.get(1), id_prefix)
             ),
-            None => panel.svg.clone(),
+            None => desktop,
         };
         if zoom {
             write!(
@@ -1259,6 +1281,89 @@ fn emit_panels(panels: &[Panel], zoom: bool, output: &mut String) {
             output.push_str(&variants);
         }
     }
+}
+
+/// The focus of a diagram, without a script: a group of radio buttons, one per node and one for
+/// all of them, in a disclosure before the figure, and over every node a label of its button, so
+/// that a click on the node checks it. While a node is checked, CSS keeps it, its neighbours and
+/// the edges between them as they are and fades the rest. The buttons are the controls, with
+/// their names and the usual keyboard; the labels over the nodes are only a larger place to click
+/// them. The SVG keeps its `role="img"`: the labels are HTML beside it, not content of it.
+const FOCUS_STYLE: &str = ".chartlet-stage{position:relative;display:inline-block;max-width:100%;vertical-align:top}.chartlet-stage>svg{display:block}.chartlet-hotspot{position:absolute;border-radius:8px;cursor:pointer}.chartlet-focus{margin:0 0 12px 0;font-size:13px}.chartlet-focus summary{cursor:pointer;min-height:24px}.chartlet-focus fieldset{border:none;padding:0;margin:4px 0 0 0}.chartlet-focus label{display:inline-flex;align-items:center;min-height:44px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-focus input{margin-right:4px}.chartlet-focus input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}";
+
+/// The stylesheet and the radio buttons of the focus, before the figure.
+fn emit_focus_controls(panel: &Panel, spec: &ChartSpec, id_prefix: &str, output: &mut String) {
+    let words = spec.locale.words();
+    let mut style = String::from(FOCUS_STYLE);
+    let nodes = &panel.stages[0].hotspots;
+    for stage in &panel.stages {
+        let root = &stage.root;
+        write!(
+            style,
+            ".chartlet-wrapper:has(.chartlet-focus-node:checked) #{root} .chartlet-f{{opacity:.18}}"
+        )
+        .expect("write");
+        for hotspot in &stage.hotspots {
+            write!(
+                style,
+                "#{}{{left:{}%;top:{}%;width:{}%;height:{}%}}",
+                hotspot_id(root, hotspot.node),
+                number(hotspot.x / f64::from(stage.width) * 100.0),
+                number(hotspot.y / f64::from(stage.height) * 100.0),
+                number(hotspot.width / f64::from(stage.width) * 100.0),
+                number(hotspot.height / f64::from(stage.height) * 100.0),
+            )
+            .expect("write");
+        }
+        for hotspot in nodes {
+            let node = hotspot.node;
+            write!(
+                style,
+                ".chartlet-wrapper:has(#{id_prefix}-focus-{node}:checked) #{root} .chartlet-f-{node}{{opacity:1}}.chartlet-wrapper:has(#{id_prefix}-focus-{node}:checked) #{root} .chartlet-n-{node} .chartlet-flow-node,.chartlet-wrapper:has(#{id_prefix}-focus-{node}:checked) #{root} .chartlet-n-{node} .chartlet-seq-box{{stroke-width:3}}"
+            )
+            .expect("write");
+        }
+    }
+    write!(
+        output,
+        "<style>{style}</style><details class=\"chartlet-focus\"><summary>{}</summary><fieldset><label><input type=\"radio\" name=\"{id_prefix}-focus\" checked> {}</label>",
+        words.focus, words.show_all
+    )
+    .expect("write");
+    for hotspot in nodes {
+        write!(
+            output,
+            "<label><input type=\"radio\" name=\"{id_prefix}-focus\" class=\"chartlet-focus-node\" id=\"{id_prefix}-focus-{}\"> {}</label>",
+            hotspot.node,
+            escape(&hotspot.label)
+        )
+        .expect("write");
+    }
+    output.push_str("</fieldset></details>");
+}
+
+fn hotspot_id(root: &str, node: usize) -> String {
+    format!("{root}-hs-{node}")
+}
+
+/// An SVG with, over every node of its stage, a label of that node's focus button; or the SVG
+/// alone without a stage.
+fn staged(svg: &str, stage: Option<&Stage>, id_prefix: &str) -> String {
+    let Some(stage) = stage else {
+        return svg.to_owned();
+    };
+    let mut output = format!("<div class=\"chartlet-stage\">{svg}");
+    for hotspot in &stage.hotspots {
+        write!(
+            output,
+            "<label class=\"chartlet-hotspot\" id=\"{}\" for=\"{id_prefix}-focus-{}\"></label>",
+            hotspot_id(&stage.root, hotspot.node),
+            hotspot.node,
+        )
+        .expect("write");
+    }
+    output.push_str("</div>");
+    output
 }
 
 /// Writes the data table; with `hooks`, the chart's ID prefix, it also carries the

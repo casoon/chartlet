@@ -72,6 +72,9 @@ pub(crate) struct Words {
     pub component: &'static str,
     pub boundary: &'static str,
     pub connects_to: &'static str,
+    /// The names of a diagram's focus links, and of the link that clears the focus.
+    pub focus: &'static str,
+    pub show_all: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -138,6 +141,8 @@ const EN: Words = Words {
     component: "Component",
     boundary: "Boundary",
     connects_to: "Connects to",
+    focus: "Focus",
+    show_all: "Show all",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -206,6 +211,8 @@ const DE: Words = Words {
     component: "Komponente",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
+    focus: "Fokus",
+    show_all: "Alle zeigen",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],

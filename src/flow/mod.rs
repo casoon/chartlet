@@ -20,7 +20,7 @@ use crate::{
     error::ChartWarning,
     layout::{NARROW, count, push_title, title_extra},
     metrics::TextMetrics,
-    scene::{Circle, Element, Line, Rect, Scene, Text, TextAnchor},
+    scene::{Circle, Element, Hotspot, Line, Rect, Scene, Text, TextAnchor},
     spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind},
     text,
 };
@@ -484,6 +484,8 @@ fn edge_labels(
 /// An edge label waiting to be drawn: its lines, the first baseline and how it is anchored.
 struct Label {
     lines: Vec<String>,
+    /// The focus classes of the edge it labels.
+    classes: String,
     at: (f64, f64),
     anchor: TextAnchor,
     /// Where the line it labels runs across the page, when the label stands beside it and may
@@ -516,6 +518,48 @@ impl Label {
             }
         }
     }
+}
+
+impl Model<'_> {
+    /// The focus classes of a step: the step itself and every step it shares an edge with.
+    fn node_classes(&self, node: usize) -> String {
+        let mut related: Vec<usize> = self
+            .ends
+            .iter()
+            .filter_map(|&(from, to)| match (from == node, to == node) {
+                (true, _) => Some(to),
+                (_, true) => Some(from),
+                _ => None,
+            })
+            .chain(std::iter::once(node))
+            .collect();
+        related.sort_unstable();
+        related.dedup();
+        focus_classes(Some(node), &related)
+    }
+
+    /// The focus classes of an edge: the steps at both its ends.
+    fn edge_classes(&self, edge: usize) -> String {
+        let (from, to) = self.ends[edge];
+        focus_classes(None, &[from.min(to), from.max(to)])
+    }
+}
+
+/// The classes that tie a drawn part to the nodes whose focus brings it forward, and to its own
+/// node when it is one: `chartlet-f chartlet-n-3 chartlet-f-1 chartlet-f-3`.
+pub(crate) fn focus_classes(own: Option<usize>, related: &[usize]) -> String {
+    let mut classes = String::from("chartlet-f");
+    if let Some(own) = own {
+        write!(classes, " chartlet-n-{own}").expect("writing to String cannot fail");
+    }
+    let mut last = None;
+    for node in related {
+        if last != Some(*node) {
+            write!(classes, " chartlet-f-{node}").expect("writing to String cannot fail");
+        }
+        last = Some(*node);
+    }
+    classes
 }
 
 /// An edge's way on the main and cross axes, and where its label goes.
@@ -1673,15 +1717,35 @@ impl Plan {
         self.draw_lanes(model, elements);
         self.draw_groups(model, metrics, warnings, elements);
         let mut labels = Vec::new();
+        // Every edge, loop and step sits in a group whose classes name the steps it belongs to,
+        // so that focusing a step can bring them forward.
         for edge in 0..model.diagram.edges.len() {
+            elements.push(Element::Group(model.edge_classes(edge)));
             self.draw_edge(model, edge, elements, &mut labels);
+            elements.push(Element::GroupEnd);
         }
         for node in 0..model.diagram.nodes.len() {
+            elements.push(Element::Group(model.node_classes(node)));
             self.draw_loop(model, node, elements, &mut labels);
+            elements.push(Element::GroupEnd);
         }
         self.draw_labels(model, labels, metrics, elements);
         for node in 0..model.diagram.nodes.len() {
+            elements.push(Element::Group(model.node_classes(node)));
             self.draw_node(model, node, metrics, warnings, elements);
+            elements.push(Element::GroupEnd);
+            let spec = &model.diagram.nodes[node];
+            if spec.shape != Shape::Initial {
+                let (x, y, width, height) = self.node_box(model, node);
+                elements.push(Element::Hotspot(Hotspot {
+                    node,
+                    label: spec.label.clone(),
+                    x,
+                    y,
+                    width,
+                    height,
+                }));
+            }
         }
     }
 
@@ -1921,6 +1985,7 @@ impl Plan {
         let (line, _) = self.page(route.label_at);
         labels.push(Label {
             lines: lines.clone(),
+            classes: model.edge_classes(edge),
             at: (x, y),
             anchor,
             beside: (!self.landscape).then_some(line),
@@ -1960,7 +2025,9 @@ impl Plan {
                 }
             }
             placed.push(chip_box(&label.lines, label.at, label.anchor, metrics));
+            elements.push(Element::Group(label.classes.clone()));
             chip(&label.lines, label.at, label.anchor, metrics, elements);
+            elements.push(Element::GroupEnd);
         }
     }
 
@@ -2035,6 +2102,7 @@ impl Plan {
             };
             labels.push(Label {
                 lines: lines.clone(),
+                classes: model.node_classes(node),
                 at: (text.0, text.1 - rise),
                 anchor: text.2,
                 beside: None,

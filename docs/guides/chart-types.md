@@ -312,6 +312,14 @@ where anything goes. Like the sequence diagram it is **experimental**.
   where each one leads, with the main path, the lanes and the groups; the data table has one row
   per step with its kind, lane, group and next steps.
 
+**Focus.** In the HTML profile a diagram can be focused on one node — a step, a state, a
+component, a participant: a click on the node, or a choice in the "Focus" list above the figure,
+keeps that node, its neighbours and the edges between them as they are and fades the rest; "Show
+all" brings everything back. There is no script: the list is a group of radio buttons with the
+usual keyboard, the nodes carry labels of those buttons laid over them, and CSS `:has()` does
+the rest. The SVG stays an image to assistive technology. A browser without `:has()` shows the
+diagram unchanged.
+
 **Narrow canvases.** Below 480 pixels — a mobile variant, say — diagrams turn compact: smaller
 margins and gaps, narrower steps whose labels wrap onto two lines, participant names of sequence
 diagrams on two lines instead of shortened, and labels kept on the page by moving them to the

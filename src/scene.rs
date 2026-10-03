@@ -23,6 +23,24 @@ pub(crate) enum Element {
     /// Draws nothing: a `data-*` hook for the optional interactive module, written only with the
     /// `hooks` render option.
     Hook(Hook),
+    /// Opens a group whose classes tie what it holds to the diagram nodes it belongs to, for the
+    /// focus of the HTML profile; [`Element::GroupEnd`] closes it.
+    Group(String),
+    GroupEnd,
+    /// Draws nothing: where a diagram node stands, for the focus link the HTML profile lays over
+    /// it.
+    Hotspot(Hotspot),
+}
+
+/// A diagram node the HTML profile can focus: its index, its name, and its box.
+#[derive(Debug, Clone)]
+pub(crate) struct Hotspot {
+    pub node: usize,
+    pub label: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
 }
 
 /// The geometry and grouping the interactive module reads from a chart, see [`Element::Hook`].

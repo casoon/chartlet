@@ -63,8 +63,9 @@ fn remove_between(content: &str, open: &str, close: &str) -> String {
     output
 }
 
-/// The output with every hook taken out again. Without hooks chartlet writes no `<g>` at all, and
-/// a layer group is left as a bare `<g>` once its attributes are gone.
+/// The output with every hook taken out again. Without hooks chartlet writes no `<g>` but the
+/// focus groups of a diagram, and a layer group is left as a bare `<g>` once its attributes are
+/// gone.
 fn without_hooks(content: &str) -> String {
     // The hooks of a table column name the series before the pane; a bar's own `data-series`
     // is never followed by a pane.
@@ -92,7 +93,15 @@ fn without_hooks(content: &str) -> String {
     }
     content = remove_between(&content, "<script type=\"application/json\"", "</script>");
     content = remove_between(&content, "<g data-chartlet-plot", "/>");
-    content.replace("<g>", "").replace("</g>", "")
+    without_groups(&content)
+}
+
+/// The output without any group: the bare groups the hooks leave, and the focus groups of a
+/// diagram, which are there with and without hooks.
+fn without_groups(content: &str) -> String {
+    remove_between(content, "<g class=\"chartlet-f", ">")
+        .replace("<g>", "")
+        .replace("</g>", "")
 }
 
 #[test]
@@ -106,7 +115,11 @@ fn hooks_only_add_to_every_example() {
                 "{name}: hooks without the option"
             );
             assert!(hooked.contains("data-chartlet-type"), "{name}: no hooks");
-            assert_eq!(without_hooks(&hooked), plain, "{name} ({format:?})");
+            assert_eq!(
+                without_hooks(&hooked),
+                without_groups(&plain),
+                "{name} ({format:?})"
+            );
         }
     }
 }

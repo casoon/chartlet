@@ -246,6 +246,25 @@ fn a_narrow_chart_keeps_frames_and_labels_on_the_page() {
 }
 
 #[test]
+fn the_html_profile_lets_every_step_be_focused() {
+    let html = render_json(SPEC, RenderFormat::Html, &RenderOptions::default())
+        .expect("renders")
+        .content;
+    // Five steps: a radio button each, besides the one for all of them, and a label of each
+    // laid over its step.
+    assert_eq!(html.matches("class=\"chartlet-focus-node\"").count(), 5);
+    assert_eq!(html.matches("class=\"chartlet-hotspot\"").count(), 5);
+    assert!(html.contains("> Looks good?</label>"));
+    assert!(html.contains("-focus-1:checked) #"));
+    // The edge from Draft to Looks good? belongs to both steps' focus.
+    assert!(html.contains("<g class=\"chartlet-f chartlet-f-0 chartlet-f-1\">"));
+    // The SVG profile has no controls; the root stays an image.
+    let svg = svg(SPEC).content;
+    assert!(!svg.contains("<label") && !svg.contains("<input"));
+    assert!(svg.contains("role=\"img\""));
+}
+
+#[test]
 fn the_text_alternative_follows_the_reading_order() {
     let alternative =
         text_alternative(&ChartSpec::from_json(SPEC).expect("parses")).expect("valid");

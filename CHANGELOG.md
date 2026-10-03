@@ -43,6 +43,9 @@ does.
   narrower steps, participant names on two lines instead of shortened, loop labels wrapped,
   frames and labels kept on the page. A numbered message's label rises above its badge instead
   of giving up width to it.
+- Focus without a script: in the HTML profile a click on a diagram's node, or a choice in the
+  "Focus" list of radio buttons above it, keeps the node, its neighbours and the edges between
+  them and fades the rest. The SVG stays an image.
 - MCP server: the tool `chartlet_diagram_starter` returns a valid starting specification per
   diagram type with the kinds of its elements, and `chartlet_explain` gives a diagram's structure:
   the counts of its elements and the rows of its data table. Needs `@casoon/chartlet` with the

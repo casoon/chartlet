@@ -14,9 +14,10 @@ use crate::{
         warn_growth, with_shadow, wrap,
     },
     error::ChartWarning,
+    flow::focus_classes,
     layout::{NARROW, fit_text, push_title, title_extra},
     metrics::TextMetrics,
-    scene::{Circle, Element, Line, Polyline, Rect, Scene, Text, TextAnchor},
+    scene::{Circle, Element, Hotspot, Line, Polyline, Rect, Scene, Text, TextAnchor},
     spec::{
         ChartSpec, DiagramOrientation, FragmentSpec, Locale, MessageKind, ParticipantKind,
         SequenceSpec,
@@ -250,6 +251,33 @@ impl<'a> Model<'a> {
             .fold((usize::MAX, 0), |(low, high), participant| {
                 (low.min(participant), high.max(participant))
             })
+    }
+}
+
+impl Model<'_> {
+    /// The focus classes of a participant: itself and everyone it exchanges a message with.
+    fn participant_classes(&self, participant: usize) -> String {
+        let mut related: Vec<usize> = self
+            .ends
+            .iter()
+            .filter_map(
+                |&(from, to)| match (from == participant, to == participant) {
+                    (true, _) => Some(to),
+                    (_, true) => Some(from),
+                    _ => None,
+                },
+            )
+            .chain(std::iter::once(participant))
+            .collect();
+        related.sort_unstable();
+        related.dedup();
+        focus_classes(Some(participant), &related)
+    }
+
+    /// The focus classes of a message: the participants at both its ends.
+    fn message_classes(&self, index: usize) -> String {
+        let (from, to) = self.ends[index];
+        focus_classes(None, &[from.min(to), from.max(to)])
     }
 }
 
@@ -524,6 +552,7 @@ impl Portrait {
         let sequence = model.sequence;
         let end = self.base + self.track.length + 8.0;
         for participant in 0..model.participants() {
+            elements.push(Element::Group(model.participant_classes(participant)));
             let x = self.center(participant);
             elements.push(Element::Line(Line {
                 x1: x,
@@ -532,8 +561,12 @@ impl Portrait {
                 y2: end,
                 class: "chartlet-seq-lifeline",
             }));
+            elements.push(Element::GroupEnd);
         }
         for activation in &model.activations {
+            elements.push(Element::Group(
+                model.participant_classes(activation.participant),
+            ));
             let from = self.base + self.track.arrows[activation.from];
             let to = self.base + self.track.arrows[activation.to];
             elements.push(bar(
@@ -543,6 +576,7 @@ impl Portrait {
                 2.0 * BAR,
                 (to - from).max(12.0),
             ));
+            elements.push(Element::GroupEnd);
         }
         for (index, fragment) in sequence.fragments.iter().enumerate() {
             let (low, high) = model.span(fragment);
@@ -586,27 +620,24 @@ impl Portrait {
             }
         }
         for index in 0..sequence.messages.len() {
+            elements.push(Element::Group(model.message_classes(index)));
             self.draw_message(model, index, metrics, elements);
+            elements.push(Element::GroupEnd);
         }
         let gap = if model.compact { 8.0 } else { 12.0 };
         let box_width = |participant: usize| model.box_widths[participant].min(self.column - gap);
-        for (index, participant) in sequence.participants.iter().enumerate() {
+        for index in 0..sequence.participants.len() {
             let width = box_width(index);
-            draw_participant(
-                &Header {
-                    index,
-                    x: self.center(index) - width / 2.0,
-                    y: self.band_top,
-                    width,
-                    height: model.band,
-                    figure: (self.center(index), self.band_top - FIGURE),
-                    wrap: model.compact,
-                },
-                participant,
-                metrics,
-                warnings,
-                elements,
-            );
+            let header = Header {
+                index,
+                x: self.center(index) - width / 2.0,
+                y: self.band_top,
+                width,
+                height: model.band,
+                figure: (self.center(index), self.band_top - FIGURE),
+                wrap: model.compact,
+            };
+            focusable_participant(model, &header, metrics, warnings, elements);
         }
         (pixels(self.width), pixels(self.height))
     }
@@ -794,6 +825,7 @@ impl Landscape {
         let sequence = model.sequence;
         let end = self.base + self.track.length + 8.0;
         for participant in 0..model.participants() {
+            elements.push(Element::Group(model.participant_classes(participant)));
             let y = self.center(participant);
             elements.push(Element::Line(Line {
                 x1: model.margin + self.gutter,
@@ -802,8 +834,12 @@ impl Landscape {
                 y2: y,
                 class: "chartlet-seq-lifeline",
             }));
+            elements.push(Element::GroupEnd);
         }
         for activation in &model.activations {
+            elements.push(Element::Group(
+                model.participant_classes(activation.participant),
+            ));
             let from = self.base + self.track.arrows[activation.from];
             let to = self.base + self.track.arrows[activation.to];
             elements.push(bar(
@@ -813,6 +849,7 @@ impl Landscape {
                 (to - from).max(12.0),
                 2.0 * BAR,
             ));
+            elements.push(Element::GroupEnd);
         }
         for (index, fragment) in sequence.fragments.iter().enumerate() {
             let (low, high) = model.span(fragment);
@@ -857,7 +894,9 @@ impl Landscape {
             }
         }
         for index in 0..sequence.messages.len() {
+            elements.push(Element::Group(model.message_classes(index)));
             self.draw_message(model, index, metrics, elements);
+            elements.push(Element::GroupEnd);
         }
         for (index, participant) in sequence.participants.iter().enumerate() {
             let center = self.center(index);
@@ -866,21 +905,16 @@ impl Landscape {
             } else {
                 0.0
             };
-            draw_participant(
-                &Header {
-                    index,
-                    x: model.margin + indent,
-                    y: center - model.band / 2.0,
-                    width: self.gutter - indent,
-                    height: model.band,
-                    figure: (model.margin + FIGURE / 2.0, center - FIGURE / 2.0),
-                    wrap: model.compact,
-                },
-                participant,
-                metrics,
-                warnings,
-                elements,
-            );
+            let header = Header {
+                index,
+                x: model.margin + indent,
+                y: center - model.band / 2.0,
+                width: self.gutter - indent,
+                height: model.band,
+                figure: (model.margin + FIGURE / 2.0, center - FIGURE / 2.0),
+                wrap: model.compact,
+            };
+            focusable_participant(model, &header, metrics, warnings, elements);
         }
         (pixels(self.width), pixels(self.height))
     }
@@ -1096,6 +1130,28 @@ fn guard(
             path,
         ),
     })
+}
+
+/// A participant in the group of its focus, and its focus link's place.
+fn focusable_participant(
+    model: &Model,
+    header: &Header,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+    elements: &mut Vec<Element>,
+) {
+    let participant = &model.sequence.participants[header.index];
+    elements.push(Element::Group(model.participant_classes(header.index)));
+    draw_participant(header, participant, metrics, warnings, elements);
+    elements.push(Element::GroupEnd);
+    elements.push(Element::Hotspot(Hotspot {
+        node: header.index,
+        label: participant.label.clone(),
+        x: header.x,
+        y: header.y,
+        width: header.width,
+        height: header.height,
+    }));
 }
 
 /// Where a participant's box goes: the band that holds its name.

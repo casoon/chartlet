@@ -320,19 +320,13 @@ fn render_content(
     metrics: &impl TextMetrics,
 ) -> Result<RenderOutput, ChartError> {
     let mut warnings = spec.validate()?;
-    let id_prefix = match &options.id_prefix {
-        Some(id_prefix) => {
-            validate_id_prefix(id_prefix)?;
-            id_prefix.clone()
-        }
-        None => default_id_prefix(spec)?,
-    };
+    let id_prefix = resolve_id_prefix(spec, options)?;
 
     let mobile = spec.mobile_variant();
     let mobile_prefix = |prefix: &str| format!("{prefix}-m");
     let hooks = hook_mode(options.hooks, format);
-    let panel = |spec: &ChartSpec, prefix: &str, warnings: &mut Vec<ChartWarning>| {
-        render_panel(
+    let parts = |spec: &ChartSpec, prefix: &str, warnings: &mut Vec<ChartWarning>| {
+        render_panel_parts(
             spec,
             format,
             prefix,
@@ -341,6 +335,9 @@ fn render_content(
             metrics,
             warnings,
         )
+    };
+    let panel = |spec: &ChartSpec, prefix: &str, warnings: &mut Vec<ChartWarning>| {
+        parts(spec, prefix, warnings).svg
     };
 
     match options.variant {
@@ -385,6 +382,7 @@ fn render_content(
                 label: step.label.clone(),
                 svg,
                 mobile,
+                stages: Vec::new(),
             });
         }
         dedupe_warnings(&mut warnings);
@@ -402,19 +400,21 @@ fn render_content(
         });
     }
 
-    let svg = panel(spec, &id_prefix, &mut warnings);
+    let desktop = parts(spec, &id_prefix, &mut warnings);
     let content = match format {
-        RenderFormat::Svg => svg,
+        RenderFormat::Svg => desktop.svg,
         RenderFormat::Html => {
             let mobile = mobile
                 .as_ref()
-                .map(|mobile| panel(mobile, &mobile_prefix(&id_prefix), &mut mobile_warnings));
+                .map(|mobile| parts(mobile, &mobile_prefix(&id_prefix), &mut mobile_warnings));
             merge_mobile_warnings(&mut warnings, mobile_warnings);
+            let stages = stages(&desktop, mobile.as_ref());
             render::html(
                 render::Panel {
                     label: String::new(),
-                    svg,
-                    mobile,
+                    svg: desktop.svg,
+                    mobile: mobile.map(|mobile| mobile.svg),
+                    stages,
                 },
                 spec,
                 options.table_mode,
@@ -679,6 +679,36 @@ fn render_panel(
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> String {
+    render_panel_parts(spec, format, id_prefix, styles, hooks, metrics, warnings).svg
+}
+
+/// The stages of a diagram whose nodes can be focused, desktop first; none for any other chart.
+fn stages(desktop: &PanelParts, mobile: Option<&PanelParts>) -> Vec<render::Stage> {
+    if desktop.stage.hotspots.is_empty() {
+        return Vec::new();
+    }
+    std::iter::once(desktop)
+        .chain(mobile)
+        .map(|parts| parts.stage.clone())
+        .collect()
+}
+
+/// A chart laid out and serialized, with what the HTML profile needs to focus its nodes.
+struct PanelParts {
+    svg: String,
+    stage: render::Stage,
+}
+
+/// [`render_panel`], keeping where the nodes of a diagram stand.
+fn render_panel_parts(
+    spec: &ChartSpec,
+    format: RenderFormat,
+    id_prefix: &str,
+    styles: render::StyleMode,
+    hooks: render::Hooks,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) -> PanelParts {
     let description = spec
         .description
         .clone()
@@ -692,7 +722,23 @@ fn render_panel(
     } else {
         layout::layout(spec, warnings, metrics)
     };
-    render::svg(&scene, spec, &description, id_prefix, styles, hooks)
+    let hotspots = scene
+        .elements
+        .iter()
+        .filter_map(|element| match element {
+            scene::Element::Hotspot(hotspot) => Some(hotspot.clone()),
+            _ => None,
+        })
+        .collect();
+    PanelParts {
+        svg: render::svg(&scene, spec, &description, id_prefix, styles, hooks),
+        stage: render::Stage {
+            root: id_prefix.to_owned(),
+            width: scene.width,
+            height: scene.height,
+            hotspots,
+        },
+    }
 }
 
 /// Which hooks a chart's SVGs carry: the HTML profile has its data table to read the values
@@ -728,6 +774,18 @@ fn merge_mobile_warnings(warnings: &mut Vec<ChartWarning>, mut mobile: Vec<Chart
                 ..warning
             }),
     );
+}
+
+/// The ID prefix a render uses: the one passed in, checked, or the one derived from the
+/// specification.
+fn resolve_id_prefix(spec: &ChartSpec, options: &RenderOptions) -> Result<String, ChartError> {
+    match &options.id_prefix {
+        Some(id_prefix) => {
+            validate_id_prefix(id_prefix)?;
+            Ok(id_prefix.clone())
+        }
+        None => default_id_prefix(spec),
+    }
 }
 
 fn validate_id_prefix(value: &str) -> Result<(), ChartError> {
