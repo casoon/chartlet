@@ -19,6 +19,19 @@ pub(super) struct Item {
     pub back: bool,
 }
 
+impl Item {
+    /// How many frames lie between this item and `other`: those around one but not the other.
+    pub(super) fn frames_between(&self, other: &Self) -> usize {
+        let common = self
+            .groups
+            .iter()
+            .zip(&other.groups)
+            .take_while(|(a, b)| a == b)
+            .count();
+        self.groups.len() + other.groups.len() - 2 * common
+    }
+}
+
 /// The items an edge passes, from where the layout lets it start to where it ends. `reversed`
 /// marks an edge the layout turned around to break a cycle; it is drawn back the other way.
 pub(super) struct Chain {

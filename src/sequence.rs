@@ -14,7 +14,7 @@ use crate::{
         warn_growth, with_shadow, wrap,
     },
     error::ChartWarning,
-    layout::{fit_text, push_title, title_extra},
+    layout::{NARROW, fit_text, push_title, title_extra},
     metrics::TextMetrics,
     scene::{Circle, Element, Line, Polyline, Rect, Scene, Text, TextAnchor},
     spec::{
@@ -26,6 +26,10 @@ use crate::{
 
 /// Margin around the diagram.
 const MARGIN: f64 = 24.0;
+/// The margin, and the widest text in a participant's box, of a diagram narrower than
+/// [`NARROW`], such as a mobile variant: there a participant's name wraps onto two lines.
+const COMPACT_MARGIN: f64 = 12.0;
+const COMPACT_TEXT: f64 = 64.0;
 /// Space kept free below the diagram.
 const BOTTOM: f64 = 16.0;
 const LABEL_SIZE: f64 = 13.0;
@@ -38,6 +42,9 @@ const LINE: f64 = 15.0;
 const PAD: f64 = 12.0;
 /// Narrowest and widest box of a participant.
 const MIN_BOX: f64 = 72.0;
+const COMPACT_BOX: f64 = 56.0;
+/// How far a numbered message's label rises so that it clears the badge on its arrow.
+const BADGE_LIFT: f64 = 7.0;
 const MAX_BOX: f64 = 180.0;
 /// Height of the figure drawn above an actor's name.
 const FIGURE: f64 = 26.0;
@@ -63,8 +70,10 @@ pub(crate) fn layout(
 ) -> Scene {
     let sequence = sequence(spec);
     let width = f64::from(spec.width);
-    let top = 56.0 + title_extra(spec, width - 2.0 * MARGIN, metrics);
-    let model = Model::new(sequence, metrics);
+    let compact = spec.width < NARROW;
+    let margin = if compact { COMPACT_MARGIN } else { MARGIN };
+    let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
+    let model = Model::new(sequence, compact, metrics);
     let mut ignored = Vec::new();
     let landscape = match sequence.orientation {
         DiagramOrientation::Portrait => false,
@@ -83,8 +92,8 @@ pub(crate) fn layout(
     push_title(
         &mut elements,
         spec,
-        MARGIN,
-        width - 2.0 * MARGIN,
+        margin,
+        width - 2.0 * margin,
         metrics,
         warnings,
     );
@@ -141,27 +150,55 @@ struct Model<'a> {
     box_widths: Vec<f64>,
     /// Height of the band that holds the participants' names.
     band: f64,
+    /// Whether the diagram is narrower than [`NARROW`]: participant names wrap, margins shrink.
+    compact: bool,
+    margin: f64,
     has_actor: bool,
 }
 
 impl<'a> Model<'a> {
-    fn new(sequence: &'a SequenceSpec, metrics: &impl TextMetrics) -> Self {
+    fn new(sequence: &'a SequenceSpec, compact: bool, metrics: &impl TextMetrics) -> Self {
         let ends = sequence.ends();
         let labels = sequence
             .messages
             .iter()
             .map(|message| message.label.clone())
             .collect();
+        let mut two_lines = false;
         let box_widths = sequence
             .participants
             .iter()
             .map(|participant| {
-                let label = metrics.width(&participant.label, LABEL_SIZE);
+                let mut label = metrics.width(&participant.label, LABEL_SIZE);
+                if compact && label > COMPACT_TEXT {
+                    // Never narrower than the longest word, which cannot wrap.
+                    let word = participant
+                        .label
+                        .split(' ')
+                        .map(|word| metrics.width(word, LABEL_SIZE))
+                        .fold(0.0, f64::max);
+                    let mut ignored = Vec::new();
+                    let lines = wrap(
+                        &participant.label,
+                        COMPACT_TEXT.max(word),
+                        LABEL_SIZE,
+                        metrics,
+                        &mut ignored,
+                        "",
+                    );
+                    two_lines |= lines.len() > 1;
+                    label = lines
+                        .iter()
+                        .map(|line| metrics.width(line, LABEL_SIZE))
+                        .fold(0.0, f64::max);
+                }
                 let sublabel = participant
                     .sublabel
                     .as_ref()
                     .map_or(0.0, |sublabel| metrics.width(sublabel, SUBLABEL_SIZE));
-                (label.max(sublabel) + 2.0 * PAD).clamp(MIN_BOX, MAX_BOX)
+                // A compact box is as wide as its widest line, even a long word.
+                let low = if compact { COMPACT_BOX } else { MIN_BOX };
+                (label.max(sublabel) + 2.0 * PAD).clamp(low, MAX_BOX)
             })
             .collect();
         let has_sublabel = sequence
@@ -177,7 +214,9 @@ impl<'a> Model<'a> {
             labels,
             sequence,
             box_widths,
-            band: if has_sublabel { 48.0 } else { 34.0 },
+            band: if has_sublabel { 48.0 } else { 34.0 } + if two_lines { LINE } else { 0.0 },
+            compact,
+            margin: if compact { COMPACT_MARGIN } else { MARGIN },
             has_actor: sequence
                 .participants
                 .iter()
@@ -382,6 +421,7 @@ fn label_path(index: usize) -> String {
 
 /// Participants side by side, time running down.
 struct Portrait {
+    margin: f64,
     column: f64,
     /// Top of the band with the participants' names.
     band_top: f64,
@@ -402,9 +442,9 @@ impl Portrait {
         warnings: &mut Vec<ChartWarning>,
     ) -> Self {
         let participants = crate::layout::count(model.participants());
-        let needed = model.widest_box() + 12.0;
-        let width = f64::from(spec.width).max(2.0 * MARGIN + needed * participants);
-        let column = (width - 2.0 * MARGIN) / participants;
+        let needed = model.widest_box() + if model.compact { 8.0 } else { 12.0 };
+        let width = f64::from(spec.width).max(2.0 * model.margin + needed * participants);
+        let column = (width - 2.0 * model.margin) / participants;
         let lines: Vec<Vec<String>> = model
             .labels
             .iter()
@@ -414,13 +454,7 @@ impl Portrait {
                 let room = if from == to {
                     column - LOOP_OUT - 8.0
                 } else {
-                    column * crate::layout::count(from.abs_diff(*to))
-                        - 16.0
-                        - if model.sequence.numbered {
-                            2.0 * (BADGE + 8.0)
-                        } else {
-                            0.0
-                        }
+                    column * crate::layout::count(from.abs_diff(*to)) - 16.0
                 };
                 wrap(
                     label,
@@ -433,17 +467,24 @@ impl Portrait {
             })
             .collect();
         let (head, branch) = Slots::uniform(model.sequence, 24.0, 22.0);
+        // A numbered message's label rises above the badge on its arrow.
+        let above = 10.0
+            + if model.sequence.numbered {
+                BADGE_LIFT
+            } else {
+                0.0
+            };
         let slots = Slots {
             arrow: lines
                 .iter()
-                .map(|lines| LINE * crate::layout::count(lines.len()) + 10.0)
+                .map(|lines| LINE * crate::layout::count(lines.len()) + above)
                 .collect(),
             slot: lines
                 .iter()
                 .zip(&model.ends)
                 .map(|(lines, (from, to))| {
                     LINE * crate::layout::count(lines.len())
-                        + 10.0
+                        + above
                         + if from == to { LOOP_ALONG + 12.0 } else { 10.0 }
                 })
                 .collect(),
@@ -456,6 +497,7 @@ impl Portrait {
         let track = Track::fitted(model, &slots, f64::from(spec.height) - base - 8.0 - BOTTOM);
         let height = f64::from(spec.height).max(base + track.length + 8.0 + BOTTOM);
         Self {
+            margin: model.margin,
             column,
             band_top,
             base,
@@ -467,7 +509,7 @@ impl Portrait {
     }
 
     fn center(&self, participant: usize) -> f64 {
-        MARGIN + self.column * (crate::layout::count(participant) + 0.5)
+        self.margin + self.column * (crate::layout::count(participant) + 0.5)
     }
 
     fn draw(
@@ -546,7 +588,8 @@ impl Portrait {
         for index in 0..sequence.messages.len() {
             self.draw_message(model, index, metrics, elements);
         }
-        let box_width = |participant: usize| model.box_widths[participant].min(self.column - 12.0);
+        let gap = if model.compact { 8.0 } else { 12.0 };
+        let box_width = |participant: usize| model.box_widths[participant].min(self.column - gap);
         for (index, participant) in sequence.participants.iter().enumerate() {
             let width = box_width(index);
             draw_participant(
@@ -557,6 +600,7 @@ impl Portrait {
                     width,
                     height: model.band,
                     figure: (self.center(index), self.band_top - FIGURE),
+                    wrap: model.compact,
                 },
                 participant,
                 metrics,
@@ -603,7 +647,12 @@ impl Portrait {
                 (-1.0, 0.0),
                 kind,
             )));
-            let first = y - 9.0 - LINE * crate::layout::count(lines.len() - 1);
+            let lift = if model.sequence.numbered {
+                BADGE_LIFT
+            } else {
+                0.0
+            };
+            let first = y - 9.0 - lift - LINE * crate::layout::count(lines.len() - 1);
             chip(
                 lines,
                 (x + CHIP_REACH, first),
@@ -625,16 +674,15 @@ impl Portrait {
             tooltip,
         )));
         elements.push(Element::Polyline(head((x2, y), (direction, 0.0), kind)));
-        let first = y - 9.0 - LINE * crate::layout::count(lines.len() - 1);
-        // A numbered message's label moves a little away from the badge at its start.
-        let shift = if model.sequence.numbered {
-            direction * (BADGE + 8.0) / 2.0
+        let lift = if model.sequence.numbered {
+            BADGE_LIFT
         } else {
             0.0
         };
+        let first = y - 9.0 - lift - LINE * crate::layout::count(lines.len() - 1);
         chip(
             lines,
-            (f64::midpoint(x1, x2) + shift, first),
+            (f64::midpoint(x1, x2), first),
             TextAnchor::Middle,
             metrics,
             elements,
@@ -711,9 +759,13 @@ impl Landscape {
             foot: 12.0,
         };
         make_room_for_guards(model, &mut slots, metrics);
-        let base = MARGIN + gutter + 16.0;
-        let track = Track::fitted(model, &slots, f64::from(spec.width) - MARGIN - base - 8.0);
-        let width = f64::from(spec.width).max(base + track.length + 8.0 + MARGIN);
+        let base = model.margin + gutter + 16.0;
+        let track = Track::fitted(
+            model,
+            &slots,
+            f64::from(spec.width) - model.margin - base - 8.0,
+        );
+        let width = f64::from(spec.width).max(base + track.length + 8.0 + model.margin);
         Self {
             gutter,
             lane,
@@ -744,7 +796,7 @@ impl Landscape {
         for participant in 0..model.participants() {
             let y = self.center(participant);
             elements.push(Element::Line(Line {
-                x1: MARGIN + self.gutter,
+                x1: model.margin + self.gutter,
                 y1: y,
                 x2: end,
                 y2: y,
@@ -817,11 +869,12 @@ impl Landscape {
             draw_participant(
                 &Header {
                     index,
-                    x: MARGIN + indent,
+                    x: model.margin + indent,
                     y: center - model.band / 2.0,
                     width: self.gutter - indent,
                     height: model.band,
-                    figure: (MARGIN + FIGURE / 2.0, center - FIGURE / 2.0),
+                    figure: (model.margin + FIGURE / 2.0, center - FIGURE / 2.0),
+                    wrap: model.compact,
                 },
                 participant,
                 metrics,
@@ -1054,6 +1107,8 @@ struct Header {
     height: f64,
     /// Where an actor's figure stands: the middle of its head and the top of the figure.
     figure: (f64, f64),
+    /// Whether a name too wide for the box wraps onto a second line rather than being shortened.
+    wrap: bool,
 }
 
 fn draw_participant(
@@ -1153,25 +1208,44 @@ fn participant_text(
     let center = x + width / 2.0;
     let path = format!("/sequence/participants/{index}");
     let room = width - 2.0 * PAD;
-    let label = fit_text(
-        &participant.label,
-        room,
-        LABEL_SIZE,
-        metrics,
-        warnings,
-        &format!("{path}/label"),
-    );
-    let (label_y, sublabel_y) = match participant.sublabel {
-        Some(_) => (y + height / 2.0 - 2.0, y + height / 2.0 + 13.0),
-        None => (y + height / 2.0 + 4.5, 0.0),
+    let label_path = format!("{path}/label");
+    let lines = if header.wrap {
+        wrap(
+            &participant.label,
+            room,
+            LABEL_SIZE,
+            metrics,
+            warnings,
+            &label_path,
+        )
+    } else {
+        vec![fit_text(
+            &participant.label,
+            room,
+            LABEL_SIZE,
+            metrics,
+            warnings,
+            &label_path,
+        )]
     };
-    elements.push(Element::Text(Text {
-        x: center,
-        y: label_y,
-        class: "chartlet-seq-label",
-        anchor: TextAnchor::Middle,
-        content: label,
-    }));
+    // A second line of the name moves both lines up by half its height.
+    let lift = LINE * crate::layout::count(lines.len() - 1) / 2.0;
+    let (label_y, sublabel_y) = match participant.sublabel {
+        Some(_) => (
+            y + height / 2.0 - 2.0 - lift,
+            y + height / 2.0 + 13.0 + lift,
+        ),
+        None => (y + height / 2.0 + 4.5 - lift, 0.0),
+    };
+    for (row, line) in lines.into_iter().enumerate() {
+        elements.push(Element::Text(Text {
+            x: center,
+            y: label_y + LINE * crate::layout::count(row),
+            class: "chartlet-seq-label",
+            anchor: TextAnchor::Middle,
+            content: line,
+        }));
+    }
     if let Some(sublabel) = &participant.sublabel {
         elements.push(Element::Text(Text {
             x: center,
@@ -1575,6 +1649,30 @@ mod tests {
         let output = svg(&json);
         assert!(output.warnings.is_empty(), "{:?}", output.warnings);
         assert!(output.content.contains(">[unknown]</text>"));
+    }
+
+    #[test]
+    fn a_narrow_diagram_wraps_participant_names_instead_of_shortening_them() {
+        let json = SPEC
+            .replace(
+                "\"title\": \"Login\",",
+                "\"title\": \"Login\", \"width\": 320, \"height\": 600,",
+            )
+            .replace(
+                r#""label": "Users", "kind": "database""#,
+                r#""label": "Registered users", "kind": "database""#,
+            );
+        let output = svg(&json);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .all(|warning| !warning.path.starts_with("/sequence/participants")),
+            "{:?}",
+            output.warnings
+        );
+        assert!(output.content.contains(">Registered</text>"));
+        assert!(output.content.contains(">users</text>"));
     }
 
     #[test]

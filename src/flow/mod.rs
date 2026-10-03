@@ -14,11 +14,11 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     diagram::{
-        self, CHIP_REACH, HEAD, arrowhead, chip, chip_box, cylinder, pixels, rounded, warn_growth,
-        with_shadow, wrap,
+        self, CHIP_LINE, CHIP_REACH, HEAD, arrowhead, chip, chip_box, cylinder, pixels, rounded,
+        warn_growth, with_shadow, wrap,
     },
     error::ChartWarning,
-    layout::{count, push_title, title_extra},
+    layout::{NARROW, count, push_title, title_extra},
     metrics::TextMetrics,
     scene::{Circle, Element, Line, Rect, Scene, Text, TextAnchor},
     spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind},
@@ -58,6 +58,46 @@ const LANE_HEAD: f64 = 26.0;
 const INITIAL: f64 = 20.0;
 /// How far the loop of an edge from a step to itself reaches out.
 const LOOP: f64 = 22.0;
+/// The spacing of a diagram: roomy on a wide canvas, compact below [`NARROW`] pixels, such as a
+/// mobile variant, where steps get narrower and wrap their labels sooner, and the space around
+/// and between them shrinks.
+#[derive(Debug, Clone, Copy)]
+struct Spacing {
+    margin: f64,
+    min_node: f64,
+    max_node: f64,
+    node_gap: f64,
+    passing_gap: f64,
+    group_gap: f64,
+    edge_label: f64,
+}
+
+impl Spacing {
+    const fn for_width(width: u32) -> Self {
+        if width < NARROW {
+            Self {
+                margin: 12.0,
+                min_node: 64.0,
+                max_node: 120.0,
+                node_gap: 16.0,
+                passing_gap: 8.0,
+                group_gap: 20.0,
+                edge_label: 96.0,
+            }
+        } else {
+            Self {
+                margin: MARGIN,
+                min_node: MIN_NODE,
+                max_node: MAX_NODE,
+                node_gap: NODE_GAP,
+                passing_gap: PASSING_GAP,
+                group_gap: GROUP_GAP,
+                edge_label: EDGE_LABEL,
+            }
+        }
+    }
+}
+
 /// Growth of the gaps between layers when the canvas leaves room.
 const MAX_STRETCH: f64 = 1.6;
 
@@ -77,8 +117,10 @@ pub(crate) fn layout_diagram(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let width = f64::from(spec.width);
-    let top = 56.0 + title_extra(spec, width - 2.0 * MARGIN, metrics);
-    let model = Model::new(diagram, metrics, warnings);
+    let spacing = Spacing::for_width(spec.width);
+    let margin = spacing.margin;
+    let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
+    let model = Model::new(diagram, spacing, metrics, warnings);
     let landscape = match diagram.orientation {
         DiagramOrientation::Portrait => false,
         DiagramOrientation::Landscape => true,
@@ -97,8 +139,8 @@ pub(crate) fn layout_diagram(
     push_title(
         &mut elements,
         spec,
-        MARGIN,
-        width - 2.0 * MARGIN,
+        margin,
+        width - 2.0 * margin,
         metrics,
         warnings,
     );
@@ -275,6 +317,7 @@ impl Diagram {
 /// What both orientations need: the layered graph, and every text measured and wrapped.
 struct Model<'a> {
     diagram: &'a Diagram,
+    spacing: Spacing,
     ends: Vec<(usize, usize)>,
     graph: Graph,
     /// Each step's label on one or two lines, and its box: width and height on the page.
@@ -285,11 +328,14 @@ struct Model<'a> {
     edge_widths: Vec<f64>,
     /// The labels of the edges from each step to itself, joined.
     loops: Vec<Option<String>>,
+    /// The same, on as many lines as the edge labels take.
+    loop_lines: Vec<Vec<String>>,
 }
 
 impl<'a> Model<'a> {
     fn new(
         diagram: &'a Diagram,
+        spacing: Spacing,
         metrics: &impl TextMetrics,
         warnings: &mut Vec<ChartWarning>,
     ) -> Self {
@@ -316,7 +362,7 @@ impl<'a> Model<'a> {
                 Shape::Shield => (0.0, 18.0),
                 _ => (0.0, 0.0),
             };
-            let room = MAX_NODE - 2.0 * PAD;
+            let room = spacing.max_node - 2.0 * PAD;
             let path = format!("{}/label", node.path);
             let lines = wrap(&node.label, room, LABEL_SIZE, metrics, warnings, &path);
             let text = lines
@@ -328,7 +374,7 @@ impl<'a> Model<'a> {
                         .map(|sublabel| metrics.width(sublabel, SUBLABEL_SIZE)),
                 )
                 .fold(0.0, f64::max);
-            let width = (text + 2.0 * PAD).clamp(MIN_NODE, MAX_NODE) + extra_width;
+            let width = (text + 2.0 * PAD).clamp(spacing.min_node, spacing.max_node) + extra_width;
             let height = 20.0
                 + NODE_LINE * count(lines.len())
                 + if node.sublabel.is_some() { 14.0 } else { 0.0 }
@@ -336,8 +382,9 @@ impl<'a> Model<'a> {
             labels.push(lines);
             sizes.push((width, height));
         }
-        let (edge_labels, edge_widths) = edge_labels(diagram, metrics, warnings);
-        let loops = (0..diagram.nodes.len())
+        let (edge_labels, edge_widths) =
+            edge_labels(diagram, spacing.edge_label, metrics, warnings);
+        let loops: Vec<Option<String>> = (0..diagram.nodes.len())
             .map(|node| {
                 let labels: Vec<&str> = diagram
                     .edges
@@ -355,8 +402,31 @@ impl<'a> Model<'a> {
                 })
             })
             .collect();
+        let loop_lines = loops
+            .iter()
+            .enumerate()
+            .map(|(node, label): (usize, &Option<String>)| {
+                let Some(label) = label.as_ref().filter(|label| !label.is_empty()) else {
+                    return Vec::new();
+                };
+                let path = diagram
+                    .edges
+                    .iter()
+                    .find(|edge| edge.from == node && edge.to == node)
+                    .map_or("", |edge| edge.label_path.as_str());
+                wrap(
+                    label,
+                    spacing.edge_label,
+                    EDGE_SIZE,
+                    metrics,
+                    warnings,
+                    path,
+                )
+            })
+            .collect();
         Self {
             diagram,
+            spacing,
             ends,
             graph,
             labels,
@@ -364,6 +434,7 @@ impl<'a> Model<'a> {
             edge_labels,
             edge_widths,
             loops,
+            loop_lines,
         }
     }
 }
@@ -372,6 +443,7 @@ impl<'a> Model<'a> {
 /// line of each.
 fn edge_labels(
     diagram: &Diagram,
+    widest: f64,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> (Vec<Vec<String>>, Vec<f64>) {
@@ -381,7 +453,7 @@ fn edge_labels(
         let mut lines = edge.label.as_ref().map_or_else(Vec::new, |label| {
             wrap(
                 label,
-                EDGE_LABEL,
+                widest,
                 EDGE_SIZE,
                 metrics,
                 warnings,
@@ -391,7 +463,7 @@ fn edge_labels(
         if let Some(technology) = &edge.technology {
             lines.push(crate::layout::fit_text(
                 &format!("[{technology}]"),
-                EDGE_LABEL,
+                widest,
                 EDGE_SIZE,
                 metrics,
                 warnings,
@@ -414,6 +486,36 @@ struct Label {
     lines: Vec<String>,
     at: (f64, f64),
     anchor: TextAnchor,
+    /// Where the line it labels runs across the page, when the label stands beside it and may
+    /// move to its other side.
+    beside: Option<f64>,
+}
+
+impl Label {
+    /// Moves a label that would run off the side of the page to the other side of its line, or,
+    /// beside nothing, back onto the page.
+    fn keep_on_page(&mut self, width: f64, metrics: &impl TextMetrics) {
+        let (left, _, chip_width, _) = chip_box(&self.lines, self.at, self.anchor, metrics);
+        let reach = CHIP_REACH + 2.0;
+        let over = left + chip_width - (width - 2.0);
+        if over > 0.0 {
+            match (self.beside, self.anchor) {
+                (Some(line), TextAnchor::Start) => {
+                    self.at.0 = line - reach;
+                    self.anchor = TextAnchor::End;
+                }
+                _ => self.at.0 -= over,
+            }
+        } else if left < 2.0 {
+            match (self.beside, self.anchor) {
+                (Some(line), TextAnchor::End) => {
+                    self.at.0 = line + reach;
+                    self.anchor = TextAnchor::Start;
+                }
+                _ => self.at.0 += 2.0 - left,
+            }
+        }
+    }
 }
 
 /// An edge's way on the main and cross axes, and where its label goes.
@@ -487,19 +589,17 @@ impl Plan {
         let gap = |a: usize, b: usize| {
             let (first, second) = (&graph.items[a], &graph.items[b]);
             let base = if first.node.is_some() && second.node.is_some() {
-                NODE_GAP
+                model.spacing.node_gap
             } else {
-                PASSING_GAP
+                model.spacing.passing_gap
             };
             // Room for every frame between the two.
-            let common = first
-                .groups
-                .iter()
-                .zip(&second.groups)
-                .take_while(|(a, b)| a == b)
-                .count();
-            let frames = first.groups.len() + second.groups.len() - 2 * common;
-            cross_size(a) / 2.0 + cross_size(b) / 2.0 + base + after(a) + GROUP_GAP * count(frames)
+            let frames = count(first.frames_between(second));
+            cross_size(a) / 2.0
+                + cross_size(b) / 2.0
+                + base
+                + after(a)
+                + model.spacing.group_gap * frames
         };
         let lane_head = if landscape { LANE_HEAD } else { 0.0 };
         let bands = lane_bands(
@@ -517,7 +617,7 @@ impl Plan {
         } else {
             bands.last().map_or(0.0, |band| band.1)
         };
-        let (main_room, cross_room) = rooms(spec, landscape, top);
+        let (main_room, cross_room) = rooms(spec, landscape, top, model.spacing.margin);
         let mut plan = Self {
             landscape,
             sizes: sizes.clone(),
@@ -554,14 +654,16 @@ impl Plan {
         let lead = LANE_HEAD * f64::from(u8::from(!landscape && !diagram.lanes.is_empty()));
         let gaps = Gaps::new(model, &plan, &ports, landscape);
         let natural = gaps.length(&main_size, graph, lead);
-        let stretch = if natural < main_room && gaps.total() > 0.0 {
-            (1.0 + (main_room - natural) / gaps.total()).min(MAX_STRETCH)
-        } else {
-            1.0
-        };
+        let stretch = gaps.stretch(natural, main_room);
         plan.main_length = gaps.place(&mut plan, &main_size, graph, lead, stretch);
         plan.routes = route(model, &plan, &ports, &gaps, stretch);
-        plan.finish(spec, top, (main_room, cross_room), (natural, cross_needed));
+        let rooms = (main_room, cross_room);
+        plan.finish(
+            spec,
+            (top, model.spacing.margin),
+            rooms,
+            (natural, cross_needed),
+        );
         plan
     }
 
@@ -570,15 +672,15 @@ impl Plan {
     fn finish(
         &mut self,
         spec: &ChartSpec,
-        top: f64,
+        (top, margin): (f64, f64),
         (main_room, cross_room): (f64, f64),
         (main_needed, cross_needed): (f64, f64),
     ) {
         let (page_width, page_height) = (f64::from(spec.width), f64::from(spec.height));
         let landscape = self.landscape;
-        self.main_origin = (if landscape { MARGIN } else { top })
+        self.main_origin = (if landscape { margin } else { top })
             + ((main_room - self.main_length) / 2.0).max(0.0);
-        self.cross_origin = (if landscape { top } else { MARGIN })
+        self.cross_origin = (if landscape { top } else { margin })
             + if self.bands.is_empty() {
                 ((cross_room - self.cross_length) / 2.0).max(0.0)
             } else {
@@ -586,12 +688,12 @@ impl Plan {
             };
         (self.width, self.height) = if landscape {
             (
-                page_width.max(2.0 * MARGIN + main_needed),
+                page_width.max(2.0 * margin + main_needed),
                 page_height.max(top + cross_needed + BOTTOM),
             )
         } else {
             (
-                page_width.max(2.0 * MARGIN + cross_needed),
+                page_width.max(2.0 * margin + cross_needed),
                 page_height.max(top + main_needed + BOTTOM),
             )
         };
@@ -611,7 +713,8 @@ impl Plan {
         clear_frames(model, &mut self.cross, cross_size, landscape);
         straighten(model, &mut self.cross, cross_size, gap, &self.bands, 0.0);
         clear_frames(model, &mut self.cross, cross_size, landscape);
-        self.cross_length = content_length(&model.graph, &self.cross, cross_size, after);
+        self.cross_length = content_length(&model.graph, &self.cross, cross_size, after)
+            .max(frames_reach(model, &self.cross, cross_size, landscape).1);
         self.cross_length
     }
 
@@ -662,8 +765,8 @@ fn content_length(
 }
 
 /// The room the canvas leaves the layout on the main and the cross axis.
-fn rooms(spec: &ChartSpec, landscape: bool, top: f64) -> (f64, f64) {
-    let across = f64::from(spec.width) - 2.0 * MARGIN;
+fn rooms(spec: &ChartSpec, landscape: bool, top: f64, margin: f64) -> (f64, f64) {
+    let across = f64::from(spec.width) - 2.0 * margin;
     let down = f64::from(spec.height) - top - BOTTOM;
     if landscape {
         (across, down)
@@ -698,10 +801,17 @@ fn loop_room(model: &Model, landscape: bool, metrics: &impl TextMetrics) -> Vec<
     model
         .loops
         .iter()
-        .map(|label| match label {
+        .zip(&model.loop_lines)
+        .map(|(label, lines)| match label {
             None => 0.0,
-            Some(_) if landscape => LOOP + 18.0,
-            Some(label) => LOOP + 8.0 + metrics.width(label, EDGE_SIZE).min(EDGE_LABEL),
+            Some(_) if landscape => LOOP + 8.0 + CHIP_LINE * count(lines.len().max(1)),
+            Some(_) => {
+                LOOP + 2.0 * CHIP_REACH
+                    + lines
+                        .iter()
+                        .map(|line| metrics.width(line, EDGE_SIZE))
+                        .fold(0.0, f64::max)
+            }
         })
         .collect()
 }
@@ -1046,10 +1156,27 @@ fn clear_frames(
     }
     let low = (0..graph.items.len())
         .map(|item| cross[item] - cross_size(item) / 2.0)
-        .fold(f64::INFINITY, f64::min);
+        .fold(f64::INFINITY, f64::min)
+        .min(frames_reach(model, cross, cross_size, landscape).0);
     for position in cross.iter_mut() {
         *position -= low;
     }
+}
+
+/// How far the outermost frames reach on the cross axis: their low and their high end.
+fn frames_reach(
+    model: &Model,
+    cross: &[f64],
+    cross_size: &impl Fn(usize) -> f64,
+    landscape: bool,
+) -> (f64, f64) {
+    let diagram = model.diagram;
+    (0..diagram.groups.len())
+        .filter(|group| diagram.groups[*group].parent.is_none())
+        .map(|group| frame_range(diagram, cross, cross_size, group, landscape))
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), (a, b)| {
+            (low.min(a), high.max(b))
+        })
 }
 
 /// Moves `item` to the cross position `target`: alone if its neighbours leave room, else with
@@ -1312,6 +1439,15 @@ impl Gaps {
             tracks,
             frame_after,
             frame_before,
+        }
+    }
+
+    /// How much the gaps grow to fill `room` on the main axis, up to [`MAX_STRETCH`].
+    fn stretch(&self, natural: f64, room: f64) -> f64 {
+        if natural < room && self.total() > 0.0 {
+            (1.0 + (room - natural) / self.total()).min(MAX_STRETCH)
+        } else {
+            1.0
         }
     }
 
@@ -1782,10 +1918,12 @@ impl Plan {
                 (x, y - 12.0 - LINE * last, anchor)
             }
         };
+        let (line, _) = self.page(route.label_at);
         labels.push(Label {
             lines: lines.clone(),
             at: (x, y),
             anchor,
+            beside: (!self.landscape).then_some(line),
         });
     }
 
@@ -1804,6 +1942,7 @@ impl Plan {
             .map(|node| self.node_box(model, node))
             .collect();
         for mut label in labels {
+            label.keep_on_page(self.width, metrics);
             for _ in 0..12 {
                 let (x, y, width, height) = chip_box(&label.lines, label.at, label.anchor, metrics);
                 let Some(other) = placed.iter().find(|other| {
@@ -1886,11 +2025,19 @@ impl Plan {
             true,
             "chartlet-flow-head",
         )));
-        if !label.is_empty() {
+        let lines = &model.loop_lines[node];
+        if !lines.is_empty() {
+            // Beside the loop, the lines centred on it; below it, they run down.
+            let rise = if self.landscape {
+                0.0
+            } else {
+                CHIP_LINE * count(lines.len() - 1) / 2.0
+            };
             labels.push(Label {
-                lines: vec![label.clone()],
-                at: (text.0, text.1),
+                lines: lines.clone(),
+                at: (text.0, text.1 - rise),
                 anchor: text.2,
+                beside: None,
             });
         }
     }

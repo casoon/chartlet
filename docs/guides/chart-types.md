@@ -312,6 +312,12 @@ where anything goes. Like the sequence diagram it is **experimental**.
   where each one leads, with the main path, the lanes and the groups; the data table has one row
   per step with its kind, lane, group and next steps.
 
+**Narrow canvases.** Below 480 pixels — a mobile variant, say — diagrams turn compact: smaller
+margins and gaps, narrower steps whose labels wrap onto two lines, participant names of sequence
+diagrams on two lines instead of shortened, and labels kept on the page by moving them to the
+other side of their edge. A diagram still wider than its canvas grows and is scaled down by the
+page; `canvas_too_small` names the width it needs.
+
 **Look.** Both diagram types share one visual language: every kind of step or participant has
 its own shape and a role color that repeats it — blue for steps and systems, green for start and
 end, amber for decisions, teal for data stores, violet for input and output and for queues, red

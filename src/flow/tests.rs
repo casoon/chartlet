@@ -214,6 +214,38 @@ fn a_loop_to_the_same_step_is_drawn_beside_it() {
 }
 
 #[test]
+fn a_narrow_chart_keeps_frames_and_labels_on_the_page() {
+    let json = include_str!("../../examples/ticket-states.json")
+        .replace("\"width\": 900", "\"width\": 360");
+    let output = svg(&json);
+    let width: f64 = {
+        let start = output.content.find(" width=\"").expect("a width") + 8;
+        output.content[start..]
+            .split('"')
+            .next()
+            .expect("a value")
+            .parse()
+            .expect("a number")
+    };
+    for shape in output.content.split('<').filter(|shape| {
+        shape.contains("class=\"chartlet-flow-group\"")
+            || shape.contains("class=\"chartlet-diagram-chip\"")
+    }) {
+        let number = |name: &str| -> f64 {
+            let start = shape.find(&format!(" {name}=\"")).expect("an attribute") + name.len() + 3;
+            shape[start..]
+                .split('"')
+                .next()
+                .expect("a value")
+                .parse()
+                .expect("a number")
+        };
+        assert!(number("x") >= 0.0, "{shape}");
+        assert!(number("x") + number("width") <= width, "{shape}");
+    }
+}
+
+#[test]
 fn the_text_alternative_follows_the_reading_order() {
     let alternative =
         text_alternative(&ChartSpec::from_json(SPEC).expect("parses")).expect("valid");

@@ -39,6 +39,10 @@ does.
   component kind `security`, a shield in a new red role color.
 - A component or step that hangs off a frame from outside — only receiving from it, or only
   sending into it — stands after or before the frame on the main axis instead of far beside it.
+- Diagrams below 480 pixels, such as mobile variants, are compact: smaller margins and gaps,
+  narrower steps, participant names on two lines instead of shortened, loop labels wrapped,
+  frames and labels kept on the page. A numbered message's label rises above its badge instead
+  of giving up width to it.
 - Where neither orientation fits the canvas, `auto` takes the one that grows it less.
 - Both diagram types share one look: a role color per kind of step or participant on top of its
   shape (CSS custom properties `--chartlet-role-*`), soft shadows, rounded corners on edges, edge
