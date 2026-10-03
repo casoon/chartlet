@@ -71,6 +71,12 @@ const RANGEBAR_STYLE: &str = ".chartlet-range{fill:var(--chartlet-accent);fill-o
 /// Range bars in groups: each group's spans in its palette color.
 const RANGE_GROUP_STYLE: &str = ".chartlet-range-series-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-range-series-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-range-series-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-range-series-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}";
 
+/// Sequence diagrams. `--chartlet-node` fills the participants' boxes, the activation bars and
+/// the fragment tabs; it is declared here rather than in the shared palette for the same reason
+/// as `--chartlet-sea`. Message labels and branch conditions are ringed in the background color,
+/// so that they stay legible where they cross a lifeline.
+const SEQUENCE_STYLE: &str = ".chartlet-root{--chartlet-node:#eef3fd}.chartlet-theme-dark{--chartlet-node:#1a2436}.chartlet-seq-box{fill:var(--chartlet-node);stroke:var(--chartlet-accent);stroke-width:1.5;rx:5px}.chartlet-seq-external{fill:var(--chartlet-background);stroke:var(--chartlet-muted);stroke-dasharray:5 3}.chartlet-seq-rim{fill:none;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-seq-hit{fill:transparent;stroke:none}.chartlet-seq-actor{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}.chartlet-seq-actor-head{fill:var(--chartlet-background);stroke:var(--chartlet-text);stroke-width:1.5}.chartlet-seq-label{font-size:13px;font-weight:600;fill:var(--chartlet-text)}.chartlet-seq-sublabel{font-size:11px;fill:var(--chartlet-muted)}.chartlet-seq-lifeline{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:4 4}.chartlet-seq-activation{fill:var(--chartlet-node);stroke:var(--chartlet-accent);stroke-width:1}.chartlet-seq-message{fill:none;stroke:var(--chartlet-muted);stroke-width:1.5;stroke-linejoin:round}.chartlet-seq-reply{stroke-dasharray:6 4}.chartlet-seq-head{fill:var(--chartlet-muted);stroke:var(--chartlet-muted);stroke-width:1;stroke-linejoin:round}.chartlet-seq-head-open{fill:none;stroke:var(--chartlet-muted);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.chartlet-seq-message-label{font-size:12px;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-seq-frame{fill:none;stroke:var(--chartlet-zero);stroke-width:1}.chartlet-seq-tab{fill:var(--chartlet-node);stroke:var(--chartlet-zero);stroke-width:1}.chartlet-seq-tag{font-size:11px;font-weight:650;fill:var(--chartlet-text)}.chartlet-seq-guard{font-size:11px;fill:var(--chartlet-muted);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-seq-branch{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:5 4}";
+
 const FILTER_STYLE: &str = ".chartlet-wrapper{display:inline-block;max-width:100%}.chartlet-filter{border:none;padding:0;margin:0 0 12px 0}.chartlet-filter legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-filter label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-filter input{margin-right:4px}.chartlet-filter input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-wrapper:has(.chartlet-filter input.series-0:not(:checked)) .chartlet-root [data-series=\"0\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-2:not(:checked)) .chartlet-root [data-series=\"2\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-3:not(:checked)) .chartlet-root [data-series=\"3\"]{display:none}";
 
 /// CSS rules for radio-selectable zoom panels. Only the panel whose radio is checked shows;
@@ -285,9 +291,10 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_rangebar = spec.chart_type == ChartType::Rangebar;
     let is_topicmap = spec.chart_type == ChartType::Topicmap;
     let is_atlas = spec.chart_type == ChartType::Atlas;
+    let is_sequence = spec.chart_type == ChartType::Sequence;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -351,6 +358,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         },
         if is_topicmap { TOPICMAP_STYLE } else { "" },
         if is_atlas { ATLAS_STYLE } else { "" },
+        if is_sequence { SEQUENCE_STYLE } else { "" },
         if is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc) {
             OHLC_STYLE
         } else {
@@ -367,8 +375,10 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// each of `chart_types` in their order. A type's part styles only charts of that type, so the
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
-    use ChartType::{Atlas, Bar, Calendar, Line, Multiples, Rangebar, Stripes, Time, Topicmap};
-    let groups: [(&str, &[ChartType]); 21] = [
+    use ChartType::{
+        Atlas, Bar, Calendar, Line, Multiples, Rangebar, Sequence, Stripes, Time, Topicmap,
+    };
+    let groups: [(&str, &[ChartType]); 22] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -389,6 +399,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (OUTLINE_STYLE, &[Bar]),
         (TOPICMAP_STYLE, &[Topicmap]),
         (ATLAS_STYLE, &[Atlas]),
+        (SEQUENCE_STYLE, &[Sequence]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
@@ -817,6 +828,20 @@ struct TableHooks {
 }
 
 fn table_hooks(spec: &ChartSpec) -> TableHooks {
+    // A sequence diagram's table holds text only: its columns belong to no series and its rows
+    // carry no values.
+    if spec.chart_type == ChartType::Sequence {
+        let table = data_table(spec);
+        return TableHooks {
+            columns: (1..table.columns.len())
+                .map(|index| (index - 1, 0, "text", false))
+                .collect(),
+            x: (0..table.rows.len())
+                .map(|row| f64::from(u32::try_from(row).expect("rows are limited")))
+                .collect(),
+            values: vec![vec![None; table.columns.len() - 1]; table.rows.len()],
+        };
+    }
     let dataset = spec.table_dataset();
     let rows = dataset.categories.len();
     let values = (0..rows)
@@ -1283,6 +1308,9 @@ fn render_data_table(
 /// The data table of a chart as text: its caption, the column heads and one row per category,
 /// each starting with the category, with values written as the chart writes them.
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
+    if spec.chart_type == ChartType::Sequence {
+        return crate::sequence::data_table(spec);
+    }
     let words = spec.locale.words();
     let dataset = spec.table_dataset();
     // A numeric axis is named by its title; it holds no times.
@@ -1297,6 +1325,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Stripes => words.year,
         ChartType::Calendar => words.date,
         ChartType::Bar | ChartType::Line | ChartType::Rangebar => words.category,
+        ChartType::Sequence => unreachable!("a sequence diagram writes its own table"),
     };
     let columns = std::iter::once(first.to_owned())
         .chain(

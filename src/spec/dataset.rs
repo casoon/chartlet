@@ -47,6 +47,9 @@ impl ChartSpec {
             ChartType::Calendar => self.calendar_dataset(),
             ChartType::Rangebar => self.rangebar_dataset(),
             ChartType::Bar | ChartType::Line => self.dataset(),
+            ChartType::Sequence => {
+                unreachable!("a sequence diagram's table holds text, see sequence::data_table")
+            }
         }
     }
 
@@ -365,9 +368,11 @@ impl ChartSpec {
             ChartType::Bar | ChartType::Line | ChartType::Rangebar | ChartType::Multiples => {
                 Some(&self.value_axis)
             }
-            ChartType::Topicmap | ChartType::Atlas | ChartType::Stripes | ChartType::Calendar => {
-                None
-            }
+            ChartType::Topicmap
+            | ChartType::Atlas
+            | ChartType::Stripes
+            | ChartType::Calendar
+            | ChartType::Sequence => None,
         };
         NumberStyle {
             format: self.value_format(),
@@ -414,9 +419,11 @@ impl ChartSpec {
                 .panes
                 .first()
                 .map_or(ValueFormat::Number, |pane| pane.value_axis.format),
-            ChartType::Topicmap | ChartType::Atlas | ChartType::Stripes | ChartType::Calendar => {
-                ValueFormat::Number
-            }
+            ChartType::Topicmap
+            | ChartType::Atlas
+            | ChartType::Stripes
+            | ChartType::Calendar
+            | ChartType::Sequence => ValueFormat::Number,
             ChartType::Bar | ChartType::Line | ChartType::Rangebar | ChartType::Multiples => {
                 self.value_axis.format
             }

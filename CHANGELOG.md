@@ -4,6 +4,25 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Added
+
+- Sequence diagrams (`"type": "sequence"`, experimental), the first of a family of software
+  diagrams: participants in five kinds with their own shapes (service, actor, database, queue,
+  external), calls, replies and asynchronous messages, messages to oneself, activation bars from
+  call to reply, numbered messages, and `alt`/`opt`/`loop`/`par`/`critical`/`break` fragments that
+  nest, with `else` branches. `orientation` draws a diagram in portrait (time running down) or
+  landscape (time running right); `auto`, the default, picks the one that fits the canvas, and a
+  mobile variant picks again at its size. A canvas too small grows, with the warning
+  `canvas_too_small`. The description lists every message in order and the data table has a row
+  per message. New examples `cache-lookup` and `async-export`.
+
+### Fixed
+
+- The social variant scales a chart down into its frame when the chart was drawn larger than
+  the size it was laid out for.
+
 ## [0.7.1] - 2026-10-02
 
 Fixes only, from a render sweep across sizes, languages and variants and three code reviews of

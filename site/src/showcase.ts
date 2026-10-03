@@ -257,6 +257,20 @@ const catalogue = [
       'Three sales channels over eighteen months, laid out twice: at 800 × 450 and at 360 × 420 for containers narrower than 640 pixels, where the legend wraps into two rows. A container query switches between them; caption, source and data table appear once. The output panel on this page is narrower than 640 pixels at every window size, so it shows the mobile variant. Illustrative values.',
   },
   {
+    slug: 'cache-lookup',
+    chart: 'Sequence diagram',
+    useCase: 'Explain a request flow',
+    blurb:
+      'Five participants, each kind in its own shape, and ten numbered messages: calls with filled heads activate their receiver until it replies with a dashed line, asynchronous messages have open heads, and an alt fragment frames the cached and the uncached branch. The description and the data table list every message in order.',
+  },
+  {
+    slug: 'async-export',
+    chart: 'Sequence diagram (landscape)',
+    useCase: 'Fit a flow into a wide format',
+    blurb:
+      'The same notation turned on its side: participants one below the other, time running right, for a wide, low place on the page. With the default orientation, auto, a diagram takes this form by itself wherever only it fits the canvas.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

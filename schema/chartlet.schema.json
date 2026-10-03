@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -93,6 +93,10 @@
       "minItems": 1,
       "maxItems": 100,
       "items": { "$ref": "#/$defs/range" }
+    },
+    "sequence": {
+      "description": "The participants and messages of a type: \"sequence\" diagram.",
+      "$ref": "#/$defs/sequence"
     },
     "topicmap": {
       "description": "Topic areas of a type: \"topicmap\" chart.",
@@ -269,6 +273,17 @@
               { "required": ["panes"] }
             ]
           }
+        },
+        {
+          "required": ["sequence"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
         }
       ]
     },
@@ -286,6 +301,24 @@
       "if": { "properties": { "type": { "const": "rangebar" } } },
       "then": { "required": ["ranges"] },
       "else": { "not": { "required": ["ranges"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "sequence" } } },
+      "then": {
+        "required": ["sequence"],
+        "not": {
+          "anyOf": [
+            { "required": ["zoomSteps"] },
+            { "required": ["orientation"] },
+            { "required": ["categoryAxis"] },
+            { "required": ["valueAxis"] },
+            { "required": ["timeAxis"] },
+            { "required": ["topicmap"] },
+            { "required": ["atlas"] }
+          ]
+        }
+      },
+      "else": { "not": { "required": ["sequence"] } }
     },
     {
       "if": { "properties": { "type": { "const": "multiples" } } },
@@ -366,6 +399,95 @@
     }
   ],
   "$defs": {
+    "identifier": {
+      "description": "What other parts of a diagram refer to an element by: a letter, then letters, digits, hyphens or underscores.",
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+    },
+    "sequence": {
+      "description": "A sequence diagram. orientation auto draws it in portrait (participants side by side, time running down) where that fits the canvas, otherwise in landscape (participants one below the other, time running right) where that fits, otherwise in portrait; a canvas too small for the diagram grows, with the warning canvas_too_small.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["participants", "messages"],
+      "properties": {
+        "participants": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/participant" }
+        },
+        "messages": {
+          "description": "The messages in the order they are sent.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": { "$ref": "#/$defs/message" }
+        },
+        "fragments": {
+          "description": "Frames around runs of consecutive messages; two fragments either nest or do not overlap, at most three deep.",
+          "type": "array",
+          "maxItems": 12,
+          "items": { "$ref": "#/$defs/fragment" }
+        },
+        "numbered": {
+          "description": "Writes each message's number in front of its label.",
+          "type": "boolean",
+          "default": false
+        },
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "participant": {
+      "description": "A participant; each kind has its own shape.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "kind": {
+          "enum": ["actor", "service", "database", "queue", "external"],
+          "default": "service"
+        }
+      }
+    },
+    "message": {
+      "description": "A message from one participant to another, or to itself. A call activates its receiver until the receiver replies.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "label"],
+      "properties": {
+        "from": { "$ref": "#/$defs/identifier" },
+        "to": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "kind": { "enum": ["call", "reply", "async"], "default": "call" }
+      }
+    },
+    "fragment": {
+      "description": "A frame around the messages from and to, counted from 0 and included. Only alt has further branches, each starting at a later message inside the frame.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "from", "to"],
+      "properties": {
+        "kind": { "enum": ["alt", "opt", "loop", "par", "critical", "break"] },
+        "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "from": { "type": "integer", "minimum": 0 },
+        "to": { "type": "integer", "minimum": 0 },
+        "else": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from"],
+            "properties": {
+              "from": { "type": "integer", "minimum": 0 },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 }
+            }
+          }
+        }
+      }
+    },
     "value": {
       "anyOf": [
         { "type": "null" },

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "type": "sequence",
+  "title": "Exporting a report in the background",
+  "source": "Service handbook, export flow",
+  "width": 1160,
+  "height": 400,
+  "sequence": {
+    "orientation": "landscape",
+    "participants": [
+      { "id": "client", "label": "Browser", "kind": "actor" },
+      { "id": "api", "label": "Export API" },
+      { "id": "queue", "label": "Jobs", "kind": "queue" },
+      { "id": "worker", "label": "Worker" },
+      { "id": "files", "label": "File storage", "kind": "external" }
+    ],
+    "messages": [
+      { "from": "client", "to": "api", "label": "POST /exports" },
+      { "from": "api", "to": "queue", "label": "enqueue", "kind": "async" },
+      { "from": "api", "to": "client", "label": "202, job id", "kind": "reply" },
+      { "from": "worker", "to": "queue", "label": "take job" },
+      { "from": "worker", "to": "files", "label": "write report" },
+      { "from": "client", "to": "api", "label": "GET /exports/7" },
+      { "from": "api", "to": "client", "label": "running", "kind": "reply" },
+      { "from": "worker", "to": "api", "label": "done", "kind": "async" },
+      { "from": "client", "to": "api", "label": "GET /exports/7" },
+      { "from": "api", "to": "client", "label": "download link", "kind": "reply" }
+    ],
+    "fragments": [
+      { "kind": "loop", "label": "every 5 s", "from": 5, "to": 6 }
+    ]
+  }
+}

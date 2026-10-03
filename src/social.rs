@@ -67,7 +67,14 @@ impl Frame {
     /// [`Frame::chart_height`], on the canvas. Its root, title, description and stylesheet become
     /// those of the canvas; the tooltips of its marks are left out, an image shows none.
     pub(crate) fn compose(&self, chart: &str) -> String {
-        let (width, height) = (self.chart_width, self.chart_height);
+        // A diagram that needs more room than it was given is drawn larger than that; it is
+        // scaled down into the same place.
+        let (width, height) = root_size(chart);
+        let fit = (f64::from(self.chart_width) / f64::from(width))
+            .min(f64::from(self.chart_height) / f64::from(height))
+            .min(1.0);
+        let scale = format!("{:.4}", SCALE * fit);
+        let scale = scale.trim_end_matches('0').trim_end_matches('.');
         let chart = chart.replacen(
             &format!("width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\""),
             &format!("width=\"{WIDTH}\" height=\"{HEIGHT}\" viewBox=\"0 0 {WIDTH} {HEIGHT}\""),
@@ -107,13 +114,29 @@ impl Frame {
         }
         write!(
             output,
-            "<g transform=\"translate({CHART_LEFT} {}) scale({SCALE})\">{}</g></svg>",
+            "<g transform=\"translate({CHART_LEFT} {}) scale({scale})\">{}</g></svg>",
             self.chart_top,
             without_tooltips(body)
         )
         .expect("writing to String cannot fail");
         output
     }
+}
+
+/// The `width` and `height` on the root of a chart's SVG.
+fn root_size(chart: &str) -> (u32, u32) {
+    let attribute = |name: &str| {
+        let start = chart
+            .find(&format!(" {name}=\""))
+            .expect("the root has a size")
+            + name.len()
+            + 3;
+        let end = start + chart[start..].find('"').expect("an attribute is closed");
+        chart[start..end]
+            .parse()
+            .expect("the size is a whole number")
+    };
+    (attribute("width"), attribute("height"))
 }
 
 /// The title on one line, or on two broken at a space; a second line that is still too wide is

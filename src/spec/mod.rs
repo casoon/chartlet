@@ -3,6 +3,7 @@ mod calendar;
 mod categorical;
 mod dataset;
 mod rangebar;
+mod sequence;
 mod stripes;
 mod timechart;
 mod topicmap;
@@ -19,6 +20,10 @@ pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use rangebar::RangeSpec;
+pub use sequence::{
+    BranchSpec, DiagramOrientation, FragmentKind, FragmentSpec, MessageKind, MessageSpec,
+    ParticipantKind, ParticipantSpec, SequenceSpec,
+};
 pub(crate) use stripes::Diverging;
 pub use stripes::StripesSpec;
 pub use timechart::{
@@ -114,6 +119,10 @@ pub struct ChartSpec {
     /// The daily values of a `type: "calendar"` chart. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub calendar: Option<CalendarSpec>,
+    /// The participants and messages of a `type: "sequence"` diagram. Skipped while absent, like
+    /// `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sequence: Option<SequenceSpec>,
     /// The spans of a `type: "rangebar"` chart, one per category.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ranges: Vec<RangeSpec>,
@@ -248,11 +257,13 @@ pub enum ChartType {
     Rangebar,
     /// Small multiples: several small time charts in a grid, sharing both axes.
     Multiples,
+    /// A sequence diagram: participants and the messages they exchange, in order.
+    Sequence,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -262,6 +273,7 @@ impl ChartType {
         Self::Calendar,
         Self::Rangebar,
         Self::Multiples,
+        Self::Sequence,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -556,6 +568,7 @@ impl ChartSpec {
             ChartType::Stripes => return self.validate_stripes(),
             ChartType::Calendar => return self.validate_calendar(),
             ChartType::Rangebar => return self.validate_rangebar(),
+            ChartType::Sequence => return self.validate_sequence(),
             ChartType::Bar | ChartType::Line => {}
         }
         let warnings = self.validate_data()?;
@@ -1139,6 +1152,7 @@ impl ChartSpec {
             ("/stripes", self.stripes.is_some(), ChartType::Stripes),
             ("/calendar", self.calendar.is_some(), ChartType::Calendar),
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
+            ("/sequence", self.sequence.is_some(), ChartType::Sequence),
             ("/columns", self.columns.is_some(), ChartType::Multiples),
             ("/references", !self.references.is_empty(), ChartType::Bar),
             ("/stack", self.stack.is_some(), ChartType::Bar),
@@ -1180,7 +1194,11 @@ impl ChartSpec {
         }
         if matches!(
             own,
-            ChartType::Stripes | ChartType::Calendar | ChartType::Rangebar | ChartType::Multiples
+            ChartType::Stripes
+                | ChartType::Calendar
+                | ChartType::Rangebar
+                | ChartType::Multiples
+                | ChartType::Sequence
         ) {
             for (field, present, owner) in [
                 ("/topicmap", self.topicmap.is_some(), ChartType::Topicmap),
@@ -1273,6 +1291,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Calendar => "calendar",
         ChartType::Rangebar => "rangebar",
         ChartType::Multiples => "multiples",
+        ChartType::Sequence => "sequence",
     }
 }
 

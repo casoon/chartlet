@@ -1,6 +1,6 @@
 ---
 title: Chart types
-description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, and two kinds of map.
+description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, and sequence diagrams.
 order: 1
 ---
 
@@ -34,6 +34,8 @@ order: 1
 | Range bars with central value | `"type": "rangebar"` with `ranges` | [Warming contributions](../../../showcase/warming-contributions/) |
 | Small multiples with a finding under each panel | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [Which cause matches the warming?](../../../showcase/warming-causes/) |
 | Range bars in groups, on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [Soil animals](../../../showcase/soil-animals/) |
+| Sequence diagram, portrait (experimental) | `"type": "sequence"` with `participants`, `messages` and `fragments` | [Reading an item through the cache](../../../showcase/cache-lookup/) |
+| Sequence diagram, landscape (experimental) | `"orientation": "landscape"` in `sequence` | [Exporting a report in the background](../../../showcase/async-export/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
@@ -199,6 +201,60 @@ them, then the islands.
 
 The center is where a route between areas should start and end: it is rounded like every other
 coordinate in the SVG, and reading it saves recomputing it from the wobbling outline.
+
+## Sequence diagrams
+
+A sequence diagram (`"type": "sequence"`) shows participants and the messages they exchange, in the
+order they are sent. It is **experimental**, like the maps: it opens a family of software diagrams
+whose shared parts may still change between minor releases.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "sequence",
+  "title": "Signing in",
+  "sequence": {
+    "participants": [
+      { "id": "user", "label": "User", "kind": "actor" },
+      { "id": "app", "label": "App", "sublabel": "web" },
+      { "id": "db", "label": "Accounts", "kind": "database" }
+    ],
+    "messages": [
+      { "from": "user", "to": "app", "label": "sign in" },
+      { "from": "app", "to": "db", "label": "find account" },
+      { "from": "db", "to": "app", "label": "account", "kind": "reply" },
+      { "from": "app", "to": "user", "label": "welcome", "kind": "reply" }
+    ],
+    "fragments": [{ "kind": "opt", "label": "known account", "from": 2, "to": 3 }],
+    "numbered": true
+  }
+}
+```
+
+- **Participants** have a `kind`, and every kind its own shape, so that it never rests on color:
+  `service` (a box, the default), `actor` (a figure), `database` (a cylinder), `queue` (a box with a
+  stack behind it) and `external` (a dashed box).
+- **Messages** are a `call` (solid line, filled head; the default), a `reply` (dashed line, open
+  head) or `async` (solid line, open head). A message whose `from` and `to` are the same draws a
+  loop. A call activates its receiver until the receiver replies — or, without a reply, until the
+  last message it takes part in — and the activation is drawn as a bar on its lifeline.
+- **Fragments** frame a run of messages, `from` and `to` counted from 0: `alt`, `opt`, `loop`,
+  `par`, `critical` and `break`, with an optional `label` as condition. Only `alt` takes `else`,
+  further branches that each begin at a later message. Fragments nest up to three deep; two that
+  overlap without one enclosing the other are `fragments_cross`.
+- **Orientation.** `portrait` sets the participants side by side and runs time down, for tall
+  formats; `landscape` sets them one below the other and runs time right, for wide formats. The
+  default, `auto`, takes portrait where the diagram fits the canvas that way, landscape where only
+  that fits, and portrait otherwise — and decides again for a mobile variant at its own size.
+  Spare room spreads the messages out a little; a canvas too small for the diagram grows to the
+  size it needs, with the warning `canvas_too_small` naming that size.
+- **Text alternative.** The description names every participant and lists every message in
+  order, then every fragment; the data table has one row per message with its number, sender,
+  receiver, label, kind and the fragments around it. Arrows carry a tooltip such as
+  `2. App → Accounts: find account`.
+
+Limits: 1–12 participants with unique `id`s (a letter, then letters, digits, `-` or `_`), 1–60
+messages, up to 12 fragments. An `id` no participant has is `unknown_participant`.
 
 ## Time series
 

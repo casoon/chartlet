@@ -27,7 +27,9 @@ pub(crate) use labels::WithReserve;
 use line::layout_line;
 pub(crate) use timechart::{TimeFrame, tooltip_name};
 use timechart::{layout_multiples, layout_time};
-pub(crate) use title::{CONTENT_LEFT, NARROW, horizontal_title, push_title, title_extra};
+pub(crate) use title::{
+    CONTENT_LEFT, NARROW, horizontal_title, push_title, title_extra, two_lines,
+};
 use topicmap::layout_topicmap;
 
 pub(crate) const LABEL_SIZE: f64 = 12.0;
@@ -260,6 +262,7 @@ pub(crate) fn layout(
         (ChartType::Rangebar, _) => crate::rangebar::layout(spec, warnings, metrics),
         (ChartType::Topicmap, _) => layout_topicmap(spec, warnings, metrics),
         (ChartType::Atlas, _) => layout_atlas(spec, warnings, metrics),
+        (ChartType::Sequence, _) => crate::sequence::layout(spec, warnings, metrics),
     }
 }
 

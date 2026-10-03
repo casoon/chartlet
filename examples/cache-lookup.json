@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "type": "sequence",
+  "title": "Reading an item through the cache",
+  "source": "Service handbook, request flow",
+  "width": 800,
+  "height": 560,
+  "sequence": {
+    "participants": [
+      { "id": "user", "label": "Reader", "kind": "actor" },
+      { "id": "api", "label": "Item API", "sublabel": "HTTP :8080" },
+      { "id": "cache", "label": "Cache", "sublabel": "in memory", "kind": "database" },
+      { "id": "db", "label": "Item store", "sublabel": "Postgres", "kind": "database" },
+      { "id": "events", "label": "Change feed", "kind": "queue" }
+    ],
+    "messages": [
+      { "from": "user", "to": "api", "label": "GET /items/42" },
+      { "from": "api", "to": "api", "label": "check token" },
+      { "from": "api", "to": "cache", "label": "get item:42" },
+      { "from": "cache", "to": "api", "label": "hit", "kind": "reply" },
+      { "from": "cache", "to": "api", "label": "miss", "kind": "reply" },
+      { "from": "api", "to": "db", "label": "SELECT item 42" },
+      { "from": "db", "to": "api", "label": "row", "kind": "reply" },
+      { "from": "api", "to": "cache", "label": "set item:42, 5 min", "kind": "async" },
+      { "from": "api", "to": "events", "label": "item.read", "kind": "async" },
+      { "from": "api", "to": "user", "label": "200 OK", "kind": "reply" }
+    ],
+    "fragments": [
+      { "kind": "alt", "label": "cached", "from": 3, "to": 7, "else": [{ "from": 4, "label": "not cached" }] }
+    ],
+    "numbered": true
+  }
+}

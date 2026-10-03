@@ -27,7 +27,7 @@ const TITLE_BLOCK: f64 = 44.0;
 /// Breaks `text` that is wider than `max_width` into two lines at a space: the longest run of
 /// whole words that fits, and the rest, which may still be too wide. `None` when the text fits as
 /// it is, or when not even its first word fits; such a text stays on one line.
-pub(super) fn two_lines<'a>(
+pub(crate) fn two_lines<'a>(
     text: &'a str,
     max_width: f64,
     font_size: f64,

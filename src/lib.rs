@@ -16,6 +16,7 @@ mod rangebar;
 mod reference;
 mod render;
 mod scene;
+mod sequence;
 mod sha256;
 mod social;
 mod spec;
@@ -28,12 +29,13 @@ pub use error::{ChartError, ChartWarning};
 pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
-    AxisScale, CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec,
-    ChartSpec, ChartType, Corner, Curve, Dash, DataPoint, Gaps, LayerSpec, LegendPlacement, Mark,
-    MobileSpec, OhlcPoint, Orientation, PaneSpec, RangeSpec, ReferenceSpec, SeriesSpec, Shape,
-    Stack, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision,
-    Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound,
-    ZoomStep,
+    AxisScale, BranchSpec, CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec,
+    CategoryAxisSpec, ChartSpec, ChartType, Corner, Curve, Dash, DataPoint, DiagramOrientation,
+    FragmentKind, FragmentSpec, Gaps, LayerSpec, LegendPlacement, Mark, MessageKind, MessageSpec,
+    MobileSpec, OhlcPoint, Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec,
+    ReferenceSpec, SequenceSpec, SeriesSpec, Shape, Stack, StripesSpec, Stroke, Theme,
+    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, Tooltips, TopicLinkSpec, TopicMapSpec,
+    TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

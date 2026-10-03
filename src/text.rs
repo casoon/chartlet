@@ -1,7 +1,7 @@
 //! The words chartlet writes itself, per locale: descriptions, legend additions, tooltips and
 //! the HTML figure. Text from the specification is never translated.
 
-use crate::spec::Locale;
+use crate::spec::{FragmentSpec, Locale, MessageKind, ParticipantKind};
 
 pub(crate) struct Words {
     pub value: &'static str,
@@ -48,6 +48,13 @@ pub(crate) struct Words {
     pub close: &'static str,
     pub candle_key: &'static str,
     pub pane: &'static str,
+    /// The columns of a sequence diagram's table.
+    pub number: &'static str,
+    pub sender: &'static str,
+    pub receiver: &'static str,
+    pub message: &'static str,
+    pub message_kind: &'static str,
+    pub fragment: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -96,6 +103,12 @@ const EN: Words = Words {
     close: "close",
     candle_key: "hollow: rising, filled: falling",
     pane: "Pane",
+    number: "No.",
+    sender: "From",
+    receiver: "To",
+    message: "Message",
+    message_kind: "Kind",
+    fragment: "Fragment",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -146,6 +159,12 @@ const DE: Words = Words {
     close: "Schluss",
     candle_key: "hohl: steigend, gefüllt: fallend",
     pane: "Teildiagramm",
+    number: "Nr.",
+    sender: "Von",
+    receiver: "An",
+    message: "Nachricht",
+    message_kind: "Art",
+    fragment: "Abschnitt",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],
@@ -742,6 +761,138 @@ pub(crate) fn atlas_sentence(
                 places => format!(" {places} Orte sind markiert."),
             }
         ),
+    }
+}
+
+/// A participant of a sequence diagram by its label, and by its kind where that is not a plain
+/// system.
+pub(crate) fn participant(locale: Locale, label: &str, kind: ParticipantKind) -> String {
+    let kind = match (locale, kind) {
+        (_, ParticipantKind::Service) => return label.to_owned(),
+        (Locale::En, ParticipantKind::Actor) => "actor",
+        (Locale::En, ParticipantKind::Database) => "database",
+        (Locale::En, ParticipantKind::Queue) => "queue",
+        (Locale::En, ParticipantKind::External) => "external",
+        (Locale::De, ParticipantKind::Actor) => "Akteur",
+        (Locale::De, ParticipantKind::Database) => "Datenbank",
+        (Locale::De, ParticipantKind::Queue) => "Warteschlange",
+        (Locale::De, ParticipantKind::External) => "extern",
+    };
+    format!("{label} ({kind})")
+}
+
+/// Names in a running list: `A`, `A and B`, `A, B and C`.
+fn listed(locale: Locale, names: &[String]) -> String {
+    let and = match locale {
+        Locale::En => "and",
+        Locale::De => "und",
+    };
+    match names {
+        [] => String::new(),
+        [only] => only.clone(),
+        [rest @ .., last] => format!("{} {and} {last}", rest.join(", ")),
+    }
+}
+
+/// The opening sentence of a sequence diagram: its participants and how many messages follow.
+pub(crate) fn sequence_opening(locale: Locale, participants: &[String], messages: usize) -> String {
+    let count = participants.len();
+    let names = listed(locale, participants);
+    match locale {
+        Locale::En => format!(
+            "Sequence diagram with {count} participant{}: {names}. {messages} message{}, in order:",
+            plural(count, "", "s"),
+            plural(messages, "", "s"),
+        ),
+        Locale::De => format!(
+            "Sequenzdiagramm mit {count} {}: {names}. {messages} {}, in Reihenfolge:",
+            plural(count, "Beteiligtem", "Beteiligten"),
+            plural(messages, "Nachricht", "Nachrichten"),
+        ),
+    }
+}
+
+/// One message of a sequence diagram as a sentence; `receiver` is `None` for a message to its
+/// sender.
+pub(crate) fn sequence_message(
+    locale: Locale,
+    number: usize,
+    sender: &str,
+    receiver: Option<&str>,
+    label: &str,
+    kind: MessageKind,
+) -> String {
+    let kind = match (locale, kind) {
+        (_, MessageKind::Call) => "",
+        (Locale::En, MessageKind::Reply) => " (reply)",
+        (Locale::En, MessageKind::Async) => " (asynchronous)",
+        (Locale::De, MessageKind::Reply) => " (Antwort)",
+        (Locale::De, MessageKind::Async) => " (asynchron)",
+    };
+    match (locale, receiver) {
+        (Locale::En, Some(receiver)) => format!("{number}. {sender} to {receiver}: {label}{kind}."),
+        (Locale::En, None) => format!("{number}. {sender} to itself: {label}{kind}."),
+        (Locale::De, Some(receiver)) => format!("{number}. {sender} an {receiver}: {label}{kind}."),
+        (Locale::De, None) => format!("{number}. {sender} an sich selbst: {label}{kind}."),
+    }
+}
+
+/// How a message is sent, for the data table.
+pub(crate) const fn message_kind(locale: Locale, kind: MessageKind) -> &'static str {
+    match (locale, kind) {
+        (Locale::En, MessageKind::Call) => "call",
+        (Locale::En, MessageKind::Reply) => "reply",
+        (Locale::En, MessageKind::Async) => "asynchronous",
+        (Locale::De, MessageKind::Call) => "Aufruf",
+        (Locale::De, MessageKind::Reply) => "Antwort",
+        (Locale::De, MessageKind::Async) => "asynchron",
+    }
+}
+
+/// The branch of an `alt` fragment that has no label of its own.
+pub(crate) const fn otherwise(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => "else",
+        Locale::De => "sonst",
+    }
+}
+
+/// Messages counted from 1: `message 3` or `messages 2–4`.
+fn message_range(locale: Locale, from: usize, to: usize) -> String {
+    match (locale, from == to) {
+        (Locale::En, true) => format!("message {}", from + 1),
+        (Locale::En, false) => format!("messages {}–{}", from + 1, to + 1),
+        (Locale::De, true) => format!("Nachricht {}", from + 1),
+        (Locale::De, false) => format!("Nachrichten {}–{}", from + 1, to + 1),
+    }
+}
+
+/// A fragment of a sequence diagram as a sentence: its kind and label, the messages it frames,
+/// and where each further branch begins.
+pub(crate) fn fragment(locale: Locale, fragment: &FragmentSpec) -> String {
+    let label = fragment
+        .label
+        .as_ref()
+        .map_or_else(String::new, |label| match locale {
+            Locale::En => format!(" \"{label}\""),
+            Locale::De => format!(" „{label}“"),
+        });
+    let range = message_range(locale, fragment.from, fragment.to);
+    let branches: String = fragment
+        .branches
+        .iter()
+        .map(|branch| {
+            let label = branch.label.as_deref().unwrap_or(otherwise(locale));
+            match locale {
+                Locale::En => format!(", else \"{label}\" from message {}", branch.from + 1),
+                Locale::De => format!(", sonst „{label}“ ab Nachricht {}", branch.from + 1),
+            }
+        })
+        .collect();
+    let keyword = fragment.kind.keyword();
+    match locale {
+        Locale::En => format!("Fragment {keyword}{label} spans {range}{branches}."),
+        Locale::De => format!("Abschnitt {keyword}{label} umfasst {range}{branches}."),
     }
 }
 
