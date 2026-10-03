@@ -1,12 +1,14 @@
 # chartlet
 
-chartlet compiles a small JSON chart specification into a finished, accessible chart at build
-time. You get plain SVG, or an HTML figure with caption, source and data table. Nothing runs in
-the browser: no chart JavaScript, no hydration, no layout shift.
+chartlet compiles a small JSON specification into a finished, accessible chart or software
+diagram at build time. You get plain SVG, or an HTML figure with caption, source and data table.
+Nothing runs in the browser: no chart JavaScript, no hydration, no layout shift.
 
 **Website and documentation:** [casoon.github.io/chartlet](https://casoon.github.io/chartlet/)
 
 ![Grouped bar chart comparing budget and actual costs from January to April](examples/budget-vs-actual.svg)
+
+![Flow chart of a release process in three lanes, laid out by chartlet](examples/release-flow.svg)
 
 - **Accessible by default:** every chart carries a title and a generated description of the
   data, and the HTML output always includes the complete data as a table.
@@ -14,10 +16,14 @@ the browser: no chart JavaScript, no hydration, no layout shift.
   diffed and cached like any other build artifact.
 - **Honest about problems:** invalid input is rejected with a code, a path and a fix; layout
   compromises such as shortened labels are reported as warnings instead of happening silently.
+- **Diagrams laid out for you:** sequence, flow, state and architecture diagrams come from a
+  description of what is connected; chartlet places every box and routes every edge, in portrait
+  or landscape, and lists the whole structure in the data table.
 
 > **Status:** 0.7. Bar charts (single, grouped and stacked, vertical and horizontal), categorical
 > line charts, time series with uncertainty bands, reference lines, points and stacked areas,
-> warming stripes, calendar heatmaps, range bars and small multiples are supported. Until 1.0, a minor release (0.8, 0.9, …) may still change the specification; a
+> warming stripes, calendar heatmaps, range bars and small multiples are supported, and — new and
+> experimental — sequence, flow, state and architecture diagrams. Until 1.0, a minor release (0.8, 0.9, …) may still change the specification; a
 > patch release never does.
 
 ## Quick start
@@ -86,6 +92,12 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
 | Small multiples with a finding under each panel, one column on phones | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
+| Sequence diagram, portrait (experimental) | `"type": "sequence"` with `participants`, `messages`, `fragments` | [cache-lookup](examples/cache-lookup.json) |
+| Sequence diagram, landscape (experimental) | `"orientation": "landscape"` | [async-export](examples/async-export.json) |
+| Flow chart in lanes with loops back and a group (experimental) | `"type": "flow"` with `nodes`, `edges`, `lanes`, `groups`, `mainPath` | [release-flow](examples/release-flow.json) |
+| Flow chart turned landscape by a wide canvas (experimental) | `"orientation": "auto"` | [order-flow](examples/order-flow.json) |
+| State diagram with a composite state, a choice and final states (experimental) | `"type": "state"` with `states`, `transitions`, `initial` | [ticket-states](examples/ticket-states.json) |
+| Architecture diagram in nested boundaries (experimental) | `"type": "architecture"` with `components`, `connections`, `boundaries` | [shop-architecture](examples/shop-architecture.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 | Compact chart for a panel in a grid of columns | `"width": 240`, `"height": 180` (from 200 × 160 px: narrower gutter, same text size), `"timeAxis": { "step": 50, "min": "1850" }` for the ticks the panel's claim needs, `"stroke": "medium"`, `"valueAxis": { "unit": "W/m²" }` at the top tick instead of an axis title | – |
 
@@ -153,6 +165,54 @@ entry of `ranges` (`low`, `high`, optional `mid` and `modeled`), vertical or hor
   ]
 }
 ```
+
+## Software diagrams
+
+Four diagram types describe software rather than data. The specification says only what exists
+and what is connected; chartlet lays the diagram out — layers along the flow, edges routed around
+the boxes, the main path kept straight, cycles drawn back against the flow — and writes the same
+accessible output as for a chart.
+
+| Type | Elements |
+|---|---|
+| `sequence` | participants (`service`, `actor`, `database`, `queue`, `external`), messages (`call`, `reply`, `async`), activation bars, fragments (`alt` with `else`, `opt`, `loop`, `par`, `critical`, `break`), numbered messages |
+| `flow` | steps (`process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external`), labelled edges, lanes, groups, a main path |
+| `state` | states, choices, composite and final states, an initial state, transitions `event [guard] / action` |
+| `architecture` | components (`person`, `frontend`, `service`, `database`, `queue`, `storage`, `cache`, `security`, `external`), connections with a technology, nested boundaries |
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Publishing a post",
+  "flow": {
+    "nodes": [
+      { "id": "draft", "label": "Draft", "kind": "start" },
+      { "id": "check", "label": "Looks good?", "kind": "decision" },
+      { "id": "edit", "label": "Edit" },
+      { "id": "live", "label": "Published", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "draft", "to": "check" },
+      { "from": "check", "to": "live", "label": "yes" },
+      { "from": "check", "to": "edit", "label": "no" },
+      { "from": "edit", "to": "check", "label": "again" }
+    ],
+    "mainPath": ["draft", "check", "live"]
+  }
+}
+```
+
+- **Portrait or landscape:** `orientation` runs a diagram down or right; `auto` picks what fits
+  the canvas, and a mobile variant decides again. Below 480 pixels diagrams turn compact.
+- **Shapes and roles:** every kind has its own shape and a role color on top of it, so meaning
+  never rests on color alone; the colors are CSS custom properties a page can override.
+- **Text alternative:** the description and the data table list every message, step, transition
+  or component in reading order.
+- **Focus:** in the HTML output a click on a node, or a choice in the "Focus" list, keeps the node
+  and its neighbours and fades the rest — without a script.
+
+See [Chart types](docs/guides/chart-types.md#sequence-diagrams) for every field.
 
 ## Interaction without JavaScript
 
@@ -276,6 +336,9 @@ Warnings are written to standard error, and the chart is still produced:
 | `realm_without_structure` | A realm holds a single region, so it has no inner structure to show. |
 | `more_places_than_value` | A region lists more places than its value. |
 | `label_overlap` | The label of a zone, reference line or point marker overlaps another annotation label, crosses a data line, or reaches outside the plot; the label is kept. |
+| `canvas_too_small` | A diagram does not fit its canvas in either orientation and was drawn larger; the message names the size it needs. |
+| `group_overlap` | A step outside a group or boundary lies inside its frame. |
+| `unreachable_state` | A state diagram has an initial state, and no transition leads to this state. |
 
 ## Astro
 
@@ -303,7 +366,8 @@ Astro, Cloudflare Workers and Vite, see [JavaScript runtimes](docs/guides/javasc
 
 [`@casoon/chartlet-mcp`](packages/chartlet-mcp/README.md) is an MCP server for AI assistants:
 the assistant inspects the data and drafts a specification, chartlet validates and compiles it.
-No model runs in the server and the data is never changed. See [AI agents](docs/guides/ai-agents.md).
+No model runs in the server and the data is never changed. For software diagrams,
+`chartlet_diagram_starter` hands the assistant a valid starting specification per type. See [AI agents](docs/guides/ai-agents.md).
 
 ## Rust
 
@@ -329,7 +393,8 @@ widths differ noticeably from the built-in profile.
 
 - You need continuous zooming, panning, cross-filtering or live updates. (A crosshair with values, series toggles, scroll stations and step-by-step playback come from the optional `@casoon/chartlet/interactive` module, which only reads the static output.)
 - The data changes at runtime rather than at build time.
-- You need maps, networks, 3D charts or chart types beyond the ones listed above.
+- You need geographic maps, 3D charts or chart types beyond the ones listed above, or diagrams
+  you place by hand, with more than about 40 boxes.
 - You want to explore data rather than publish a finished chart.
 
 ## License

@@ -17,6 +17,16 @@ Browsers without `:has()` support simply keep every series visible.
 
 Try it on [Budget vs. actual](../../../showcase/budget-vs-actual/).
 
+## Focus on a diagram node
+
+Sequence, flow, state and architecture diagrams get a "Focus" disclosure above the figure with a
+radio button per node, and a label of each button laid over its node. Choosing a node — in the
+list, or with a click or tap on the node — keeps it, its neighbours and the edges between them
+and fades the rest; "Show all" brings everything back. CSS `:has()` does the work; browsers
+without it show the diagram unchanged.
+
+Try it on [From commit to release](../../../showcase/release-flow/).
+
 ## Zoom steps
 
 Add two to four `zoomSteps` to pre-compute narrower views of the same chart. The HTML output renders

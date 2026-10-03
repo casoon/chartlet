@@ -20,6 +20,14 @@ order: 4
   switches visuals off can hide the graphic and keep the table. A host that wraps the SVG profile
   in its own figure gets the description and the table as data with `alternative: true` (see
   [JavaScript runtimes](../javascript/)).
+- Diagrams are described by their structure: the description names every participant, step,
+  state or component in reading order and says where each one leads, and the data table has a
+  row per message, step, transition or component. Every kind of element has its own shape, so
+  that its role never rests on its color, and the role colors keep at least 3:1 against the
+  background in both themes.
+- The focus of a diagram is a group of radio buttons in a disclosure above the figure, operated
+  with the usual keyboard; the labels laid over the nodes only give a pointer a larger place to
+  choose them. The SVG stays a single image.
 - Text is never removed silently: shortened labels and omitted value labels produce warnings, and
   the full text stays in the specification and the data table.
 

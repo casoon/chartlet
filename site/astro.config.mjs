@@ -10,9 +10,9 @@ export default defineConfig({
     casoonPages({
       name: 'chartlet',
       description:
-        'Compiles a small JSON specification into a deterministic, accessible SVG or HTML chart at build time.',
+        'Compiles a small JSON specification into a deterministic, accessible SVG or HTML chart or software diagram at build time.',
       repo: 'casoon/chartlet',
-      version: '0.1.0',
+      version: '0.7.1',
       license: 'MIT',
       packages: [
         { label: 'crates.io', href: 'https://crates.io/crates/chartlet' },

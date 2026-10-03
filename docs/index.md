@@ -4,14 +4,15 @@ description: What chartlet does, what it supports, and when another tool is the 
 order: 0
 ---
 
-chartlet compiles a small JSON chart specification into a finished, accessible chart at build
-time: plain SVG, or an HTML figure with caption, source and data table. Nothing runs in the
+chartlet compiles a small JSON specification into a finished, accessible chart or software
+diagram at build time: plain SVG, or an HTML figure with caption, source and data table. Nothing runs in the
 browser – no chart JavaScript, no hydration, no layout shift.
 
 **Status:** 0.7. Bar charts (single and grouped, vertical and horizontal), categorical
 line charts, time series with uncertainty bands and reference lines, small multiples, warming
 stripes, calendar heatmaps and range bars are supported, plus two map-like types
-(topic map and knowledge landscape, both experimental). Until 1.0, a minor release (0.8, 0.9, …) may still change
+(topic map and knowledge landscape, both experimental), and sequence, flow, state and
+architecture diagrams that chartlet lays out itself (experimental). Until 1.0, a minor release (0.8, 0.9, …) may still change
 the specification; a patch release never does.
 
 ## Principles
@@ -29,7 +30,8 @@ the specification; a patch release never does.
   values, series toggles, scroll stations and step-by-step playback come from the optional
   [`@casoon/chartlet/interactive`](guides/interaction/) module, which only reads the static output.
 - The data changes at runtime rather than at build time.
-- You need geographic maps, networks, 3D charts, scatter plots or pie charts.
+- You need geographic maps, 3D charts, scatter plots or pie charts, or diagrams you place by
+  hand, with more than about 40 boxes.
 - You want to explore data rather than publish a finished chart.
 
 ## How the docs are organised

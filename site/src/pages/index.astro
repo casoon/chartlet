@@ -15,6 +15,7 @@ import { render, spec } from '../showcase';
 
 const hero = render(spec('budget-vs-actual'), 'hero', 'svg');
 const trend = render(spec('monthly-trend'), 'build-output');
+const diagram = render(spec('release-flow'), 'build-output-diagram');
 
 const specJson = `{
   "schemaVersion": 1,
@@ -37,8 +38,8 @@ import revenue from '../data/monthly-revenue.json';
 
 <Base>
   <Hero
-    title="Accessible charts, compiled at build time."
-    lead="chartlet turns a small JSON specification into plain SVG or an HTML figure with caption, source and data table. No chart JavaScript, no hydration, no layout shift – and the same bytes on every build."
+    title="Accessible charts and diagrams, compiled at build time."
+    lead="chartlet turns a small JSON specification into plain SVG or an HTML figure with caption, source and data table – data charts, and sequence, flow, state and architecture diagrams it lays out itself. No chart JavaScript, no hydration, no layout shift – and the same bytes on every build."
   >
     <Install
       commands={[
@@ -48,7 +49,7 @@ import revenue from '../data/monthly-revenue.json';
     />
     <Badges>
       <Badge>MIT</Badge>
-      <Badge tone="brand">0.1</Badge>
+      <Badge tone="brand">0.7</Badge>
       <Badge>crates.io 0.7.1</Badge>
       <Badge>npm 0.7.1</Badge>
       <Badge>Rust 1.88+</Badge>
@@ -59,9 +60,9 @@ import revenue from '../data/monthly-revenue.json';
   <Facts
     items={[
       { value: '0', label: 'bytes of chart JavaScript in the browser' },
-      { value: '13', label: 'example charts, also the golden-file test inputs' },
+      { value: '42', label: 'examples, also the golden-file test inputs' },
       { value: '4.5:1', label: 'minimum contrast of every series colour on white' },
-      { value: '4', label: 'series per chart, up to 100 categories' },
+      { value: '4', label: 'kinds of software diagram, laid out by chartlet' },
     ]}
   />
 
@@ -81,7 +82,15 @@ import revenue from '../data/monthly-revenue.json';
       },
       {
         title: 'Interaction without JavaScript',
-        body: 'Series filters, area selection on a topic map and pre-rendered zoom steps use native controls and CSS; every mark has a native tooltip.',
+        body: 'Series filters, area selection on a topic map, focus on a diagram node and pre-rendered zoom steps use native controls and CSS; every mark has a native tooltip.',
+      },
+      {
+        title: 'Diagrams laid out for you',
+        body: 'Sequence, flow, state and architecture diagrams come from what is connected. chartlet places the boxes, routes the edges, keeps the main path straight and turns the diagram to portrait or landscape to fit.',
+      },
+      {
+        title: 'One structure, many outputs',
+        body: 'Desktop, mobile, print and social variants and a PNG come from the same specification, and every diagram lists its whole structure in the data table.',
       },
     ]}
   />
@@ -91,6 +100,13 @@ import revenue from '../data/monthly-revenue.json';
     file="examples/monthly-trend.json"
   >
     <Fragment set:html={trend.html} />
+  </BuildOutput>
+
+  <BuildOutput
+    caption="Diagrams too: this flow chart is laid out by chartlet from steps and edges alone. Click a step, or pick one under Focus, to see its neighbourhood."
+    file="examples/release-flow.json"
+  >
+    <Fragment set:html={diagram.html} />
   </BuildOutput>
 
   <Quickstart

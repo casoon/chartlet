@@ -40,6 +40,11 @@ For Claude Desktop and project configuration, see the
   times. The result says that it is computed, not interpreted; conclusions about causes or
   trends stay with the reader.
 
+- `chartlet_diagram_starter` returns, for `sequence`, `flow`, `state` or `architecture`, a valid
+  starting specification, the kinds every element can take with the shape each is drawn in, and
+  notes on ids, layout and orientation. For a diagram, `chartlet_explain` adds its structure:
+  the counts of its elements and every row of its data table.
+
 The resource `chartlet://schema` holds the [specification](../reference/specification.md)
 schema.
 
