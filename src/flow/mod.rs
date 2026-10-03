@@ -20,7 +20,7 @@ use crate::{
     error::ChartWarning,
     layout::{count, push_title, title_extra},
     metrics::TextMetrics,
-    scene::{Element, Line, Rect, Scene, Text, TextAnchor},
+    scene::{Circle, Element, Line, Rect, Scene, Text, TextAnchor},
     spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind},
     text,
 };
@@ -54,6 +54,8 @@ const GROUP_HEAD: f64 = 16.0;
 /// Inset of the steps from the sides of their lane, and the room for a lane's name.
 const LANE_PAD: f64 = 16.0;
 const LANE_HEAD: f64 = 26.0;
+/// The diameter of a state machine's initial node.
+const INITIAL: f64 = 20.0;
 /// How far the loop of an edge from a step to itself reaches out.
 const LOOP: f64 = 22.0;
 /// Growth of the gaps between layers when the canvas leaves room.
@@ -64,11 +66,20 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
-    let flow = flow(spec);
+    layout_diagram(spec, &Diagram::from_flow(flow(spec)), warnings, metrics)
+}
+
+/// Lays out and draws `diagram`, whatever specification it comes from.
+pub(crate) fn layout_diagram(
+    spec: &ChartSpec,
+    diagram: &Diagram,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Scene {
     let width = f64::from(spec.width);
     let top = 56.0 + title_extra(spec, width - 2.0 * MARGIN, metrics);
-    let model = Model::new(flow, metrics, warnings);
-    let landscape = match flow.orientation {
+    let model = Model::new(diagram, metrics, warnings);
+    let landscape = match diagram.orientation {
         DiagramOrientation::Portrait => false,
         DiagramOrientation::Landscape => true,
         DiagramOrientation::Auto => {
@@ -106,9 +117,129 @@ fn flow(spec: &ChartSpec) -> &FlowSpec {
         .expect("validated flow charts carry a flow block")
 }
 
+/// A diagram for the layered layout, whatever specification it comes from: steps with a shape,
+/// edges between them, and the lanes and groups the steps name by index.
+pub(crate) struct Diagram {
+    pub nodes: Vec<Node>,
+    pub edges: Vec<Edge>,
+    pub lanes: Vec<String>,
+    pub groups: Vec<Group>,
+    pub orientation: DiagramOrientation,
+}
+
+pub(crate) struct Node {
+    pub label: String,
+    pub sublabel: Option<String>,
+    pub shape: Shape,
+    pub lane: Option<usize>,
+    pub group: Option<usize>,
+    /// Where the node stands in the specification, for warnings about its texts.
+    pub path: String,
+}
+
+pub(crate) struct Edge {
+    pub from: usize,
+    pub to: usize,
+    pub label: Option<String>,
+    pub dash: Option<Dash>,
+    /// Whether the edge belongs to the main path.
+    pub main: bool,
+    /// Where the edge's label stands in the specification, for warnings about it.
+    pub label_path: String,
+}
+
+pub(crate) struct Group {
+    pub label: String,
+    pub path: String,
+}
+
+/// How a node is drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Shape {
+    Start,
+    End,
+    Process,
+    Decision,
+    Io,
+    Subprocess,
+    Store,
+    External,
+    /// Where a state machine begins: a small filled circle without a label inside.
+    Initial,
+    /// A state: a box with well rounded corners.
+    State,
+    /// A final state: a state with a double outline.
+    Final,
+}
+
+impl From<NodeKind> for Shape {
+    fn from(kind: NodeKind) -> Self {
+        match kind {
+            NodeKind::Start => Self::Start,
+            NodeKind::End => Self::End,
+            NodeKind::Process => Self::Process,
+            NodeKind::Decision => Self::Decision,
+            NodeKind::Io => Self::Io,
+            NodeKind::Subprocess => Self::Subprocess,
+            NodeKind::Store => Self::Store,
+            NodeKind::External => Self::External,
+        }
+    }
+}
+
+impl Diagram {
+    pub(crate) fn from_flow(flow: &FlowSpec) -> Self {
+        let ends = flow.ends();
+        Self {
+            nodes: flow
+                .nodes
+                .iter()
+                .enumerate()
+                .map(|(index, node)| Node {
+                    label: node.label.clone(),
+                    sublabel: node.sublabel.clone(),
+                    shape: node.kind.into(),
+                    lane: flow.lane_of(index),
+                    group: flow.group_of(index),
+                    path: format!("/flow/nodes/{index}"),
+                })
+                .collect(),
+            edges: flow
+                .edges
+                .iter()
+                .zip(ends)
+                .enumerate()
+                .map(|(index, (edge, (from, to)))| Edge {
+                    from,
+                    to,
+                    label: edge.label.clone(),
+                    dash: edge.dash,
+                    main: flow.on_main_path(index),
+                    label_path: format!("/flow/edges/{index}/label"),
+                })
+                .collect(),
+            lanes: flow.lanes.iter().map(|lane| lane.label.clone()).collect(),
+            groups: flow
+                .groups
+                .iter()
+                .enumerate()
+                .map(|(index, group)| Group {
+                    label: group.label.clone(),
+                    path: format!("/flow/groups/{index}"),
+                })
+                .collect(),
+            orientation: flow.orientation,
+        }
+    }
+
+    fn ends(&self) -> Vec<(usize, usize)> {
+        self.edges.iter().map(|edge| (edge.from, edge.to)).collect()
+    }
+}
+
 /// What both orientations need: the layered graph, and every text measured and wrapped.
 struct Model<'a> {
-    flow: &'a FlowSpec,
+    diagram: &'a Diagram,
     ends: Vec<(usize, usize)>,
     graph: Graph,
     /// Each step's label on one or two lines, and its box: width and height on the page.
@@ -123,24 +254,30 @@ struct Model<'a> {
 
 impl<'a> Model<'a> {
     fn new(
-        flow: &'a FlowSpec,
+        diagram: &'a Diagram,
         metrics: &impl TextMetrics,
         warnings: &mut Vec<ChartWarning>,
     ) -> Self {
-        let ends = flow.ends();
-        let graph = Graph::new(flow, &ends);
-        let mut labels = Vec::with_capacity(flow.nodes.len());
-        let mut sizes = Vec::with_capacity(flow.nodes.len());
-        for (index, node) in flow.nodes.iter().enumerate() {
-            let (extra_width, extra_height) = match node.kind {
-                NodeKind::Decision => (48.0, 24.0),
-                NodeKind::Io => (20.0, 0.0),
-                NodeKind::Subprocess => (16.0, 0.0),
-                NodeKind::Store => (0.0, 10.0),
+        let ends = diagram.ends();
+        let graph = Graph::new(diagram);
+        let mut labels = Vec::with_capacity(diagram.nodes.len());
+        let mut sizes = Vec::with_capacity(diagram.nodes.len());
+        for node in &diagram.nodes {
+            if node.shape == Shape::Initial {
+                labels.push(Vec::new());
+                sizes.push((INITIAL, INITIAL));
+                continue;
+            }
+            let (extra_width, extra_height) = match node.shape {
+                Shape::Decision => (48.0, 24.0),
+                Shape::Io => (20.0, 0.0),
+                Shape::Subprocess => (16.0, 0.0),
+                Shape::Store => (0.0, 10.0),
+                Shape::Final => (8.0, 8.0),
                 _ => (0.0, 0.0),
             };
             let room = MAX_NODE - 2.0 * PAD;
-            let path = format!("/flow/nodes/{index}/label");
+            let path = format!("{}/label", node.path);
             let lines = wrap(&node.label, room, LABEL_SIZE, metrics, warnings, &path);
             let text = lines
                 .iter()
@@ -159,12 +296,18 @@ impl<'a> Model<'a> {
             labels.push(lines);
             sizes.push((width, height));
         }
-        let mut edge_labels = Vec::with_capacity(flow.edges.len());
-        let mut edge_widths = Vec::with_capacity(flow.edges.len());
-        for (index, edge) in flow.edges.iter().enumerate() {
+        let mut edge_labels = Vec::with_capacity(diagram.edges.len());
+        let mut edge_widths = Vec::with_capacity(diagram.edges.len());
+        for edge in &diagram.edges {
             let lines = edge.label.as_ref().map_or_else(Vec::new, |label| {
-                let path = format!("/flow/edges/{index}/label");
-                wrap(label, EDGE_LABEL, EDGE_SIZE, metrics, warnings, &path)
+                wrap(
+                    label,
+                    EDGE_LABEL,
+                    EDGE_SIZE,
+                    metrics,
+                    warnings,
+                    &edge.label_path,
+                )
             });
             edge_widths.push(
                 lines
@@ -174,9 +317,9 @@ impl<'a> Model<'a> {
             );
             edge_labels.push(lines);
         }
-        let loops = (0..flow.nodes.len())
+        let loops = (0..diagram.nodes.len())
             .map(|node| {
-                let labels: Vec<&str> = flow
+                let labels: Vec<&str> = diagram
                     .edges
                     .iter()
                     .zip(&ends)
@@ -193,7 +336,7 @@ impl<'a> Model<'a> {
             })
             .collect();
         Self {
-            flow,
+            diagram,
             ends,
             graph,
             labels,
@@ -216,6 +359,9 @@ struct Route {
     /// Whether the label goes on the side of larger cross positions: the side of its port away
     /// from the middle of the step, so that it keeps clear of the step's other edges.
     after: bool,
+    /// How far the label moves further to that side, past the other edges that meet the same
+    /// side of the step there.
+    clear: f64,
 }
 
 /// One orientation of the layout, in main and cross coordinates.
@@ -250,17 +396,17 @@ impl Plan {
         metrics: &impl TextMetrics,
     ) -> Self {
         let graph = &model.graph;
-        let flow = model.flow;
+        let diagram = model.diagram;
         let sizes = step_sizes(model, landscape);
-        let cross_size = |item: usize| {
-            graph.items[item].node.map_or(0.0, |node| {
-                if landscape {
-                    sizes[node].1
-                } else {
-                    sizes[node].0
-                }
-            })
+        // A step's size across the layers and along the flow.
+        let across = |node: usize| {
+            if landscape {
+                sizes[node].1
+            } else {
+                sizes[node].0
+            }
         };
+        let cross_size = |item: usize| graph.items[item].node.map_or(0.0, across);
         let main_size = |node: usize| {
             if landscape {
                 sizes[node].0
@@ -286,7 +432,15 @@ impl Plan {
                 + if grouped { GROUP_GAP } else { 0.0 }
         };
         let lane_head = if landscape { LANE_HEAD } else { 0.0 };
-        let bands = lane_bands(flow, graph, &cross_size, &gap, &after, lane_head, metrics);
+        let bands = lane_bands(
+            diagram,
+            graph,
+            &cross_size,
+            &gap,
+            &after,
+            lane_head,
+            metrics,
+        );
         let cross = place(graph, &cross_size, &gap, &bands, lane_head);
         let cross_length = if bands.is_empty() {
             graph
@@ -326,7 +480,7 @@ impl Plan {
             lane_head,
         );
         let ports = Ports::new(graph, &plan.cross, &cross_size, model, landscape);
-        let lead = if !landscape && !flow.lanes.is_empty() {
+        let lead = if !landscape && !diagram.lanes.is_empty() {
             LANE_HEAD
         } else {
             0.0
@@ -457,7 +611,7 @@ fn loop_room(model: &Model, landscape: bool, metrics: &impl TextMetrics) -> Vec<
 
 /// The lanes on the cross axis: each as wide as its widest layer needs, and as its name.
 fn lane_bands(
-    flow: &FlowSpec,
+    diagram: &Diagram,
     graph: &Graph,
     cross_size: &impl Fn(usize) -> f64,
     gap: &impl Fn(usize, usize) -> f64,
@@ -465,14 +619,14 @@ fn lane_bands(
     lane_head: f64,
     metrics: &impl TextMetrics,
 ) -> Vec<(f64, f64)> {
-    let mut widths: Vec<f64> = flow
+    let mut widths: Vec<f64> = diagram
         .lanes
         .iter()
         .map(|lane| {
             if lane_head > 0.0 {
                 0.0
             } else {
-                metrics.width(&lane.label, SUBLABEL_SIZE) + 2.0 * LANE_PAD
+                metrics.width(lane, SUBLABEL_SIZE) + 2.0 * LANE_PAD
             }
         })
         .collect();
@@ -610,15 +764,8 @@ fn straighten(
     lane_head: f64,
 ) {
     let graph = &model.graph;
-    let flow = model.flow;
-    let edges: Vec<usize> = flow
-        .main_path
-        .windows(2)
-        .filter_map(|pair| {
-            flow.edges
-                .iter()
-                .position(|edge| edge.from == pair[0] && edge.to == pair[1])
-        })
+    let edges: Vec<usize> = (0..model.diagram.edges.len())
+        .filter(|edge| model.diagram.edges[*edge].main)
         .collect();
     // Moving one item may make room for, or take room from, another; a few rounds settle it.
     for _ in 0..3 {
@@ -775,7 +922,7 @@ impl Ports {
         let edges = graph.chains.len();
         let mut leave = vec![0.0; edges];
         let mut reach = vec![0.0; edges];
-        for node in 0..model.flow.nodes.len() {
+        for node in 0..model.diagram.nodes.len() {
             for (outgoing, offsets) in [(true, &mut leave), (false, &mut reach)] {
                 let mut edges: Vec<(f64, usize)> = graph
                     .chains
@@ -798,7 +945,7 @@ impl Ports {
                     continue;
                 }
                 let size = cross_size(node);
-                let share = if model.flow.nodes[node].kind == NodeKind::Decision {
+                let share = if model.diagram.nodes[node].shape == Shape::Decision {
                     0.3
                 } else {
                     0.6
@@ -811,7 +958,7 @@ impl Ports {
                 // others keep their order on either side of it.
                 let main = edges
                     .iter()
-                    .position(|(_, edge)| model.flow.on_main_path(*edge))
+                    .position(|(_, edge)| model.diagram.edges[*edge].main)
                     .map(count);
                 let middle = main.unwrap_or((ports - 1.0) / 2.0);
                 let reach = (middle).max(ports - 1.0 - middle);
@@ -834,7 +981,7 @@ fn edge_depth(plan: &Plan, model: &Model, node: usize, offset: f64) -> f64 {
     } else {
         (height, width)
     };
-    if model.flow.nodes[node].kind == NodeKind::Decision {
+    if model.diagram.nodes[node].shape == Shape::Decision {
         main / 2.0 * (1.0 - 2.0 * offset.abs() / cross).max(0.0)
     } else {
         main / 2.0
@@ -941,9 +1088,9 @@ impl Gaps {
         }
         let mut frame_after = vec![0.0; layers];
         let mut frame_before = vec![0.0; layers];
-        for group in 0..model.flow.groups.len() {
-            let members: Vec<usize> = (0..model.flow.nodes.len())
-                .filter(|node| model.flow.group_of(*node) == Some(group))
+        for group in 0..model.diagram.groups.len() {
+            let members: Vec<usize> = (0..model.diagram.nodes.len())
+                .filter(|node| model.diagram.nodes[*node].group == Some(group))
                 .map(|node| graph.layer[node])
                 .collect();
             let (first, last) = (
@@ -1110,6 +1257,17 @@ fn route(
             } else {
                 !taken_after || taken_before
             };
+            let clear = siblings
+                .iter()
+                .map(|sibling| {
+                    if after {
+                        sibling - offset
+                    } else {
+                        offset - sibling
+                    }
+                })
+                .filter(|distance| *distance > 0.5)
+                .fold(0.0, f64::max);
             if chain.reversed {
                 points.reverse();
             }
@@ -1118,6 +1276,7 @@ fn route(
                 label_at,
                 against: chain.reversed,
                 after,
+                clear,
             })
         })
         .collect()
@@ -1133,19 +1292,19 @@ impl Plan {
     ) {
         self.draw_lanes(model, elements);
         self.draw_groups(model, metrics, warnings, elements);
-        for edge in 0..model.flow.edges.len() {
+        for edge in 0..model.diagram.edges.len() {
             self.draw_edge(model, edge, metrics, elements);
         }
-        for node in 0..model.flow.nodes.len() {
+        for node in 0..model.diagram.nodes.len() {
             self.draw_loop(model, node, metrics, elements);
         }
-        for node in 0..model.flow.nodes.len() {
+        for node in 0..model.diagram.nodes.len() {
             self.draw_node(model, node, metrics, warnings, elements);
         }
     }
 
     fn draw_lanes(&self, model: &Model, elements: &mut Vec<Element>) {
-        let lanes = &model.flow.lanes;
+        let lanes = &model.diagram.lanes;
         for (index, (lane, band)) in lanes.iter().zip(&self.bands).enumerate() {
             let (x1, y1) = self.page((0.0, band.0));
             let (x2, y2) = self.page((self.main_length, band.1));
@@ -1192,7 +1351,7 @@ impl Plan {
                 y,
                 class: "chartlet-flow-lane-label",
                 anchor,
-                content: lane.label.clone(),
+                content: lane.clone(),
             }));
         }
     }
@@ -1204,10 +1363,10 @@ impl Plan {
         warnings: &mut Vec<ChartWarning>,
         elements: &mut Vec<Element>,
     ) {
-        let flow = model.flow;
-        for (index, group) in flow.groups.iter().enumerate() {
-            let members: Vec<usize> = (0..flow.nodes.len())
-                .filter(|node| flow.group_of(*node) == Some(index))
+        let diagram = model.diagram;
+        for (index, group) in diagram.groups.iter().enumerate() {
+            let members: Vec<usize> = (0..diagram.nodes.len())
+                .filter(|node| diagram.nodes[*node].group == Some(index))
                 .collect();
             let boxes: Vec<(f64, f64, f64, f64)> = members
                 .iter()
@@ -1226,7 +1385,7 @@ impl Plan {
                 .map(|b| b.1 + b.3)
                 .fold(f64::NEG_INFINITY, f64::max)
                 + GROUP_PAD;
-            let intruder = (0..flow.nodes.len())
+            let intruder = (0..diagram.nodes.len())
                 .filter(|node| !members.contains(node))
                 .map(|node| self.node_box(model, node))
                 .any(|(x, y, width, height)| {
@@ -1235,7 +1394,7 @@ impl Plan {
             if intruder {
                 warnings.push(ChartWarning::new(
                     "group_overlap",
-                    format!("/flow/groups/{index}"),
+                    group.path.clone(),
                     "a step outside the group lies inside its frame; move it to another lane or regroup the steps",
                 ));
             }
@@ -1249,7 +1408,7 @@ impl Plan {
                 style_index: None,
                 tooltip: None,
             }));
-            let path = format!("/flow/groups/{index}/label");
+            let path = format!("{}/label", group.path);
             elements.push(Element::Text(Text {
                 x: left + 8.0,
                 y: top + 13.0,
@@ -1277,8 +1436,8 @@ impl Plan {
         let Some(route) = &self.routes[edge] else {
             return;
         };
-        let flow = model.flow;
-        let spec = &flow.edges[edge];
+        let diagram = model.diagram;
+        let spec = &diagram.edges[edge];
         let (from, to) = model.ends[edge];
         let mut points: Vec<(f64, f64)> =
             route.points.iter().map(|point| self.page(*point)).collect();
@@ -1292,7 +1451,7 @@ impl Plan {
         };
         let last = points.len() - 1;
         points[last] = (tip.0 - direction.0 * HEAD, tip.1 - direction.1 * HEAD);
-        let main = flow.on_main_path(edge);
+        let main = spec.main;
         let class = match (main, spec.dash) {
             (true, _) => "chartlet-flow-edge chartlet-flow-main",
             (false, Some(Dash::Dashed)) => "chartlet-flow-edge chartlet-flow-dashed",
@@ -1302,9 +1461,12 @@ impl Plan {
         let tooltip = match &spec.label {
             Some(label) => format!(
                 "{} → {}: {label}",
-                flow.nodes[from].label, flow.nodes[to].label
+                diagram.nodes[from].label, diagram.nodes[to].label
             ),
-            None => format!("{} → {}", flow.nodes[from].label, flow.nodes[to].label),
+            None => format!(
+                "{} → {}",
+                diagram.nodes[from].label, diagram.nodes[to].label
+            ),
         };
         elements.push(Element::Polyline(diagram::polyline(
             points,
@@ -1327,7 +1489,7 @@ impl Plan {
         }
         let (x, y) = self.page(route.label_at);
         let last = count(lines.len() - 1);
-        let reach = CHIP_REACH + 2.0;
+        let reach = CHIP_REACH + 2.0 + route.clear;
         let side = |x: f64| {
             if route.after {
                 (x + reach, TextAnchor::Start)
@@ -1338,14 +1500,15 @@ impl Plan {
         // In landscape a label sits above its edge, or below it on the lower side of the step.
         let above = |y: f64| {
             if route.after {
-                y + 18.0
+                y + 18.0 + route.clear
             } else {
-                y - 11.0 - LINE * last
+                y - 11.0 - LINE * last - route.clear
             }
         };
+        let along = CHIP_REACH + 2.0;
         let (x, y, anchor) = match (self.landscape, route.against) {
-            (true, false) => (x + reach, above(y), TextAnchor::Start),
-            (true, true) => (x - reach, above(y), TextAnchor::End),
+            (true, false) => (x + along, above(y), TextAnchor::Start),
+            (true, true) => (x - along, above(y), TextAnchor::End),
             (false, false) => {
                 let (x, anchor) = side(x);
                 (x, y + 19.0, anchor)
@@ -1402,7 +1565,7 @@ impl Plan {
                 ),
             )
         };
-        let name = &model.flow.nodes[node].label;
+        let name = &model.diagram.nodes[node].label;
         let tooltip = if label.is_empty() {
             format!("{name} → {name}")
         } else {
@@ -1438,13 +1601,13 @@ impl Plan {
         warnings: &mut Vec<ChartWarning>,
         elements: &mut Vec<Element>,
     ) {
-        let spec = &model.flow.nodes[node];
+        let spec = &model.diagram.nodes[node];
         let (x, y, width, height) = self.node_box(model, node);
         let tooltip = Some(match &spec.sublabel {
             Some(sublabel) => format!("{} – {sublabel}", spec.label),
             None => spec.label.clone(),
         });
-        shape(spec.kind, (x, y, width, height), tooltip, elements);
+        shape(spec.shape, (x, y, width, height), tooltip, elements);
         Self::node_text(
             model,
             node,
@@ -1464,16 +1627,16 @@ impl Plan {
         warnings: &mut Vec<ChartWarning>,
         elements: &mut Vec<Element>,
     ) {
-        let spec = &model.flow.nodes[node];
+        let spec = &model.diagram.nodes[node];
+        // The initial dot carries no text; its name is its tooltip.
+        if spec.shape == Shape::Initial {
+            return;
+        }
         let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
         let lines = &model.labels[node];
         let sublabel = spec.sublabel.is_some();
         let block = NODE_LINE * count(lines.len() - 1) + if sublabel { 14.0 } else { 0.0 };
-        let shift = if spec.kind == NodeKind::Store {
-            3.0
-        } else {
-            0.0
-        };
+        let shift = if spec.shape == Shape::Store { 3.0 } else { 0.0 };
         let first = middle_y - block / 2.0 + 4.5 + shift;
         for (index, line) in lines.iter().enumerate() {
             elements.push(Element::Text(Text {
@@ -1486,7 +1649,7 @@ impl Plan {
         }
         if let Some(sublabel) = &spec.sublabel {
             let room = width - 2.0 * PAD;
-            let path = format!("/flow/nodes/{node}/sublabel");
+            let path = format!("{}/sublabel", spec.path);
             elements.push(Element::Text(Text {
                 x: middle_x,
                 y: first + NODE_LINE * count(lines.len() - 1) + 14.0,
@@ -1508,7 +1671,7 @@ impl Plan {
 /// The shape of a step of `kind` in the box at `x`, `y`, with its shadow: every kind has its own,
 /// and its role color only repeats what the shape says.
 fn shape(
-    kind: NodeKind,
+    kind: Shape,
     (x, y, width, height): (f64, f64, f64, f64),
     tooltip: Option<String>,
     elements: &mut Vec<Element>,
@@ -1531,18 +1694,18 @@ fn shape(
     let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
     // Every kind has its own shape; its role color only repeats what the shape says.
     match kind {
-        NodeKind::Process => with_shadow(
+        Shape::Process => with_shadow(
             rect("chartlet-flow-node chartlet-role-blue", tooltip),
             elements,
         ),
-        NodeKind::External => with_shadow(
+        Shape::External => with_shadow(
             rect(
                 "chartlet-flow-node chartlet-flow-external chartlet-role-gray",
                 tooltip,
             ),
             elements,
         ),
-        NodeKind::Subprocess => {
+        Shape::Subprocess => {
             with_shadow(
                 rect("chartlet-flow-node chartlet-role-blue", tooltip),
                 elements,
@@ -1557,15 +1720,15 @@ fn shape(
                 }));
             }
         }
-        NodeKind::Start | NodeKind::End => {
-            let class = if kind == NodeKind::Start {
+        Shape::Start | Shape::End => {
+            let class = if kind == Shape::Start {
                 "chartlet-flow-node chartlet-flow-start chartlet-role-green"
             } else {
                 "chartlet-flow-node chartlet-flow-end chartlet-role-green"
             };
             with_shadow(shape(pill(x, y, width, height), class, tooltip), elements);
         }
-        NodeKind::Decision => with_shadow(
+        Shape::Decision => with_shadow(
             shape(
                 vec![
                     (middle_x, y),
@@ -1579,7 +1742,7 @@ fn shape(
             ),
             elements,
         ),
-        NodeKind::Io => with_shadow(
+        Shape::Io => with_shadow(
             shape(
                 vec![
                     (x + 10.0, y),
@@ -1593,7 +1756,7 @@ fn shape(
             ),
             elements,
         ),
-        NodeKind::Store => cylinder(
+        Shape::Store => cylinder(
             (x, y, width, height),
             (
                 "chartlet-flow-node chartlet-role-teal",
@@ -1602,6 +1765,70 @@ fn shape(
             tooltip,
             elements,
         ),
+        Shape::State | Shape::Final | Shape::Initial => {
+            state_shape(kind, (x, y, width, height), tooltip, elements);
+        }
+    }
+}
+
+/// The shapes of a state diagram: a state, a final state with its double outline, and the
+/// initial dot.
+fn state_shape(
+    kind: Shape,
+    (x, y, width, height): (f64, f64, f64, f64),
+    tooltip: Option<String>,
+    elements: &mut Vec<Element>,
+) {
+    let rect = |class: &'static str, tooltip: Option<String>| {
+        Element::Rect(Rect {
+            x,
+            y,
+            width,
+            height,
+            class,
+            series_index: None,
+            style_index: None,
+            tooltip,
+        })
+    };
+    match kind {
+        Shape::State => with_shadow(
+            rect(
+                "chartlet-flow-node chartlet-state chartlet-role-blue",
+                tooltip,
+            ),
+            elements,
+        ),
+        Shape::Final => {
+            with_shadow(
+                rect(
+                    "chartlet-flow-node chartlet-state chartlet-role-green",
+                    tooltip,
+                ),
+                elements,
+            );
+            elements.push(Element::Rect(Rect {
+                x: x + 4.0,
+                y: y + 4.0,
+                width: width - 8.0,
+                height: height - 8.0,
+                class: "chartlet-state-inner",
+                series_index: None,
+                style_index: None,
+                tooltip: None,
+            }));
+        }
+        Shape::Initial => elements.push(Element::Circle(Circle {
+            cx: x + width / 2.0,
+            cy: y + height / 2.0,
+            radius: width / 2.0,
+            class: "chartlet-state-initial",
+            topic: None,
+            series_index: None,
+            style_index: None,
+            tooltip,
+        })),
+        _ => unreachable!("only the shapes of a state diagram come here"),
     }
 }
 
@@ -1627,8 +1854,9 @@ fn pill(x: f64, y: f64, width: f64, height: f64) -> Vec<(f64, f64)> {
     points
 }
 
-/// The steps in reading order: layer by layer, and across each layer in its order.
-fn reading_order(graph: &Graph) -> Vec<usize> {
+/// The nodes of `diagram` in reading order: layer by layer, and across each layer in its order.
+pub(crate) fn reading_order(diagram: &Diagram) -> Vec<usize> {
+    let graph = Graph::new(diagram);
     graph
         .layers
         .iter()
@@ -1656,7 +1884,6 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let flow = flow(spec);
     let locale = spec.locale;
     let ends = flow.ends();
-    let graph = Graph::new(flow, &ends);
     let lanes: Vec<String> = flow.lanes.iter().map(|lane| lane.label.clone()).collect();
     let mut description = text::flow_opening(locale, flow.nodes.len(), flow.edges.len(), &lanes);
     if !flow.main_path.is_empty() {
@@ -1668,7 +1895,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&text::main_path(locale, &path));
     }
-    for node in reading_order(&graph) {
+    for node in reading_order(&Diagram::from_flow(flow)) {
         let step = &flow.nodes[node];
         let lane = flow
             .lane_of(node)
@@ -1704,7 +1931,6 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let flow = flow(spec);
     let words = spec.locale.words();
     let ends = flow.ends();
-    let graph = Graph::new(flow, &ends);
     let (lanes, groups) = (!flow.lanes.is_empty(), !flow.groups.is_empty());
     let mut columns = vec![words.step.to_owned(), words.message_kind.to_owned()];
     if lanes {
@@ -1714,7 +1940,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         columns.push(words.group.to_owned());
     }
     columns.push(words.leads_to.to_owned());
-    let rows = reading_order(&graph)
+    let rows = reading_order(&Diagram::from_flow(flow))
         .into_iter()
         .map(|node| {
             let step = &flow.nodes[node];

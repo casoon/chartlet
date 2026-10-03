@@ -86,6 +86,10 @@ const SEQUENCE_STYLE: &str = ".chartlet-seq-box{stroke-width:1.5;stroke-linejoin
 /// by color.
 const FLOW_STYLE: &str = ".chartlet-flow-node{stroke-width:1.5;stroke-linejoin:round;rx:7px}.chartlet-flow-start{stroke-width:2}.chartlet-flow-end{stroke-width:3}.chartlet-flow-external{stroke-dasharray:5 3}.chartlet-flow-inner{stroke:var(--chartlet-role-blue);stroke-width:1}.chartlet-flow-label{font-size:13px;font-weight:600;fill:var(--chartlet-text)}.chartlet-flow-sublabel{font-size:11px;fill:var(--chartlet-muted)}.chartlet-flow-edge{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}.chartlet-flow-dashed{stroke-dasharray:5 4}.chartlet-flow-dotted{stroke-dasharray:1 4;stroke-linecap:round}.chartlet-flow-main{stroke:var(--chartlet-accent);stroke-width:2.2}.chartlet-flow-head{fill:var(--chartlet-zero);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-flow-main-head{fill:var(--chartlet-accent);stroke:var(--chartlet-accent)}.chartlet-flow-lane{fill:var(--chartlet-lane);stroke:var(--chartlet-grid);stroke-width:1}.chartlet-flow-lane-alt{fill:var(--chartlet-background)}.chartlet-flow-lane-head{fill:var(--chartlet-lane-head);stroke:none}.chartlet-flow-lane-label{font-size:11px;font-weight:650;fill:var(--chartlet-muted);letter-spacing:.04em}.chartlet-flow-group{fill:var(--chartlet-accent);fill-opacity:.04;stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:4 3;rx:10px}.chartlet-flow-group-label{font-size:11px;font-weight:600;fill:var(--chartlet-muted)}";
 
+/// State diagrams, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: states with well rounded
+/// corners, the inner outline of a final state, and the initial dot.
+const STATE_STYLE: &str = ".chartlet-state{rx:14px}.chartlet-state-inner{fill:none;stroke:var(--chartlet-role-green);stroke-width:1.5;rx:11px}.chartlet-state-initial{fill:var(--chartlet-text);stroke:var(--chartlet-background);stroke-width:2}";
+
 const FILTER_STYLE: &str = ".chartlet-wrapper{display:inline-block;max-width:100%}.chartlet-filter{border:none;padding:0;margin:0 0 12px 0}.chartlet-filter legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-filter label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-filter input{margin-right:4px}.chartlet-filter input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-wrapper:has(.chartlet-filter input.series-0:not(:checked)) .chartlet-root [data-series=\"0\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-2:not(:checked)) .chartlet-root [data-series=\"2\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-3:not(:checked)) .chartlet-root [data-series=\"3\"]{display:none}";
 
 /// CSS rules for radio-selectable zoom panels. Only the panel whose radio is checked shows;
@@ -301,10 +305,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_topicmap = spec.chart_type == ChartType::Topicmap;
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_sequence = spec.chart_type == ChartType::Sequence;
-    let is_flow = spec.chart_type == ChartType::Flow;
+    let is_flow = matches!(spec.chart_type, ChartType::Flow | ChartType::State);
+    let is_state = spec.chart_type == ChartType::State;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -375,6 +380,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         },
         if is_sequence { SEQUENCE_STYLE } else { "" },
         if is_flow { FLOW_STYLE } else { "" },
+        if is_state { STATE_STYLE } else { "" },
         if is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc) {
             OHLC_STYLE
         } else {
@@ -392,9 +398,10 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Atlas, Bar, Calendar, Flow, Line, Multiples, Rangebar, Sequence, Stripes, Time, Topicmap,
+        Atlas, Bar, Calendar, Flow, Line, Multiples, Rangebar, Sequence, State, Stripes, Time,
+        Topicmap,
     };
-    let groups: [(&str, &[ChartType]); 24] = [
+    let groups: [(&str, &[ChartType]); 25] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -415,9 +422,10 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (OUTLINE_STYLE, &[Bar]),
         (TOPICMAP_STYLE, &[Topicmap]),
         (ATLAS_STYLE, &[Atlas]),
-        (DIAGRAM_STYLE, &[Sequence, Flow]),
+        (DIAGRAM_STYLE, &[Sequence, Flow, State]),
         (SEQUENCE_STYLE, &[Sequence]),
-        (FLOW_STYLE, &[Flow]),
+        (FLOW_STYLE, &[Flow, State]),
+        (STATE_STYLE, &[State]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
@@ -848,7 +856,10 @@ struct TableHooks {
 fn table_hooks(spec: &ChartSpec) -> TableHooks {
     // A diagram's table holds text only: its columns belong to no series and its rows carry no
     // values.
-    if matches!(spec.chart_type, ChartType::Sequence | ChartType::Flow) {
+    if matches!(
+        spec.chart_type,
+        ChartType::Sequence | ChartType::Flow | ChartType::State
+    ) {
         let table = data_table(spec);
         return TableHooks {
             columns: (1..table.columns.len())
@@ -1329,6 +1340,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     match spec.chart_type {
         ChartType::Sequence => return crate::sequence::data_table(spec),
         ChartType::Flow => return crate::flow::data_table(spec),
+        ChartType::State => return crate::state::data_table(spec),
         _ => {}
     }
     let words = spec.locale.words();
@@ -1345,7 +1357,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Stripes => words.year,
         ChartType::Calendar => words.date,
         ChartType::Bar | ChartType::Line | ChartType::Rangebar => words.category,
-        ChartType::Sequence | ChartType::Flow => unreachable!("a diagram writes its own table"),
+        ChartType::Sequence | ChartType::Flow | ChartType::State => {
+            unreachable!("a diagram writes its own table")
+        }
     };
     let columns = std::iter::once(first.to_owned())
         .chain(

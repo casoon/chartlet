@@ -23,6 +23,11 @@ does.
   landscape as for sequence diagrams. Errors and warnings name the field (`unknown_node`,
   `missing_lane`, `main_path_gap`, `group_overlap`, …). The description and the data table follow
   the steps in reading order. New examples `release-flow` and `order-flow`.
+- State diagrams (`"type": "state"`, experimental) on the layout of flow charts: an initial dot,
+  states, choices and final states, transitions written `event [guard] / action`, loops on a
+  state, a main path. The warning `unreachable_state` names a state nothing leads to. The data
+  table has one row per transition with event, guard and action in columns of their own. New
+  example `ticket-states`.
 - Where neither orientation fits the canvas, `auto` takes the one that grows it less.
 - Both diagram types share one look: a role color per kind of step or participant on top of its
   shape (CSS custom properties `--chartlet-role-*`), soft shadows, rounded corners on edges, edge

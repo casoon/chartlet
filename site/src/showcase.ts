@@ -285,6 +285,13 @@ const catalogue = [
       'Without lanes, on a wide and low canvas: auto orientation turns the flow to run right. Each kind of step has its own shape — start and end, decisions, input and output, a subprocess and a data store.',
   },
   {
+    slug: 'ticket-states',
+    chart: 'State diagram',
+    useCase: 'Explain a lifecycle',
+    blurb:
+      'The states of a support ticket: a dot marks where it starts, a diamond the choice by severity, double outlines the two ways it ends. Transitions read event [guard] / action, a reminder loops on its state, and reopening runs back against the flow. The table lists every transition with its parts in columns of their own.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

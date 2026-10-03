@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 use crate::{
     ChartSpec, ChartType, calendar, flow, layout, ohlc, rangebar, sequence,
     spec::{self, Dataset, LayerRef},
-    stripes, text, time,
+    state, stripes, text, time,
 };
 
 pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
@@ -16,6 +16,7 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         ChartType::Rangebar => return rangebar::description(spec),
         ChartType::Sequence => return sequence::description(spec),
         ChartType::Flow => return flow::description(spec),
+        ChartType::State => return state::description(spec),
         ChartType::Bar | ChartType::Line => {}
     }
     let dataset = spec.dataset();

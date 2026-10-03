@@ -5,6 +5,7 @@ mod dataset;
 mod flow;
 mod rangebar;
 mod sequence;
+mod state;
 mod stripes;
 mod timechart;
 mod topicmap;
@@ -26,6 +27,7 @@ pub use sequence::{
     BranchSpec, DiagramOrientation, FragmentKind, FragmentSpec, MessageKind, MessageSpec,
     ParticipantKind, ParticipantSpec, SequenceSpec,
 };
+pub use state::{StateKind, StateNodeSpec, StateSpec, TransitionSpec};
 pub(crate) use stripes::Diverging;
 pub use stripes::StripesSpec;
 pub use timechart::{
@@ -128,6 +130,10 @@ pub struct ChartSpec {
     /// The steps and edges of a `type: "flow"` chart. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flow: Option<FlowSpec>,
+    /// The states and transitions of a `type: "state"` diagram. Skipped while absent, like
+    /// `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state: Option<StateSpec>,
     /// The spans of a `type: "rangebar"` chart, one per category.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ranges: Vec<RangeSpec>,
@@ -266,11 +272,13 @@ pub enum ChartType {
     Sequence,
     /// A flow chart: steps joined by arrows, in layers along the flow.
     Flow,
+    /// A state diagram: states joined by transitions, laid out like a flow chart.
+    State,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -282,6 +290,7 @@ impl ChartType {
         Self::Multiples,
         Self::Sequence,
         Self::Flow,
+        Self::State,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -578,6 +587,7 @@ impl ChartSpec {
             ChartType::Rangebar => return self.validate_rangebar(),
             ChartType::Sequence => return self.validate_sequence(),
             ChartType::Flow => return self.validate_flow(),
+            ChartType::State => return self.validate_state(),
             ChartType::Bar | ChartType::Line => {}
         }
         let warnings = self.validate_data()?;
@@ -1163,6 +1173,7 @@ impl ChartSpec {
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/sequence", self.sequence.is_some(), ChartType::Sequence),
             ("/flow", self.flow.is_some(), ChartType::Flow),
+            ("/state", self.state.is_some(), ChartType::State),
             ("/columns", self.columns.is_some(), ChartType::Multiples),
             ("/references", !self.references.is_empty(), ChartType::Bar),
             ("/stack", self.stack.is_some(), ChartType::Bar),
@@ -1216,6 +1227,7 @@ impl ChartSpec {
                 | ChartType::Multiples
                 | ChartType::Sequence
                 | ChartType::Flow
+                | ChartType::State
         ) {
             for (field, present, owner) in [
                 ("/topicmap", self.topicmap.is_some(), ChartType::Topicmap),
@@ -1310,6 +1322,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Multiples => "multiples",
         ChartType::Sequence => "sequence",
         ChartType::Flow => "flow",
+        ChartType::State => "state",
     }
 }
 

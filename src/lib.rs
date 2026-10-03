@@ -22,6 +22,7 @@ mod sequence;
 mod sha256;
 mod social;
 mod spec;
+mod state;
 mod stripes;
 mod text;
 mod time;
@@ -36,9 +37,9 @@ pub use spec::{
     FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec,
     LayerSpec, LegendPlacement, Mark, MessageKind, MessageSpec, MobileSpec, NodeKind, OhlcPoint,
     Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec, ReferenceSpec,
-    SequenceSpec, SeriesSpec, Shape, Stack, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec,
-    TimePoint, TimePrecision, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec,
-    ValueFormat, ZoomBound, ZoomStep,
+    SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StripesSpec,
+    Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, Tooltips, TopicLinkSpec,
+    TopicMapSpec, TopicSpec, TransitionSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

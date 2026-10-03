@@ -6,7 +6,7 @@
 
 use std::{cmp::Reverse, collections::BinaryHeap};
 
-use crate::spec::FlowSpec;
+use super::Diagram;
 
 /// An item of a layer: a step, or a placeholder that carries an edge through the layer.
 pub(super) struct Item {
@@ -42,8 +42,9 @@ pub(super) struct Graph {
 }
 
 impl Graph {
-    pub(super) fn new(flow: &FlowSpec, ends: &[(usize, usize)]) -> Self {
-        let nodes = flow.nodes.len();
+    pub(super) fn new(diagram: &Diagram) -> Self {
+        let nodes = diagram.nodes.len();
+        let ends = &diagram.ends();
         let reversed = feedback_edges(nodes, ends);
         let directed: Vec<Option<(usize, usize)>> = ends
             .iter()
@@ -58,8 +59,8 @@ impl Graph {
         let mut items: Vec<Item> = (0..nodes)
             .map(|node| Item {
                 node: Some(node),
-                lane: flow.lane_of(node),
-                group: flow.group_of(node),
+                lane: diagram.nodes[node].lane,
+                group: diagram.nodes[node].group,
                 back: false,
             })
             .collect();
@@ -104,7 +105,7 @@ impl Graph {
         let mut after = vec![Vec::new(); items.len()];
         for (index, chain) in chains.iter().enumerate() {
             let Some(chain) = chain else { continue };
-            let main = flow.on_main_path(index);
+            let main = diagram.edges[index].main;
             for pair in chain.items.windows(2) {
                 let placeholders = pair
                     .iter()

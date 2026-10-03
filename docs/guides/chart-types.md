@@ -1,6 +1,6 @@
 ---
 title: Chart types
-description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, sequence diagrams and flow charts.
+description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, sequence diagrams, flow charts and state diagrams.
 order: 1
 ---
 
@@ -38,6 +38,7 @@ order: 1
 | Sequence diagram, landscape (experimental) | `"orientation": "landscape"` in `sequence` | [Exporting a report in the background](../../../showcase/async-export/) |
 | Flow chart in lanes, with a loop back and a group (experimental) | `"type": "flow"` with `nodes`, `edges`, `lanes`, `groups`, `mainPath` | [From commit to release](../../../showcase/release-flow/) |
 | Flow chart, turned landscape by a wide canvas (experimental) | `"type": "flow"`, `"orientation": "auto"` | [Handling an order](../../../showcase/order-flow/) |
+| State diagram with a choice, a loop and two final states (experimental) | `"type": "state"` with `states`, `transitions`, `initial` | [Life of a support ticket](../../../showcase/ticket-states/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
@@ -319,6 +320,49 @@ color. The colors are CSS custom properties (`--chartlet-role-blue`, `--chartlet
 …) that a host page can override.
 
 Limits: 1–40 steps with unique `id`s, up to 80 edges, 8 lanes and 8 groups.
+
+## State diagrams
+
+A state diagram (`"type": "state"`) shows the states something can be in and the transitions
+between them. It uses the layout of flow charts — layers, the main path, cycles drawn against the
+flow, loops on a state, portrait and landscape — and is **experimental** like them.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "state",
+  "title": "Door",
+  "state": {
+    "initial": "closed",
+    "states": [
+      { "id": "closed", "label": "Closed" },
+      { "id": "open", "label": "Open" },
+      { "id": "locked", "label": "Locked" },
+      { "id": "gone", "label": "Removed", "final": true }
+    ],
+    "transitions": [
+      { "from": "closed", "to": "open", "event": "push", "guard": "unlocked" },
+      { "from": "open", "to": "closed", "event": "release" },
+      { "from": "closed", "to": "locked", "event": "lock", "action": "beep" },
+      { "from": "locked", "to": "closed", "event": "unlock" },
+      { "from": "locked", "to": "gone", "event": "dismantle" }
+    ]
+  }
+}
+```
+
+- **States** are boxes with well rounded corners; `"final": true` gives a state a double outline,
+  `"kind": "choice"` makes it a diamond the machine passes through at once, by its guards.
+- **`initial`** names the state the machine starts in; it gets a dot with an arrow into it. Once
+  it is set, a state no transition leads to is reported as `unreachable_state`.
+- **Transitions** carry an `event`, a `guard` and an `action`, each optional and each up to 40
+  characters, written `event [guard] / action`; `dash` works as on flow chart edges.
+- **Text alternative.** The description says where the machine starts and ends and lists every
+  transition in reading order; the data table has one row per transition, with event, guard and
+  action in columns of their own.
+
+Limits: 1–40 states with unique `id`s and up to 80 transitions; an unknown `id` is
+`unknown_state`.
 
 ## Time series
 

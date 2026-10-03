@@ -1,6 +1,8 @@
 //! The words chartlet writes itself, per locale: descriptions, legend additions, tooltips and
 //! the HTML figure. Text from the specification is never translated.
 
+use std::fmt::Write as _;
+
 use crate::spec::{FragmentSpec, Locale, MessageKind, NodeKind, ParticipantKind};
 
 pub(crate) struct Words {
@@ -60,6 +62,12 @@ pub(crate) struct Words {
     pub lane: &'static str,
     pub group: &'static str,
     pub leads_to: &'static str,
+    /// The columns of a state diagram's table, and the name of its initial dot.
+    pub event: &'static str,
+    pub guard: &'static str,
+    pub action: &'static str,
+    pub next_state: &'static str,
+    pub start: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -118,6 +126,11 @@ const EN: Words = Words {
     lane: "Lane",
     group: "Group",
     leads_to: "Leads to",
+    event: "Event",
+    guard: "Guard",
+    action: "Action",
+    next_state: "To",
+    start: "Start",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -178,6 +191,11 @@ const DE: Words = Words {
     lane: "Bahn",
     group: "Gruppe",
     leads_to: "Führt zu",
+    event: "Ereignis",
+    guard: "Bedingung",
+    action: "Aktion",
+    next_state: "Nach",
+    start: "Start",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],
@@ -1000,6 +1018,75 @@ pub(crate) fn flow_group(locale: Locale, label: &str, members: &[&str]) -> Strin
     match locale {
         Locale::En => format!("Group \"{label}\": {members}."),
         Locale::De => format!("Gruppe „{label}“: {members}."),
+    }
+}
+
+/// The opening sentence of a state diagram: how many states and transitions, where it starts and
+/// which states it ends in.
+pub(crate) fn state_opening(
+    locale: Locale,
+    states: usize,
+    transitions: usize,
+    initial: Option<&str>,
+    finals: &[String],
+) -> String {
+    let mut opening = match locale {
+        Locale::En => format!(
+            "State diagram with {states} state{} and {transitions} transition{}.",
+            plural(states, "", "s"),
+            plural(transitions, "", "s"),
+        ),
+        Locale::De => format!(
+            "Zustandsdiagramm mit {states} {} und {transitions} {}.",
+            plural(states, "Zustand", "Zuständen"),
+            plural(transitions, "Übergang", "Übergängen"),
+        ),
+    };
+    if let Some(initial) = initial {
+        let starts = match locale {
+            Locale::En => "It starts in",
+            Locale::De => "Es beginnt in",
+        };
+        write!(opening, " {starts} {initial}.").expect("writing to String cannot fail");
+    }
+    if !finals.is_empty() {
+        let noun = match (locale, finals.len()) {
+            (Locale::En, 1) => "Final state",
+            (Locale::En, _) => "Final states",
+            (Locale::De, 1) => "Endzustand",
+            (Locale::De, _) => "Endzustände",
+        };
+        write!(opening, " {noun}: {}.", listed(locale, finals))
+            .expect("writing to String cannot fail");
+    }
+    opening
+}
+
+/// One transition as a sentence; `to` is `None` for a transition to the same state.
+pub(crate) fn transition(
+    locale: Locale,
+    from: &str,
+    to: Option<&str>,
+    label: Option<&str>,
+) -> String {
+    let on = label.map_or_else(String::new, |label| match locale {
+        Locale::En => format!(" on {label}"),
+        Locale::De => format!(" bei {label}"),
+    });
+    match (locale, to) {
+        (Locale::En, Some(to)) => format!("{from} to {to}{on}."),
+        (Locale::En, None) => format!("{from} to itself{on}."),
+        (Locale::De, Some(to)) => format!("{from} nach {to}{on}."),
+        (Locale::De, None) => format!("{from} zu sich selbst{on}."),
+    }
+}
+
+/// The choices of a state diagram, as a sentence.
+pub(crate) fn choices(locale: Locale, labels: &[&str]) -> String {
+    let labels = labels.join(", ");
+    match locale {
+        Locale::En => format!("Choices: {labels}."),
+        Locale::De => format!("Auswahlpunkte: {labels}."),
     }
 }
 

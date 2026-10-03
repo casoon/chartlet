@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "type": "state",
+  "title": "Life of a support ticket",
+  "source": "Support handbook, ticket states",
+  "width": 900,
+  "height": 900,
+  "state": {
+    "initial": "new",
+    "states": [
+      { "id": "new", "label": "New" },
+      { "id": "triaged", "label": "Triaged" },
+      { "id": "severity", "label": "Severity?", "kind": "choice" },
+      { "id": "progress", "label": "In progress", "sublabel": "assigned" },
+      { "id": "waiting", "label": "Waiting for customer" },
+      { "id": "resolved", "label": "Resolved" },
+      { "id": "closed", "label": "Closed", "final": true },
+      { "id": "rejected", "label": "Rejected", "final": true }
+    ],
+    "transitions": [
+      { "from": "new", "to": "triaged", "event": "review" },
+      { "from": "triaged", "to": "severity", "event": "classify" },
+      { "from": "severity", "to": "progress", "guard": "valid", "action": "assign" },
+      { "from": "severity", "to": "rejected", "guard": "duplicate" },
+      { "from": "progress", "to": "waiting", "event": "ask" },
+      { "from": "waiting", "to": "progress", "event": "reply" },
+      { "from": "waiting", "to": "waiting", "event": "after 3 days", "action": "remind" },
+      { "from": "progress", "to": "resolved", "event": "fix shipped" },
+      { "from": "resolved", "to": "progress", "event": "reopen", "dash": "dashed" },
+      { "from": "resolved", "to": "closed", "event": "after 7 days" }
+    ],
+    "mainPath": ["new", "triaged", "severity", "progress", "resolved", "closed"]
+  }
+}
