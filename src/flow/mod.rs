@@ -13,7 +13,10 @@ use std::fmt::Write as _;
 
 use crate::{
     DataTable,
-    diagram::{self, HEAD, arrowhead, cylinder, pixels, warn_growth, wrap},
+    diagram::{
+        self, CHIP_REACH, HEAD, arrowhead, chip, cylinder, pixels, rounded, warn_growth,
+        with_shadow, wrap,
+    },
     error::ChartWarning,
     layout::{count, push_title, title_extra},
     metrics::TextMetrics,
@@ -650,6 +653,46 @@ fn straighten(
             }
         }
     }
+    // Then the small steps of every other edge, where an item off the main path can move.
+    let on_main: Vec<bool> = (0..graph.items.len())
+        .map(|item| {
+            edges.iter().any(|edge| {
+                graph.chains[*edge]
+                    .as_ref()
+                    .is_some_and(|chain| chain.items.contains(&item))
+            })
+        })
+        .collect();
+    for chain in graph.chains.iter().flatten() {
+        for pair in chain.items.windows(2) {
+            let jog = (cross[pair[0]] - cross[pair[1]]).abs();
+            if jog < 0.01 || jog > 24.0 {
+                continue;
+            }
+            let _ = (!on_main[pair[1]]
+                && align(
+                    graph,
+                    cross,
+                    pair[1],
+                    cross[pair[0]],
+                    cross_size,
+                    gap,
+                    bands,
+                    lane_head,
+                ))
+                || (!on_main[pair[0]]
+                    && align(
+                        graph,
+                        cross,
+                        pair[0],
+                        cross[pair[1]],
+                        cross_size,
+                        gap,
+                        bands,
+                        lane_head,
+                    ));
+        }
+    }
     if bands.is_empty() {
         let low = (0..graph.items.len())
             .map(|item| cross[item] - cross_size(item) / 2.0)
@@ -853,9 +896,9 @@ impl Gaps {
             let lines = &model.edge_labels[edge];
             if !lines.is_empty() {
                 let room = if landscape {
-                    model.edge_widths[edge] + 14.0
+                    model.edge_widths[edge] + 26.0
                 } else {
-                    LINE * count(lines.len()) + 6.0
+                    LINE * count(lines.len()) + 16.0
                 };
                 if chain.reversed {
                     let gap = graph.layer[items[items.len() - 1]] - 1;
@@ -1091,10 +1134,10 @@ impl Plan {
         self.draw_lanes(model, elements);
         self.draw_groups(model, metrics, warnings, elements);
         for edge in 0..model.flow.edges.len() {
-            self.draw_edge(model, edge, elements);
+            self.draw_edge(model, edge, metrics, elements);
         }
         for node in 0..model.flow.nodes.len() {
-            self.draw_loop(model, node, elements);
+            self.draw_loop(model, node, metrics, elements);
         }
         for node in 0..model.flow.nodes.len() {
             self.draw_node(model, node, metrics, warnings, elements);
@@ -1120,8 +1163,27 @@ impl Plan {
                 style_index: None,
                 tooltip: None,
             }));
+            // A strip along the lane's start holds its name.
+            let (h1, h2) = if self.landscape {
+                (
+                    self.page((0.0, band.0)),
+                    self.page((self.main_length, band.0 + LANE_HEAD)),
+                )
+            } else {
+                (self.page((0.0, band.0)), self.page((LANE_HEAD, band.1)))
+            };
+            elements.push(Element::Rect(Rect {
+                x: h1.0.min(h2.0) + 0.5,
+                y: h1.1.min(h2.1) + 0.5,
+                width: (h2.0 - h1.0).abs() - 1.0,
+                height: (h2.1 - h1.1).abs() - 1.0,
+                class: "chartlet-flow-lane-head",
+                series_index: None,
+                style_index: None,
+                tooltip: None,
+            }));
             let (x, y, anchor) = if self.landscape {
-                (x1 + 8.0, y1.min(y2) + 16.0, TextAnchor::Start)
+                (x1 + 10.0, y1.min(y2) + 17.0, TextAnchor::Start)
             } else {
                 (f64::midpoint(x1, x2), y1.min(y2) + 17.0, TextAnchor::Middle)
             };
@@ -1205,7 +1267,13 @@ impl Plan {
         }
     }
 
-    fn draw_edge(&self, model: &Model, edge: usize, elements: &mut Vec<Element>) {
+    fn draw_edge(
+        &self,
+        model: &Model,
+        edge: usize,
+        metrics: &impl TextMetrics,
+        elements: &mut Vec<Element>,
+    ) {
         let Some(route) = &self.routes[edge] else {
             return;
         };
@@ -1259,47 +1327,46 @@ impl Plan {
         }
         let (x, y) = self.page(route.label_at);
         let last = count(lines.len() - 1);
+        let reach = CHIP_REACH + 2.0;
         let side = |x: f64| {
             if route.after {
-                (x + 6.0, TextAnchor::Start)
+                (x + reach, TextAnchor::Start)
             } else {
-                (x - 6.0, TextAnchor::End)
+                (x - reach, TextAnchor::End)
             }
         };
         // In landscape a label sits above its edge, or below it on the lower side of the step.
         let above = |y: f64| {
             if route.after {
-                y + 15.0
+                y + 18.0
             } else {
-                y - 5.0 - LINE * last
+                y - 11.0 - LINE * last
             }
         };
         let (x, y, anchor) = match (self.landscape, route.against) {
-            (true, false) => (x + 6.0, above(y), TextAnchor::Start),
-            (true, true) => (x - 6.0, above(y), TextAnchor::End),
+            (true, false) => (x + reach, above(y), TextAnchor::Start),
+            (true, true) => (x - reach, above(y), TextAnchor::End),
             (false, false) => {
                 let (x, anchor) = side(x);
-                (x, y + 16.0, anchor)
+                (x, y + 19.0, anchor)
             }
             (false, true) => {
                 let (x, anchor) = side(x);
-                (x, y - 8.0 - LINE * last, anchor)
+                (x, y - 12.0 - LINE * last, anchor)
             }
         };
-        for (index, line) in lines.iter().enumerate() {
-            elements.push(Element::Text(Text {
-                x,
-                y: y + LINE * count(index),
-                class: "chartlet-flow-edge-label",
-                anchor,
-                content: line.clone(),
-            }));
-        }
+        chip(lines, (x, y), anchor, metrics, elements);
     }
 
     /// An edge from a step to itself: a loop beside the step, right in portrait and below in
     /// landscape, with the labels of all such edges joined.
-    fn draw_loop(&self, model: &Model, node: usize, elements: &mut Vec<Element>) {
+    fn draw_loop(
+        &self,
+        model: &Model,
+        node: usize,
+        metrics: &impl TextMetrics,
+        elements: &mut Vec<Element>,
+    ) {
         let Some(label) = &model.loops[node] else {
             return;
         };
@@ -1315,7 +1382,7 @@ impl Plan {
                 ],
                 (middle + 8.0, bottom),
                 (0.0, -1.0),
-                (middle, bottom + LOOP + 14.0, TextAnchor::Middle),
+                (middle, bottom + LOOP + 18.0, TextAnchor::Middle),
             )
         } else {
             let (right, middle) = (x + width, y + height / 2.0);
@@ -1328,7 +1395,11 @@ impl Plan {
                 ],
                 (right, middle + 8.0),
                 (-1.0, 0.0),
-                (right + LOOP + 6.0, middle + 4.0, TextAnchor::Start),
+                (
+                    right + LOOP + CHIP_REACH + 2.0,
+                    middle + 4.0,
+                    TextAnchor::Start,
+                ),
             )
         };
         let name = &model.flow.nodes[node].label;
@@ -1338,7 +1409,7 @@ impl Plan {
             format!("{name} → {name}: {label}")
         };
         elements.push(Element::Polyline(diagram::polyline(
-            points,
+            rounded(&points),
             "chartlet-flow-edge",
             Some(tooltip),
         )));
@@ -1349,13 +1420,13 @@ impl Plan {
             "chartlet-flow-head",
         )));
         if !label.is_empty() {
-            elements.push(Element::Text(Text {
-                x: text.0,
-                y: text.1,
-                class: "chartlet-flow-edge-label",
-                anchor: text.2,
-                content: label.clone(),
-            }));
+            chip(
+                std::slice::from_ref(label),
+                (text.0, text.1),
+                text.2,
+                metrics,
+                elements,
+            );
         }
     }
 
@@ -1373,76 +1444,7 @@ impl Plan {
             Some(sublabel) => format!("{} – {sublabel}", spec.label),
             None => spec.label.clone(),
         });
-        let shape = |points: Vec<(f64, f64)>, class: &'static str, tooltip: Option<String>| {
-            Element::Polyline(diagram::polyline(points, class, tooltip))
-        };
-        let rect = |class: &'static str, tooltip: Option<String>| {
-            Element::Rect(Rect {
-                x,
-                y,
-                width,
-                height,
-                class,
-                series_index: None,
-                style_index: None,
-                tooltip,
-            })
-        };
-        let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
-        match spec.kind {
-            NodeKind::Process => elements.push(rect("chartlet-flow-node", tooltip)),
-            NodeKind::External => {
-                elements.push(rect("chartlet-flow-node chartlet-flow-external", tooltip));
-            }
-            NodeKind::Subprocess => {
-                elements.push(rect("chartlet-flow-node", tooltip));
-                for side in [x + 7.0, x + width - 7.0] {
-                    elements.push(Element::Line(Line {
-                        x1: side,
-                        y1: y,
-                        x2: side,
-                        y2: y + height,
-                        class: "chartlet-flow-inner",
-                    }));
-                }
-            }
-            NodeKind::Start | NodeKind::End => {
-                let class = if spec.kind == NodeKind::Start {
-                    "chartlet-flow-node chartlet-flow-start"
-                } else {
-                    "chartlet-flow-node chartlet-flow-end"
-                };
-                elements.push(shape(pill(x, y, width, height), class, tooltip));
-            }
-            NodeKind::Decision => elements.push(shape(
-                vec![
-                    (middle_x, y),
-                    (x + width, middle_y),
-                    (middle_x, y + height),
-                    (x, middle_y),
-                    (middle_x, y),
-                ],
-                "chartlet-flow-node",
-                tooltip,
-            )),
-            NodeKind::Io => elements.push(shape(
-                vec![
-                    (x + 10.0, y),
-                    (x + width, y),
-                    (x + width - 10.0, y + height),
-                    (x, y + height),
-                    (x + 10.0, y),
-                ],
-                "chartlet-flow-node",
-                tooltip,
-            )),
-            NodeKind::Store => cylinder(
-                (x, y, width, height),
-                ("chartlet-flow-node", "chartlet-flow-rim"),
-                tooltip,
-                elements,
-            ),
-        }
+        shape(spec.kind, (x, y, width, height), tooltip, elements);
         Self::node_text(
             model,
             node,
@@ -1500,6 +1502,106 @@ impl Plan {
                 ),
             }));
         }
+    }
+}
+
+/// The shape of a step of `kind` in the box at `x`, `y`, with its shadow: every kind has its own,
+/// and its role color only repeats what the shape says.
+fn shape(
+    kind: NodeKind,
+    (x, y, width, height): (f64, f64, f64, f64),
+    tooltip: Option<String>,
+    elements: &mut Vec<Element>,
+) {
+    let shape = |points: Vec<(f64, f64)>, class: &'static str, tooltip: Option<String>| {
+        Element::Polyline(diagram::polyline(points, class, tooltip))
+    };
+    let rect = |class: &'static str, tooltip: Option<String>| {
+        Element::Rect(Rect {
+            x,
+            y,
+            width,
+            height,
+            class,
+            series_index: None,
+            style_index: None,
+            tooltip,
+        })
+    };
+    let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
+    // Every kind has its own shape; its role color only repeats what the shape says.
+    match kind {
+        NodeKind::Process => with_shadow(
+            rect("chartlet-flow-node chartlet-role-blue", tooltip),
+            elements,
+        ),
+        NodeKind::External => with_shadow(
+            rect(
+                "chartlet-flow-node chartlet-flow-external chartlet-role-gray",
+                tooltip,
+            ),
+            elements,
+        ),
+        NodeKind::Subprocess => {
+            with_shadow(
+                rect("chartlet-flow-node chartlet-role-blue", tooltip),
+                elements,
+            );
+            for side in [x + 7.0, x + width - 7.0] {
+                elements.push(Element::Line(Line {
+                    x1: side,
+                    y1: y,
+                    x2: side,
+                    y2: y + height,
+                    class: "chartlet-flow-inner",
+                }));
+            }
+        }
+        NodeKind::Start | NodeKind::End => {
+            let class = if kind == NodeKind::Start {
+                "chartlet-flow-node chartlet-flow-start chartlet-role-green"
+            } else {
+                "chartlet-flow-node chartlet-flow-end chartlet-role-green"
+            };
+            with_shadow(shape(pill(x, y, width, height), class, tooltip), elements);
+        }
+        NodeKind::Decision => with_shadow(
+            shape(
+                vec![
+                    (middle_x, y),
+                    (x + width, middle_y),
+                    (middle_x, y + height),
+                    (x, middle_y),
+                    (middle_x, y),
+                ],
+                "chartlet-flow-node chartlet-role-amber",
+                tooltip,
+            ),
+            elements,
+        ),
+        NodeKind::Io => with_shadow(
+            shape(
+                vec![
+                    (x + 10.0, y),
+                    (x + width, y),
+                    (x + width - 10.0, y + height),
+                    (x, y + height),
+                    (x + 10.0, y),
+                ],
+                "chartlet-flow-node chartlet-role-violet",
+                tooltip,
+            ),
+            elements,
+        ),
+        NodeKind::Store => cylinder(
+            (x, y, width, height),
+            (
+                "chartlet-flow-node chartlet-role-teal",
+                "chartlet-diagram-rim",
+            ),
+            tooltip,
+            elements,
+        ),
     }
 }
 

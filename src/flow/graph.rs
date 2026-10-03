@@ -13,6 +13,9 @@ pub(super) struct Item {
     pub node: Option<usize>,
     pub lane: Option<usize>,
     pub group: Option<usize>,
+    /// A placeholder of an edge that runs against the flow; it keeps to the outside of its lane,
+    /// so that the way back does not cut through the steps.
+    pub back: bool,
 }
 
 /// The items an edge passes, from where the layout lets it start to where it ends. `reversed`
@@ -57,6 +60,7 @@ impl Graph {
                 node: Some(node),
                 lane: flow.lane_of(node),
                 group: flow.group_of(node),
+                back: false,
             })
             .collect();
         let mut layer = node_layers.clone();
@@ -81,6 +85,7 @@ impl Graph {
                     node: None,
                     lane,
                     group: None,
+                    back: reversed[index],
                 });
                 layer.push(between);
             }
@@ -182,7 +187,7 @@ impl Graph {
         let items = &self.layers[layer];
         let own: Vec<f64> = items.iter().map(|item| barycenter(*item)).collect();
         // The members of a group share the mean of their barycenters, so that they stay together.
-        let keys: Vec<(usize, f64, usize, usize)> = items
+        let keys: Vec<(usize, bool, f64, usize, usize)> = items
             .iter()
             .zip(&own)
             .map(|(item, key)| {
@@ -198,6 +203,7 @@ impl Graph {
                 });
                 (
                     self.items[*item].lane.unwrap_or(0),
+                    self.items[*item].back,
                     key,
                     group.unwrap_or(usize::MAX),
                     self.position[*item],
@@ -208,9 +214,10 @@ impl Graph {
         order.sort_by(|a, b| {
             let (a, b) = (keys[*a], keys[*b]);
             a.0.cmp(&b.0)
-                .then(a.1.total_cmp(&b.1))
-                .then(a.2.cmp(&b.2))
+                .then(a.1.cmp(&b.1))
+                .then(a.2.total_cmp(&b.2))
                 .then(a.3.cmp(&b.3))
+                .then(a.4.cmp(&b.4))
         });
         let sorted: Vec<usize> = order.iter().map(|index| items[*index]).collect();
         self.layers[layer] = sorted;

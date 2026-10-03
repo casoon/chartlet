@@ -3,7 +3,7 @@
   "type": "sequence",
   "title": "Exporting a report in the background",
   "source": "Service handbook, export flow",
-  "width": 1160,
+  "width": 1300,
   "height": 400,
   "sequence": {
     "orientation": "landscape",

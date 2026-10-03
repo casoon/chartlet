@@ -1,17 +1,31 @@
-//! What the diagram types share: arrowheads, data-store cylinders, labels on up to two lines, and
-//! a canvas that grows when a diagram does not fit it.
+//! What the diagram types share: arrowheads, rounded corners, data-store cylinders, shadows,
+//! labels on up to two lines and on chips, number badges, and a canvas that grows when a diagram
+//! does not fit it.
 
 use crate::{
     error::ChartWarning,
     layout::{fit_text, two_lines},
     metrics::TextMetrics,
-    scene::{Element, Polyline},
+    scene::{Circle, Element, Polyline, Rect, Text, TextAnchor},
     spec::ChartSpec,
 };
 
 /// Length and half width of an arrowhead.
-pub(crate) const HEAD: f64 = 9.0;
-const HEAD_HALF: f64 = 4.5;
+pub(crate) const HEAD: f64 = 8.0;
+const HEAD_HALF: f64 = 3.5;
+/// Radius of the corners where an edge changes course.
+const CORNER: f64 = 6.0;
+/// How far a step's shadow falls below it.
+const SHADOW: f64 = 2.5;
+/// The text of a chip, the distance between its lines, and the space around it.
+pub(crate) const CHIP_SIZE: f64 = 12.0;
+pub(crate) const CHIP_LINE: f64 = 15.0;
+const CHIP_PAD_X: f64 = 5.0;
+const CHIP_PAD_Y: f64 = 3.0;
+/// How far a chip reaches beyond its text on each side, with a little air.
+pub(crate) const CHIP_REACH: f64 = CHIP_PAD_X + 2.0;
+/// Radius of a number badge.
+pub(crate) const BADGE: f64 = 8.0;
 
 /// A polyline with nothing but its points, its class and an optional tooltip.
 pub(crate) fn polyline(
@@ -49,6 +63,132 @@ pub(crate) fn arrowhead(
     polyline(points, class, None)
 }
 
+/// `points` with every corner rounded: each turn becomes a short curve, as far as the segments on
+/// either side of it leave room.
+pub(crate) fn rounded(points: &[(f64, f64)]) -> Vec<(f64, f64)> {
+    if points.len() < 3 {
+        return points.to_vec();
+    }
+    let mut output = vec![points[0]];
+    for corner in points.windows(3) {
+        let (before, at, after) = (corner[0], corner[1], corner[2]);
+        let into = (at.0 - before.0).hypot(at.1 - before.1);
+        let out = (after.0 - at.0).hypot(after.1 - at.1);
+        let radius = CORNER.min(into / 2.0).min(out / 2.0);
+        if radius < 0.5 {
+            output.push(at);
+            continue;
+        }
+        let start = (
+            at.0 - (at.0 - before.0) / into * radius,
+            at.1 - (at.1 - before.1) / into * radius,
+        );
+        let end = (
+            at.0 + (after.0 - at.0) / out * radius,
+            at.1 + (after.1 - at.1) / out * radius,
+        );
+        output.push(start);
+        // Points on the quadratic curve from `start` to `end` that `at` controls.
+        for t in [0.25, 0.5, 0.75] {
+            let u = 1.0 - t;
+            output.push((
+                u * u * start.0 + 2.0 * u * t * at.0 + t * t * end.0,
+                u * u * start.1 + 2.0 * u * t * at.1 + t * t * end.1,
+            ));
+        }
+        output.push(end);
+    }
+    output.push(points[points.len() - 1]);
+    output
+}
+
+/// A shape's shadow: the same shape, a little lower, in the shadow color.
+fn shadow(element: &Element) -> Option<Element> {
+    match element {
+        Element::Rect(rect) => Some(Element::Rect(Rect {
+            y: rect.y + SHADOW,
+            class: "chartlet-diagram-shadow",
+            tooltip: None,
+            ..rect.clone()
+        })),
+        Element::Polyline(shape) => Some(Element::Polyline(polyline(
+            shape.points.iter().map(|(x, y)| (*x, y + SHADOW)).collect(),
+            "chartlet-diagram-shadow",
+            None,
+        ))),
+        _ => None,
+    }
+}
+
+/// Pushes `shape` with its shadow beneath it.
+pub(crate) fn with_shadow(shape: Element, elements: &mut Vec<Element>) {
+    if let Some(shadow) = shadow(&shape) {
+        elements.push(shadow);
+    }
+    elements.push(shape);
+}
+
+/// A label on a chip: its lines on a small rounded plate in the background color, so that it
+/// reads clearly where it crosses or sits beside lines. `y` is the baseline of the first line.
+pub(crate) fn chip(
+    lines: &[String],
+    (x, y): (f64, f64),
+    anchor: TextAnchor,
+    metrics: &impl TextMetrics,
+    elements: &mut Vec<Element>,
+) {
+    let width = lines
+        .iter()
+        .map(|line| metrics.width(line, CHIP_SIZE))
+        .fold(0.0, f64::max);
+    let left = match anchor {
+        TextAnchor::Start => x,
+        TextAnchor::Middle => x - width / 2.0,
+        TextAnchor::End => x - width,
+    };
+    let rows = crate::layout::count(lines.len());
+    elements.push(Element::Rect(Rect {
+        x: left - CHIP_PAD_X,
+        y: y - 11.0 - CHIP_PAD_Y,
+        width: width + 2.0 * CHIP_PAD_X,
+        height: 15.0 + CHIP_LINE * (rows - 1.0) + 2.0 * CHIP_PAD_Y,
+        class: "chartlet-diagram-chip",
+        series_index: None,
+        style_index: None,
+        tooltip: None,
+    }));
+    for (index, line) in lines.iter().enumerate() {
+        elements.push(Element::Text(Text {
+            x,
+            y: y + CHIP_LINE * crate::layout::count(index),
+            class: "chartlet-diagram-chip-text",
+            anchor,
+            content: line.clone(),
+        }));
+    }
+}
+
+/// A round badge with a number, centred on `center`.
+pub(crate) fn badge(number: usize, center: (f64, f64), elements: &mut Vec<Element>) {
+    elements.push(Element::Circle(Circle {
+        cx: center.0,
+        cy: center.1,
+        radius: BADGE,
+        class: "chartlet-diagram-badge",
+        topic: None,
+        series_index: None,
+        style_index: None,
+        tooltip: None,
+    }));
+    elements.push(Element::Text(Text {
+        x: center.0,
+        y: center.1 + 3.5,
+        class: "chartlet-diagram-badge-text",
+        anchor: TextAnchor::Middle,
+        content: number.to_string(),
+    }));
+}
+
 /// A data store: a cylinder in the box at `x`, `y`, whose top shows its front rim. `classes`
 /// style the body and the rim.
 pub(crate) fn cylinder(
@@ -76,7 +216,10 @@ pub(crate) fn cylinder(
     outline.extend(arc(y + height - RIM, 1.0, true));
     outline.extend(arc(y + RIM, -1.0, false));
     outline.push((x, y + RIM));
-    elements.push(Element::Polyline(polyline(outline, body, tooltip)));
+    with_shadow(
+        Element::Polyline(polyline(outline, body, tooltip)),
+        elements,
+    );
     elements.push(Element::Polyline(polyline(
         arc(y + RIM, 1.0, true),
         rim,
@@ -141,10 +284,11 @@ pub(crate) fn warn_growth(
     }
 }
 
-/// Whole pixels, rounded up so that nothing is cut off.
+/// Whole pixels, rounded up so that nothing is cut off. A layout that fills the canvas exactly
+/// may come out a hair above it in floating point; that is no reason to grow it by a pixel.
 pub(crate) fn pixels(value: f64) -> u32 {
     // Canvas sizes stay far below the range of u32 and are never negative.
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let pixels = value.ceil() as u32;
+    let pixels = (value - 1e-6).ceil() as u32;
     pixels
 }

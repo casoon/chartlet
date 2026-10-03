@@ -463,7 +463,7 @@
           "items": { "$ref": "#/$defs/fragment" }
         },
         "numbered": {
-          "description": "Writes each message's number in front of its label.",
+          "description": "Numbers the messages in round badges at the start of their arrows.",
           "type": "boolean",
           "default": false
         },

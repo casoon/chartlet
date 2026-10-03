@@ -24,6 +24,9 @@ does.
   `missing_lane`, `main_path_gap`, `group_overlap`, …). The description and the data table follow
   the steps in reading order. New examples `release-flow` and `order-flow`.
 - Where neither orientation fits the canvas, `auto` takes the one that grows it less.
+- Both diagram types share one look: a role color per kind of step or participant on top of its
+  shape (CSS custom properties `--chartlet-role-*`), soft shadows, rounded corners on edges, edge
+  and message labels on chips, and message numbers in badges at the start of their arrows.
 
 ### Fixed
 

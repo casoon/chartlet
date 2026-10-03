@@ -251,6 +251,8 @@ whose shared parts may still change between minor releases.
   mobile variant at its own size.
   Spare room spreads the messages out a little; a canvas too small for the diagram grows to the
   size it needs, with the warning `canvas_too_small` naming that size.
+- **Numbers.** `"numbered": true` puts each message's number in a round badge at the start of
+  its arrow; description and table number the messages either way.
 - **Text alternative.** The description names every participant and lists every message in
   order, then every fragment; the data table has one row per message with its number, sender,
   receiver, label, kind and the fragments around it. Arrows carry a tooltip such as
@@ -307,6 +309,14 @@ where anything goes. Like the sequence diagram it is **experimental**.
 - **Text alternative.** The description names the steps in reading order — layer by layer — and
   where each one leads, with the main path, the lanes and the groups; the data table has one row
   per step with its kind, lane, group and next steps.
+
+**Look.** Both diagram types share one visual language: every kind of step or participant has
+its own shape and a role color that repeats it — blue for steps and systems, green for start and
+end, amber for decisions, teal for data stores, violet for input and output and for queues, gray
+for anything external — each at least 3:1 against the background in both themes. Steps carry a
+soft shadow, edges turn with rounded corners, and edge labels sit on small chips in the background
+color. The colors are CSS custom properties (`--chartlet-role-blue`, `--chartlet-role-blue-fill`,
+…) that a host page can override.
 
 Limits: 1–40 steps with unique `id`s, up to 80 edges, 8 lanes and 8 groups.
 

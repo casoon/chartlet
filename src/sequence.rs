@@ -9,7 +9,10 @@ use std::fmt::Write as _;
 
 use crate::{
     DataTable,
-    diagram::{self, HEAD, arrowhead, cylinder, pixels, warn_growth, wrap},
+    diagram::{
+        self, BADGE, CHIP_REACH, HEAD, arrowhead, badge, chip, cylinder, pixels, rounded,
+        warn_growth, with_shadow, wrap,
+    },
     error::ChartWarning,
     layout::{fit_text, push_title, title_extra},
     metrics::TextMetrics,
@@ -147,14 +150,7 @@ impl<'a> Model<'a> {
         let labels = sequence
             .messages
             .iter()
-            .enumerate()
-            .map(|(index, message)| {
-                if sequence.numbered {
-                    format!("{}. {}", index + 1, message.label)
-                } else {
-                    message.label.clone()
-                }
-            })
+            .map(|message| message.label.clone())
             .collect();
         let box_widths = sequence
             .participants
@@ -418,7 +414,13 @@ impl Portrait {
                 let room = if from == to {
                     column - LOOP_OUT - 8.0
                 } else {
-                    column * crate::layout::count(from.abs_diff(*to)) - 16.0
+                    column * crate::layout::count(from.abs_diff(*to))
+                        - 16.0
+                        - if model.sequence.numbered {
+                            2.0 * (BADGE + 8.0)
+                        } else {
+                            0.0
+                        }
                 };
                 wrap(
                     label,
@@ -434,14 +436,14 @@ impl Portrait {
         let slots = Slots {
             arrow: lines
                 .iter()
-                .map(|lines| LINE * crate::layout::count(lines.len()) + 4.0)
+                .map(|lines| LINE * crate::layout::count(lines.len()) + 10.0)
                 .collect(),
             slot: lines
                 .iter()
                 .zip(&model.ends)
                 .map(|(lines, (from, to))| {
                     LINE * crate::layout::count(lines.len())
-                        + 4.0
+                        + 10.0
                         + if from == to { LOOP_ALONG + 12.0 } else { 10.0 }
                 })
                 .collect(),
@@ -542,7 +544,7 @@ impl Portrait {
             }
         }
         for index in 0..sequence.messages.len() {
-            self.draw_message(model, index, elements);
+            self.draw_message(model, index, metrics, elements);
         }
         let box_width = |participant: usize| model.box_widths[participant].min(self.column - 12.0);
         for (index, participant) in sequence.participants.iter().enumerate() {
@@ -565,7 +567,13 @@ impl Portrait {
         (pixels(self.width), pixels(self.height))
     }
 
-    fn draw_message(&self, model: &Model, index: usize, elements: &mut Vec<Element>) {
+    fn draw_message(
+        &self,
+        model: &Model,
+        index: usize,
+        metrics: &impl TextMetrics,
+        elements: &mut Vec<Element>,
+    ) {
         let (from, to) = model.ends[index];
         let kind = model.sequence.messages[index].kind;
         let y = self.base + self.track.arrows[index];
@@ -581,12 +589,12 @@ impl Portrait {
         if from == to {
             let x = self.center(from) + offset(from);
             elements.push(Element::Polyline(polyline(
-                vec![
+                rounded(&[
                     (x, y),
                     (x + LOOP_OUT, y),
                     (x + LOOP_OUT, y + LOOP_ALONG),
                     (x + HEAD, y + LOOP_ALONG),
-                ],
+                ]),
                 kind,
                 tooltip,
             )));
@@ -595,7 +603,17 @@ impl Portrait {
                 (-1.0, 0.0),
                 kind,
             )));
-            push_lines(elements, lines, x + 4.0, y - 6.0, TextAnchor::Start);
+            let first = y - 9.0 - LINE * crate::layout::count(lines.len() - 1);
+            chip(
+                lines,
+                (x + CHIP_REACH, first),
+                TextAnchor::Start,
+                metrics,
+                elements,
+            );
+            if model.sequence.numbered {
+                badge(index + 1, (x + LOOP_OUT, y + LOOP_ALONG / 2.0), elements);
+            }
             return;
         }
         let direction = if to > from { 1.0 } else { -1.0 };
@@ -607,13 +625,23 @@ impl Portrait {
             tooltip,
         )));
         elements.push(Element::Polyline(head((x2, y), (direction, 0.0), kind)));
-        push_lines(
-            elements,
+        let first = y - 9.0 - LINE * crate::layout::count(lines.len() - 1);
+        // A numbered message's label moves a little away from the badge at its start.
+        let shift = if model.sequence.numbered {
+            direction * (BADGE + 8.0) / 2.0
+        } else {
+            0.0
+        };
+        chip(
             lines,
-            f64::midpoint(x1, x2),
-            y - 6.0,
+            (f64::midpoint(x1, x2) + shift, first),
             TextAnchor::Middle,
+            metrics,
+            elements,
         );
+        if model.sequence.numbered {
+            badge(index + 1, (x1 + direction * (BADGE + 8.0), y), elements);
+        }
     }
 }
 
@@ -675,7 +703,7 @@ impl Landscape {
                 .zip(&model.ends)
                 .map(|(lines, (from, to))| {
                     let out = if from == to { LOOP_OUT + 6.0 } else { 6.0 };
-                    (6.0 + out + label_width(lines) + 14.0).max(36.0)
+                    (6.0 + out + label_width(lines) + 2.0 * CHIP_REACH + 14.0).max(36.0)
                 })
                 .collect(),
             head,
@@ -777,7 +805,7 @@ impl Landscape {
             }
         }
         for index in 0..sequence.messages.len() {
-            self.draw_message(model, index, elements);
+            self.draw_message(model, index, metrics, elements);
         }
         for (index, participant) in sequence.participants.iter().enumerate() {
             let center = self.center(index);
@@ -804,7 +832,13 @@ impl Landscape {
         (pixels(self.width), pixels(self.height))
     }
 
-    fn draw_message(&self, model: &Model, index: usize, elements: &mut Vec<Element>) {
+    fn draw_message(
+        &self,
+        model: &Model,
+        index: usize,
+        metrics: &impl TextMetrics,
+        elements: &mut Vec<Element>,
+    ) {
         let (from, to) = model.ends[index];
         let kind = model.sequence.messages[index].kind;
         let x = self.base + self.track.arrows[index];
@@ -821,12 +855,12 @@ impl Landscape {
         if from == to {
             let y = self.center(from) + offset(from);
             elements.push(Element::Polyline(polyline(
-                vec![
+                rounded(&[
                     (x, y),
                     (x, y + LOOP_ALONG),
                     (x + LOOP_OUT, y + LOOP_ALONG),
                     (x + LOOP_OUT, y + HEAD),
-                ],
+                ]),
                 kind,
                 tooltip,
             )));
@@ -835,13 +869,16 @@ impl Landscape {
                 (0.0, -1.0),
                 kind,
             )));
-            push_lines(
-                elements,
+            chip(
                 lines,
-                x + LOOP_OUT + 6.0,
-                y + 14.0 + block,
+                (x + LOOP_OUT + 4.0 + CHIP_REACH, y + 14.0),
                 TextAnchor::Start,
+                metrics,
+                elements,
             );
+            if model.sequence.numbered {
+                badge(index + 1, (x + LOOP_OUT / 2.0, y + LOOP_ALONG), elements);
+            }
             return;
         }
         let direction = if to > from { 1.0 } else { -1.0 };
@@ -855,27 +892,16 @@ impl Landscape {
         elements.push(Element::Polyline(head((x, y2), (0.0, direction), kind)));
         // Between the sender's lane and the next one, where no other lifeline crosses it.
         let gap = self.center(from) + direction * self.lane / 2.0;
-        push_lines(
-            elements,
+        chip(
             lines,
-            x + 6.0,
-            gap + 4.0 + block / 2.0,
+            (x + 2.0 + CHIP_REACH, gap + 4.0 - block / 2.0),
             TextAnchor::Start,
+            metrics,
+            elements,
         );
-    }
-}
-
-/// Writes `lines` with the last baseline at `y`, the earlier ones above it.
-fn push_lines(elements: &mut Vec<Element>, lines: &[String], x: f64, y: f64, anchor: TextAnchor) {
-    let last = lines.len() - 1;
-    for (index, line) in lines.iter().enumerate() {
-        elements.push(Element::Text(Text {
-            x,
-            y: y - LINE * crate::layout::count(last - index),
-            class: "chartlet-seq-message-label",
-            anchor,
-            content: line.clone(),
-        }));
+        if model.sequence.numbered {
+            badge(index + 1, (x, y1 + direction * (BADGE + 8.0)), elements);
+        }
     }
 }
 
@@ -1038,14 +1064,13 @@ fn draw_participant(
     elements: &mut Vec<Element>,
 ) {
     let Header {
-        index,
         x,
         y,
         width,
         height,
         figure: (figure_x, figure_y),
+        ..
     } = *header;
-    let center = x + width / 2.0;
     let tooltip = Some(match &participant.sublabel {
         Some(sublabel) => format!("{} – {sublabel}", participant.label),
         None => participant.label.clone(),
@@ -1063,22 +1088,41 @@ fn draw_participant(
         })
     };
     match participant.kind {
-        ParticipantKind::Service => elements.push(rect(x, y, "chartlet-seq-box", tooltip)),
-        ParticipantKind::External => {
-            elements.push(rect(
+        // Every kind has its own shape; its role color only repeats what the shape says.
+        ParticipantKind::Service => with_shadow(
+            rect(x, y, "chartlet-seq-box chartlet-role-blue", tooltip),
+            elements,
+        ),
+        ParticipantKind::External => with_shadow(
+            rect(
                 x,
                 y,
-                "chartlet-seq-box chartlet-seq-external",
+                "chartlet-seq-box chartlet-seq-external chartlet-role-gray",
                 tooltip,
-            ));
-        }
+            ),
+            elements,
+        ),
         ParticipantKind::Queue => {
-            elements.push(rect(x + 4.0, y - 4.0, "chartlet-seq-box", None));
-            elements.push(rect(x, y, "chartlet-seq-box", tooltip));
+            with_shadow(
+                rect(
+                    x + 4.0,
+                    y - 4.0,
+                    "chartlet-seq-box chartlet-role-violet",
+                    None,
+                ),
+                elements,
+            );
+            with_shadow(
+                rect(x, y, "chartlet-seq-box chartlet-role-violet", tooltip),
+                elements,
+            );
         }
         ParticipantKind::Database => cylinder(
             (x, y, width, height),
-            ("chartlet-seq-box", "chartlet-seq-rim"),
+            (
+                "chartlet-seq-box chartlet-role-teal",
+                "chartlet-diagram-rim",
+            ),
             tooltip,
             elements,
         ),
@@ -1087,6 +1131,26 @@ fn draw_participant(
             elements.push(rect(x, y, "chartlet-seq-hit", tooltip));
         }
     }
+    participant_text(header, participant, metrics, warnings, elements);
+}
+
+/// A participant's label, and its sublabel below it.
+fn participant_text(
+    header: &Header,
+    participant: &crate::spec::ParticipantSpec,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+    elements: &mut Vec<Element>,
+) {
+    let Header {
+        index,
+        x,
+        y,
+        width,
+        height,
+        ..
+    } = *header;
+    let center = x + width / 2.0;
     let path = format!("/sequence/participants/{index}");
     let room = width - 2.0 * PAD;
     let label = fit_text(
@@ -1368,7 +1432,7 @@ mod tests {
             .map(|index| format!(r#"{{"from": "a", "to": "b", "label": "m{index}"}}"#))
             .collect();
         let json = format!(
-            r#"{{"schemaVersion": 1, "type": "sequence", "title": "Many", "width": 1600, "height": 300,
+            r#"{{"schemaVersion": 1, "type": "sequence", "title": "Many", "width": 2400, "height": 300,
             "sequence": {{"participants": [{{"id": "a", "label": "A"}}, {{"id": "b", "label": "B"}}],
             "messages": [{}]}}}}"#,
             messages.join(",")
@@ -1376,7 +1440,7 @@ mod tests {
         let output = svg(&json);
         assert!(output.warnings.is_empty(), "{:?}", output.warnings);
         assert!(output.content.starts_with(
-            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"300\""
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"2400\" height=\"300\""
         ));
         // In landscape the lifelines run across: the first one starts and ends at the same height.
         let lifeline = output

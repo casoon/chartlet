@@ -22,7 +22,7 @@ pub struct SequenceSpec {
     /// Frames around a run of consecutive messages, such as an alternative or a loop.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fragments: Vec<FragmentSpec>,
-    /// Writes the number of each message in front of its label.
+    /// Numbers the messages in round badges at the start of their arrows.
     #[serde(default, skip_serializing_if = "is_false")]
     pub numbered: bool,
     /// Which way the diagram runs; see [`DiagramOrientation`].

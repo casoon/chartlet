@@ -4,7 +4,7 @@
   "title": "Reading an item through the cache",
   "source": "Service handbook, request flow",
   "width": 800,
-  "height": 560,
+  "height": 610,
   "sequence": {
     "participants": [
       { "id": "user", "label": "Reader", "kind": "actor" },

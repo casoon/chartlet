@@ -71,16 +71,20 @@ const RANGEBAR_STYLE: &str = ".chartlet-range{fill:var(--chartlet-accent);fill-o
 /// Range bars in groups: each group's spans in its palette color.
 const RANGE_GROUP_STYLE: &str = ".chartlet-range-series-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-range-series-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-range-series-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-range-series-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}";
 
-/// Sequence diagrams. `--chartlet-node` fills the participants' boxes, the activation bars and
-/// the fragment tabs; it is declared here rather than in the shared palette for the same reason
-/// as `--chartlet-sea`. Message labels and branch conditions are ringed in the background color,
-/// so that they stay legible where they cross a lifeline.
-const SEQUENCE_STYLE: &str = ".chartlet-root{--chartlet-node:#eef3fd}.chartlet-theme-dark{--chartlet-node:#1a2436}.chartlet-seq-box{fill:var(--chartlet-node);stroke:var(--chartlet-accent);stroke-width:1.5;rx:5px}.chartlet-seq-external{fill:var(--chartlet-background);stroke:var(--chartlet-muted);stroke-dasharray:5 3}.chartlet-seq-rim{fill:none;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-seq-hit{fill:transparent;stroke:none}.chartlet-seq-actor{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}.chartlet-seq-actor-head{fill:var(--chartlet-background);stroke:var(--chartlet-text);stroke-width:1.5}.chartlet-seq-label{font-size:13px;font-weight:600;fill:var(--chartlet-text)}.chartlet-seq-sublabel{font-size:11px;fill:var(--chartlet-muted)}.chartlet-seq-lifeline{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:4 4}.chartlet-seq-activation{fill:var(--chartlet-node);stroke:var(--chartlet-accent);stroke-width:1}.chartlet-seq-message{fill:none;stroke:var(--chartlet-muted);stroke-width:1.5;stroke-linejoin:round}.chartlet-seq-reply{stroke-dasharray:6 4}.chartlet-seq-head{fill:var(--chartlet-muted);stroke:var(--chartlet-muted);stroke-width:1;stroke-linejoin:round}.chartlet-seq-head-open{fill:none;stroke:var(--chartlet-muted);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}.chartlet-seq-message-label{font-size:12px;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-seq-frame{fill:none;stroke:var(--chartlet-zero);stroke-width:1}.chartlet-seq-tab{fill:var(--chartlet-node);stroke:var(--chartlet-zero);stroke-width:1}.chartlet-seq-tag{font-size:11px;font-weight:650;fill:var(--chartlet-text)}.chartlet-seq-guard{font-size:11px;fill:var(--chartlet-muted);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-seq-branch{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:5 4}";
+/// What every diagram shares: the colors of its roles, shadows, chips and number badges. Each
+/// role is a stroke and a light fill, at least 3:1 against the background in both themes; the
+/// role never rests on its color alone, the shape of a step says it too. The custom properties
+/// are declared here rather than in the shared palette for the same reason as `--chartlet-sea`.
+const DIAGRAM_STYLE: &str = ".chartlet-root{--chartlet-node:#eef3fd;--chartlet-lane:#f7f9fc;--chartlet-lane-head:#eef1f6;--chartlet-shadow:rgba(16,24,40,.09);--chartlet-role-blue:#2563eb;--chartlet-role-blue-fill:#eef3fd;--chartlet-role-green:#15803d;--chartlet-role-green-fill:#ecfdf3;--chartlet-role-amber:#b45309;--chartlet-role-amber-fill:#fff7e8;--chartlet-role-teal:#0f766e;--chartlet-role-teal-fill:#e9faf7;--chartlet-role-violet:#6d28d9;--chartlet-role-violet-fill:#f3efff;--chartlet-role-gray:#667085;--chartlet-role-gray-fill:#f7f8fa}.chartlet-theme-dark{--chartlet-node:#1a2436;--chartlet-lane:#121925;--chartlet-lane-head:#18212f;--chartlet-shadow:rgba(0,0,0,.45);--chartlet-role-blue:#7ea6ff;--chartlet-role-blue-fill:#1a2436;--chartlet-role-green:#4ade80;--chartlet-role-green-fill:#132a1d;--chartlet-role-amber:#fbbf24;--chartlet-role-amber-fill:#2b2210;--chartlet-role-teal:#2dd4bf;--chartlet-role-teal-fill:#0f2a27;--chartlet-role-violet:#b69cff;--chartlet-role-violet-fill:#231c38;--chartlet-role-gray:#9aa7bd;--chartlet-role-gray-fill:#161d29}.chartlet-role-blue{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-role-blue)}.chartlet-role-green{fill:var(--chartlet-role-green-fill);stroke:var(--chartlet-role-green)}.chartlet-role-amber{fill:var(--chartlet-role-amber-fill);stroke:var(--chartlet-role-amber)}.chartlet-role-teal{fill:var(--chartlet-role-teal-fill);stroke:var(--chartlet-role-teal)}.chartlet-role-violet{fill:var(--chartlet-role-violet-fill);stroke:var(--chartlet-role-violet)}.chartlet-role-gray{fill:var(--chartlet-role-gray-fill);stroke:var(--chartlet-role-gray)}.chartlet-diagram-rim{fill:none;stroke:var(--chartlet-role-teal);stroke-width:1.5}.chartlet-diagram-shadow{fill:var(--chartlet-shadow);stroke:none;rx:7px}.chartlet-diagram-chip{fill:var(--chartlet-background);stroke:var(--chartlet-grid);stroke-width:1;rx:4px}.chartlet-diagram-chip-text{font-size:12px;fill:var(--chartlet-text)}.chartlet-diagram-badge{fill:var(--chartlet-accent);stroke:var(--chartlet-background);stroke-width:2}.chartlet-diagram-badge-text{font-size:10px;font-weight:700;fill:var(--chartlet-background)}";
 
-/// Flow charts. `--chartlet-node` fills the steps as in a sequence diagram, `--chartlet-lane`
-/// every other lane; the main path is drawn in the accent color and thicker, so that it stands
-/// out by weight as well as by color.
-const FLOW_STYLE: &str = ".chartlet-root{--chartlet-node:#eef3fd;--chartlet-lane:#f6f8fc}.chartlet-theme-dark{--chartlet-node:#1a2436;--chartlet-lane:#131a26}.chartlet-flow-node{fill:var(--chartlet-node);stroke:var(--chartlet-accent);stroke-width:1.5;stroke-linejoin:round;rx:5px}.chartlet-flow-start{stroke-width:2}.chartlet-flow-end{stroke-width:3}.chartlet-flow-external{fill:var(--chartlet-background);stroke:var(--chartlet-muted);stroke-dasharray:5 3}.chartlet-flow-inner{stroke:var(--chartlet-accent);stroke-width:1}.chartlet-flow-rim{fill:none;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-flow-label{font-size:13px;font-weight:600;fill:var(--chartlet-text)}.chartlet-flow-sublabel{font-size:11px;fill:var(--chartlet-muted)}.chartlet-flow-edge{fill:none;stroke:var(--chartlet-muted);stroke-width:1.5;stroke-linejoin:round}.chartlet-flow-dashed{stroke-dasharray:6 4}.chartlet-flow-dotted{stroke-dasharray:1 4;stroke-linecap:round}.chartlet-flow-main{stroke:var(--chartlet-accent);stroke-width:2.5}.chartlet-flow-head{fill:var(--chartlet-muted);stroke:var(--chartlet-muted);stroke-width:1;stroke-linejoin:round}.chartlet-flow-main-head{fill:var(--chartlet-accent);stroke:var(--chartlet-accent)}.chartlet-flow-edge-label{font-size:12px;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-flow-lane{fill:var(--chartlet-lane);stroke:var(--chartlet-grid);stroke-width:1}.chartlet-flow-lane-alt{fill:var(--chartlet-background)}.chartlet-flow-lane-label{font-size:11px;font-weight:650;fill:var(--chartlet-muted);letter-spacing:.04em}.chartlet-flow-group{fill:none;stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:4 3;rx:8px}.chartlet-flow-group-label{font-size:11px;font-weight:600;fill:var(--chartlet-muted)}";
+/// Sequence diagrams, on top of [`DIAGRAM_STYLE`]. Branch conditions are ringed in the background
+/// color, so that they stay legible where they cross a lifeline.
+const SEQUENCE_STYLE: &str = ".chartlet-seq-box{stroke-width:1.5;stroke-linejoin:round;rx:7px}.chartlet-seq-external{stroke-dasharray:5 3}.chartlet-seq-hit{fill:transparent;stroke:none}.chartlet-seq-actor{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}.chartlet-seq-actor-head{fill:var(--chartlet-background);stroke:var(--chartlet-text);stroke-width:1.5}.chartlet-seq-label{font-size:13px;font-weight:600;fill:var(--chartlet-text)}.chartlet-seq-sublabel{font-size:11px;fill:var(--chartlet-muted)}.chartlet-seq-lifeline{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:3 4}.chartlet-seq-activation{fill:var(--chartlet-node);stroke:var(--chartlet-accent);stroke-width:1;rx:2px}.chartlet-seq-message{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}.chartlet-seq-reply{stroke-dasharray:5 4}.chartlet-seq-head{fill:var(--chartlet-zero);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-seq-head-open{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}.chartlet-seq-frame{fill:none;stroke:var(--chartlet-zero);stroke-width:1;rx:6px}.chartlet-seq-tab{fill:var(--chartlet-node);stroke:var(--chartlet-zero);stroke-width:1;rx:4px}.chartlet-seq-tag{font-size:11px;font-weight:650;fill:var(--chartlet-text)}.chartlet-seq-guard{font-size:11px;fill:var(--chartlet-muted);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-seq-branch{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:5 4}";
+
+/// Flow charts, on top of [`DIAGRAM_STYLE`]: `--chartlet-lane` fills every other lane, and the
+/// main path is drawn in the accent color and thicker, so that it stands out by weight as well as
+/// by color.
+const FLOW_STYLE: &str = ".chartlet-flow-node{stroke-width:1.5;stroke-linejoin:round;rx:7px}.chartlet-flow-start{stroke-width:2}.chartlet-flow-end{stroke-width:3}.chartlet-flow-external{stroke-dasharray:5 3}.chartlet-flow-inner{stroke:var(--chartlet-role-blue);stroke-width:1}.chartlet-flow-label{font-size:13px;font-weight:600;fill:var(--chartlet-text)}.chartlet-flow-sublabel{font-size:11px;fill:var(--chartlet-muted)}.chartlet-flow-edge{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}.chartlet-flow-dashed{stroke-dasharray:5 4}.chartlet-flow-dotted{stroke-dasharray:1 4;stroke-linecap:round}.chartlet-flow-main{stroke:var(--chartlet-accent);stroke-width:2.2}.chartlet-flow-head{fill:var(--chartlet-zero);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-flow-main-head{fill:var(--chartlet-accent);stroke:var(--chartlet-accent)}.chartlet-flow-lane{fill:var(--chartlet-lane);stroke:var(--chartlet-grid);stroke-width:1}.chartlet-flow-lane-alt{fill:var(--chartlet-background)}.chartlet-flow-lane-head{fill:var(--chartlet-lane-head);stroke:none}.chartlet-flow-lane-label{font-size:11px;font-weight:650;fill:var(--chartlet-muted);letter-spacing:.04em}.chartlet-flow-group{fill:var(--chartlet-accent);fill-opacity:.04;stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:4 3;rx:10px}.chartlet-flow-group-label{font-size:11px;font-weight:600;fill:var(--chartlet-muted)}";
 
 const FILTER_STYLE: &str = ".chartlet-wrapper{display:inline-block;max-width:100%}.chartlet-filter{border:none;padding:0;margin:0 0 12px 0}.chartlet-filter legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-filter label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-filter input{margin-right:4px}.chartlet-filter input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-wrapper:has(.chartlet-filter input.series-0:not(:checked)) .chartlet-root [data-series=\"0\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-2:not(:checked)) .chartlet-root [data-series=\"2\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-3:not(:checked)) .chartlet-root [data-series=\"3\"]{display:none}";
 
@@ -300,7 +304,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_flow = spec.chart_type == ChartType::Flow;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -364,6 +368,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         },
         if is_topicmap { TOPICMAP_STYLE } else { "" },
         if is_atlas { ATLAS_STYLE } else { "" },
+        if is_sequence || is_flow {
+            DIAGRAM_STYLE
+        } else {
+            ""
+        },
         if is_sequence { SEQUENCE_STYLE } else { "" },
         if is_flow { FLOW_STYLE } else { "" },
         if is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc) {
@@ -385,7 +394,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
     use ChartType::{
         Atlas, Bar, Calendar, Flow, Line, Multiples, Rangebar, Sequence, Stripes, Time, Topicmap,
     };
-    let groups: [(&str, &[ChartType]); 23] = [
+    let groups: [(&str, &[ChartType]); 24] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -406,6 +415,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (OUTLINE_STYLE, &[Bar]),
         (TOPICMAP_STYLE, &[Topicmap]),
         (ATLAS_STYLE, &[Atlas]),
+        (DIAGRAM_STYLE, &[Sequence, Flow]),
         (SEQUENCE_STYLE, &[Sequence]),
         (FLOW_STYLE, &[Flow]),
         (OHLC_STYLE, &[Time]),
