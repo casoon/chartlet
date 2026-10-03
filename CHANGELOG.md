@@ -4,7 +4,13 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
-## [Unreleased]
+## [0.8.0] - 2026-10-03
+
+Software diagrams: sequence, flow, state and architecture diagrams, laid out by chartlet from a
+description of what is connected, in portrait or landscape, with the same accessible output as a
+chart and a focus on a node without a script. All four types are experimental: their layout may
+change between minor releases. Every specification that rendered with 0.7.1 still renders the same;
+the examples from before are byte-identical.
 
 ### Added
 
@@ -51,7 +57,7 @@ does.
   the counts of its elements and the rows of its data table. Needs `@casoon/chartlet` with the
   diagram types.
 - Where neither orientation fits the canvas, `auto` takes the one that grows it less.
-- Both diagram types share one look: a role color per kind of step or participant on top of its
+- The diagram types share one look: a role color per kind of step or participant on top of its
   shape (CSS custom properties `--chartlet-role-*`), soft shadows, rounded corners on edges, edge
   and message labels on chips, and message numbers in badges at the start of their arrows.
 

@@ -1,6 +1,6 @@
 [package]
 name = "chartlet-wasm"
-version = "0.7.1"
+version = "0.8.0"
 edition = "2024"
 license = "MIT"
 description = "WebAssembly build of chartlet for the @casoon/chartlet npm package"
