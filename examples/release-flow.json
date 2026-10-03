@@ -4,7 +4,7 @@
   "title": "From commit to release",
   "source": "Team handbook, release process",
   "width": 1120,
-  "height": 990,
+  "height": 1020,
   "flow": {
     "lanes": [
       { "id": "dev", "label": "Development" },

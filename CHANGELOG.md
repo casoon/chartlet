@@ -4,6 +4,13 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Changed
+
+- Flowcharts with lanes leave a little room between a lane's head and its first step, and after
+  its last step, in portrait and landscape. Diagrams with lanes come out slightly longer.
+
 ## [0.8.0] - 2026-10-03
 
 Software diagrams: sequence, flow, state and architecture diagrams, laid out by chartlet from a

@@ -694,12 +694,11 @@ impl Plan {
             cross_needed
         };
         let ports = Ports::new(graph, &plan.cross, &cross_size, model, landscape);
-        // In portrait the lanes' names head the layers.
-        let lead = LANE_HEAD * f64::from(u8::from(!landscape && !diagram.lanes.is_empty()));
+        let ends = lane_ends(diagram, landscape);
         let gaps = Gaps::new(model, &plan, &ports, landscape);
-        let natural = gaps.length(&main_size, graph, lead);
+        let natural = gaps.length(&main_size, graph, ends);
         let stretch = gaps.stretch(natural, main_room);
-        plan.main_length = gaps.place(&mut plan, &main_size, graph, lead, stretch);
+        plan.main_length = gaps.place(&mut plan, &main_size, graph, ends, stretch);
         plan.routes = route(model, &plan, &ports, &gaps, stretch);
         let rooms = (main_room, cross_room);
         plan.finish(
@@ -858,6 +857,18 @@ fn loop_room(model: &Model, landscape: bool, metrics: &impl TextMetrics) -> Vec<
             }
         })
         .collect()
+}
+
+/// The room lanes take on the main axis before the first layer and after the last: a little
+/// air, and in portrait the strip with their names ahead of it.
+fn lane_ends(diagram: &Diagram, landscape: bool) -> (f64, f64) {
+    if diagram.lanes.is_empty() {
+        (0.0, 0.0)
+    } else if landscape {
+        (LANE_PAD, LANE_PAD)
+    } else {
+        (LANE_HEAD + LANE_PAD, LANE_PAD)
+    }
 }
 
 /// The lanes on the cross axis: each as wide as its widest layer needs, and as its name.
@@ -1509,7 +1520,12 @@ impl Gaps {
     }
 
     /// The length of the layers along the main axis with the gaps at their least.
-    fn length(&self, main_size: &impl Fn(usize) -> f64, graph: &Graph, lead: f64) -> f64 {
+    fn length(
+        &self,
+        main_size: &impl Fn(usize) -> f64,
+        graph: &Graph,
+        (lead, trail): (f64, f64),
+    ) -> f64 {
         let depths: f64 = graph
             .layers
             .iter()
@@ -1519,6 +1535,7 @@ impl Gaps {
             + depths
             + self.total()
             + self.frame_after.last().copied().unwrap_or(0.0)
+            + trail
     }
 
     /// Places the layers on the main axis and returns their length.
@@ -1527,7 +1544,7 @@ impl Gaps {
         plan: &mut Plan,
         main_size: &impl Fn(usize) -> f64,
         graph: &Graph,
-        lead: f64,
+        (lead, trail): (f64, f64),
         stretch: f64,
     ) -> f64 {
         let mut at = lead + self.frame_before.first().copied().unwrap_or(0.0);
@@ -1540,7 +1557,7 @@ impl Gaps {
                 at += self.size(index) * stretch;
             }
         }
-        at + self.frame_after.last().copied().unwrap_or(0.0)
+        at + self.frame_after.last().copied().unwrap_or(0.0) + trail
     }
 
     /// The main position of track `track` in gap `gap`, which begins at `start`.
