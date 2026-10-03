@@ -1,6 +1,6 @@
 ---
 title: Chart types
-description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, sequence diagrams, flow charts and state diagrams.
+description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, sequence diagrams, flow charts, state diagrams and architecture diagrams.
 order: 1
 ---
 
@@ -39,6 +39,7 @@ order: 1
 | Flow chart in lanes, with a loop back and a group (experimental) | `"type": "flow"` with `nodes`, `edges`, `lanes`, `groups`, `mainPath` | [From commit to release](../../../showcase/release-flow/) |
 | Flow chart, turned landscape by a wide canvas (experimental) | `"type": "flow"`, `"orientation": "auto"` | [Handling an order](../../../showcase/order-flow/) |
 | State diagram with a choice, a loop and two final states (experimental) | `"type": "state"` with `states`, `transitions`, `initial` | [Life of a support ticket](../../../showcase/ticket-states/) |
+| Architecture diagram with nested boundaries (experimental) | `"type": "architecture"` with `components`, `connections`, `boundaries` | [Web shop on one cloud region](../../../showcase/shop-architecture/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
@@ -363,6 +364,53 @@ flow, loops on a state, portrait and landscape — and is **experimental** like 
 
 Limits: 1–40 states with unique `id`s and up to 80 transitions; an unknown `id` is
 `unknown_state`.
+
+## Architecture diagrams
+
+An architecture diagram (`"type": "architecture"`) shows the components of a system, how they
+connect and where they run. It uses the layout of flow charts and is **experimental** like them.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Blog",
+  "architecture": {
+    "boundaries": [
+      { "id": "cloud", "label": "Cloud" },
+      { "id": "private", "label": "Private network", "in": "cloud" }
+    ],
+    "components": [
+      { "id": "reader", "label": "Reader", "kind": "person" },
+      { "id": "site", "label": "Site", "kind": "frontend" },
+      { "id": "api", "label": "API", "in": "private" },
+      { "id": "db", "label": "Posts", "kind": "database", "in": "private" }
+    ],
+    "connections": [
+      { "from": "reader", "to": "site", "label": "reads" },
+      { "from": "site", "to": "api", "label": "loads", "technology": "HTTPS" },
+      { "from": "api", "to": "db", "technology": "SQL" }
+    ]
+  }
+}
+```
+
+- **Components** have a `kind`, each with its own shape and role color: `person` (a box with a
+  head), `frontend` (a box with a window bar), `service` (a box, the default), `database` (a
+  cylinder), `queue` (a box with a stack behind it), `storage` (a bucket), `cache` (a hexagon)
+  and `external` (a dashed box).
+- **Boundaries** are frames — a cloud region, a network, a zone, a system. A component lies `in`
+  a boundary, and a boundary `in` another one, up to four deep. Every boundary holds at least one
+  component (`empty_boundary`), and boundaries cannot lie in each other in a circle
+  (`boundary_cycle`). chartlet keeps components that do not belong to a boundary out of its frame.
+- **Connections** carry a `label` for what they do and a `technology` for how, written in
+  brackets on a line below it.
+- **Text alternative.** The description says what each boundary holds and where each component
+  connects to; the data table has one row per component with its kind, its boundaries
+  (`Cloud › Private network`) and its connections.
+
+Limits: 1–40 components, up to 80 connections and 12 boundaries; identifiers are unique among
+components and boundaries together.
 
 ## Time series
 

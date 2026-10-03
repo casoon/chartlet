@@ -90,6 +90,10 @@ const FLOW_STYLE: &str = ".chartlet-flow-node{stroke-width:1.5;stroke-linejoin:r
 /// corners, the inner outline of a final state, and the initial dot.
 const STATE_STYLE: &str = ".chartlet-state{rx:14px}.chartlet-state-inner{fill:none;stroke:var(--chartlet-role-green);stroke-width:1.5;rx:11px}.chartlet-state-initial{fill:var(--chartlet-text);stroke:var(--chartlet-background);stroke-width:2}";
 
+/// Architecture diagrams, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: the head of a person
+/// and the dots of a window bar.
+const ARCHITECTURE_STYLE: &str = ".chartlet-arch-head{fill:var(--chartlet-role-violet-fill);stroke:var(--chartlet-role-violet);stroke-width:1.5}.chartlet-arch-dot{fill:var(--chartlet-role-blue);stroke:none}";
+
 const FILTER_STYLE: &str = ".chartlet-wrapper{display:inline-block;max-width:100%}.chartlet-filter{border:none;padding:0;margin:0 0 12px 0}.chartlet-filter legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-filter label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-filter input{margin-right:4px}.chartlet-filter input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-wrapper:has(.chartlet-filter input.series-0:not(:checked)) .chartlet-root [data-series=\"0\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-2:not(:checked)) .chartlet-root [data-series=\"2\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-3:not(:checked)) .chartlet-root [data-series=\"3\"]{display:none}";
 
 /// CSS rules for radio-selectable zoom panels. Only the panel whose radio is checked shows;
@@ -289,6 +293,18 @@ fn type_class(chart_type: ChartType) -> String {
     format!("chartlet-type-{}", crate::spec::type_name(chart_type))
 }
 
+/// The stylesheets of the diagram types: what they share, then what each adds.
+fn diagram_style(chart_type: ChartType) -> String {
+    let parts: &[&str] = match chart_type {
+        ChartType::Sequence => &[DIAGRAM_STYLE, SEQUENCE_STYLE],
+        ChartType::Flow => &[DIAGRAM_STYLE, FLOW_STYLE],
+        ChartType::State => &[DIAGRAM_STYLE, FLOW_STYLE, STATE_STYLE],
+        ChartType::Architecture => &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE],
+        _ => &[],
+    };
+    parts.concat()
+}
+
 /// The style groups a chart uses, in the order of [`shared_stylesheet`], so that rules cascade
 /// alike in a chart's own stylesheet and in the shared one. The print variant has no series
 /// filter to style.
@@ -304,12 +320,9 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_rangebar = spec.chart_type == ChartType::Rangebar;
     let is_topicmap = spec.chart_type == ChartType::Topicmap;
     let is_atlas = spec.chart_type == ChartType::Atlas;
-    let is_sequence = spec.chart_type == ChartType::Sequence;
-    let is_flow = matches!(spec.chart_type, ChartType::Flow | ChartType::State);
-    let is_state = spec.chart_type == ChartType::State;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -373,14 +386,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         },
         if is_topicmap { TOPICMAP_STYLE } else { "" },
         if is_atlas { ATLAS_STYLE } else { "" },
-        if is_sequence || is_flow {
-            DIAGRAM_STYLE
-        } else {
-            ""
-        },
-        if is_sequence { SEQUENCE_STYLE } else { "" },
-        if is_flow { FLOW_STYLE } else { "" },
-        if is_state { STATE_STYLE } else { "" },
+        diagram_style(spec.chart_type),
         if is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc) {
             OHLC_STYLE
         } else {
@@ -398,10 +404,10 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Atlas, Bar, Calendar, Flow, Line, Multiples, Rangebar, Sequence, State, Stripes, Time,
-        Topicmap,
+        Architecture, Atlas, Bar, Calendar, Flow, Line, Multiples, Rangebar, Sequence, State,
+        Stripes, Time, Topicmap,
     };
-    let groups: [(&str, &[ChartType]); 25] = [
+    let groups: [(&str, &[ChartType]); 26] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -422,10 +428,11 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (OUTLINE_STYLE, &[Bar]),
         (TOPICMAP_STYLE, &[Topicmap]),
         (ATLAS_STYLE, &[Atlas]),
-        (DIAGRAM_STYLE, &[Sequence, Flow, State]),
+        (DIAGRAM_STYLE, &[Sequence, Flow, State, Architecture]),
         (SEQUENCE_STYLE, &[Sequence]),
-        (FLOW_STYLE, &[Flow, State]),
+        (FLOW_STYLE, &[Flow, State, Architecture]),
         (STATE_STYLE, &[State]),
+        (ARCHITECTURE_STYLE, &[Architecture]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
@@ -858,7 +865,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
     // values.
     if matches!(
         spec.chart_type,
-        ChartType::Sequence | ChartType::Flow | ChartType::State
+        ChartType::Sequence | ChartType::Flow | ChartType::State | ChartType::Architecture
     ) {
         let table = data_table(spec);
         return TableHooks {
@@ -1341,6 +1348,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Sequence => return crate::sequence::data_table(spec),
         ChartType::Flow => return crate::flow::data_table(spec),
         ChartType::State => return crate::state::data_table(spec),
+        ChartType::Architecture => return crate::architecture::data_table(spec),
         _ => {}
     }
     let words = spec.locale.words();
@@ -1357,7 +1365,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Stripes => words.year,
         ChartType::Calendar => words.date,
         ChartType::Bar | ChartType::Line | ChartType::Rangebar => words.category,
-        ChartType::Sequence | ChartType::Flow | ChartType::State => {
+        ChartType::Sequence | ChartType::Flow | ChartType::State | ChartType::Architecture => {
             unreachable!("a diagram writes its own table")
         }
     };

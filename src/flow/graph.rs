@@ -12,7 +12,8 @@ use super::Diagram;
 pub(super) struct Item {
     pub node: Option<usize>,
     pub lane: Option<usize>,
-    pub group: Option<usize>,
+    /// The groups the item lies in, outermost first; none for a placeholder.
+    pub groups: Vec<usize>,
     /// A placeholder of an edge that runs against the flow; it keeps to the outside of its lane,
     /// so that the way back does not cut through the steps.
     pub back: bool,
@@ -24,6 +25,10 @@ pub(super) struct Chain {
     pub items: Vec<usize>,
     pub reversed: bool,
 }
+
+/// How an item sorts within its layer: lane, whether it carries an edge back, the means of the
+/// groups it lies in level by level ending with its own barycenter, and its earlier position.
+type SortKey = (usize, bool, Vec<(f64, usize)>, usize);
 
 pub(super) struct Graph {
     pub items: Vec<Item>,
@@ -60,7 +65,7 @@ impl Graph {
             .map(|node| Item {
                 node: Some(node),
                 lane: diagram.nodes[node].lane,
-                group: diagram.nodes[node].group,
+                groups: diagram.chain(diagram.nodes[node].group),
                 back: false,
             })
             .collect();
@@ -85,7 +90,7 @@ impl Graph {
                 items.push(Item {
                     node: None,
                     lane,
-                    group: None,
+                    groups: Vec::new(),
                     back: reversed[index],
                 });
                 layer.push(between);
@@ -187,38 +192,49 @@ impl Graph {
         };
         let items = &self.layers[layer];
         let own: Vec<f64> = items.iter().map(|item| barycenter(*item)).collect();
-        // The members of a group share the mean of their barycenters, so that they stay together.
-        let keys: Vec<(usize, bool, f64, usize, usize)> = items
+        // The members of a group share the mean of their barycenters, level by level, so that a
+        // group stays together and so do the groups inside it.
+        let keys: Vec<SortKey> = items
             .iter()
             .zip(&own)
             .map(|(item, key)| {
-                let group = self.items[*item].group;
-                let key = group.map_or(*key, |group| {
-                    let members: Vec<f64> = items
-                        .iter()
-                        .zip(&own)
-                        .filter(|(other, _)| self.items[**other].group == Some(group))
-                        .map(|(_, key)| *key)
-                        .collect();
-                    members.iter().sum::<f64>() / crate::layout::count(members.len())
-                });
+                let mut path: Vec<(f64, usize)> = self.items[*item]
+                    .groups
+                    .iter()
+                    .map(|group| {
+                        let members: Vec<f64> = items
+                            .iter()
+                            .zip(&own)
+                            .filter(|(other, _)| self.items[**other].groups.contains(group))
+                            .map(|(_, key)| *key)
+                            .collect();
+                        let mean =
+                            members.iter().sum::<f64>() / crate::layout::count(members.len());
+                        (mean, *group)
+                    })
+                    .collect();
+                path.push((*key, usize::MAX));
                 (
                     self.items[*item].lane.unwrap_or(0),
                     self.items[*item].back,
-                    key,
-                    group.unwrap_or(usize::MAX),
+                    path,
                     self.position[*item],
                 )
             })
             .collect();
         let mut order: Vec<usize> = (0..items.len()).collect();
         order.sort_by(|a, b| {
-            let (a, b) = (keys[*a], keys[*b]);
+            let (a, b) = (&keys[*a], &keys[*b]);
+            let path =
+                a.2.iter()
+                    .zip(&b.2)
+                    .map(|(a, b)| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)))
+                    .find(|order| order.is_ne())
+                    .unwrap_or(std::cmp::Ordering::Equal);
             a.0.cmp(&b.0)
                 .then(a.1.cmp(&b.1))
-                .then(a.2.total_cmp(&b.2))
+                .then(path)
                 .then(a.3.cmp(&b.3))
-                .then(a.4.cmp(&b.4))
         });
         let sorted: Vec<usize> = order.iter().map(|index| items[*index]).collect();
         self.layers[layer] = sorted;

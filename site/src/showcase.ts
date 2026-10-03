@@ -292,6 +292,13 @@ const catalogue = [
       'The states of a support ticket: a dot marks where it starts, a diamond the choice by severity, double outlines the two ways it ends. Transitions read event [guard] / action, a reminder loops on its state, and reopening runs back against the flow. The table lists every transition with its parts in columns of their own.',
   },
   {
+    slug: 'shop-architecture',
+    chart: 'Architecture diagram',
+    useCase: 'Show where the parts of a system run',
+    blurb:
+      'Ten components of a web shop in three nested boundaries — a cloud region, a private network, a data zone — with every kind in its own shape. Connections say what they do and, in brackets, how. Components outside a boundary stay out of its frame; the table names each component with its boundaries and connections.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

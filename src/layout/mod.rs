@@ -265,6 +265,7 @@ pub(crate) fn layout(
         (ChartType::Sequence, _) => crate::sequence::layout(spec, warnings, metrics),
         (ChartType::Flow, _) => crate::flow::layout(spec, warnings, metrics),
         (ChartType::State, _) => crate::state::layout(spec, warnings, metrics),
+        (ChartType::Architecture, _) => crate::architecture::layout(spec, warnings, metrics),
     }
 }
 

@@ -14,7 +14,7 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     diagram::{
-        self, CHIP_REACH, HEAD, arrowhead, chip, cylinder, pixels, rounded, warn_growth,
+        self, CHIP_REACH, HEAD, arrowhead, chip, chip_box, cylinder, pixels, rounded, warn_growth,
         with_shadow, wrap,
     },
     error::ChartWarning,
@@ -141,6 +141,8 @@ pub(crate) struct Edge {
     pub from: usize,
     pub to: usize,
     pub label: Option<String>,
+    /// How the connection is made, written in brackets on a line below the label.
+    pub technology: Option<String>,
     pub dash: Option<Dash>,
     /// Whether the edge belongs to the main path.
     pub main: bool,
@@ -151,6 +153,8 @@ pub(crate) struct Edge {
 pub(crate) struct Group {
     pub label: String,
     pub path: String,
+    /// The group this one lies in.
+    pub parent: Option<usize>,
 }
 
 /// How a node is drawn.
@@ -170,6 +174,16 @@ pub(crate) enum Shape {
     State,
     /// A final state: a state with a double outline.
     Final,
+    /// Someone who uses a system: a box with a head on top.
+    Person,
+    /// What a person sees: a box with a window bar.
+    Frontend,
+    /// A queue: a box with a stack behind it.
+    Queue,
+    /// File or object storage: a bucket, wider at the top.
+    Bucket,
+    /// A cache: a hexagon.
+    Cache,
 }
 
 impl From<NodeKind> for Shape {
@@ -213,6 +227,7 @@ impl Diagram {
                     from,
                     to,
                     label: edge.label.clone(),
+                    technology: None,
                     dash: edge.dash,
                     main: flow.on_main_path(index),
                     label_path: format!("/flow/edges/{index}/label"),
@@ -226,10 +241,28 @@ impl Diagram {
                 .map(|(index, group)| Group {
                     label: group.label.clone(),
                     path: format!("/flow/groups/{index}"),
+                    parent: None,
                 })
                 .collect(),
             orientation: flow.orientation,
         }
+    }
+
+    /// The groups around `group`, outermost first, ending with `group` itself.
+    pub(crate) fn chain(&self, group: Option<usize>) -> Vec<usize> {
+        let mut chain = Vec::new();
+        let mut at = group;
+        while let Some(group) = at {
+            chain.push(group);
+            at = self.groups[group].parent;
+        }
+        chain.reverse();
+        chain
+    }
+
+    /// Whether node `node` lies in group `group`, directly or in a group inside it.
+    fn inside(&self, node: usize, group: usize) -> bool {
+        self.chain(self.nodes[node].group).contains(&group)
     }
 
     fn ends(&self) -> Vec<(usize, usize)> {
@@ -274,6 +307,10 @@ impl<'a> Model<'a> {
                 Shape::Subprocess => (16.0, 0.0),
                 Shape::Store => (0.0, 10.0),
                 Shape::Final => (8.0, 8.0),
+                Shape::Person => (0.0, 8.0),
+                Shape::Frontend => (0.0, 12.0),
+                Shape::Bucket => (16.0, 4.0),
+                Shape::Cache => (24.0, 0.0),
                 _ => (0.0, 0.0),
             };
             let room = MAX_NODE - 2.0 * PAD;
@@ -296,27 +333,7 @@ impl<'a> Model<'a> {
             labels.push(lines);
             sizes.push((width, height));
         }
-        let mut edge_labels = Vec::with_capacity(diagram.edges.len());
-        let mut edge_widths = Vec::with_capacity(diagram.edges.len());
-        for edge in &diagram.edges {
-            let lines = edge.label.as_ref().map_or_else(Vec::new, |label| {
-                wrap(
-                    label,
-                    EDGE_LABEL,
-                    EDGE_SIZE,
-                    metrics,
-                    warnings,
-                    &edge.label_path,
-                )
-            });
-            edge_widths.push(
-                lines
-                    .iter()
-                    .map(|line| metrics.width(line, EDGE_SIZE))
-                    .fold(0.0, f64::max),
-            );
-            edge_labels.push(lines);
-        }
+        let (edge_labels, edge_widths) = edge_labels(diagram, metrics, warnings);
         let loops = (0..diagram.nodes.len())
             .map(|node| {
                 let labels: Vec<&str> = diagram
@@ -346,6 +363,54 @@ impl<'a> Model<'a> {
             loops,
         }
     }
+}
+
+/// Each edge's label on one or two lines with its technology in brackets below, and the widest
+/// line of each.
+fn edge_labels(
+    diagram: &Diagram,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) -> (Vec<Vec<String>>, Vec<f64>) {
+    let mut edge_labels = Vec::with_capacity(diagram.edges.len());
+    let mut edge_widths = Vec::with_capacity(diagram.edges.len());
+    for edge in &diagram.edges {
+        let mut lines = edge.label.as_ref().map_or_else(Vec::new, |label| {
+            wrap(
+                label,
+                EDGE_LABEL,
+                EDGE_SIZE,
+                metrics,
+                warnings,
+                &edge.label_path,
+            )
+        });
+        if let Some(technology) = &edge.technology {
+            lines.push(crate::layout::fit_text(
+                &format!("[{technology}]"),
+                EDGE_LABEL,
+                EDGE_SIZE,
+                metrics,
+                warnings,
+                &edge.label_path.replace("/label", "/technology"),
+            ));
+        }
+        edge_widths.push(
+            lines
+                .iter()
+                .map(|line| metrics.width(line, EDGE_SIZE))
+                .fold(0.0, f64::max),
+        );
+        edge_labels.push(lines);
+    }
+    (edge_labels, edge_widths)
+}
+
+/// An edge label waiting to be drawn: its lines, the first baseline and how it is anchored.
+struct Label {
+    lines: Vec<String>,
+    at: (f64, f64),
+    anchor: TextAnchor,
 }
 
 /// An edge's way on the main and cross axes, and where its label goes.
@@ -423,13 +488,15 @@ impl Plan {
             } else {
                 PASSING_GAP
             };
-            let grouped =
-                first.group != second.group && (first.group.is_some() || second.group.is_some());
-            cross_size(a) / 2.0
-                + cross_size(b) / 2.0
-                + base
-                + after(a)
-                + if grouped { GROUP_GAP } else { 0.0 }
+            // Room for every frame between the two.
+            let common = first
+                .groups
+                .iter()
+                .zip(&second.groups)
+                .take_while(|(a, b)| a == b)
+                .count();
+            let frames = first.groups.len() + second.groups.len() - 2 * common;
+            cross_size(a) / 2.0 + cross_size(b) / 2.0 + base + after(a) + GROUP_GAP * count(frames)
         };
         let lane_head = if landscape { LANE_HEAD } else { 0.0 };
         let bands = lane_bands(
@@ -443,12 +510,7 @@ impl Plan {
         );
         let cross = place(graph, &cross_size, &gap, &bands, lane_head);
         let cross_length = if bands.is_empty() {
-            graph
-                .items
-                .iter()
-                .enumerate()
-                .map(|(item, _)| cross[item] + cross_size(item) / 2.0 + after(item))
-                .fold(0.0, f64::max)
+            content_length(graph, &cross, &cross_size, &after)
         } else {
             bands.last().map_or(0.0, |band| band.1)
         };
@@ -479,12 +541,16 @@ impl Plan {
             &plan.bands,
             lane_head,
         );
-        let ports = Ports::new(graph, &plan.cross, &cross_size, model, landscape);
-        let lead = if !landscape && !diagram.lanes.is_empty() {
-            LANE_HEAD
+        let cross_needed = if plan.bands.is_empty() && !diagram.groups.is_empty() {
+            clear_frames(model, &mut plan.cross, &cross_size, landscape);
+            plan.cross_length = content_length(graph, &plan.cross, &cross_size, &after);
+            plan.cross_length
         } else {
-            0.0
+            cross_needed
         };
+        let ports = Ports::new(graph, &plan.cross, &cross_size, model, landscape);
+        // In portrait the lanes' names head the layers.
+        let lead = LANE_HEAD * f64::from(u8::from(!landscape && !diagram.lanes.is_empty()));
         let gaps = Gaps::new(model, &plan, &ports, landscape);
         let natural = gaps.length(&main_size, graph, lead);
         let stretch = if natural < main_room && gaps.total() > 0.0 {
@@ -562,6 +628,18 @@ impl Plan {
         let (width, height) = self.sizes[node];
         (x - width / 2.0, y - height / 2.0, width, height)
     }
+}
+
+/// How far the content reaches on the cross axis, loops beside steps included.
+fn content_length(
+    graph: &Graph,
+    cross: &[f64],
+    cross_size: &impl Fn(usize) -> f64,
+    after: &impl Fn(usize) -> f64,
+) -> f64 {
+    (0..graph.items.len())
+        .map(|item| cross[item] + cross_size(item) / 2.0 + after(item))
+        .fold(0.0, f64::max)
 }
 
 /// The room the canvas leaves the layout on the main and the cross axis.
@@ -850,6 +928,107 @@ fn straighten(
     }
 }
 
+/// How far the frame of `group` reaches on the cross axis: around its own steps and the frames
+/// inside it, with the room a frame takes on either side.
+fn frame_range(
+    diagram: &Diagram,
+    cross: &[f64],
+    cross_size: &impl Fn(usize) -> f64,
+    group: usize,
+    landscape: bool,
+) -> (f64, f64) {
+    let own = (0..diagram.nodes.len())
+        .filter(|node| diagram.nodes[*node].group == Some(group))
+        .map(|node| {
+            (
+                cross[node] - cross_size(node) / 2.0,
+                cross[node] + cross_size(node) / 2.0,
+            )
+        });
+    let inner = (0..diagram.groups.len())
+        .filter(|child| diagram.groups[*child].parent == Some(group))
+        .map(|child| frame_range(diagram, cross, cross_size, child, landscape));
+    let (low, high) = own
+        .chain(inner)
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), (a, b)| {
+            (low.min(a), high.max(b))
+        });
+    let head = if landscape { GROUP_HEAD } else { 0.0 };
+    (low - GROUP_PAD - head, high + GROUP_PAD)
+}
+
+/// Moves the steps that do not belong to a group out of its frame, with the steps beyond them, to
+/// the side they stand on: a frame drawn around a group's steps would otherwise enclose a step of
+/// a neighbouring layer that lies between them. Inner frames first; the frames around them then
+/// take in what moved.
+fn clear_frames(
+    model: &Model,
+    cross: &mut [f64],
+    cross_size: &impl Fn(usize) -> f64,
+    landscape: bool,
+) {
+    const MARGIN: f64 = 12.0;
+    let (graph, diagram) = (&model.graph, model.diagram);
+    let mut order: Vec<usize> = (0..diagram.groups.len()).collect();
+    order.sort_by_key(|group| (std::cmp::Reverse(diagram.chain(Some(*group)).len()), *group));
+    let item_size = |item: usize| cross_size(item);
+    for &group in &order {
+        let layers: Vec<usize> = (0..diagram.nodes.len())
+            .filter(|node| diagram.inside(*node, group))
+            .map(|node| graph.layer[node])
+            .collect();
+        let first = layers.iter().copied().min().unwrap_or(0);
+        let last = layers.iter().copied().max().unwrap_or(0);
+        for layer in first..=last {
+            let items = &graph.layers[layer];
+            for position in 0..items.len() {
+                let item = items[position];
+                let Some(node) = graph.items[item].node else {
+                    continue;
+                };
+                if diagram.inside(node, group) {
+                    continue;
+                }
+                let (low, high) = frame_range(diagram, cross, cross_size, group, landscape);
+                let half = item_size(item) / 2.0;
+                let (start, end) = (cross[item] - half - MARGIN, cross[item] + half + MARGIN);
+                if end <= low || start >= high {
+                    continue;
+                }
+                let member = |other: &usize| {
+                    graph.items[*other]
+                        .node
+                        .is_some_and(|node| diagram.inside(node, group))
+                };
+                let before = items[..position].iter().any(member);
+                let after = items[position + 1..].iter().any(member);
+                let left = if before == after {
+                    cross[item] < f64::midpoint(low, high)
+                } else {
+                    after
+                };
+                if left {
+                    let shift = low - end;
+                    for other in &items[..=position] {
+                        cross[*other] += shift;
+                    }
+                } else {
+                    let shift = high - start;
+                    for other in &items[position..] {
+                        cross[*other] += shift;
+                    }
+                }
+            }
+        }
+    }
+    let low = (0..graph.items.len())
+        .map(|item| cross[item] - cross_size(item) / 2.0)
+        .fold(f64::INFINITY, f64::min);
+    for position in cross.iter_mut() {
+        *position -= low;
+    }
+}
+
 /// Moves `item` to the cross position `target`: alone if its neighbours leave room, else with
 /// the whole run of its lane in its layer if the lane does. Returns whether it moved.
 #[allow(clippy::too_many_arguments)]
@@ -1020,6 +1199,8 @@ impl Gaps {
         let mut pieces = Vec::new();
         let mut label_room = vec![0.0; gaps];
         let mut label_room_end = vec![0.0; gaps];
+        let mut stacks: std::collections::BTreeMap<(usize, bool, bool), f64> =
+            std::collections::BTreeMap::new();
         for (edge, chain) in graph.chains.iter().enumerate() {
             let Some(chain) = chain else { continue };
             let items = &chain.items;
@@ -1042,16 +1223,26 @@ impl Gaps {
             }
             let lines = &model.edge_labels[edge];
             if !lines.is_empty() {
+                // In portrait, labels on the same side of a step stack along the flow.
+                let (node, offset) = if chain.reversed {
+                    (items[items.len() - 1], ports.reach[edge])
+                } else {
+                    (items[0], ports.leave[edge])
+                };
                 let room = if landscape {
                     model.edge_widths[edge] + 26.0
                 } else {
-                    LINE * count(lines.len()) + 16.0
+                    let stacked = stacks
+                        .entry((node, chain.reversed, offset >= 0.0))
+                        .or_insert(0.0);
+                    *stacked += LINE * count(lines.len()) + 9.0;
+                    *stacked + 7.0
                 };
                 if chain.reversed {
-                    let gap = graph.layer[items[items.len() - 1]] - 1;
+                    let gap = graph.layer[node] - 1;
                     label_room_end[gap] = f64::max(label_room_end[gap], room);
                 } else {
-                    let gap = graph.layer[items[0]];
+                    let gap = graph.layer[node];
                     label_room[gap] = f64::max(label_room[gap], room);
                 }
             }
@@ -1086,25 +1277,7 @@ impl Gaps {
             }
             *tracks = ends.len();
         }
-        let mut frame_after = vec![0.0; layers];
-        let mut frame_before = vec![0.0; layers];
-        for group in 0..model.diagram.groups.len() {
-            let members: Vec<usize> = (0..model.diagram.nodes.len())
-                .filter(|node| model.diagram.nodes[*node].group == Some(group))
-                .map(|node| graph.layer[node])
-                .collect();
-            let (first, last) = (
-                members.iter().copied().min().unwrap_or(0),
-                members.iter().copied().max().unwrap_or(0),
-            );
-            let head = if landscape {
-                GROUP_PAD
-            } else {
-                GROUP_PAD + GROUP_HEAD
-            };
-            frame_before[first] = f64::max(frame_before[first], head);
-            frame_after[last] = f64::max(frame_after[last], GROUP_PAD);
-        }
+        let (frame_before, frame_after) = frame_room(model, landscape);
         Self {
             pieces,
             label_room,
@@ -1169,6 +1342,50 @@ impl Gaps {
             + (self.frame_after[gap] + self.label_room[gap] + GAP / 2.0 + count(track) * TRACK)
                 * stretch
     }
+}
+
+/// Per layer, the room the frames of groups take before it on the main axis, where they open,
+/// and after it, where they close.
+fn frame_room(model: &Model, landscape: bool) -> (Vec<f64>, Vec<f64>) {
+    let graph = &model.graph;
+    let layers = graph.layers.len();
+    let mut frame_after = vec![0.0; layers];
+    let mut frame_before = vec![0.0; layers];
+    // The layers each group spans, through the groups inside it.
+    let diagram = model.diagram;
+    let spans: Vec<(usize, usize)> = (0..diagram.groups.len())
+        .map(|group| {
+            let layers: Vec<usize> = (0..diagram.nodes.len())
+                .filter(|node| diagram.inside(*node, group))
+                .map(|node| graph.layer[node])
+                .collect();
+            (
+                layers.iter().copied().min().unwrap_or(0),
+                layers.iter().copied().max().unwrap_or(0),
+            )
+        })
+        .collect();
+    let head = if landscape {
+        GROUP_PAD
+    } else {
+        GROUP_PAD + GROUP_HEAD
+    };
+    // A step needs room for every frame that opens before it or closes after it.
+    for node in 0..diagram.nodes.len() {
+        let layer = graph.layer[node];
+        let chain = diagram.chain(diagram.nodes[node].group);
+        let opening = chain
+            .iter()
+            .filter(|group| spans[**group].0 == layer)
+            .count();
+        let closing = chain
+            .iter()
+            .filter(|group| spans[**group].1 == layer)
+            .count();
+        frame_before[layer] = f64::max(frame_before[layer], head * count(opening));
+        frame_after[layer] = f64::max(frame_after[layer], GROUP_PAD * count(closing));
+    }
+    (frame_before, frame_after)
 }
 
 /// How deep a layer is on the main axis: as deep as its deepest step.
@@ -1292,12 +1509,14 @@ impl Plan {
     ) {
         self.draw_lanes(model, elements);
         self.draw_groups(model, metrics, warnings, elements);
+        let mut labels = Vec::new();
         for edge in 0..model.diagram.edges.len() {
-            self.draw_edge(model, edge, metrics, elements);
+            self.draw_edge(model, edge, elements, &mut labels);
         }
         for node in 0..model.diagram.nodes.len() {
-            self.draw_loop(model, node, metrics, elements);
+            self.draw_loop(model, node, elements, &mut labels);
         }
+        self.draw_labels(labels, metrics, elements);
         for node in 0..model.diagram.nodes.len() {
             self.draw_node(model, node, metrics, warnings, elements);
         }
@@ -1364,29 +1583,46 @@ impl Plan {
         elements: &mut Vec<Element>,
     ) {
         let diagram = model.diagram;
-        for (index, group) in diagram.groups.iter().enumerate() {
-            let members: Vec<usize> = (0..diagram.nodes.len())
-                .filter(|node| diagram.nodes[*node].group == Some(index))
-                .collect();
-            let boxes: Vec<(f64, f64, f64, f64)> = members
-                .iter()
-                .map(|node| self.node_box(model, *node))
-                .collect();
-            let left = boxes.iter().map(|b| b.0).fold(f64::INFINITY, f64::min) - GROUP_PAD;
-            let top =
-                boxes.iter().map(|b| b.1).fold(f64::INFINITY, f64::min) - GROUP_PAD - GROUP_HEAD;
-            let right = boxes
-                .iter()
-                .map(|b| b.0 + b.2)
-                .fold(f64::NEG_INFINITY, f64::max)
-                + GROUP_PAD;
-            let bottom = boxes
-                .iter()
-                .map(|b| b.1 + b.3)
-                .fold(f64::NEG_INFINITY, f64::max)
-                + GROUP_PAD;
+        let groups = diagram.groups.len();
+        let depth = |group: usize| diagram.chain(Some(group)).len();
+        // Frames from the innermost out: each around its own steps and the frames inside it.
+        let mut frames: Vec<(f64, f64, f64, f64)> = vec![(0.0, 0.0, 0.0, 0.0); groups];
+        let mut inner_first: Vec<usize> = (0..groups).collect();
+        inner_first.sort_by_key(|group| (std::cmp::Reverse(depth(*group)), *group));
+        for &group in &inner_first {
+            let boxes = (0..diagram.nodes.len())
+                .filter(|node| diagram.nodes[*node].group == Some(group))
+                .map(|node| {
+                    let (x, y, width, height) = self.node_box(model, node);
+                    (x, y, x + width, y + height)
+                })
+                .chain(
+                    (0..groups)
+                        .filter(|child| diagram.groups[*child].parent == Some(group))
+                        .map(|child| frames[child]),
+                );
+            let (left, top, right, bottom) = boxes.fold(
+                (
+                    f64::INFINITY,
+                    f64::INFINITY,
+                    f64::NEG_INFINITY,
+                    f64::NEG_INFINITY,
+                ),
+                |(left, top, right, bottom), b| {
+                    (left.min(b.0), top.min(b.1), right.max(b.2), bottom.max(b.3))
+                },
+            );
+            frames[group] = (
+                left - GROUP_PAD,
+                top - GROUP_PAD - GROUP_HEAD,
+                right + GROUP_PAD,
+                bottom + GROUP_PAD,
+            );
+        }
+        for &group in inner_first.iter().rev() {
+            let (left, top, right, bottom) = frames[group];
             let intruder = (0..diagram.nodes.len())
-                .filter(|node| !members.contains(node))
+                .filter(|node| !diagram.inside(*node, group))
                 .map(|node| self.node_box(model, node))
                 .any(|(x, y, width, height)| {
                     x < right && x + width > left && y < bottom && y + height > top
@@ -1394,8 +1630,8 @@ impl Plan {
             if intruder {
                 warnings.push(ChartWarning::new(
                     "group_overlap",
-                    group.path.clone(),
-                    "a step outside the group lies inside its frame; move it to another lane or regroup the steps",
+                    diagram.groups[group].path.clone(),
+                    "a step outside the frame lies inside it; move it elsewhere or regroup the steps",
                 ));
             }
             elements.push(Element::Rect(Rect {
@@ -1408,14 +1644,14 @@ impl Plan {
                 style_index: None,
                 tooltip: None,
             }));
-            let path = format!("{}/label", group.path);
+            let path = format!("{}/label", diagram.groups[group].path);
             elements.push(Element::Text(Text {
                 x: left + 8.0,
                 y: top + 13.0,
                 class: "chartlet-flow-group-label",
                 anchor: TextAnchor::Start,
                 content: crate::layout::fit_text(
-                    &group.label,
+                    &diagram.groups[group].label,
                     right - left - 16.0,
                     SUBLABEL_SIZE,
                     metrics,
@@ -1430,8 +1666,8 @@ impl Plan {
         &self,
         model: &Model,
         edge: usize,
-        metrics: &impl TextMetrics,
         elements: &mut Vec<Element>,
+        labels: &mut Vec<Label>,
     ) {
         let Some(route) = &self.routes[edge] else {
             return;
@@ -1458,15 +1694,16 @@ impl Plan {
             (false, Some(Dash::Dotted)) => "chartlet-flow-edge chartlet-flow-dotted",
             (false, _) => "chartlet-flow-edge",
         };
-        let tooltip = match &spec.label {
-            Some(label) => format!(
-                "{} → {}: {label}",
-                diagram.nodes[from].label, diagram.nodes[to].label
-            ),
-            None => format!(
-                "{} → {}",
-                diagram.nodes[from].label, diagram.nodes[to].label
-            ),
+        let note = match (&spec.label, &spec.technology) {
+            (Some(label), Some(technology)) => Some(format!("{label} [{technology}]")),
+            (Some(label), None) => Some(label.clone()),
+            (None, Some(technology)) => Some(format!("[{technology}]")),
+            (None, None) => None,
+        };
+        let (from_label, to_label) = (&diagram.nodes[from].label, &diagram.nodes[to].label);
+        let tooltip = match note {
+            Some(note) => format!("{from_label} → {to_label}: {note}"),
+            None => format!("{from_label} → {to_label}"),
         };
         elements.push(Element::Polyline(diagram::polyline(
             points,
@@ -1518,7 +1755,43 @@ impl Plan {
                 (x, y - 12.0 - LINE * last, anchor)
             }
         };
-        chip(lines, (x, y), anchor, metrics, elements);
+        labels.push(Label {
+            lines: lines.clone(),
+            at: (x, y),
+            anchor,
+        });
+    }
+
+    /// Draws the edge labels over all edges, each moved along the flow until it no longer covers
+    /// one drawn before it.
+    fn draw_labels(
+        &self,
+        labels: Vec<Label>,
+        metrics: &impl TextMetrics,
+        elements: &mut Vec<Element>,
+    ) {
+        const AIR: f64 = 3.0;
+        let mut placed: Vec<(f64, f64, f64, f64)> = Vec::new();
+        for mut label in labels {
+            for _ in 0..12 {
+                let (x, y, width, height) = chip_box(&label.lines, label.at, label.anchor, metrics);
+                let Some(other) = placed.iter().find(|other| {
+                    x < other.0 + other.2 + AIR
+                        && other.0 < x + width + AIR
+                        && y < other.1 + other.3 + AIR
+                        && other.1 < y + height + AIR
+                }) else {
+                    break;
+                };
+                if self.landscape {
+                    label.at.0 += other.0 + other.2 + AIR - x;
+                } else {
+                    label.at.1 += other.1 + other.3 + AIR - y;
+                }
+            }
+            placed.push(chip_box(&label.lines, label.at, label.anchor, metrics));
+            chip(&label.lines, label.at, label.anchor, metrics, elements);
+        }
     }
 
     /// An edge from a step to itself: a loop beside the step, right in portrait and below in
@@ -1527,8 +1800,8 @@ impl Plan {
         &self,
         model: &Model,
         node: usize,
-        metrics: &impl TextMetrics,
         elements: &mut Vec<Element>,
+        labels: &mut Vec<Label>,
     ) {
         let Some(label) = &model.loops[node] else {
             return;
@@ -1583,13 +1856,11 @@ impl Plan {
             "chartlet-flow-head",
         )));
         if !label.is_empty() {
-            chip(
-                std::slice::from_ref(label),
-                (text.0, text.1),
-                text.2,
-                metrics,
-                elements,
-            );
+            labels.push(Label {
+                lines: vec![label.clone()],
+                at: (text.0, text.1),
+                anchor: text.2,
+            });
         }
     }
 
@@ -1636,7 +1907,12 @@ impl Plan {
         let lines = &model.labels[node];
         let sublabel = spec.sublabel.is_some();
         let block = NODE_LINE * count(lines.len() - 1) + if sublabel { 14.0 } else { 0.0 };
-        let shift = if spec.shape == Shape::Store { 3.0 } else { 0.0 };
+        // Text clears what a shape draws at its top.
+        let shift = match spec.shape {
+            Shape::Store | Shape::Person => 3.0,
+            Shape::Frontend => 6.0,
+            _ => 0.0,
+        };
         let first = middle_y - block / 2.0 + 4.5 + shift;
         for (index, line) in lines.iter().enumerate() {
             elements.push(Element::Text(Text {
@@ -1768,6 +2044,9 @@ fn shape(
         Shape::State | Shape::Final | Shape::Initial => {
             state_shape(kind, (x, y, width, height), tooltip, elements);
         }
+        Shape::Person | Shape::Frontend | Shape::Queue | Shape::Bucket | Shape::Cache => {
+            component_shape(kind, (x, y, width, height), tooltip, elements);
+        }
     }
 }
 
@@ -1829,6 +2108,125 @@ fn state_shape(
             tooltip,
         })),
         _ => unreachable!("only the shapes of a state diagram come here"),
+    }
+}
+
+/// The shapes of an architecture diagram beyond those of a flow chart.
+fn component_shape(
+    kind: Shape,
+    (x, y, width, height): (f64, f64, f64, f64),
+    tooltip: Option<String>,
+    elements: &mut Vec<Element>,
+) {
+    let rect = |x: f64, y: f64, class: &'static str, tooltip: Option<String>| {
+        Element::Rect(Rect {
+            x,
+            y,
+            width,
+            height,
+            class,
+            series_index: None,
+            style_index: None,
+            tooltip,
+        })
+    };
+    let polygon = |points: Vec<(f64, f64)>, class: &'static str, tooltip: Option<String>| {
+        Element::Polyline(diagram::polyline(points, class, tooltip))
+    };
+    let middle = y + height / 2.0;
+    match kind {
+        Shape::Person => {
+            with_shadow(
+                rect(x, y, "chartlet-flow-node chartlet-role-violet", tooltip),
+                elements,
+            );
+            elements.push(Element::Circle(Circle {
+                cx: x + width / 2.0,
+                cy: y,
+                radius: 7.0,
+                class: "chartlet-arch-head",
+                topic: None,
+                series_index: None,
+                style_index: None,
+                tooltip: None,
+            }));
+        }
+        Shape::Frontend => {
+            with_shadow(
+                rect(x, y, "chartlet-flow-node chartlet-role-blue", tooltip),
+                elements,
+            );
+            window_bar(x, y, width, elements);
+        }
+        Shape::Queue => {
+            with_shadow(
+                rect(
+                    x + 4.0,
+                    y - 4.0,
+                    "chartlet-flow-node chartlet-role-violet",
+                    None,
+                ),
+                elements,
+            );
+            with_shadow(
+                rect(x, y, "chartlet-flow-node chartlet-role-violet", tooltip),
+                elements,
+            );
+        }
+        Shape::Bucket => with_shadow(
+            polygon(
+                vec![
+                    (x, y),
+                    (x + width, y),
+                    (x + width - 8.0, y + height),
+                    (x + 8.0, y + height),
+                    (x, y),
+                ],
+                "chartlet-flow-node chartlet-role-teal",
+                tooltip,
+            ),
+            elements,
+        ),
+        Shape::Cache => with_shadow(
+            polygon(
+                vec![
+                    (x + 12.0, y),
+                    (x + width - 12.0, y),
+                    (x + width, middle),
+                    (x + width - 12.0, y + height),
+                    (x + 12.0, y + height),
+                    (x, middle),
+                    (x + 12.0, y),
+                ],
+                "chartlet-flow-node chartlet-role-amber",
+                tooltip,
+            ),
+            elements,
+        ),
+        _ => unreachable!("only the shapes of an architecture diagram come here"),
+    }
+}
+
+/// The window bar along the top of a frontend: a line and three dots.
+fn window_bar(x: f64, y: f64, width: f64, elements: &mut Vec<Element>) {
+    elements.push(Element::Line(Line {
+        x1: x,
+        y1: y + 12.0,
+        x2: x + width,
+        y2: y + 12.0,
+        class: "chartlet-flow-inner",
+    }));
+    for dot in 0..3 {
+        elements.push(Element::Circle(Circle {
+            cx: x + 8.0 + 6.0 * f64::from(dot),
+            cy: y + 6.0,
+            radius: 1.8,
+            class: "chartlet-arch-dot",
+            topic: None,
+            series_index: None,
+            style_index: None,
+            tooltip: None,
+        }));
     }
 }
 

@@ -1,3 +1,4 @@
+mod architecture;
 mod atlas;
 mod calendar;
 mod color;
@@ -32,8 +33,9 @@ pub use error::{ChartError, ChartWarning};
 pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
-    AxisScale, BranchSpec, CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec,
-    CategoryAxisSpec, ChartSpec, ChartType, Corner, Curve, Dash, DataPoint, DiagramOrientation,
+    ArchitectureSpec, AxisScale, BoundarySpec, BranchSpec, CalendarDay, CalendarLayout,
+    CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ComponentKind,
+    ComponentSpec, ConnectionSpec, Corner, Curve, Dash, DataPoint, DiagramOrientation,
     FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec,
     LayerSpec, LegendPlacement, Mark, MessageKind, MessageSpec, MobileSpec, NodeKind, OhlcPoint,
     Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec, ReferenceSpec,

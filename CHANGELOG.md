@@ -28,6 +28,13 @@ does.
   state, a main path. The warning `unreachable_state` names a state nothing leads to. The data
   table has one row per transition with event, guard and action in columns of their own. New
   example `ticket-states`.
+- Architecture diagrams (`"type": "architecture"`, experimental): components in eight kinds with
+  their own shapes (person, frontend, service, database, queue, storage, cache, external),
+  connections with a label and a technology, and boundaries nested up to four deep, laid out like
+  flow charts. Components outside a boundary are kept out of its frame. New example
+  `shop-architecture`.
+- Edge labels of flow, state and architecture diagrams are drawn above all edges; labels on the
+  same side of a step stack instead of covering each other.
 - Where neither orientation fits the canvas, `auto` takes the one that grows it less.
 - Both diagram types share one look: a role color per kind of step or participant on top of its
   shape (CSS custom properties `--chartlet-role-*`), soft shadows, rounded corners on edges, edge

@@ -1,3 +1,4 @@
+mod architecture;
 mod atlas;
 mod calendar;
 mod categorical;
@@ -16,6 +17,9 @@ use serde_path_to_error::Segment;
 use crate::{
     error::{ChartError, ChartWarning},
     time::TimeValue,
+};
+pub use architecture::{
+    ArchitectureSpec, BoundarySpec, ComponentKind, ComponentSpec, ConnectionSpec,
 };
 pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
 pub(crate) use calendar::calendar_date;
@@ -134,6 +138,10 @@ pub struct ChartSpec {
     /// `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<StateSpec>,
+    /// The components, connections and boundaries of a `type: "architecture"` diagram. Skipped
+    /// while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub architecture: Option<ArchitectureSpec>,
     /// The spans of a `type: "rangebar"` chart, one per category.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ranges: Vec<RangeSpec>,
@@ -274,11 +282,13 @@ pub enum ChartType {
     Flow,
     /// A state diagram: states joined by transitions, laid out like a flow chart.
     State,
+    /// An architecture diagram: components and connections inside nested boundaries.
+    Architecture,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -291,6 +301,7 @@ impl ChartType {
         Self::Sequence,
         Self::Flow,
         Self::State,
+        Self::Architecture,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -588,6 +599,7 @@ impl ChartSpec {
             ChartType::Sequence => return self.validate_sequence(),
             ChartType::Flow => return self.validate_flow(),
             ChartType::State => return self.validate_state(),
+            ChartType::Architecture => return self.validate_architecture(),
             ChartType::Bar | ChartType::Line => {}
         }
         let warnings = self.validate_data()?;
@@ -1174,6 +1186,11 @@ impl ChartSpec {
             ("/sequence", self.sequence.is_some(), ChartType::Sequence),
             ("/flow", self.flow.is_some(), ChartType::Flow),
             ("/state", self.state.is_some(), ChartType::State),
+            (
+                "/architecture",
+                self.architecture.is_some(),
+                ChartType::Architecture,
+            ),
             ("/columns", self.columns.is_some(), ChartType::Multiples),
             ("/references", !self.references.is_empty(), ChartType::Bar),
             ("/stack", self.stack.is_some(), ChartType::Bar),
@@ -1228,6 +1245,7 @@ impl ChartSpec {
                 | ChartType::Sequence
                 | ChartType::Flow
                 | ChartType::State
+                | ChartType::Architecture
         ) {
             for (field, present, owner) in [
                 ("/topicmap", self.topicmap.is_some(), ChartType::Topicmap),
@@ -1323,6 +1341,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Sequence => "sequence",
         ChartType::Flow => "flow",
         ChartType::State => "state",
+        ChartType::Architecture => "architecture",
     }
 }
 

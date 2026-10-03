@@ -128,15 +128,13 @@ pub(crate) fn with_shadow(shape: Element, elements: &mut Vec<Element>) {
     elements.push(shape);
 }
 
-/// A label on a chip: its lines on a small rounded plate in the background color, so that it
-/// reads clearly where it crosses or sits beside lines. `y` is the baseline of the first line.
-pub(crate) fn chip(
+/// The plate of a chip with `lines` whose first baseline is at `y`: left, top, width, height.
+pub(crate) fn chip_box(
     lines: &[String],
     (x, y): (f64, f64),
     anchor: TextAnchor,
     metrics: &impl TextMetrics,
-    elements: &mut Vec<Element>,
-) {
+) -> (f64, f64, f64, f64) {
     let width = lines
         .iter()
         .map(|line| metrics.width(line, CHIP_SIZE))
@@ -147,11 +145,29 @@ pub(crate) fn chip(
         TextAnchor::End => x - width,
     };
     let rows = crate::layout::count(lines.len());
+    (
+        left - CHIP_PAD_X,
+        y - 11.0 - CHIP_PAD_Y,
+        width + 2.0 * CHIP_PAD_X,
+        15.0 + CHIP_LINE * (rows - 1.0) + 2.0 * CHIP_PAD_Y,
+    )
+}
+
+/// A label on a chip: its lines on a small rounded plate in the background color, so that it
+/// reads clearly where it crosses or sits beside lines. `y` is the baseline of the first line.
+pub(crate) fn chip(
+    lines: &[String],
+    (x, y): (f64, f64),
+    anchor: TextAnchor,
+    metrics: &impl TextMetrics,
+    elements: &mut Vec<Element>,
+) {
+    let (left, top, width, height) = chip_box(lines, (x, y), anchor, metrics);
     elements.push(Element::Rect(Rect {
-        x: left - CHIP_PAD_X,
-        y: y - 11.0 - CHIP_PAD_Y,
-        width: width + 2.0 * CHIP_PAD_X,
-        height: 15.0 + CHIP_LINE * (rows - 1.0) + 2.0 * CHIP_PAD_Y,
+        x: left,
+        y: top,
+        width,
+        height,
         class: "chartlet-diagram-chip",
         series_index: None,
         style_index: None,

@@ -3,7 +3,7 @@
 
 use std::fmt::Write as _;
 
-use crate::spec::{FragmentSpec, Locale, MessageKind, NodeKind, ParticipantKind};
+use crate::spec::{ComponentKind, FragmentSpec, Locale, MessageKind, NodeKind, ParticipantKind};
 
 pub(crate) struct Words {
     pub value: &'static str,
@@ -68,6 +68,10 @@ pub(crate) struct Words {
     pub action: &'static str,
     pub next_state: &'static str,
     pub start: &'static str,
+    /// The columns of an architecture diagram's table.
+    pub component: &'static str,
+    pub boundary: &'static str,
+    pub connects_to: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -131,6 +135,9 @@ const EN: Words = Words {
     action: "Action",
     next_state: "To",
     start: "Start",
+    component: "Component",
+    boundary: "Boundary",
+    connects_to: "Connects to",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -196,6 +203,9 @@ const DE: Words = Words {
     action: "Aktion",
     next_state: "Nach",
     start: "Start",
+    component: "Komponente",
+    boundary: "Grenze",
+    connects_to: "Verbunden mit",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],
@@ -1088,6 +1098,96 @@ pub(crate) fn choices(locale: Locale, labels: &[&str]) -> String {
         Locale::En => format!("Choices: {labels}."),
         Locale::De => format!("Auswahlpunkte: {labels}."),
     }
+}
+
+/// The opening sentence of an architecture diagram.
+pub(crate) fn architecture_opening(
+    locale: Locale,
+    components: usize,
+    connections: usize,
+    boundaries: usize,
+) -> String {
+    let boundaries = match (locale, boundaries) {
+        (_, 0) => String::new(),
+        (Locale::En, count) => format!(" in {count} boundar{}", plural(count, "y", "ies")),
+        (Locale::De, count) => format!(" in {count} {}", plural(count, "Grenze", "Grenzen")),
+    };
+    match locale {
+        Locale::En => format!(
+            "Architecture diagram with {components} component{} and {connections} connection{}{boundaries}.",
+            plural(components, "", "s"),
+            plural(connections, "", "s"),
+        ),
+        Locale::De => format!(
+            "Architekturdiagramm mit {components} {} und {connections} {}{boundaries}.",
+            plural(components, "Komponente", "Komponenten"),
+            plural(connections, "Verbindung", "Verbindungen"),
+        ),
+    }
+}
+
+/// A boundary and what it holds, components and boundaries, as a sentence.
+/// The same in English and German.
+pub(crate) fn boundary(label: &str, parent: Option<&str>, held: &[&str]) -> String {
+    let parent = parent.map_or_else(String::new, |parent| format!(" (in {parent})"));
+    format!("{label}{parent}: {}.", held.join(", "))
+}
+
+/// What a component is, for the description and the data table.
+pub(crate) const fn component_kind(locale: Locale, kind: ComponentKind) -> &'static str {
+    match (locale, kind) {
+        (Locale::En, ComponentKind::Person) => "person",
+        (Locale::En, ComponentKind::Frontend) => "frontend",
+        (Locale::En, ComponentKind::Service) => "service",
+        (Locale::En, ComponentKind::Database) => "database",
+        (Locale::En, ComponentKind::Queue) => "queue",
+        (Locale::En, ComponentKind::Storage) => "storage",
+        (Locale::En, ComponentKind::Cache) => "cache",
+        (Locale::En, ComponentKind::External) => "external system",
+        (Locale::De, ComponentKind::Person) => "Person",
+        (Locale::De, ComponentKind::Frontend) => "Oberfläche",
+        (Locale::De, ComponentKind::Service) => "Dienst",
+        (Locale::De, ComponentKind::Database) => "Datenbank",
+        (Locale::De, ComponentKind::Queue) => "Warteschlange",
+        (Locale::De, ComponentKind::Storage) => "Speicher",
+        (Locale::De, ComponentKind::Cache) => "Cache",
+        (Locale::De, ComponentKind::External) => "externes System",
+    }
+}
+
+/// What a connection does and how, for a parenthesis: `reads, via SQL`.
+pub(crate) fn connection_note(
+    locale: Locale,
+    label: Option<&str>,
+    technology: Option<&str>,
+) -> Option<String> {
+    let via = match locale {
+        Locale::En => "via",
+        Locale::De => "über",
+    };
+    match (label, technology) {
+        (None, None) => None,
+        (Some(label), None) => Some(label.to_owned()),
+        (None, Some(technology)) => Some(format!("{via} {technology}")),
+        (Some(label), Some(technology)) => Some(format!("{label}, {via} {technology}")),
+    }
+}
+
+/// A component as a sentence: its label and kind, and where it connects to.
+pub(crate) fn component(
+    locale: Locale,
+    label: &str,
+    kind: ComponentKind,
+    next: &[String],
+) -> String {
+    let kind = component_kind(locale, kind);
+    let next = match (locale, next.is_empty()) {
+        (Locale::En, true) => "no outgoing connection".to_owned(),
+        (Locale::De, true) => "keine ausgehende Verbindung".to_owned(),
+        (Locale::En, false) => format!("connects to {}", listed(locale, next)),
+        (Locale::De, false) => format!("verbunden mit {}", listed(locale, next)),
+    };
+    format!("{label} ({kind}): {next}.")
 }
 
 #[cfg(test)]
