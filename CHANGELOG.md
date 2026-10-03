@@ -43,6 +43,10 @@ does.
   narrower steps, participant names on two lines instead of shortened, loop labels wrapped,
   frames and labels kept on the page. A numbered message's label rises above its badge instead
   of giving up width to it.
+- MCP server: the tool `chartlet_diagram_starter` returns a valid starting specification per
+  diagram type with the kinds of its elements, and `chartlet_explain` gives a diagram's structure:
+  the counts of its elements and the rows of its data table. Needs `@casoon/chartlet` with the
+  diagram types.
 - Where neither orientation fits the canvas, `auto` takes the one that grows it less.
 - Both diagram types share one look: a role color per kind of step or participant on top of its
   shape (CSS custom properties `--chartlet-role-*`), soft shadows, rounded corners on edges, edge

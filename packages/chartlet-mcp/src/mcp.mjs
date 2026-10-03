@@ -1,4 +1,4 @@
-// The MCP server: four tools, the specification schema as a resource, and the MCP App view of
+// The MCP server: five tools, the specification schema as a resource, and the MCP App view of
 // chartlet_render. The tools only read data, call the chartlet compiler and compute; there is no
 // model and no interpretation here.
 
@@ -9,6 +9,7 @@ import { CLIENT_CAPABILITIES_META_KEY, McpServer } from "@modelcontextprotocol/s
 import { z } from "zod";
 
 import { explainSpec, renderSpec, validateSpec } from "./charts.mjs";
+import { DIAGRAM_TYPES, diagramStarter } from "./diagrams.mjs";
 import { DISTINCT_CAP, inspectData } from "./inspect.mjs";
 import { supportsView, VIEW_META_KEY, VIEW_RESOURCE_META, VIEW_URI, viewHtml, viewPayload } from "./view.mjs";
 
@@ -158,7 +159,7 @@ Use after drafting or editing a spec and before chartlet_render. An invalid spec
     "chartlet_render",
     {
       title: "Render a chartlet chart",
-      description: `Compile a chartlet specification into static, accessible SVG or HTML. The same spec and options always give the same bytes; the manifest records the compiler version and SHA-256 of spec and output.
+      description: `Compile a chartlet specification into static, accessible SVG or HTML: data charts, and software diagrams (sequence, flow, state, architecture; chartlet_diagram_starter gives a starting point). The same spec and options always give the same bytes; the manifest records the compiler version and SHA-256 of spec and output.
 
 Returns content (or, with outputPath, the written path and byte size instead), warnings, styleHashes (CSP 'sha256-…' sources for the inline styles) and manifest. Charts can be 10–200 KB: prefer outputPath when the content does not need to be read.
 
@@ -232,6 +233,8 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
       title: "Compute facts about a chart",
       description: `Report facts about a chartlet chart, computed and not interpreted: the accessible description chartlet generates (as in the SVG <desc>; the spec's own description is returned separately), the chart type, and per data series or layer its count, missing values, min and max (with every label or time that has that value), and first and last value with label or time.
 
+Diagrams (sequence, flow, state, architecture) have no series; for them structure gives the counts of their elements and every row of their data table in reading order — messages, steps with where they lead, transitions with event, guard and action, or components with their boundaries and connections.
+
 For ohlc layers min is the lowest low, max the highest high, first the first open and last the last close. Zones, reference lines and markers are not series. topicmap and atlas charts have no series. Nothing here judges causes, trends or significance: state such conclusions only from the data and say they are yours.`,
       inputSchema: z.object({ spec }),
       outputSchema: z.object({
@@ -255,6 +258,14 @@ For ohlc layers min is the lowest low, max the highest high, first the first ope
             last: point.optional(),
           }),
         ),
+        structure: z
+          .object({
+            counts: z.record(z.string(), z.number().int()),
+            columns: z.array(z.string()),
+            rows: z.array(z.array(z.string())),
+          })
+          .optional()
+          .describe("Diagrams only: the counts of their elements and the rows of their data table, in reading order."),
         warnings: z.array(diagnostic),
       }),
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
@@ -263,6 +274,28 @@ For ohlc layers min is the lowest low, max the highest high, first the first ope
       const result = explainSpec(spec);
       return "error" in result ? specFailure(result) : success(result);
     },
+  );
+
+  server.registerTool(
+    "chartlet_diagram_starter",
+    {
+      title: "Start a software diagram",
+      description: `Return a valid starting specification for a chartlet software diagram, the kinds its elements can take with the shape each is drawn in, and notes on ids, layout and orientation. Diagrams are drawn from structure, not data: sequence (participants exchanging messages, with fragments), flow (steps and edges, with lanes, groups and a main path), state (states and transitions event [guard] / action, with choices, composite and final states) and architecture (components and connections inside nested boundaries).
+
+chartlet lays a diagram out itself; the specification only says what is connected. Adapt the starter, then check it with chartlet_validate_spec and render it with chartlet_render.`,
+      inputSchema: z.object({
+        type: z.enum(DIAGRAM_TYPES).describe("The diagram type to start from."),
+      }),
+      outputSchema: z.object({
+        ok: z.literal(true),
+        type: z.string(),
+        spec: z.record(z.string(), z.unknown()),
+        kinds: z.record(z.string(), z.record(z.string(), z.string())),
+        notes: z.array(z.string()),
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ type }) => success(diagramStarter(type)),
   );
 
   server.registerResource(

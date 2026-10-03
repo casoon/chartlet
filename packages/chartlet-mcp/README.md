@@ -64,7 +64,8 @@ Without `CHARTLET_MCP_ROOT` the server refuses `outputPath` and returns the char
 | `chartlet_inspect_data` | Takes CSV (RFC 4180, header row) or an array of row objects. Returns the row count; per column the inferred type (number, integer, date-time, boolean, string), missing values, min/max, first/last and order of times, distinct count of strings; and the chart types that fit, with the columns to use and a reason. | No |
 | `chartlet_validate_spec` | Renders the specification with the compiler and discards the output. Returns `ok`, the error with `code`, JSON Pointer `path` and `message`, and all warnings. | No |
 | `chartlet_render` | Renders SVG or HTML (`format`, `variant`: `desktop`, `mobile` or `print`, `idPrefix`, `table`). Returns the content, warnings, CSP `styleHashes` and the provenance `manifest`; with `outputPath`, writes the file and returns its path and byte size instead. In a client that shows MCP Apps, the chart also appears in the chat ([below](#in-the-chat)). | Writes `outputPath` |
-| `chartlet_explain` | Returns the accessible description chartlet generates, the chart type, and per series or layer the count, missing values, min, max, first and last value with their labels or times — computed, not interpreted. | No |
+| `chartlet_explain` | Returns the accessible description chartlet generates, the chart type, and per series or layer the count, missing values, min, max, first and last value with their labels or times — computed, not interpreted. For a diagram, `structure` gives the counts of its elements and every row of its data table in reading order. | No |
+| `chartlet_diagram_starter` | For `sequence`, `flow`, `state` or `architecture`: a valid starting specification, the kinds every element can take with the shape each is drawn in, and notes on ids, layout and orientation. | No |
 
 Resources: `chartlet://schema` is the JSON Schema of the specification; `ui://chartlet/figure`
 is the view of `chartlet_render` for MCP Apps.
@@ -72,6 +73,8 @@ is the view of `chartlet_render` for MCP Apps.
 A typical session: `chartlet_inspect_data` on the user's table, draft a specification from a suggestion,
 `chartlet_validate_spec` until `ok` and the warnings are acceptable, `chartlet_render` with an `outputPath`,
 and `chartlet_explain` when the chart needs to be described in words.
+For a software diagram, start from `chartlet_diagram_starter` instead of a table: chartlet lays the
+diagram out itself, so the specification only says what is connected.
 
 ## In the chat
 
