@@ -10,7 +10,7 @@ is the complete contract and can be used for editor validation.
 | Field | Required | Description |
 | --- | --- | --- |
 | `schemaVersion` | yes | Always `1`. |
-| `type` | yes | `bar`, `line`, `time`, `topicmap`, `atlas`, `stripes`, `calendar`, `rangebar`, `multiples`, or `sequence`. |
+| `type` | yes | `bar`, `line`, `time`, `topicmap`, `atlas`, `stripes`, `calendar`, `rangebar`, `multiples`, `sequence`, or `flow`. |
 | `title` | yes | Visible title; also the accessible name of the chart (`<title>`). The SVG profile draws it in the chart: a title wider than the chart wraps onto a second line at a space, and the chart below it moves down; only what does not fit on two lines is shortened (`text_truncated`). The HTML profile shows it as the `<figcaption>` and draws no title in its SVGs, so it never shortens it. |
 | `data` | one of | Single series: `[{ "label": "…", "value": 1 }]`. |
 | `categories` + `series` | one of | Several series: unique category labels, and `[{ "name": "…", "values": […] }]`. |
@@ -55,6 +55,7 @@ is the complete contract and can be used for editor validation.
 | `calendar` | calendar | `{ "year": 2024, "layout": "months" \| "weeks", "days": [{ "date": "2024-03-01", "value": 1 }], "reference", "min", "max" }`. |
 | `ranges` | rangebar | `[{ "label": "…", "low": 0, "high": 1, "mid": 0.5, "modeled": false, "group": "…" }]`; `orientation` applies. `group` draws the spans of each group in its own palette color, with a legend entry per group; either every range names a group or none does (`missing_group`), and at most 4 groups (`too_many_series`). |
 | `sequence` | sequence | `{ "participants": [{ "id": "api", "label": "…", "sublabel": "…", "kind": "service" }], "messages": [{ "from": "api", "to": "db", "label": "…", "kind": "call" }], "fragments": [{ "kind": "alt", "label": "…", "from": 0, "to": 2, "else": [{ "from": 1, "label": "…" }] }], "numbered": false, "orientation": "auto" }`. `kind` of a participant: `service` (default), `actor`, `database`, `queue`, `external`; of a message: `call` (default), `reply`, `async`; of a fragment: `alt`, `opt`, `loop`, `par`, `critical`, `break`. `orientation`: `auto` (default), `portrait` or `landscape`. See [Sequence diagrams](../guides/chart-types.md#sequence-diagrams). |
+| `flow` | flow | `{ "nodes": [{ "id": "a", "label": "…", "sublabel": "…", "kind": "process", "lane": "x" }], "edges": [{ "from": "a", "to": "b", "label": "…", "dash": "solid" }], "lanes": [{ "id": "x", "label": "…" }], "groups": [{ "label": "…", "nodes": ["a"] }], "mainPath": ["a", "b"], "orientation": "auto" }`. `kind` of a step: `process` (default), `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external`. See [Flow charts](../guides/chart-types.md#flow-charts). |
 | `patterns` | no | `bar` with `series` only: `true` draws every other series as an outline — the background inside, the series color around it — in the bars, the legend and stacks, so that series differ in form as well as in color. |
 | `stack` | no | `bar` with `series` only: `"normal"` stacks the series of a category by value, positive ones up and negative ones down, with the total beyond each stack; `"percent"` stacks shares of each category's total (values of zero or more, axis in percent). A stack has no series filter. |
 | `references` | no | `bar` only: up to four reference lines across the bars, `[{ "value": 48, "label": "EU average" }]`. A line widens the value axis to reach its value; the description names it. |
@@ -112,8 +113,15 @@ participants (`too_many_participants`), 1–60 messages (`too_many_messages`) an
 (`too_many_fragments`); participant `id`s are identifiers (`invalid_id`) and unique
 (`duplicate_id`), every message names existing participants (`unknown_participant`), and fragments
 lie within the messages, nest at most three deep and never cross (`invalid_fragment`,
-`fragments_cross`). A sequence diagram that does not fit its canvas is drawn larger and reported
-as `canvas_too_small` at `/width` or `/height`.
+`fragments_cross`). A flow chart takes 1–40 steps (`too_many_nodes`), up to 80 edges
+(`too_many_edges`), 8 lanes (`too_many_lanes`) and 8 groups (`too_many_groups`); step and lane
+`id`s are identifiers and unique, edges, groups and the main path name existing steps
+(`unknown_node`), every step names a declared lane once there are lanes (`missing_lane`,
+`unknown_lane`), a step belongs to one group at most (`duplicate_member`) and a group to one lane
+(`group_spans_lanes`), and the main path follows edges (`main_path_gap`). A sequence diagram or
+flow chart that does not fit its canvas is drawn larger and reported as `canvas_too_small` at
+`/width` or `/height`; a step that lands inside the frame of a group it does not belong to is
+`group_overlap`.
 
 A pane takes up to six annotation layers — zones, reference lines and point markers together
 (`too_many_annotations`). A zone needs `bottom` and `top`, `from` and `to`, or both
@@ -127,7 +135,7 @@ Fields that belong to a later milestone are refused with a named error rather th
 `zoomSteps` on small multiples, the `ohlc` mark on small multiples (`option_not_supported`), `title`
 on the pane of a `time` chart, and the bar and line fields `data`, `categories`, `series`, `orientation`, and `categoryAxis` on a
 `time` chart (`option_not_supported`). A block that belongs to another type (`stripes`,
-`calendar`, `ranges`, `sequence`, `columns`) is refused the same way.
+`calendar`, `ranges`, `sequence`, `flow`, `columns`) is refused the same way.
 
 ## Diverging scale
 

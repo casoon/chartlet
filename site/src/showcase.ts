@@ -271,6 +271,20 @@ const catalogue = [
       'The same notation turned on its side: participants one below the other, time running right, for a wide, low place on the page. With the default orientation, auto, a diagram takes this form by itself wherever only it fits the canvas.',
   },
   {
+    slug: 'release-flow',
+    chart: 'Flow chart (lanes)',
+    useCase: 'Explain a process across teams',
+    blurb:
+      'Ten steps in three lanes, laid out by chartlet from nothing but the connections: the main path runs straight in the accent color, two loops back — a retry and a request for changes — are drawn against the flow, and a group frames the quality gates. The description and the table follow the steps in reading order.',
+  },
+  {
+    slug: 'order-flow',
+    chart: 'Flow chart (landscape)',
+    useCase: 'Fit a process into a wide format',
+    blurb:
+      'Without lanes, on a wide and low canvas: auto orientation turns the flow to run right. Each kind of step has its own shape — start and end, decisions, input and output, a subprocess and a data store.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

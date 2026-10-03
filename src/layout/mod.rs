@@ -263,6 +263,7 @@ pub(crate) fn layout(
         (ChartType::Topicmap, _) => layout_topicmap(spec, warnings, metrics),
         (ChartType::Atlas, _) => layout_atlas(spec, warnings, metrics),
         (ChartType::Sequence, _) => crate::sequence::layout(spec, warnings, metrics),
+        (ChartType::Flow, _) => crate::flow::layout(spec, warnings, metrics),
     }
 }
 

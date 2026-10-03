@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Handling an order",
+  "source": "Shop operations handbook",
+  "width": 1280,
+  "height": 420,
+  "flow": {
+    "nodes": [
+      { "id": "received", "label": "Order received", "kind": "start" },
+      { "id": "paid", "label": "Payment cleared?", "kind": "decision" },
+      { "id": "reserve", "label": "Reserve stock" },
+      { "id": "stock", "label": "Inventory", "kind": "store" },
+      { "id": "available", "label": "In stock?", "kind": "decision" },
+      { "id": "backorder", "label": "Backorder", "sublabel": "supplier", "kind": "subprocess" },
+      { "id": "ship", "label": "Ship parcel" },
+      { "id": "notify", "label": "Notify customer", "kind": "io" },
+      { "id": "delivered", "label": "Delivered", "kind": "end" },
+      { "id": "cancelled", "label": "Cancelled", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "received", "to": "paid" },
+      { "from": "paid", "to": "reserve", "label": "yes" },
+      { "from": "paid", "to": "notify", "label": "no" },
+      { "from": "reserve", "to": "stock", "label": "update", "dash": "dotted" },
+      { "from": "reserve", "to": "available" },
+      { "from": "available", "to": "ship", "label": "yes" },
+      { "from": "available", "to": "backorder", "label": "no" },
+      { "from": "backorder", "to": "reserve", "label": "restocked", "dash": "dashed" },
+      { "from": "ship", "to": "delivered" },
+      { "from": "notify", "to": "cancelled" }
+    ],
+    "mainPath": ["received", "paid", "reserve", "available", "ship", "delivered"]
+  }
+}

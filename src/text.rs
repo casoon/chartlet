@@ -1,7 +1,7 @@
 //! The words chartlet writes itself, per locale: descriptions, legend additions, tooltips and
 //! the HTML figure. Text from the specification is never translated.
 
-use crate::spec::{FragmentSpec, Locale, MessageKind, ParticipantKind};
+use crate::spec::{FragmentSpec, Locale, MessageKind, NodeKind, ParticipantKind};
 
 pub(crate) struct Words {
     pub value: &'static str,
@@ -55,6 +55,11 @@ pub(crate) struct Words {
     pub message: &'static str,
     pub message_kind: &'static str,
     pub fragment: &'static str,
+    /// The columns of a flow chart's table.
+    pub step: &'static str,
+    pub lane: &'static str,
+    pub group: &'static str,
+    pub leads_to: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -109,6 +114,10 @@ const EN: Words = Words {
     message: "Message",
     message_kind: "Kind",
     fragment: "Fragment",
+    step: "Step",
+    lane: "Lane",
+    group: "Group",
+    leads_to: "Leads to",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -165,6 +174,10 @@ const DE: Words = Words {
     message: "Nachricht",
     message_kind: "Art",
     fragment: "Abschnitt",
+    step: "Schritt",
+    lane: "Bahn",
+    group: "Gruppe",
+    leads_to: "Führt zu",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],
@@ -893,6 +906,100 @@ pub(crate) fn fragment(locale: Locale, fragment: &FragmentSpec) -> String {
     match locale {
         Locale::En => format!("Fragment {keyword}{label} spans {range}{branches}."),
         Locale::De => format!("Abschnitt {keyword}{label} umfasst {range}{branches}."),
+    }
+}
+
+/// The opening sentence of a flow chart: how many steps and edges, and its lanes.
+pub(crate) fn flow_opening(locale: Locale, steps: usize, edges: usize, lanes: &[String]) -> String {
+    let lanes = match (locale, lanes.len()) {
+        (_, 0) => String::new(),
+        (Locale::En, count) => format!(
+            " in {count} lane{}: {}",
+            plural(count, "", "s"),
+            listed(locale, lanes)
+        ),
+        (Locale::De, count) => format!(
+            " in {count} {}: {}",
+            plural(count, "Bahn", "Bahnen"),
+            listed(locale, lanes)
+        ),
+    };
+    match locale {
+        Locale::En => format!(
+            "Flow chart with {steps} step{} and {edges} connection{}{lanes}.",
+            plural(steps, "", "s"),
+            plural(edges, "", "s"),
+        ),
+        Locale::De => format!(
+            "Ablaufdiagramm mit {steps} {} und {edges} {}{lanes}.",
+            plural(steps, "Schritt", "Schritten"),
+            plural(edges, "Verbindung", "Verbindungen"),
+        ),
+    }
+}
+
+/// The main path of a flow chart, as step labels.
+pub(crate) fn main_path(locale: Locale, steps: &[&str]) -> String {
+    let path = steps.join(" → ");
+    match locale {
+        Locale::En => format!("Main path: {path}."),
+        Locale::De => format!("Hauptweg: {path}."),
+    }
+}
+
+/// What a step of a flow chart is, for the description and the data table.
+pub(crate) const fn node_kind(locale: Locale, kind: NodeKind) -> &'static str {
+    match (locale, kind) {
+        (Locale::En, NodeKind::Start) => "start",
+        (Locale::En, NodeKind::End) => "end",
+        (Locale::En, NodeKind::Process) => "step",
+        (Locale::En, NodeKind::Decision) => "decision",
+        (Locale::En, NodeKind::Io) => "input or output",
+        (Locale::En, NodeKind::Subprocess) => "subprocess",
+        (Locale::En, NodeKind::Store) => "data store",
+        (Locale::En, NodeKind::External) => "external",
+        (Locale::De, NodeKind::Start) => "Start",
+        (Locale::De, NodeKind::End) => "Ende",
+        (Locale::De, NodeKind::Process) => "Schritt",
+        (Locale::De, NodeKind::Decision) => "Entscheidung",
+        (Locale::De, NodeKind::Io) => "Ein- oder Ausgabe",
+        (Locale::De, NodeKind::Subprocess) => "Teilprozess",
+        (Locale::De, NodeKind::Store) => "Datenspeicher",
+        (Locale::De, NodeKind::External) => "extern",
+    }
+}
+
+/// One step of a flow chart as a sentence: its label, its kind unless it is a plain step, its
+/// lane, and where it leads.
+pub(crate) fn flow_step(
+    locale: Locale,
+    label: &str,
+    kind: NodeKind,
+    lane: Option<&str>,
+    next: &[String],
+) -> String {
+    let kind = if kind == NodeKind::Process {
+        String::new()
+    } else {
+        format!(" ({})", node_kind(locale, kind))
+    };
+    // "in" in both languages.
+    let lane = lane.map_or_else(String::new, |lane| format!(" in {lane}"));
+    let next = match (locale, next.is_empty()) {
+        (Locale::En, true) => "no further step".to_owned(),
+        (Locale::De, true) => "kein weiterer Schritt".to_owned(),
+        (Locale::En, false) => format!("leads to {}", listed(locale, next)),
+        (Locale::De, false) => format!("führt zu {}", listed(locale, next)),
+    };
+    format!("{label}{kind}{lane}: {next}.")
+}
+
+/// A group of a flow chart as a sentence.
+pub(crate) fn flow_group(locale: Locale, label: &str, members: &[&str]) -> String {
+    let members = members.join(", ");
+    match locale {
+        Locale::En => format!("Group \"{label}\": {members}."),
+        Locale::De => format!("Gruppe „{label}“: {members}."),
     }
 }
 

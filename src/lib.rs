@@ -3,8 +3,10 @@ mod calendar;
 mod color;
 mod contour;
 mod describe;
+mod diagram;
 mod diverging;
 mod error;
+mod flow;
 mod layout;
 mod metrics;
 mod noise;
@@ -31,11 +33,12 @@ pub use sha256::sha256;
 pub use spec::{
     AxisScale, BranchSpec, CalendarDay, CalendarLayout, CalendarSpec, CartoucheSpec,
     CategoryAxisSpec, ChartSpec, ChartType, Corner, Curve, Dash, DataPoint, DiagramOrientation,
-    FragmentKind, FragmentSpec, Gaps, LayerSpec, LegendPlacement, Mark, MessageKind, MessageSpec,
-    MobileSpec, OhlcPoint, Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec,
-    ReferenceSpec, SequenceSpec, SeriesSpec, Shape, Stack, StripesSpec, Stroke, Theme,
-    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, Tooltips, TopicLinkSpec, TopicMapSpec,
-    TopicSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
+    FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec,
+    LayerSpec, LegendPlacement, Mark, MessageKind, MessageSpec, MobileSpec, NodeKind, OhlcPoint,
+    Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec, ReferenceSpec,
+    SequenceSpec, SeriesSpec, Shape, Stack, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec,
+    TimePoint, TimePrecision, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, ValueAxisSpec,
+    ValueFormat, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

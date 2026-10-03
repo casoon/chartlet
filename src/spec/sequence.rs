@@ -47,7 +47,7 @@ pub enum DiagramOrientation {
 impl DiagramOrientation {
     // serde hands this function a reference, so the signature follows serde's shape.
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    const fn is_auto(&self) -> bool {
+    pub(super) const fn is_auto(&self) -> bool {
         matches!(self, Self::Auto)
     }
 }
@@ -224,7 +224,7 @@ fn encloses(outer: &FragmentSpec, inner: &FragmentSpec) -> bool {
 }
 
 /// Whether `text` is an identifier: a letter, then letters, digits, `-` or `_`, at most 64.
-fn is_identifier(text: &str) -> bool {
+pub(super) fn is_identifier(text: &str) -> bool {
     let mut characters = text.chars();
     characters
         .next()

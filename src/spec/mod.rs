@@ -2,6 +2,7 @@ mod atlas;
 mod calendar;
 mod categorical;
 mod dataset;
+mod flow;
 mod rangebar;
 mod sequence;
 mod stripes;
@@ -19,6 +20,7 @@ pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
 pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
+pub use flow::{FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, NodeKind};
 pub use rangebar::RangeSpec;
 pub use sequence::{
     BranchSpec, DiagramOrientation, FragmentKind, FragmentSpec, MessageKind, MessageSpec,
@@ -123,6 +125,9 @@ pub struct ChartSpec {
     /// `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sequence: Option<SequenceSpec>,
+    /// The steps and edges of a `type: "flow"` chart. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub flow: Option<FlowSpec>,
     /// The spans of a `type: "rangebar"` chart, one per category.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ranges: Vec<RangeSpec>,
@@ -259,11 +264,13 @@ pub enum ChartType {
     Multiples,
     /// A sequence diagram: participants and the messages they exchange, in order.
     Sequence,
+    /// A flow chart: steps joined by arrows, in layers along the flow.
+    Flow,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -274,6 +281,7 @@ impl ChartType {
         Self::Rangebar,
         Self::Multiples,
         Self::Sequence,
+        Self::Flow,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -569,6 +577,7 @@ impl ChartSpec {
             ChartType::Calendar => return self.validate_calendar(),
             ChartType::Rangebar => return self.validate_rangebar(),
             ChartType::Sequence => return self.validate_sequence(),
+            ChartType::Flow => return self.validate_flow(),
             ChartType::Bar | ChartType::Line => {}
         }
         let warnings = self.validate_data()?;
@@ -1153,6 +1162,7 @@ impl ChartSpec {
             ("/calendar", self.calendar.is_some(), ChartType::Calendar),
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/sequence", self.sequence.is_some(), ChartType::Sequence),
+            ("/flow", self.flow.is_some(), ChartType::Flow),
             ("/columns", self.columns.is_some(), ChartType::Multiples),
             ("/references", !self.references.is_empty(), ChartType::Bar),
             ("/stack", self.stack.is_some(), ChartType::Bar),
@@ -1192,6 +1202,12 @@ impl ChartSpec {
                 ));
             }
         }
+        self.reject_map_blocks()
+    }
+
+    /// Rejects a map block on the chart types that have no map at all.
+    fn reject_map_blocks(&self) -> Result<(), ChartError> {
+        let own = self.chart_type;
         if matches!(
             own,
             ChartType::Stripes
@@ -1199,6 +1215,7 @@ impl ChartSpec {
                 | ChartType::Rangebar
                 | ChartType::Multiples
                 | ChartType::Sequence
+                | ChartType::Flow
         ) {
             for (field, present, owner) in [
                 ("/topicmap", self.topicmap.is_some(), ChartType::Topicmap),
@@ -1292,6 +1309,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Rangebar => "rangebar",
         ChartType::Multiples => "multiples",
         ChartType::Sequence => "sequence",
+        ChartType::Flow => "flow",
     }
 }
 

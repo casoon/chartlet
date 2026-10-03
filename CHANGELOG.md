@@ -17,6 +17,13 @@ does.
   mobile variant picks again at its size. A canvas too small grows, with the warning
   `canvas_too_small`. The description lists every message in order and the data table has a row
   per message. New examples `cache-lookup` and `async-export`.
+- Flow charts (`"type": "flow"`, experimental), laid out by chartlet in layers along the flow:
+  steps in eight kinds with their own shapes, labelled and dashed edges, cycles drawn back
+  against the flow, loops on a step, lanes, groups and a main path kept in line. Portrait and
+  landscape as for sequence diagrams. Errors and warnings name the field (`unknown_node`,
+  `missing_lane`, `main_path_gap`, `group_overlap`, …). The description and the data table follow
+  the steps in reading order. New examples `release-flow` and `order-flow`.
+- Where neither orientation fits the canvas, `auto` takes the one that grows it less.
 
 ### Fixed
 

@@ -9,8 +9,9 @@ use std::fmt::Write as _;
 
 use crate::{
     DataTable,
+    diagram::{self, HEAD, arrowhead, cylinder, pixels, warn_growth, wrap},
     error::ChartWarning,
-    layout::{fit_text, push_title, title_extra, two_lines},
+    layout::{fit_text, push_title, title_extra},
     metrics::TextMetrics,
     scene::{Circle, Element, Line, Polyline, Rect, Scene, Text, TextAnchor},
     spec::{
@@ -40,9 +41,6 @@ const FIGURE: f64 = 26.0;
 /// Half the width of an activation bar, and how far each nested bar moves aside.
 const BAR: f64 = 5.0;
 const NESTED_BAR: f64 = 4.0;
-/// Length and half width of an arrowhead.
-const HEAD: f64 = 9.0;
-const HEAD_HALF: f64 = 4.5;
 /// The loop a message to its sender draws: how far out and how far along it goes.
 const LOOP_OUT: f64 = 24.0;
 const LOOP_ALONG: f64 = 16.0;
@@ -69,8 +67,13 @@ pub(crate) fn layout(
         DiagramOrientation::Portrait => false,
         DiagramOrientation::Landscape => true,
         DiagramOrientation::Auto => {
-            !Portrait::new(spec, &model, top, metrics, &mut ignored).fits(spec)
-                && Landscape::new(spec, &model, top, metrics, &mut ignored).fits(spec)
+            let portrait = Portrait::new(spec, &model, top, metrics, &mut ignored);
+            let landscape = Landscape::new(spec, &model, top, metrics, &mut ignored);
+            diagram::prefers_landscape(
+                spec,
+                (portrait.width, portrait.height),
+                (landscape.width, landscape.height),
+            )
         }
     };
     let mut elements = Vec::new();
@@ -377,31 +380,6 @@ impl Track {
     }
 }
 
-/// A message label on one or two lines that fit `max_width`; a longer second line, or a first
-/// word wider than that, is shortened.
-fn wrap(
-    label: &str,
-    max_width: f64,
-    metrics: &impl TextMetrics,
-    warnings: &mut Vec<ChartWarning>,
-    path: &str,
-) -> Vec<String> {
-    match two_lines(label, max_width, MESSAGE_SIZE, metrics) {
-        Some((first, rest)) => vec![
-            first.to_owned(),
-            fit_text(rest, max_width, MESSAGE_SIZE, metrics, warnings, path),
-        ],
-        None => vec![fit_text(
-            label,
-            max_width,
-            MESSAGE_SIZE,
-            metrics,
-            warnings,
-            path,
-        )],
-    }
-}
-
 fn label_path(index: usize) -> String {
     format!("/sequence/messages/{index}/label")
 }
@@ -442,7 +420,14 @@ impl Portrait {
                 } else {
                     column * crate::layout::count(from.abs_diff(*to)) - 16.0
                 };
-                wrap(label, room, metrics, warnings, &label_path(index))
+                wrap(
+                    label,
+                    room,
+                    MESSAGE_SIZE,
+                    metrics,
+                    warnings,
+                    &label_path(index),
+                )
             })
             .collect();
         let (head, branch) = Slots::uniform(model.sequence, 24.0, 22.0);
@@ -477,10 +462,6 @@ impl Portrait {
             width,
             height,
         }
-    }
-
-    fn fits(&self, spec: &ChartSpec) -> bool {
-        self.width <= f64::from(spec.width) && self.height <= f64::from(spec.height)
     }
 
     fn center(&self, participant: usize) -> f64 {
@@ -673,6 +654,7 @@ impl Landscape {
                 wrap(
                     label,
                     LANDSCAPE_LABEL,
+                    MESSAGE_SIZE,
                     metrics,
                     warnings,
                     &label_path(index),
@@ -714,10 +696,6 @@ impl Landscape {
             width,
             height,
         }
-    }
-
-    fn fits(&self, spec: &ChartSpec) -> bool {
-        self.width <= f64::from(spec.width) && self.height <= f64::from(spec.height)
     }
 
     fn center(&self, participant: usize) -> f64 {
@@ -887,33 +865,6 @@ impl Landscape {
     }
 }
 
-/// Warns that the diagram did not fit the canvas and was drawn larger, naming the size it needs.
-fn warn_growth(spec: &ChartSpec, width: f64, height: f64, warnings: &mut Vec<ChartWarning>) {
-    for (path, needed, given) in [
-        ("/width", pixels(width), spec.width),
-        ("/height", pixels(height), spec.height),
-    ] {
-        if needed > given {
-            warnings.push(ChartWarning::new(
-                "canvas_too_small",
-                path,
-                format!(
-                    "the diagram needs {needed} pixels here and was drawn that large; raise {} to {needed}, shorten labels, or try the other orientation",
-                    &path[1..]
-                ),
-            ));
-        }
-    }
-}
-
-/// Whole pixels, rounded up so that nothing is cut off.
-fn pixels(value: f64) -> u32 {
-    // Canvas sizes stay far below the range of u32 and are never negative.
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let pixels = value.ceil() as u32;
-    pixels
-}
-
 /// Writes `lines` with the last baseline at `y`, the earlier ones above it.
 fn push_lines(elements: &mut Vec<Element>, lines: &[String], x: f64, y: f64, anchor: TextAnchor) {
     let last = lines.len() - 1;
@@ -942,43 +893,20 @@ fn message_tooltip(model: &Model, index: usize) -> String {
 }
 
 fn polyline(points: Vec<(f64, f64)>, kind: MessageKind, tooltip: Option<String>) -> Polyline {
-    Polyline {
-        points,
-        class: if kind == MessageKind::Reply {
-            "chartlet-seq-message chartlet-seq-reply"
-        } else {
-            "chartlet-seq-message"
-        },
-        topic: None,
-        series_index: None,
-        style_index: None,
-        tooltip,
-    }
+    let class = if kind == MessageKind::Reply {
+        "chartlet-seq-message chartlet-seq-reply"
+    } else {
+        "chartlet-seq-message"
+    };
+    diagram::polyline(points, class, tooltip)
 }
 
-/// The arrowhead with its tip at `tip`, pointing along `direction`: filled for a call, open
-/// otherwise.
+/// The arrowhead of a message: filled for a call, open otherwise.
 fn head(tip: (f64, f64), direction: (f64, f64), kind: MessageKind) -> Polyline {
-    let base = (tip.0 - direction.0 * HEAD, tip.1 - direction.1 * HEAD);
-    let side = (-direction.1 * HEAD_HALF, direction.0 * HEAD_HALF);
-    let one = (base.0 + side.0, base.1 + side.1);
-    let other = (base.0 - side.0, base.1 - side.1);
-    let filled = kind == MessageKind::Call;
-    Polyline {
-        points: if filled {
-            vec![one, tip, other, one]
-        } else {
-            vec![one, tip, other]
-        },
-        class: if filled {
-            "chartlet-seq-head"
-        } else {
-            "chartlet-seq-head-open"
-        },
-        topic: None,
-        series_index: None,
-        style_index: None,
-        tooltip: None,
+    if kind == MessageKind::Call {
+        arrowhead(tip, direction, true, "chartlet-seq-head")
+    } else {
+        arrowhead(tip, direction, false, "chartlet-seq-head-open")
     }
 }
 
@@ -1148,7 +1076,12 @@ fn draw_participant(
             elements.push(rect(x + 4.0, y - 4.0, "chartlet-seq-box", None));
             elements.push(rect(x, y, "chartlet-seq-box", tooltip));
         }
-        ParticipantKind::Database => cylinder(x, y, width, height, tooltip, elements),
+        ParticipantKind::Database => cylinder(
+            (x, y, width, height),
+            ("chartlet-seq-box", "chartlet-seq-rim"),
+            tooltip,
+            elements,
+        ),
         ParticipantKind::Actor => {
             figure(figure_x, figure_y, elements);
             elements.push(rect(x, y, "chartlet-seq-hit", tooltip));
@@ -1191,52 +1124,6 @@ fn draw_participant(
             ),
         }));
     }
-}
-
-/// A data store: a cylinder whose top shows its front rim.
-fn cylinder(
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-    tooltip: Option<String>,
-    elements: &mut Vec<Element>,
-) {
-    const RIM: f64 = 5.0;
-    const STEPS: u32 = 12;
-    let center = x + width / 2.0;
-    let arc = |middle: f64, sign: f64, forward: bool| -> Vec<(f64, f64)> {
-        (0..=STEPS)
-            .map(|step| {
-                let angle = std::f64::consts::PI * f64::from(step) / f64::from(STEPS);
-                let cos = if forward { -angle.cos() } else { angle.cos() };
-                (
-                    center + width / 2.0 * cos,
-                    middle + sign * RIM * angle.sin(),
-                )
-            })
-            .collect()
-    };
-    let mut outline = vec![(x, y + RIM)];
-    outline.extend(arc(y + height - RIM, 1.0, true));
-    outline.extend(arc(y + RIM, -1.0, false));
-    outline.push((x, y + RIM));
-    elements.push(Element::Polyline(Polyline {
-        points: outline,
-        class: "chartlet-seq-box",
-        topic: None,
-        series_index: None,
-        style_index: None,
-        tooltip,
-    }));
-    elements.push(Element::Polyline(Polyline {
-        points: arc(y + RIM, 1.0, true),
-        class: "chartlet-seq-rim",
-        topic: None,
-        series_index: None,
-        style_index: None,
-        tooltip: None,
-    }));
 }
 
 /// A person: head, body, arms and legs, standing on `top + FIGURE`.

@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -97,6 +97,10 @@
     "sequence": {
       "description": "The participants and messages of a type: \"sequence\" diagram.",
       "$ref": "#/$defs/sequence"
+    },
+    "flow": {
+      "description": "The steps and edges of a type: \"flow\" chart.",
+      "$ref": "#/$defs/flow"
     },
     "topicmap": {
       "description": "Topic areas of a type: \"topicmap\" chart.",
@@ -284,6 +288,17 @@
               { "required": ["panes"] }
             ]
           }
+        },
+        {
+          "required": ["flow"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
         }
       ]
     },
@@ -319,6 +334,24 @@
         }
       },
       "else": { "not": { "required": ["sequence"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "flow" } } },
+      "then": {
+        "required": ["flow"],
+        "not": {
+          "anyOf": [
+            { "required": ["zoomSteps"] },
+            { "required": ["orientation"] },
+            { "required": ["categoryAxis"] },
+            { "required": ["valueAxis"] },
+            { "required": ["timeAxis"] },
+            { "required": ["topicmap"] },
+            { "required": ["atlas"] }
+          ]
+        }
+      },
+      "else": { "not": { "required": ["flow"] } }
     },
     {
       "if": { "properties": { "type": { "const": "multiples" } } },
@@ -405,7 +438,7 @@
       "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
     },
     "sequence": {
-      "description": "A sequence diagram. orientation auto draws it in portrait (participants side by side, time running down) where that fits the canvas, otherwise in landscape (participants one below the other, time running right) where that fits, otherwise in portrait; a canvas too small for the diagram grows, with the warning canvas_too_small.",
+      "description": "A sequence diagram. orientation auto draws it in portrait (participants side by side, time running down) where that fits the canvas, in landscape (participants one below the other, time running right) where only that fits, and otherwise in the orientation that grows the canvas less; a canvas too small for the diagram grows, with the warning canvas_too_small.",
       "type": "object",
       "additionalProperties": false,
       "required": ["participants", "messages"],
@@ -435,6 +468,86 @@
           "default": false
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "flow": {
+      "description": "A flow chart, laid out in layers along the flow: down in portrait, right in landscape. orientation auto takes portrait where that fits the canvas, landscape where only that fits, and otherwise the one that grows the canvas less (canvas_too_small). Edges may form cycles; an edge back is drawn against the flow.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "items": { "$ref": "#/$defs/flowNode" }
+        },
+        "edges": {
+          "type": "array",
+          "maxItems": 80,
+          "items": { "$ref": "#/$defs/flowEdge" }
+        },
+        "lanes": {
+          "description": "Bands across the flow; once there are lanes, every step names one.",
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 40 }
+            }
+          }
+        },
+        "groups": {
+          "description": "Frames around steps of one lane; a step belongs to at most one group.",
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "nodes"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 40 },
+              "nodes": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/identifier" } }
+            }
+          }
+        },
+        "mainPath": {
+          "description": "The usual way through the flow, as step ids joined by edges: kept in line and drawn stronger.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/identifier" }
+        },
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "flowNode": {
+      "description": "A step; each kind has its own shape.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "kind": {
+          "enum": ["start", "end", "process", "decision", "io", "subprocess", "store", "external"],
+          "default": "process"
+        },
+        "lane": { "$ref": "#/$defs/identifier" }
+      }
+    },
+    "flowEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": {
+        "from": { "$ref": "#/$defs/identifier" },
+        "to": { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" }
       }
     },
     "participant": {

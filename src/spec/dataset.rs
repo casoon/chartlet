@@ -47,8 +47,8 @@ impl ChartSpec {
             ChartType::Calendar => self.calendar_dataset(),
             ChartType::Rangebar => self.rangebar_dataset(),
             ChartType::Bar | ChartType::Line => self.dataset(),
-            ChartType::Sequence => {
-                unreachable!("a sequence diagram's table holds text, see sequence::data_table")
+            ChartType::Sequence | ChartType::Flow => {
+                unreachable!("a diagram's table holds text, see its data_table")
             }
         }
     }
@@ -372,7 +372,8 @@ impl ChartSpec {
             | ChartType::Atlas
             | ChartType::Stripes
             | ChartType::Calendar
-            | ChartType::Sequence => None,
+            | ChartType::Sequence
+            | ChartType::Flow => None,
         };
         NumberStyle {
             format: self.value_format(),
@@ -423,7 +424,8 @@ impl ChartSpec {
             | ChartType::Atlas
             | ChartType::Stripes
             | ChartType::Calendar
-            | ChartType::Sequence => ValueFormat::Number,
+            | ChartType::Sequence
+            | ChartType::Flow => ValueFormat::Number,
             ChartType::Bar | ChartType::Line | ChartType::Rangebar | ChartType::Multiples => {
                 self.value_axis.format
             }

@@ -1,6 +1,6 @@
 ---
 title: Chart types
-description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, and sequence diagrams.
+description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, sequence diagrams and flow charts.
 order: 1
 ---
 
@@ -36,6 +36,8 @@ order: 1
 | Range bars in groups, on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [Soil animals](../../../showcase/soil-animals/) |
 | Sequence diagram, portrait (experimental) | `"type": "sequence"` with `participants`, `messages` and `fragments` | [Reading an item through the cache](../../../showcase/cache-lookup/) |
 | Sequence diagram, landscape (experimental) | `"orientation": "landscape"` in `sequence` | [Exporting a report in the background](../../../showcase/async-export/) |
+| Flow chart in lanes, with a loop back and a group (experimental) | `"type": "flow"` with `nodes`, `edges`, `lanes`, `groups`, `mainPath` | [From commit to release](../../../showcase/release-flow/) |
+| Flow chart, turned landscape by a wide canvas (experimental) | `"type": "flow"`, `"orientation": "auto"` | [Handling an order](../../../showcase/order-flow/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
@@ -245,7 +247,8 @@ whose shared parts may still change between minor releases.
 - **Orientation.** `portrait` sets the participants side by side and runs time down, for tall
   formats; `landscape` sets them one below the other and runs time right, for wide formats. The
   default, `auto`, takes portrait where the diagram fits the canvas that way, landscape where only
-  that fits, and portrait otherwise — and decides again for a mobile variant at its own size.
+  that fits, and otherwise the one that has to grow the canvas less — and decides again for a
+  mobile variant at its own size.
   Spare room spreads the messages out a little; a canvas too small for the diagram grows to the
   size it needs, with the warning `canvas_too_small` naming that size.
 - **Text alternative.** The description names every participant and lists every message in
@@ -255,6 +258,57 @@ whose shared parts may still change between minor releases.
 
 Limits: 1–12 participants with unique `id`s (a letter, then letters, digits, `-` or `_`), 1–60
 messages, up to 12 fragments. An `id` no participant has is `unknown_participant`.
+
+## Flow charts
+
+A flow chart (`"type": "flow"`) draws steps joined by arrows. chartlet lays it out by itself, in
+layers along the direction of the flow; the specification says only what is connected, never
+where anything goes. Like the sequence diagram it is **experimental**.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Publishing a post",
+  "flow": {
+    "nodes": [
+      { "id": "draft", "label": "Draft", "kind": "start" },
+      { "id": "check", "label": "Looks good?", "kind": "decision" },
+      { "id": "edit", "label": "Edit" },
+      { "id": "live", "label": "Published", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "draft", "to": "check" },
+      { "from": "check", "to": "live", "label": "yes" },
+      { "from": "check", "to": "edit", "label": "no" },
+      { "from": "edit", "to": "check", "label": "again" }
+    ],
+    "mainPath": ["draft", "check", "live"]
+  }
+}
+```
+
+- **Steps** have a `kind`, each with its own shape: `process` (a box, the default), `start` and
+  `end` (pills, the end with a strong outline), `decision` (a diamond), `io` (a slanted box),
+  `subprocess` (a box with double sides), `store` (a cylinder) and `external` (a dashed box). A
+  `sublabel` adds a smaller second line; a long label wraps onto two.
+- **Edges** may carry a `label` and a `dash` (`solid`, `dashed`, `dotted`). They may form cycles —
+  a retry, a loop back for changes — and an edge from a step to itself is drawn as a loop beside
+  it. Say what an edge means in its label; the line pattern only repeats it.
+- **The main path** names the usual way through the flow as step ids joined by edges. chartlet
+  keeps it in line where the lanes leave room and draws it thicker in the accent color;
+  `main_path_gap` reports two consecutive steps no edge joins.
+- **Lanes** are bands across the flow, one per role or system: columns in portrait, rows in
+  landscape. Once a chart has `lanes`, every step names its `lane` (`missing_lane`).
+- **Groups** frame steps of one lane under a name (`group_spans_lanes` otherwise). A step outside
+  a group that ends up inside its frame is reported as `group_overlap`.
+- **Orientation** works as for sequence diagrams: portrait runs the flow down, landscape right,
+  and `auto` picks by the canvas.
+- **Text alternative.** The description names the steps in reading order — layer by layer — and
+  where each one leads, with the main path, the lanes and the groups; the data table has one row
+  per step with its kind, lane, group and next steps.
+
+Limits: 1–40 steps with unique `id`s, up to 80 edges, 8 lanes and 8 groups.
 
 ## Time series
 

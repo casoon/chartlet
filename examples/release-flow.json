@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "From commit to release",
+  "source": "Team handbook, release process",
+  "width": 1120,
+  "height": 980,
+  "flow": {
+    "lanes": [
+      { "id": "dev", "label": "Development" },
+      { "id": "ci", "label": "Continuous integration" },
+      { "id": "ops", "label": "Operations" }
+    ],
+    "nodes": [
+      { "id": "commit", "label": "Commit pushed", "kind": "start", "lane": "dev" },
+      { "id": "review", "label": "Code review", "lane": "dev" },
+      { "id": "build", "label": "Build", "sublabel": "locked inputs", "lane": "ci" },
+      { "id": "tests", "label": "Run tests", "lane": "ci" },
+      { "id": "green", "label": "All green?", "kind": "decision", "lane": "ci" },
+      { "id": "fix", "label": "Fix failures", "lane": "dev" },
+      { "id": "staging", "label": "Deploy to staging", "lane": "ops" },
+      { "id": "approve", "label": "Approved?", "kind": "decision", "lane": "ops" },
+      { "id": "prod", "label": "Deploy to production", "lane": "ops" },
+      { "id": "done", "label": "Released", "kind": "end", "lane": "ops" }
+    ],
+    "edges": [
+      { "from": "commit", "to": "review" },
+      { "from": "review", "to": "build", "label": "merged" },
+      { "from": "build", "to": "tests" },
+      { "from": "tests", "to": "green" },
+      { "from": "green", "to": "staging", "label": "yes" },
+      { "from": "green", "to": "fix", "label": "no" },
+      { "from": "fix", "to": "build", "label": "retry" },
+      { "from": "staging", "to": "approve" },
+      { "from": "approve", "to": "prod", "label": "yes" },
+      { "from": "approve", "to": "review", "label": "changes requested", "dash": "dashed" },
+      { "from": "prod", "to": "done" }
+    ],
+    "groups": [{ "label": "Quality gates", "nodes": ["build", "tests", "green"] }],
+    "mainPath": ["commit", "review", "build", "tests", "green", "staging", "approve", "prod", "done"]
+  }
+}
