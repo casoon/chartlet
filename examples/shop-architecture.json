@@ -3,8 +3,8 @@
   "type": "architecture",
   "title": "Web shop on one cloud region",
   "source": "Architecture handbook, overview",
-  "width": 1560,
-  "height": 880,
+  "width": 1820,
+  "height": 540,
   "architecture": {
     "boundaries": [
       { "id": "region", "label": "Cloud region eu-central-1" },
@@ -21,13 +21,15 @@
       { "id": "worker", "label": "Order worker", "in": "network" },
       { "id": "db", "label": "Orders", "sublabel": "Postgres", "kind": "database", "in": "data" },
       { "id": "files", "label": "Invoices", "sublabel": "object storage", "kind": "storage", "in": "region" },
-      { "id": "pay", "label": "Payment provider", "kind": "external" }
+      { "id": "pay", "label": "Payment provider", "kind": "external" },
+      { "id": "auth", "label": "Sign-in", "sublabel": "identity provider", "kind": "security", "in": "network" }
     ],
     "connections": [
       { "from": "customer", "to": "web", "label": "browses" },
       { "from": "web", "to": "cdn", "label": "loads assets", "technology": "HTTPS", "dash": "dashed" },
       { "from": "web", "to": "api", "label": "calls", "technology": "HTTPS/JSON" },
       { "from": "api", "to": "cache", "label": "sessions", "technology": "RESP" },
+      { "from": "api", "to": "auth", "label": "checks token", "technology": "OIDC" },
       { "from": "api", "to": "db", "label": "reads, writes", "technology": "SQL/TLS" },
       { "from": "api", "to": "events", "label": "publishes", "technology": "AMQP" },
       { "from": "events", "to": "worker", "label": "delivers" },

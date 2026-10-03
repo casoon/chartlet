@@ -35,6 +35,10 @@ does.
   `shop-architecture`.
 - Edge labels of flow, state and architecture diagrams are drawn above all edges; labels on the
   same side of a step stack instead of covering each other.
+- Composite states (`"kind": "composite"`, other states lie `"in"` it) drawn as frames, and the
+  component kind `security`, a shield in a new red role color.
+- A component or step that hangs off a frame from outside — only receiving from it, or only
+  sending into it — stands after or before the frame on the main axis instead of far beside it.
 - Where neither orientation fits the canvas, `auto` takes the one that grows it less.
 - Both diagram types share one look: a role color per kind of step or participant on top of its
   shape (CSS custom properties `--chartlet-role-*`), soft shadows, rounded corners on edges, edge

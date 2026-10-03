@@ -11,8 +11,9 @@
       { "id": "new", "label": "New" },
       { "id": "triaged", "label": "Triaged" },
       { "id": "severity", "label": "Severity?", "kind": "choice" },
-      { "id": "progress", "label": "In progress", "sublabel": "assigned" },
-      { "id": "waiting", "label": "Waiting for customer" },
+      { "id": "handling", "label": "Being handled", "kind": "composite" },
+      { "id": "progress", "label": "In progress", "sublabel": "assigned", "in": "handling" },
+      { "id": "waiting", "label": "Waiting for customer", "in": "handling" },
       { "id": "resolved", "label": "Resolved" },
       { "id": "closed", "label": "Closed", "final": true },
       { "id": "rejected", "label": "Rejected", "final": true }

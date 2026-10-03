@@ -314,8 +314,8 @@ where anything goes. Like the sequence diagram it is **experimental**.
 
 **Look.** Both diagram types share one visual language: every kind of step or participant has
 its own shape and a role color that repeats it — blue for steps and systems, green for start and
-end, amber for decisions, teal for data stores, violet for input and output and for queues, gray
-for anything external — each at least 3:1 against the background in both themes. Steps carry a
+end, amber for decisions, teal for data stores, violet for input and output and for queues, red
+for security, gray for anything external — each at least 3:1 against the background in both themes. Steps carry a
 soft shadow, edges turn with rounded corners, and edge labels sit on small chips in the background
 color. The colors are CSS custom properties (`--chartlet-role-blue`, `--chartlet-role-blue-fill`,
 …) that a host page can override.
@@ -354,6 +354,9 @@ flow, loops on a state, portrait and landscape — and is **experimental** like 
 
 - **States** are boxes with well rounded corners; `"final": true` gives a state a double outline,
   `"kind": "choice"` makes it a diamond the machine passes through at once, by its guards.
+- **Composite states.** `"kind": "composite"` makes a state a frame around the states that name
+  it with `"in"`, nested up to four deep. Transitions connect the states inside it; one that names
+  the composite state itself is `composite_not_allowed`.
 - **`initial`** names the state the machine starts in; it gets a dot with an arrow into it. Once
   it is set, a state no transition leads to is reported as `unreachable_state`.
 - **Transitions** carry an `event`, a `guard` and an `action`, each optional and each up to 40
@@ -397,8 +400,9 @@ connect and where they run. It uses the layout of flow charts and is **experimen
 
 - **Components** have a `kind`, each with its own shape and role color: `person` (a box with a
   head), `frontend` (a box with a window bar), `service` (a box, the default), `database` (a
-  cylinder), `queue` (a box with a stack behind it), `storage` (a bucket), `cache` (a hexagon)
-  and `external` (a dashed box).
+  cylinder), `queue` (a box with a stack behind it), `storage` (a bucket), `cache` (a hexagon),
+  `security` (a shield, for an identity provider, a firewall or a vault) and `external` (a dashed
+  box).
 - **Boundaries** are frames — a cloud region, a network, a zone, a system. A component lies `in`
   a boundary, and a boundary `in` another one, up to four deep. Every boundary holds at least one
   component (`empty_boundary`), and boundaries cannot lie in each other in a circle

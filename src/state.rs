@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, Node, Shape, layout_diagram, reading_order},
+    flow::{Diagram, Edge, Group, Node, Shape, layout_diagram, reading_order},
     metrics::TextMetrics,
     scene::Scene,
     spec::{ChartSpec, StateKind, StateSpec},
@@ -29,14 +29,47 @@ fn machine(spec: &ChartSpec) -> &StateSpec {
         .expect("validated state diagrams carry a state block")
 }
 
+/// Where each state of the specification ends up in the diagram: a node, or a group for a
+/// composite state; the initial dot, when there is one, is node 0.
+struct Places {
+    nodes: Vec<Option<usize>>,
+    groups: Vec<Option<usize>>,
+}
+
+fn places(machine: &StateSpec) -> Places {
+    let mut nodes = Vec::with_capacity(machine.states.len());
+    let mut groups = Vec::with_capacity(machine.states.len());
+    let (mut node, mut group) = (usize::from(machine.initial.is_some()), 0);
+    for index in 0..machine.states.len() {
+        if machine.is_composite(index) {
+            nodes.push(None);
+            groups.push(Some(group));
+            group += 1;
+        } else {
+            nodes.push(Some(node));
+            groups.push(None);
+            node += 1;
+        }
+    }
+    Places { nodes, groups }
+}
+
 /// The diagram the layered layout draws: the initial dot first, when there is one, then every
-/// state, then the transitions after the arrow into the initial state.
+/// state that is not composite; the composite states become frames around the states inside
+/// them. The arrow into the initial state comes before the transitions.
 fn diagram(spec: &ChartSpec) -> Diagram {
     let machine = machine(spec);
     let words = spec.locale.words();
-    let offset = usize::from(machine.initial.is_some());
-    let mut nodes = Vec::with_capacity(machine.states.len() + offset);
-    let mut edges = Vec::with_capacity(machine.transitions.len() + offset);
+    let places = places(machine);
+    let node = |id: &str| places.nodes[machine.state(id).expect("validated")].expect("validated");
+    let frame = |state: &crate::spec::StateNodeSpec| {
+        state
+            .parent
+            .as_deref()
+            .and_then(|id| places.groups[machine.state(id).expect("validated")])
+    };
+    let mut nodes = Vec::with_capacity(machine.states.len() + 1);
+    let mut edges = Vec::with_capacity(machine.transitions.len() + 1);
     if let Some(initial) = &machine.initial {
         nodes.push(Node {
             label: words.start.to_owned(),
@@ -48,7 +81,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         });
         edges.push(Edge {
             from: 0,
-            to: offset + machine.state(initial).expect("validated"),
+            to: node(initial),
             label: None,
             technology: None,
             dash: None,
@@ -56,24 +89,33 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             label_path: "/state/initial".to_owned(),
         });
     }
+    let mut groups = Vec::new();
     for (index, state) in machine.states.iter().enumerate() {
+        if machine.is_composite(index) {
+            groups.push(Group {
+                label: state.label.clone(),
+                path: format!("/state/states/{index}"),
+                parent: frame(state),
+            });
+            continue;
+        }
         nodes.push(Node {
             label: state.label.clone(),
             sublabel: state.sublabel.clone(),
             shape: match (state.kind, state.is_final) {
                 (StateKind::Choice, _) => Shape::Decision,
-                (StateKind::State, true) => Shape::Final,
-                (StateKind::State, false) => Shape::State,
+                (_, true) => Shape::Final,
+                (_, false) => Shape::State,
             },
             lane: None,
-            group: None,
+            group: frame(state),
             path: format!("/state/states/{index}"),
         });
     }
     for (index, transition) in machine.transitions.iter().enumerate() {
         edges.push(Edge {
-            from: offset + machine.state(&transition.from).expect("validated"),
-            to: offset + machine.state(&transition.to).expect("validated"),
+            from: node(&transition.from),
+            to: node(&transition.to),
             label: transition.label(),
             technology: None,
             dash: transition.dash,
@@ -85,17 +127,17 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         nodes,
         edges,
         lanes: Vec::new(),
-        groups: Vec::new(),
+        groups,
         orientation: machine.orientation,
     }
 }
 
 /// The states in reading order, as indices into the specification's states.
 fn states_in_order(spec: &ChartSpec) -> Vec<usize> {
-    let offset = usize::from(machine(spec).initial.is_some());
+    let places = places(machine(spec));
     reading_order(&diagram(spec))
         .into_iter()
-        .filter_map(|node| node.checked_sub(offset))
+        .filter_map(|node| places.nodes.iter().position(|place| *place == Some(node)))
         .collect()
 }
 
@@ -160,6 +202,19 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             )
         )
         .expect("writing to String cannot fail");
+    }
+    for (index, composite) in machine.states.iter().enumerate() {
+        if !machine.is_composite(index) {
+            continue;
+        }
+        let members: Vec<&str> = machine
+            .states
+            .iter()
+            .filter(|state| state.parent.as_deref() == Some(composite.id.as_str()))
+            .map(|state| state.label.as_str())
+            .collect();
+        description.push(' ');
+        description.push_str(&text::composite(locale, &composite.label, &members));
     }
     let choices: Vec<&str> = machine
         .states
@@ -327,6 +382,73 @@ mod tests {
         assert_eq!(
             alternative.table.columns,
             ["Von", "Ereignis", "Bedingung", "Aktion", "Nach"]
+        );
+    }
+
+    #[test]
+    fn a_composite_state_frames_the_states_inside_it() {
+        let json = SPEC
+            .replace(
+                "\"title\": \"Door\",",
+                "\"title\": \"Door\", \"width\": 1000, \"height\": 700,",
+            )
+            .replace(
+                r#"{"id": "closed", "label": "Closed"},"#,
+                r#"{"id": "shut", "label": "Shut", "kind": "composite"},
+                {"id": "closed", "label": "Closed", "in": "shut"},"#,
+            )
+            .replace(
+                r#"{"id": "locked", "label": "Locked"}"#,
+                r#"{"id": "locked", "label": "Locked", "in": "shut"}"#,
+            );
+        let output = svg(&json);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(output.content.contains(">Shut</text>"));
+        assert_eq!(
+            output
+                .content
+                .matches("class=\"chartlet-flow-group\"")
+                .count(),
+            1
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .contains("Composite state Shut contains Closed, Locked.")
+        );
+        for (from, to, code, path) in [
+            (
+                r#""to": "open", "event": "push""#,
+                r#""to": "shut", "event": "push""#,
+                "composite_not_allowed",
+                "/state/transitions/0/to",
+            ),
+            (
+                r#""label": "Open"}"#,
+                r#""label": "Open", "in": "gone"}"#,
+                "not_composite",
+                "/state/states/2/in",
+            ),
+            (
+                r#""label": "Shut", "kind": "composite"}"#,
+                r#""label": "Shut", "kind": "composite", "in": "shut"}"#,
+                "state_cycle",
+                "/state/states/0/in",
+            ),
+        ] {
+            assert!(json.contains(from), "{from}");
+            assert_eq!(
+                error(&json.replace(from, to)),
+                (code, path.to_owned()),
+                "{to}"
+            );
+        }
+        let empty = json.replace(r#", "in": "shut"}"#, "}");
+        assert_eq!(
+            error(&empty),
+            ("empty_composite", "/state/states/0".to_owned())
         );
     }
 

@@ -1091,6 +1091,15 @@ pub(crate) fn transition(
     }
 }
 
+/// A composite state and the states directly inside it, as a sentence.
+pub(crate) fn composite(locale: Locale, label: &str, members: &[&str]) -> String {
+    let members = members.join(", ");
+    match locale {
+        Locale::En => format!("Composite state {label} contains {members}."),
+        Locale::De => format!("Zusammengesetzter Zustand {label} enthält {members}."),
+    }
+}
+
 /// The choices of a state diagram, as a sentence.
 pub(crate) fn choices(locale: Locale, labels: &[&str]) -> String {
     let labels = labels.join(", ");
@@ -1144,6 +1153,7 @@ pub(crate) const fn component_kind(locale: Locale, kind: ComponentKind) -> &'sta
         (Locale::En, ComponentKind::Storage) => "storage",
         (Locale::En, ComponentKind::Cache) => "cache",
         (Locale::En, ComponentKind::External) => "external system",
+        (Locale::En, ComponentKind::Security) => "security",
         (Locale::De, ComponentKind::Person) => "Person",
         (Locale::De, ComponentKind::Frontend) => "Oberfläche",
         (Locale::De, ComponentKind::Service) => "Dienst",
@@ -1152,6 +1162,7 @@ pub(crate) const fn component_kind(locale: Locale, kind: ComponentKind) -> &'sta
         (Locale::De, ComponentKind::Storage) => "Speicher",
         (Locale::De, ComponentKind::Cache) => "Cache",
         (Locale::De, ComponentKind::External) => "externes System",
+        (Locale::De, ComponentKind::Security) => "Sicherheit",
     }
 }
 

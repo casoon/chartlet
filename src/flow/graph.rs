@@ -60,7 +60,8 @@ impl Graph {
                 (false, true) => Some((to, from)),
             })
             .collect();
-        let node_layers = layers(nodes, &directed);
+        let mut node_layers = layers(nodes, &directed);
+        pull_out_of_frames(diagram, &directed, &mut node_layers);
         let mut items: Vec<Item> = (0..nodes)
             .map(|node| Item {
                 node: Some(node),
@@ -343,6 +344,61 @@ fn layers(nodes: usize, edges: &[Option<(usize, usize)>]) -> Vec<usize> {
         }
     }
     layer
+}
+
+/// Moves a step that hangs off a group from outside — its edges all lead into the group, or all
+/// come from it, and only on one side — out of the layers the group spans, when that costs its
+/// edges at most two layers: placed beside a wide frame, it would stand far from everything
+/// else. Any other step stays where the layering put it.
+fn pull_out_of_frames(diagram: &Diagram, edges: &[Option<(usize, usize)>], layer: &mut [usize]) {
+    const MOST: usize = 2;
+    let nodes = layer.len();
+    let mut before = vec![Vec::new(); nodes];
+    let mut after = vec![Vec::new(); nodes];
+    for (from, to) in edges.iter().flatten() {
+        after[*from].push(*to);
+        before[*to].push(*from);
+    }
+    // A move can change the span of another group; a few rounds settle it.
+    for _ in 0..4 {
+        let mut moved = false;
+        for group in 0..diagram.groups.len() {
+            let inside: Vec<usize> = (0..nodes)
+                .filter(|node| diagram.inside(*node, group))
+                .collect();
+            let (Some(first), Some(last)) = (
+                inside.iter().map(|node| layer[*node]).min(),
+                inside.iter().map(|node| layer[*node]).max(),
+            ) else {
+                continue;
+            };
+            for node in 0..nodes {
+                if inside.contains(&node) || layer[node] < first || layer[node] > last {
+                    continue;
+                }
+                let all_inside = |others: &[usize]| {
+                    !others.is_empty() && others.iter().all(|other| inside.contains(other))
+                };
+                if after[node].is_empty()
+                    && all_inside(&before[node])
+                    && last + 1 - layer[node] <= MOST
+                {
+                    layer[node] = last + 1;
+                    moved = true;
+                } else if before[node].is_empty()
+                    && all_inside(&after[node])
+                    && first >= 1
+                    && layer[node] + 1 - first <= MOST
+                {
+                    layer[node] = first - 1;
+                    moved = true;
+                }
+            }
+        }
+        if !moved {
+            break;
+        }
+    }
 }
 
 /// Positions along one segment of a layer, as close to `targets` as `weights` ask while every

@@ -40,6 +40,9 @@ pub struct StateNodeSpec {
     /// A state the machine ends in, drawn with a double outline.
     #[serde(default, rename = "final", skip_serializing_if = "is_false")]
     pub is_final: bool,
+    /// The `id` of the composite state this state lies in.
+    #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
 }
 
 /// What a state is.
@@ -51,6 +54,8 @@ pub enum StateKind {
     State,
     /// A choice the machine passes through at once, by its guards: a diamond.
     Choice,
+    /// A state made of states: a frame around the states that name it with `in`.
+    Composite,
 }
 
 impl StateKind {
@@ -98,7 +103,31 @@ impl TransitionSpec {
     }
 }
 
+/// How deeply composite states may nest inside each other.
+pub(crate) const MAX_COMPOSITE_DEPTH: usize = 4;
+
 impl StateSpec {
+    /// Whether state `index` is a composite state, a frame rather than a state of its own.
+    pub(crate) fn is_composite(&self, index: usize) -> bool {
+        self.states[index].kind == StateKind::Composite
+    }
+
+    /// The composite states around state `index`, outermost first; `None` when they lie in each
+    /// other in a circle.
+    pub(crate) fn composites_around(&self, index: usize) -> Option<Vec<usize>> {
+        let mut chain = Vec::new();
+        let mut at = index;
+        while let Some(parent) = self.states[at].parent.as_deref() {
+            at = self.state(parent)?;
+            if chain.contains(&at) || at == index {
+                return None;
+            }
+            chain.push(at);
+        }
+        chain.reverse();
+        Some(chain)
+    }
+
     /// The index of the state with `id`.
     pub(crate) fn state(&self, id: &str) -> Option<usize> {
         self.states.iter().position(|state| state.id == id)
@@ -132,6 +161,9 @@ impl ChartSpec {
         let mut warnings = Vec::new();
         if let Some(initial) = &machine.initial {
             for (index, state) in machine.states.iter().enumerate() {
+                if machine.is_composite(index) {
+                    continue;
+                }
                 let reached = machine
                     .transitions
                     .iter()
@@ -202,7 +234,82 @@ impl StateSpec {
                 ));
             }
         }
+        self.validate_composites()
+    }
+
+    /// Composite states: they lie in composite states only, without a circle and at most four
+    /// deep, are never final, and hold at least one state of their own.
+    fn validate_composites(&self) -> Result<(), ChartError> {
+        for (index, state) in self.states.iter().enumerate() {
+            let path = format!("/state/states/{index}");
+            if let Some(parent) = &state.parent {
+                let Some(outer) = self.state(parent) else {
+                    return Err(ChartError::new(
+                        "unknown_state",
+                        format!("{path}/in"),
+                        format!("no state has the id \"{parent}\""),
+                    ));
+                };
+                if !self.is_composite(outer) {
+                    return Err(ChartError::new(
+                        "not_composite",
+                        format!("{path}/in"),
+                        format!(
+                            "\"{parent}\" is no composite state; give it \"kind\": \"composite\""
+                        ),
+                    ));
+                }
+            }
+            let Some(chain) = self.composites_around(index) else {
+                return Err(ChartError::new(
+                    "state_cycle",
+                    format!("{path}/in"),
+                    "composite states lie in each other in a circle",
+                ));
+            };
+            if chain.len() >= MAX_COMPOSITE_DEPTH && self.is_composite(index) {
+                return Err(ChartError::new(
+                    "states_too_deep",
+                    format!("{path}/in"),
+                    format!("composite states nest at most {MAX_COMPOSITE_DEPTH} deep"),
+                ));
+            }
+            if self.is_composite(index) {
+                if state.is_final {
+                    return Err(ChartError::new(
+                        "option_not_supported",
+                        format!("{path}/final"),
+                        "a composite state is a frame and cannot be final; make a state inside it final",
+                    ));
+                }
+                let holds = (0..self.states.len()).any(|inner| {
+                    !self.is_composite(inner)
+                        && self
+                            .composites_around(inner)
+                            .is_some_and(|chain| chain.contains(&index))
+                });
+                if !holds {
+                    return Err(ChartError::new(
+                        "empty_composite",
+                        path,
+                        format!("no state lies in \"{}\"", state.id),
+                    ));
+                }
+            }
+        }
         Ok(())
+    }
+
+    /// An error when `id` names a composite state, which transitions cannot reach.
+    fn reject_composite(&self, id: &str, path: String) -> Result<(), ChartError> {
+        match self.state(id) {
+            Some(index) if self.is_composite(index) => Err(ChartError::new(
+                "composite_not_allowed",
+                path,
+                format!("\"{id}\" is a composite state, a frame; name a state inside it"),
+            )),
+            _ => Ok(()),
+        }
     }
 
     fn validate_transitions(&self) -> Result<(), ChartError> {
@@ -223,6 +330,7 @@ impl StateSpec {
                         format!("no state has the id \"{id}\""),
                     ));
                 }
+                self.reject_composite(id, format!("{path}/{field}"))?;
             }
             for (field, text) in [
                 ("event", &transition.event),
@@ -247,6 +355,9 @@ impl StateSpec {
                 format!("no state has the id \"{initial}\""),
             ));
         }
+        if let Some(initial) = &self.initial {
+            self.reject_composite(initial, "/state/initial".to_owned())?;
+        }
         for (index, id) in self.main_path.iter().enumerate() {
             if self.state(id).is_none() {
                 return Err(ChartError::new(
@@ -255,6 +366,7 @@ impl StateSpec {
                     format!("no state has the id \"{id}\""),
                 ));
             }
+            self.reject_composite(id, format!("/state/mainPath/{index}"))?;
         }
         for (index, pair) in self.main_path.windows(2).enumerate() {
             let joined = self

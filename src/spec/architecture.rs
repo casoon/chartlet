@@ -62,6 +62,8 @@ pub enum ComponentKind {
     Storage,
     /// A cache: a hexagon.
     Cache,
+    /// A security component, such as an identity provider, a firewall or a vault: a shield.
+    Security,
     /// A system outside the scope: a dashed box.
     External,
 }

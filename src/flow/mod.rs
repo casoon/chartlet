@@ -184,6 +184,8 @@ pub(crate) enum Shape {
     Bucket,
     /// A cache: a hexagon.
     Cache,
+    /// A security component: a shield.
+    Shield,
 }
 
 impl From<NodeKind> for Shape {
@@ -261,7 +263,7 @@ impl Diagram {
     }
 
     /// Whether node `node` lies in group `group`, directly or in a group inside it.
-    fn inside(&self, node: usize, group: usize) -> bool {
+    pub(crate) fn inside(&self, node: usize, group: usize) -> bool {
         self.chain(self.nodes[node].group).contains(&group)
     }
 
@@ -311,6 +313,7 @@ impl<'a> Model<'a> {
                 Shape::Frontend => (0.0, 12.0),
                 Shape::Bucket => (16.0, 4.0),
                 Shape::Cache => (24.0, 0.0),
+                Shape::Shield => (0.0, 18.0),
                 _ => (0.0, 0.0),
             };
             let room = MAX_NODE - 2.0 * PAD;
@@ -542,9 +545,7 @@ impl Plan {
             lane_head,
         );
         let cross_needed = if plan.bands.is_empty() && !diagram.groups.is_empty() {
-            clear_frames(model, &mut plan.cross, &cross_size, landscape);
-            plan.cross_length = content_length(graph, &plan.cross, &cross_size, &after);
-            plan.cross_length
+            plan.keep_frames_clear(model, &cross_size, &gap, &after)
         } else {
             cross_needed
         };
@@ -594,6 +595,24 @@ impl Plan {
                 page_height.max(top + main_needed + BOTTOM),
             )
         };
+    }
+
+    /// Keeps steps out of the frames they do not belong to, the main path straight, and returns
+    /// how far the content then reaches on the cross axis. Clearing a frame can bend the main path
+    /// again, and straightening it can move a step back into a frame: clear, straighten, clear.
+    fn keep_frames_clear(
+        &mut self,
+        model: &Model,
+        cross_size: &impl Fn(usize) -> f64,
+        gap: &impl Fn(usize, usize) -> f64,
+        after: &impl Fn(usize) -> f64,
+    ) -> f64 {
+        let landscape = self.landscape;
+        clear_frames(model, &mut self.cross, cross_size, landscape);
+        straighten(model, &mut self.cross, cross_size, gap, &self.bands, 0.0);
+        clear_frames(model, &mut self.cross, cross_size, landscape);
+        self.cross_length = content_length(&model.graph, &self.cross, cross_size, after);
+        self.cross_length
     }
 
     /// Spreads the lanes over `room` on the cross axis, each its share wider, its steps and
@@ -865,6 +884,7 @@ fn straighten(
                     gap,
                     bands,
                     lane_head,
+                    true,
                 ) || align(
                     graph,
                     cross,
@@ -874,6 +894,7 @@ fn straighten(
                     gap,
                     bands,
                     lane_head,
+                    true,
                 );
             }
         }
@@ -904,6 +925,7 @@ fn straighten(
                     gap,
                     bands,
                     lane_head,
+                    false,
                 ))
                 || (!on_main[pair[0]]
                     && align(
@@ -915,6 +937,7 @@ fn straighten(
                         gap,
                         bands,
                         lane_head,
+                        false,
                     ));
         }
     }
@@ -1041,6 +1064,7 @@ fn align(
     gap: &impl Fn(usize, usize) -> f64,
     bands: &[(f64, f64)],
     lane_head: f64,
+    whole_run: bool,
 ) -> bool {
     let layer = &graph.layers[graph.layer[item]];
     let position = graph.position[item];
@@ -1063,6 +1087,9 @@ fn align(
     if fits_left && fits_right && inside(target - half, target + half) {
         cross[item] = target;
         return true;
+    }
+    if !whole_run {
+        return false;
     }
     let segment: Vec<usize> = layer
         .iter()
@@ -1516,7 +1543,7 @@ impl Plan {
         for node in 0..model.diagram.nodes.len() {
             self.draw_loop(model, node, elements, &mut labels);
         }
-        self.draw_labels(labels, metrics, elements);
+        self.draw_labels(model, labels, metrics, elements);
         for node in 0..model.diagram.nodes.len() {
             self.draw_node(model, node, metrics, warnings, elements);
         }
@@ -1766,12 +1793,16 @@ impl Plan {
     /// one drawn before it.
     fn draw_labels(
         &self,
+        model: &Model,
         labels: Vec<Label>,
         metrics: &impl TextMetrics,
         elements: &mut Vec<Element>,
     ) {
         const AIR: f64 = 3.0;
-        let mut placed: Vec<(f64, f64, f64, f64)> = Vec::new();
+        // Labels keep clear of the steps as well as of each other.
+        let mut placed: Vec<(f64, f64, f64, f64)> = (0..model.diagram.nodes.len())
+            .map(|node| self.node_box(model, node))
+            .collect();
         for mut label in labels {
             for _ in 0..12 {
                 let (x, y, width, height) = chip_box(&label.lines, label.at, label.anchor, metrics);
@@ -1911,6 +1942,7 @@ impl Plan {
         let shift = match spec.shape {
             Shape::Store | Shape::Person => 3.0,
             Shape::Frontend => 6.0,
+            Shape::Shield => -6.0,
             _ => 0.0,
         };
         let first = middle_y - block / 2.0 + 4.5 + shift;
@@ -2044,7 +2076,12 @@ fn shape(
         Shape::State | Shape::Final | Shape::Initial => {
             state_shape(kind, (x, y, width, height), tooltip, elements);
         }
-        Shape::Person | Shape::Frontend | Shape::Queue | Shape::Bucket | Shape::Cache => {
+        Shape::Person
+        | Shape::Frontend
+        | Shape::Queue
+        | Shape::Bucket
+        | Shape::Cache
+        | Shape::Shield => {
             component_shape(kind, (x, y, width, height), tooltip, elements);
         }
     }
@@ -2140,16 +2177,7 @@ fn component_shape(
                 rect(x, y, "chartlet-flow-node chartlet-role-violet", tooltip),
                 elements,
             );
-            elements.push(Element::Circle(Circle {
-                cx: x + width / 2.0,
-                cy: y,
-                radius: 7.0,
-                class: "chartlet-arch-head",
-                topic: None,
-                series_index: None,
-                style_index: None,
-                tooltip: None,
-            }));
+            head(x + width / 2.0, y, elements);
         }
         Shape::Frontend => {
             with_shadow(
@@ -2203,8 +2231,37 @@ fn component_shape(
             ),
             elements,
         ),
+        Shape::Shield => with_shadow(
+            polygon(
+                vec![
+                    (x, y),
+                    (x + width, y),
+                    (x + width, y + height * 0.6),
+                    (x + width / 2.0, y + height),
+                    (x, y + height * 0.6),
+                    (x, y),
+                ],
+                "chartlet-flow-node chartlet-role-red",
+                tooltip,
+            ),
+            elements,
+        ),
         _ => unreachable!("only the shapes of an architecture diagram come here"),
     }
+}
+
+/// The head on top of a person.
+fn head(x: f64, y: f64, elements: &mut Vec<Element>) {
+    elements.push(Element::Circle(Circle {
+        cx: x,
+        cy: y,
+        radius: 7.0,
+        class: "chartlet-arch-head",
+        topic: None,
+        series_index: None,
+        style_index: None,
+        tooltip: None,
+    }));
 }
 
 /// The window bar along the top of a frontend: a line and three dots.

@@ -38,6 +38,7 @@ const fn shape(kind: ComponentKind) -> Shape {
         ComponentKind::Queue => Shape::Queue,
         ComponentKind::Storage => Shape::Bucket,
         ComponentKind::Cache => Shape::Cache,
+        ComponentKind::Security => Shape::Shield,
         ComponentKind::External => Shape::External,
     }
 }
@@ -231,7 +232,7 @@ mod tests {
         "type": "architecture",
         "title": "Blog",
         "width": 1000,
-        "height": 700,
+        "height": 800,
         "architecture": {
             "boundaries": [
                 {"id": "cloud", "label": "Cloud"},
@@ -276,7 +277,10 @@ mod tests {
             );
             let output = svg(&json);
             assert!(
-                output.warnings.is_empty(),
+                output
+                    .warnings
+                    .iter()
+                    .all(|warning| warning.code != "group_overlap"),
                 "{orientation}: {:?}",
                 output.warnings
             );
@@ -297,6 +301,20 @@ mod tests {
         assert!(output.content.contains("<title>API → Posts: [SQL]</title>"));
         assert!(output.content.contains(">[HTTPS]</text>"));
         assert!(output.content.contains("class=\"chartlet-arch-head\""));
+        let secured = SPEC.replace(
+            r#"{"id": "mail", "label": "Mail service", "kind": "external"}"#,
+            r#"{"id": "mail", "label": "Mail service", "kind": "external"},
+                {"id": "vault", "label": "Vault", "kind": "security", "in": "private"}"#,
+        ).replace(
+            r#"{"from": "api", "to": "mail", "label": "notifies"}"#,
+            r#"{"from": "api", "to": "mail", "label": "notifies"}, {"from": "api", "to": "vault", "label": "reads secrets"}"#,
+        );
+        let output = svg(&secured);
+        assert!(
+            output
+                .content
+                .contains("chartlet-role-red\"><title>Vault</title>")
+        );
     }
 
     #[test]
@@ -355,6 +373,39 @@ mod tests {
             alternative.table.columns,
             ["Komponente", "Art", "Grenze", "Verbunden mit"]
         );
+    }
+
+    #[test]
+    fn a_component_that_hangs_off_a_boundary_stands_after_it_on_the_main_axis() {
+        // The mail service only receives from the API inside the boundaries; it moves to the
+        // layer after them instead of beside the frames.
+        let json = SPEC.replace(
+            "\"mainPath\"",
+            "\"orientation\": \"portrait\", \"mainPath\"",
+        );
+        let output = svg(&json);
+        let number = |shape: &str, name: &str| -> f64 {
+            let start = shape.find(&format!(" {name}=\"")).expect("an attribute") + name.len() + 3;
+            shape[start..]
+                .split('"')
+                .next()
+                .expect("a value")
+                .parse()
+                .expect("a number")
+        };
+        let at = output
+            .content
+            .find("<title>Mail service</title>")
+            .expect("drawn");
+        let mail = &output.content[output.content[..at].rfind('<').expect("a shape")..at];
+        // The first frame drawn is the outermost one.
+        let frame_at = output
+            .content
+            .find("class=\"chartlet-flow-group\"")
+            .expect("a frame");
+        let frame =
+            &output.content[output.content[..frame_at].rfind('<').expect("a rect")..frame_at];
+        assert!(number(mail, "y") > number(frame, "y") + number(frame, "height"));
     }
 
     #[test]

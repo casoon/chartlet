@@ -590,7 +590,7 @@
       }
     },
     "state": {
-      "description": "A state diagram, laid out like a flow chart. initial names the state the machine starts in and draws a dot with an arrow into it; final states get a double outline, choices a diamond. Transitions are written event [guard] / action.",
+      "description": "A state diagram, laid out like a flow chart. A composite state is a frame around the states that name it with in; transitions, initial and mainPath name states that are not composite. initial names the state the machine starts in and draws a dot with an arrow into it; final states get a double outline, choices a diamond. Transitions are written event [guard] / action.",
       "type": "object",
       "additionalProperties": false,
       "required": ["states"],
@@ -607,8 +607,9 @@
               "id": { "$ref": "#/$defs/identifier" },
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
-              "kind": { "enum": ["state", "choice"], "default": "state" },
-              "final": { "type": "boolean", "default": false }
+              "kind": { "enum": ["state", "choice", "composite"], "default": "state" },
+              "final": { "type": "boolean", "default": false },
+              "in": { "$ref": "#/$defs/identifier" }
             }
           }
         },
@@ -657,7 +658,7 @@
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
               "kind": {
-                "enum": ["person", "frontend", "service", "database", "queue", "storage", "cache", "external"],
+                "enum": ["person", "frontend", "service", "database", "queue", "storage", "cache", "external", "security"],
                 "default": "service"
               },
               "in": { "$ref": "#/$defs/identifier" }
