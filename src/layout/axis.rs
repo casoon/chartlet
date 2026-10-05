@@ -295,7 +295,8 @@ pub(crate) struct NumericScale {
     min: f64,
     max: f64,
     pub step: f64,
-    /// Powers of ten evenly spaced instead of values; `min` and `max` are then powers of ten.
+    /// Powers of ten evenly spaced instead of values; `min` is then a power of ten and `max` one
+    /// times 1, 2 or 5 of one.
     log: bool,
     /// Larger values toward the start of the axis instead of its end.
     reversed: bool,
@@ -338,8 +339,8 @@ impl NumericScale {
         }
     }
 
-    /// A logarithmic scale from the power of ten at or below the smallest value to the one at or
-    /// above the largest; validated values are all above zero.
+    /// A logarithmic scale from the power of ten at or below the smallest value to the next 1, 2
+    /// or 5 times a power of ten at or above the largest; validated values are all above zero.
     fn logarithmic(
         values: impl Iterator<Item = f64>,
         (declared_min, declared_max): (Option<f64>, Option<f64>),
@@ -349,14 +350,18 @@ impl NumericScale {
         });
         min = declared_min.map_or(min, |bound| min.min(bound));
         max = declared_max.map_or(max, |bound| max.max(bound));
-        let low = min.log10().floor();
-        let mut high = max.log10().ceil();
-        if high <= low {
-            high = low + 1.0;
-        }
+        let low = tidy(10.0_f64.powf(min.log10().floor()));
+        // The axis ends at the next 1, 2 or 5 times a power of ten, not at the next power of ten,
+        // so that it does not leave almost a decade empty.
+        let decade = 10.0_f64.powf(max.log10().floor());
+        let high = [1.0, 2.0, 5.0, 10.0]
+            .into_iter()
+            .map(|multiple| tidy(decade * multiple))
+            .find(|end| *end >= max * (1.0 - 1e-9))
+            .expect("ten times the decade of a value is above it");
         Self {
-            min: tidy(10.0_f64.powf(low)),
-            max: tidy(10.0_f64.powf(high)),
+            min: low,
+            max: if high <= low { tidy(low * 10.0) } else { high },
             step: 1.0,
             log: true,
             reversed: false,
@@ -518,6 +523,28 @@ mod tests {
             scale.ticks().collect::<Vec<_>>(),
             vec![0.0, 5.0, 10.0, 15.0, 20.0]
         );
+    }
+
+    #[test]
+    fn a_logarithmic_axis_ends_at_the_next_one_two_or_five_not_at_the_next_decade() {
+        use crate::spec::ValueAxisSpec;
+        let axis = ValueAxisSpec {
+            scale: crate::spec::AxisScale::Log,
+            ..ValueAxisSpec::default()
+        };
+        for (largest, end) in [
+            (13.75, 20.0),
+            (1.5, 2.0),
+            (4.0, 5.0),
+            (7.0, 10.0),
+            (20.0, 20.0),
+            (100.0, 100.0),
+            (101.0, 200.0),
+        ] {
+            let scale = NumericScale::for_axis([0.14, largest].into_iter(), false, &axis);
+            assert!((scale.max - end).abs() < 1e-9, "{largest}: {}", scale.max);
+            assert!((scale.min - 0.1).abs() < 1e-12);
+        }
     }
 
     #[test]

@@ -971,7 +971,7 @@ fn draw_pane(
         .filter(|entry| entry.layer.is_data() && entry.layer.mark != Mark::Ohlc)
     {
         elements.push(Element::Hook(Hook::Layer(entry.global)));
-        push_line(spec, *entry, frame, detail, elements);
+        push_line(spec, *entry, frame, detail, elements, warnings, metrics);
         elements.push(Element::Hook(Hook::End));
     }
 
@@ -1172,6 +1172,8 @@ fn push_line(
     frame: &TimeFrame,
     detail: Detail,
     elements: &mut Vec<Element>,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
 ) {
     let layer = entry.layer;
     let points = layer.resolved_points(frame.zone);
@@ -1206,6 +1208,8 @@ fn push_line(
     let precision = spec.layer_precision(layer, frame.zone);
     // A stacked area's markers sit on top of the stack, but tell the layer's own value.
     let drawn = spec.drawn_points(entry, frame.zone);
+    // Where the last value label of the layer ends: the next one stays off it.
+    let mut labels_end = f64::NEG_INFINITY;
     for (index, (epoch, value)) in points.iter().enumerate() {
         let x = frame.x(*epoch);
         let y = frame.y(drawn[index].1);
@@ -1261,13 +1265,21 @@ fn push_line(
             marker_tooltips.then_some(text),
         ));
         if detail == Detail::Full && spec.show_values && !dense {
-            elements.push(Element::Text(Text {
-                x,
-                y: y - 10.0,
-                class: "chartlet-value",
-                anchor: TextAnchor::Middle,
-                content: format_value(*value, frame.style),
-            }));
+            let content = format_value(*value, frame.style);
+            let half = metrics.width(&content, LABEL_SIZE) / 2.0;
+            // Two neighbours that would run into each other: the later one is left out.
+            if x - half < labels_end + 4.0 {
+                crate::layout::warn_if_labels_omitted(true, warnings);
+            } else {
+                labels_end = x + half;
+                elements.push(Element::Text(Text {
+                    x,
+                    y: y - 10.0,
+                    class: "chartlet-value",
+                    anchor: TextAnchor::Middle,
+                    content,
+                }));
+            }
         }
     }
 }

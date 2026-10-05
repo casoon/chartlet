@@ -166,6 +166,7 @@ pub(super) fn layout_horizontal(
     let mut elements = base_elements_with_title(spec, &scale, plot, title, warnings, metrics);
     add_legend(spec, dataset, plot, head, &mut elements, warnings, metrics);
     let bars = elements.len();
+    let rules = reference_xs(spec, &scale, left, plot_width);
     let bar_and_label = |index: usize, series_index: usize, value: f64| {
         let center = top + band * (count(index) + 0.5);
         let (offset, thickness) = group.slot(series_index);
@@ -184,6 +185,7 @@ pub(super) fn layout_horizontal(
                 baseline,
                 y + thickness / 2.0,
                 spec.number_style(),
+                &rules,
                 metrics,
             ),
         )
@@ -297,12 +299,21 @@ fn labels_reach_left(
         .collect()
 }
 
+/// Where the reference lines of a horizontal chart run: a value label never sits on one.
+fn reference_xs(spec: &ChartSpec, scale: &NumericScale, left: f64, plot_width: f64) -> Vec<f64> {
+    spec.references
+        .iter()
+        .map(|reference| scale.map(reference.value, left, left + plot_width))
+        .collect()
+}
+
 fn horizontal_value_label(
     value: f64,
     value_x: f64,
     baseline: f64,
     center_y: f64,
     style: NumberStyle,
+    rules: &[f64],
     metrics: &impl TextMetrics,
 ) -> Text {
     let content = format_value(value, style);
@@ -316,6 +327,19 @@ fn horizontal_value_label(
     } else {
         (value_x - 8.0, "chartlet-value", TextAnchor::End)
     };
+    // A label that a reference line would run through moves to the far side of the line.
+    let reach = metrics.width(&content, LABEL_SIZE);
+    let (low, high) = match anchor {
+        TextAnchor::End => (x - reach, x),
+        _ => (x, x + reach),
+    };
+    let x = rules
+        .iter()
+        .find(|rule| **rule > low - 3.0 && **rule < high + 3.0)
+        .map_or(x, |rule| match anchor {
+            TextAnchor::End => rule - 6.0,
+            _ => rule + 6.0,
+        });
     Text {
         x,
         y: center_y + 4.0,

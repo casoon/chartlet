@@ -39,6 +39,14 @@ const MID_OVERHANG: f64 = 3.0;
 fn span_label(spec: &ChartSpec, range: &RangeSpec) -> String {
     let show = |value| format_value(value, spec.number_style());
     let to = spec.locale.words().to;
+    // A span of one value is that value, not "3 to 3".
+    if range.low.total_cmp(&range.high).is_eq()
+        && range
+            .mid
+            .is_none_or(|mid| mid.total_cmp(&range.low).is_eq())
+    {
+        return show(range.low);
+    }
     match range.mid {
         Some(mid) => format!(
             "{} ({} {to} {})",

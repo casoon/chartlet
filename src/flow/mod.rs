@@ -144,11 +144,17 @@ pub(crate) fn layout_diagram(
         metrics,
         warnings,
     );
-    warn_growth(spec, plan.width, plan.height, warnings);
-    plan.draw(&model, metrics, warnings, &mut elements);
+    let (labels_right, labels_bottom) = plan.draw(&model, metrics, warnings, &mut elements);
+    // The edge labels are placed last and may reach beyond what the layers need: the canvas holds
+    // them too, and says so.
+    let (width, height) = (
+        plan.width.max((labels_right + 2.0).ceil()),
+        plan.height.max((labels_bottom + 2.0).ceil()),
+    );
+    warn_growth(spec, width, height, warnings);
     Scene {
-        width: pixels(plan.width),
-        height: pixels(plan.height),
+        width: pixels(width),
+        height: pixels(height),
         elements,
     }
 }
@@ -523,6 +529,9 @@ struct Label {
     /// Where the line it labels runs across the page, when the label stands beside it and may
     /// move to its other side.
     beside: Option<f64>,
+    /// Whether the label of an edge that runs against the flow was set above its end, and moves
+    /// further up, not down, when it meets a step.
+    up: bool,
 }
 
 impl Label {
@@ -1880,13 +1889,15 @@ fn route(
 }
 
 impl Plan {
+    /// Draws the diagram and returns how far right and down the edge labels reached, which the
+    /// canvas must hold too.
     fn draw(
         &self,
         model: &Model,
         metrics: &impl TextMetrics,
         warnings: &mut Vec<ChartWarning>,
         elements: &mut Vec<Element>,
-    ) {
+    ) -> (f64, f64) {
         self.draw_lanes(model, elements);
         self.draw_groups(model, metrics, warnings, elements);
         let mut labels = Vec::new();
@@ -1902,7 +1913,7 @@ impl Plan {
             self.draw_loop(model, node, elements, &mut labels);
             elements.push(Element::GroupEnd);
         }
-        self.draw_labels(model, labels, metrics, elements);
+        let reach = self.draw_labels(model, labels, metrics, elements);
         for node in 0..model.diagram.nodes.len() {
             elements.push(Element::Group(model.node_classes(node)));
             self.draw_node(model, node, elements);
@@ -1920,6 +1931,7 @@ impl Plan {
                 }));
             }
         }
+        reach
     }
 
     fn draw_lanes(&self, model: &Model, elements: &mut Vec<Element>) {
@@ -1976,7 +1988,7 @@ impl Plan {
     }
 
     /// The frame of every group: around its own steps and the frames inside it.
-    fn group_frames(&self, model: &Model) -> Vec<(f64, f64, f64, f64)> {
+    fn group_frames(&self, model: &Model, metrics: &impl TextMetrics) -> Vec<(f64, f64, f64, f64)> {
         let diagram = model.diagram;
         let groups = diagram.groups.len();
         let depth = |group: usize| diagram.chain(Some(group)).len();
@@ -2009,10 +2021,13 @@ impl Plan {
                     (left.min(b.0), top.min(b.1), right.max(b.2), bottom.max(b.3))
                 },
             );
+            // A frame is at least as wide as its own name, which sits in its top left corner.
+            let named = (metrics.width(&diagram.groups[group].label, SUBLABEL_SIZE) + 16.0).ceil();
+            let extra = (named - (right - left + 2.0 * GROUP_PAD)).max(0.0) / 2.0;
             frames[group] = (
-                left - GROUP_PAD,
+                left - GROUP_PAD - extra,
                 top - GROUP_PAD - GROUP_HEAD,
-                right + GROUP_PAD,
+                right + GROUP_PAD + extra,
                 bottom + GROUP_PAD,
             );
         }
@@ -2028,7 +2043,7 @@ impl Plan {
     ) {
         let diagram = model.diagram;
         let groups = diagram.groups.len();
-        let frames = self.group_frames(model);
+        let frames = self.group_frames(model, metrics);
         let depth = |group: usize| diagram.chain(Some(group)).len();
         let mut inner_first: Vec<usize> = (0..groups).collect();
         crate::sort::by_key(&mut inner_first, |group| {
@@ -2101,6 +2116,7 @@ impl Plan {
             at: (f64::midpoint(run[0].0, run[1].0), run[0].1 + 18.0),
             anchor: TextAnchor::Middle,
             beside: None,
+            up: false,
         })
     }
 
@@ -2208,6 +2224,7 @@ impl Plan {
             at: (x, y),
             anchor,
             beside: (!self.landscape).then_some(line),
+            up: !self.landscape && route.against,
         });
     }
 
@@ -2219,15 +2236,16 @@ impl Plan {
         labels: Vec<Label>,
         metrics: &impl TextMetrics,
         elements: &mut Vec<Element>,
-    ) {
+    ) -> (f64, f64) {
         const AIR: f64 = 3.0;
+        let mut reach = (0.0_f64, 0.0_f64);
         // Labels keep clear of the steps as well as of each other.
         let mut placed: Vec<(f64, f64, f64, f64)> = (0..model.diagram.nodes.len())
             .map(|node| self.node_box(model, node))
             .collect();
         // In portrait the borders of the frames are kept clear too, as thin boxes.
         let borders: Vec<(f64, f64, f64, f64)> = self
-            .group_frames(model)
+            .group_frames(model, metrics)
             .into_iter()
             .flat_map(|(left, top, right, bottom)| {
                 if self.landscape {
@@ -2267,15 +2285,23 @@ impl Plan {
                 };
                 if self.landscape {
                     label.at.0 += other.0 + other.2 + AIR - x;
+                } else if label.up {
+                    label.at.1 -= y + height + AIR - other.1;
                 } else {
                     label.at.1 += other.1 + other.3 + AIR - y;
                 }
             }
-            placed.push(chip_box(&label.lines, label.at, label.anchor, metrics));
+            let placed_at = chip_box(&label.lines, label.at, label.anchor, metrics);
+            reach = (
+                reach.0.max(placed_at.0 + placed_at.2),
+                reach.1.max(placed_at.1 + placed_at.3),
+            );
+            placed.push(placed_at);
             elements.push(Element::Group(label.classes.clone()));
             chip(&label.lines, label.at, label.anchor, metrics, elements);
             elements.push(Element::GroupEnd);
         }
+        reach
     }
 
     /// An edge from a step to itself: a loop beside the step, right in portrait and below in
@@ -2353,6 +2379,7 @@ impl Plan {
                 at: (text.0, text.1 - rise),
                 anchor: text.2,
                 beside: None,
+                up: false,
             });
         }
     }

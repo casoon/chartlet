@@ -59,6 +59,8 @@ const NESTED_BAR: f64 = 4.0;
 /// The loop a message to its sender draws: how far out and how far along it goes.
 const LOOP_OUT: f64 = 24.0;
 const LOOP_ALONG: f64 = 16.0;
+/// The widest label of a message of the last participant to itself, before it wraps.
+const LAST_SELF_LABEL: f64 = 170.0;
 /// The widest message label in landscape, before it wraps.
 const LANDSCAPE_LABEL: f64 = 160.0;
 /// Growth of the slots on the time axis when the canvas leaves room.
@@ -493,7 +495,10 @@ impl Portrait {
             .zip(&model.ends)
             .enumerate()
             .map(|(index, (label, (from, to)))| {
-                let room = if from == to && model.compact {
+                let room = if from == to && *from == model.participants() - 1 {
+                    // The last participant has nothing to its right: the canvas grows for a label.
+                    LAST_SELF_LABEL
+                } else if from == to && model.compact {
                     // Beside the loop, as far as the canvas goes.
                     let center = model.margin + column * (crate::layout::count(*from) + 0.5);
                     width - model.margin - center - CHIP_REACH - 8.0
@@ -517,6 +522,27 @@ impl Portrait {
                 )
             })
             .collect();
+        // A message of the last participant to itself writes its label beyond the lifeline; the
+        // canvas grows on the right when that does not fit.
+        let last = model.participants() - 1;
+        let beyond = lines
+            .iter()
+            .zip(&model.ends)
+            .filter(|(_, (from, to))| from == to && *from == last)
+            .flat_map(|(lines, _)| lines.iter())
+            .map(|line| metrics.width(line, MESSAGE_SIZE))
+            .fold(0.0, f64::max);
+        let right_need = if beyond > 0.0 {
+            model.margin
+                + column * (crate::layout::count(last) + 0.5)
+                + BAR
+                + 2.0 * CHIP_REACH
+                + beyond
+                + model.margin
+        } else {
+            0.0
+        };
+        let width = width.max(right_need.ceil());
         let (head, branch) = Slots::uniform(model.sequence, 24.0, 22.0);
         // A numbered message's label rises above the badge on its arrow.
         let above = 10.0

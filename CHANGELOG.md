@@ -6,6 +6,25 @@ does.
 
 ## [Unreleased]
 
+### Fixed
+
+- Architecture and flow: an edge label that ends beyond the layers (next to the rightmost step)
+  widens the canvas and says so with `canvas_too_small`; it no longer runs out of the picture
+  without a word. The label of an edge that runs against the flow and leaves a diamond stays at
+  its edge instead of under the diamond next to the forward exit. A frame is as wide as its own
+  name instead of shortening it.
+- Sequence: a message of the last participant to itself finds room: its label may wrap at 170
+  pixels and the canvas grows on the right when that is not enough (`canvas_too_small`), instead
+  of `text_truncated`.
+- Range bars: a span with `low` equal to `high` is labeled with the one value (`3`, not `3 to 3`).
+- Logarithmic axes end at the next 1, 2 or 5 times a power of ten, not at the next power of ten:
+  values up to 13.75 give an axis to 20, not to 100. The examples with a logarithmic axis changed.
+- Horizontal bars: a value label that a reference line would run through moves to the far side of
+  the line.
+- Time charts: a value label that would run into the previous one of its layer is left out, with
+  the warning `value_labels_omitted` (as with bars; under `--strict` such a chart now fails
+  where it rendered overlapping labels before).
+
 ### Changed
 
 - The WebAssembly renderer is smaller: 1276 KB (478 KB gzip) to 1044 KB (409 KB gzip), −18 %, with

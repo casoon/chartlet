@@ -3601,6 +3601,85 @@ mod tests {
     }
 
     #[test]
+    fn a_span_of_one_value_is_labeled_with_that_value() {
+        let json = r#"{"schemaVersion": 1, "type": "rangebar", "title": "Share", "width": 500, "height": 240,
+            "ranges": [
+                {"label": "Single", "low": 3, "high": 3},
+                {"label": "Single mid", "low": 3, "high": 3, "mid": 3},
+                {"label": "Span", "low": 2, "high": 4, "mid": 3}
+            ]}"#;
+        let svg = render_ok(json).content;
+        assert!(svg.contains("<title>Single: 3</title>"));
+        assert!(svg.contains("<title>Single mid: 3</title>"));
+        assert!(svg.contains("<title>Span: 3 (2 to 4)</title>"));
+        assert!(!svg.contains("3 to 3"));
+    }
+
+    #[test]
+    fn a_boundary_is_as_wide_as_its_name_and_a_self_message_of_the_last_participant_finds_room() {
+        let architecture = r#"{"schemaVersion": 1, "type": "architecture", "title": "S", "width": 900, "height": 400,
+            "architecture": {"boundaries": [{"id": "s", "label": "V8 sandbox without network and file system"}],
+            "components": [{"id": "m", "label": "Model"}, {"id": "c", "label": "Code", "in": "s"}],
+            "connections": [{"from": "m", "to": "c"}]}}"#;
+        let output = render_ok(architecture);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(
+            output
+                .content
+                .contains(">V8 sandbox without network and file system</text>")
+        );
+        let sequence = r#"{"schemaVersion": 1, "type": "sequence", "title": "S", "width": 470, "height": 500,
+            "sequence": {"participants": [{"id": "a", "label": "A"}, {"id": "b", "label": "B"}, {"id": "c", "label": "Infrastructure"}],
+            "messages": [{"from": "a", "to": "c", "label": "call"}, {"from": "c", "to": "c", "label": "executing now"}]}}"#;
+        let output = render_ok(sequence);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .all(|warning| warning.code != "text_truncated"),
+            "{:?}",
+            output.warnings
+        );
+        assert!(output.content.contains(">executing now</text>"));
+    }
+
+    #[test]
+    fn value_labels_keep_off_reference_lines_and_off_each_other() {
+        let bars = r#"{"schemaVersion": 1, "type": "bar", "orientation": "horizontal", "title": "T", "width": 700, "height": 300,
+            "data": [{"label": "A", "value": 68}, {"label": "B", "value": 40}],
+            "references": [{"label": "Target", "value": 70}]}"#;
+        let svg = render_ok(bars).content;
+        let line = svg
+            .find("class=\"chartlet-rule\"")
+            .expect("a reference line");
+        let rule_x: f64 = {
+            let points = &svg[..line];
+            let at = points.rfind("points=\"").expect("points") + 8;
+            points[at..].split(',').next().unwrap().parse().unwrap()
+        };
+        let label = svg.find(">68</text>").expect("the label");
+        let x: f64 = {
+            let head = &svg[..label];
+            let at = head.rfind("x=\"").expect("x") + 3;
+            head[at..].split('"').next().unwrap().parse().unwrap()
+        };
+        assert!(x > rule_x, "{x} should be right of {rule_x}");
+        let time = r#"{"schemaVersion": 1, "type": "time", "title": "T", "width": 800, "height": 400, "showValues": true,
+            "panes": [{"layers": [{"mark": "line", "name": "A", "points": [
+                {"time": "2024-01-01", "value": 62.5}, {"time": "2024-01-02", "value": 63.5}, {"time": "2024-06-01", "value": 70}]}]}]}"#;
+        let output = render_ok(time);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "value_labels_omitted")
+        );
+        assert!(
+            output.content.contains(">62.5</text>") && !output.content.contains(">63.5</text>")
+        );
+    }
+
+    #[test]
     fn ranges_are_validated_by_name() {
         for (from, to, code, path) in [
             (

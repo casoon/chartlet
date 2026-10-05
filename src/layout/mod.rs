@@ -374,11 +374,15 @@ pub(crate) fn tooltip(
 }
 
 pub(crate) fn warn_if_labels_omitted(omitted: bool, warnings: &mut Vec<ChartWarning>) {
-    if omitted {
+    if omitted
+        && !warnings
+            .iter()
+            .any(|warning| warning.code == "value_labels_omitted")
+    {
         warnings.push(ChartWarning::new(
             "value_labels_omitted",
             "/showValues",
-            "some value labels do not fit next to their bars and were left out; every value remains in the HTML data alternative",
+            "some value labels do not fit next to their bars or points and were left out; every value remains in the HTML data alternative",
         ));
     }
 }
