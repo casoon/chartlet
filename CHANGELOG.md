@@ -4,7 +4,11 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
-## [Unreleased]
+## [0.11.0] - 2026-10-05
+
+Box plots and error bars, and canvas sizes that hold: the size a diagram asks for with
+`canvas_too_small` is now one it can be drawn at. Both additions extend the specification; every
+specification that rendered with 0.10.0 still renders, and every example is byte-identical.
 
 ### Added
 
