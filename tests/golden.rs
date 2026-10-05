@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 30] = [
+const EXAMPLES: [(&str, &str, &str); 33] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -152,18 +152,50 @@ const EXAMPLES: [(&str, &str, &str); 30] = [
         include_str!("../examples/shop-architecture.json"),
         include_str!("../examples/shop-architecture.svg"),
     ),
+    (
+        "tenant-architecture",
+        include_str!("../examples/tenant-architecture.json"),
+        include_str!("../examples/tenant-architecture.svg"),
+    ),
+    (
+        "sign-in-sequence",
+        include_str!("../examples/sign-in-sequence.json"),
+        include_str!("../examples/sign-in-sequence.svg"),
+    ),
+    (
+        "ownership-structure",
+        include_str!("../examples/ownership-structure.json"),
+        include_str!("../examples/ownership-structure.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 1] = [(
-    "mobile-revenue",
-    include_str!("../examples/mobile-revenue.json"),
-    include_str!("../examples/mobile-revenue.mobile.svg"),
-)];
+const MOBILE_EXAMPLES: [(&str, &str, &str); 4] = [
+    (
+        "mobile-revenue",
+        include_str!("../examples/mobile-revenue.json"),
+        include_str!("../examples/mobile-revenue.mobile.svg"),
+    ),
+    (
+        "tenant-architecture",
+        include_str!("../examples/tenant-architecture.json"),
+        include_str!("../examples/tenant-architecture.mobile.svg"),
+    ),
+    (
+        "sign-in-sequence",
+        include_str!("../examples/sign-in-sequence.json"),
+        include_str!("../examples/sign-in-sequence.mobile.svg"),
+    ),
+    (
+        "ownership-structure",
+        include_str!("../examples/ownership-structure.json"),
+        include_str!("../examples/ownership-structure.mobile.svg"),
+    ),
+];
 
 /// Examples with a reviewed print variant: hatched bands and modeled lines on a light chart, and
 /// a dark chart with a color declared as a CSS variable.
-const PRINT_EXAMPLES: [(&str, &str, &str); 2] = [
+const PRINT_EXAMPLES: [(&str, &str, &str); 4] = [
     (
         "temperature-projection",
         include_str!("../examples/temperature-projection.json"),
@@ -173,6 +205,16 @@ const PRINT_EXAMPLES: [(&str, &str, &str); 2] = [
         "revenue-vs-forecast",
         include_str!("../examples/revenue-vs-forecast.json"),
         include_str!("../examples/revenue-vs-forecast.print.svg"),
+    ),
+    (
+        "tenant-architecture",
+        include_str!("../examples/tenant-architecture.json"),
+        include_str!("../examples/tenant-architecture.print.svg"),
+    ),
+    (
+        "sign-in-sequence",
+        include_str!("../examples/sign-in-sequence.json"),
+        include_str!("../examples/sign-in-sequence.print.svg"),
     ),
 ];
 

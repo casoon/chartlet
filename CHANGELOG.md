@@ -6,6 +6,33 @@ does.
 
 ## [Unreleased]
 
+Sequence and architecture diagrams are no longer experimental: they are laid out for a real
+reference architecture and a sign-in sequence, on a desktop canvas and at phone width. The
+specification is unchanged. Flow and state diagrams stay experimental.
+
+### Fixed
+
+- Sequence: a participant's name is no longer shortened when its column has room (the box was
+  measured a hair too narrow). Boxes are a pixel wider where that happened.
+- Sequence, narrow canvas: message labels may reach over the lifelines next to their arrow and
+  wrap instead of being shortened; boxes and gaps are tighter, so five participants need about
+  400 pixels instead of 480. A frame grows to the right to hold its label.
+- Architecture and flow: edges that leave one step side by side no longer cross when they
+  turn the same way; the label of an edge that shares its port with others stands under its
+  own stretch instead of beyond the others' lines; in portrait a label keeps off the borders of
+  group frames; a person's head sits inside its box; a step's name and an edge's technology are
+  no longer shortened on a narrow canvas.
+
+### Added
+
+- Trees (`"type": "tree"`, experimental): a root and the nodes below it, each naming its `parent`,
+  with an optional `link` label such as a share, laid out by chartlet in portrait or landscape —
+  one row per level, parents centered over their children, subtrees pushed together. The
+  description names the root and what hangs below every node; the data table lists each node with
+  its level, parent, link and children. This adds a chart type, so it belongs to 0.9, not to a
+  0.8 patch. New example `ownership-structure`.
+- Examples `sign-in-sequence` and `tenant-architecture`, with phone and print variants.
+
 ### Changed
 
 - Flowcharts with lanes leave a little room between a lane's head and its first step, and after

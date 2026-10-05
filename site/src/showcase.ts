@@ -299,6 +299,27 @@ const catalogue = [
       'Ten components of a web shop in three nested boundaries — a cloud region, a private network, a data zone — with every kind in its own shape. Connections say what they do and, in brackets, how. Components outside a boundary stay out of its frame; the table names each component with its boundaries and connections.',
   },
   {
+    slug: 'sign-in-sequence',
+    chart: 'Sequence diagram (phone variant)',
+    useCase: 'Explain a sign-in to a mixed audience',
+    blurb:
+      'A sign-in with OIDC and a backend for frontend: fifteen numbered messages between five participants, with calls to oneself, an asynchronous back-channel message and an optional section for central sign-out. Laid out twice, at 900 pixels and at 400, where labels reach over the lifelines and wrap instead of being shortened. Illustrative values.',
+  },
+  {
+    slug: 'tenant-architecture',
+    chart: 'Architecture diagram (phone variant)',
+    useCase: 'Show a reference architecture in a document',
+    blurb:
+      'Eleven components in three nested boundaries, a main path in the accent color, and connections that say what they do and how. Edges that leave one component side by side do not cross, and each label stays on its own edge and off the frames. Laid out twice, at 1200 pixels and at 464 for a phone. Illustrative values.',
+  },
+  {
+    slug: 'ownership-structure',
+    chart: 'Tree (phone variant)',
+    useCase: 'Show who owns what',
+    blurb:
+      'A group of companies as a tree: ten nodes in four levels, a share written on every link, parents centered over their children, and subtrees pushed together so that a narrow branch tucks in under a broad one. Laid out twice, at 1000 pixels and at 448 for a phone. The description names the root and what hangs below every node; the table lists each node with its level, parent, link and children. Illustrative values.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

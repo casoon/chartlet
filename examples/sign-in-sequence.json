@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "type": "sequence",
+  "title": "Sign-in with OIDC and a backend for frontend",
+  "source": "Illustrative reference architecture",
+  "width": 900,
+  "height": 900,
+  "sequence": {
+    "participants": [
+      {
+        "id": "browser",
+        "label": "Browser",
+        "kind": "actor"
+      },
+      {
+        "id": "bff",
+        "label": "Web / BFF",
+        "sublabel": "SvelteKit"
+      },
+      {
+        "id": "idp",
+        "label": "Keycloak",
+        "sublabel": "OIDC"
+      },
+      {
+        "id": "api",
+        "label": "Domain API",
+        "sublabel": "Rust"
+      },
+      {
+        "id": "db",
+        "label": "Postgres",
+        "sublabel": "RLS",
+        "kind": "database"
+      }
+    ],
+    "messages": [
+      {
+        "from": "browser",
+        "to": "bff",
+        "label": "GET /grades"
+      },
+      {
+        "from": "bff",
+        "to": "browser",
+        "label": "Redirect, PKCE",
+        "kind": "reply"
+      },
+      {
+        "from": "browser",
+        "to": "idp",
+        "label": "Sign in, 2FA"
+      },
+      {
+        "from": "idp",
+        "to": "browser",
+        "label": "Code",
+        "kind": "reply"
+      },
+      {
+        "from": "browser",
+        "to": "bff",
+        "label": "Callback with code"
+      },
+      {
+        "from": "bff",
+        "to": "idp",
+        "label": "Exchange code"
+      },
+      {
+        "from": "idp",
+        "to": "bff",
+        "label": "Tokens",
+        "kind": "reply"
+      },
+      {
+        "from": "bff",
+        "to": "bff",
+        "label": "Create session"
+      },
+      {
+        "from": "bff",
+        "to": "api",
+        "label": "Load grades"
+      },
+      {
+        "from": "api",
+        "to": "db",
+        "label": "Set tenant, SELECT"
+      },
+      {
+        "from": "db",
+        "to": "api",
+        "label": "own school only",
+        "kind": "reply"
+      },
+      {
+        "from": "api",
+        "to": "bff",
+        "label": "Grades",
+        "kind": "reply"
+      },
+      {
+        "from": "bff",
+        "to": "browser",
+        "label": "Page, session cookie",
+        "kind": "reply"
+      },
+      {
+        "from": "idp",
+        "to": "bff",
+        "label": "Backchannel logout",
+        "kind": "async"
+      },
+      {
+        "from": "bff",
+        "to": "bff",
+        "label": "End sessions"
+      }
+    ],
+    "fragments": [
+      {
+        "kind": "opt",
+        "label": "central sign-out",
+        "from": 13,
+        "to": 14
+      }
+    ],
+    "numbered": true
+  },
+  "mobile": {
+    "width": 400,
+    "height": 920
+  }
+}

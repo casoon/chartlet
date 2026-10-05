@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "type": "tree",
+  "title": "Ownership structure of the Northwind group",
+  "source": "Illustrative values",
+  "width": 1000,
+  "height": 520,
+  "tree": {
+    "nodes": [
+      {
+        "id": "holding",
+        "label": "Northwind Holding",
+        "sublabel": "parent company"
+      },
+      {
+        "id": "retail",
+        "label": "Northwind Retail",
+        "sublabel": "operating company",
+        "parent": "holding",
+        "link": "100 %"
+      },
+      {
+        "id": "logistics",
+        "label": "Northwind Logistics",
+        "sublabel": "operating company",
+        "parent": "holding",
+        "link": "75 %"
+      },
+      {
+        "id": "digital",
+        "label": "Northwind Digital",
+        "sublabel": "software",
+        "parent": "holding",
+        "link": "60 %"
+      },
+      {
+        "id": "stores",
+        "label": "Stores",
+        "parent": "retail",
+        "link": "100 %"
+      },
+      {
+        "id": "outlet",
+        "label": "Outlet",
+        "parent": "retail",
+        "link": "51 %"
+      },
+      {
+        "id": "fleet",
+        "label": "Fleet",
+        "sublabel": "leasing",
+        "parent": "logistics",
+        "link": "100 %"
+      },
+      {
+        "id": "platform",
+        "label": "Platform",
+        "parent": "digital",
+        "link": "100 %"
+      },
+      {
+        "id": "labs",
+        "label": "Labs",
+        "sublabel": "joint venture",
+        "parent": "digital",
+        "link": "50 %"
+      },
+      {
+        "id": "studio",
+        "label": "Studio",
+        "parent": "labs",
+        "link": "100 %"
+      }
+    ]
+  },
+  "mobile": {
+    "width": 448,
+    "height": 540
+  }
+}

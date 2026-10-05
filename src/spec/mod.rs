@@ -10,6 +10,7 @@ mod state;
 mod stripes;
 mod timechart;
 mod topicmap;
+mod tree;
 
 use serde::{Deserialize, Serialize};
 use serde_path_to_error::Segment;
@@ -40,6 +41,7 @@ pub use timechart::{
 };
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
+pub use tree::{TreeNodeSpec, TreeSpec};
 
 const MAX_DATA_POINTS: usize = 100;
 /// Limited so that every series keeps a color that stays distinguishable for common
@@ -142,6 +144,9 @@ pub struct ChartSpec {
     /// while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub architecture: Option<ArchitectureSpec>,
+    /// The nodes of a `type: "tree"` diagram. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tree: Option<TreeSpec>,
     /// The spans of a `type: "rangebar"` chart, one per category.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ranges: Vec<RangeSpec>,
@@ -284,11 +289,13 @@ pub enum ChartType {
     State,
     /// An architecture diagram: components and connections inside nested boundaries.
     Architecture,
+    /// A tree: a root and the nodes below it, such as an organization chart.
+    Tree,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -302,6 +309,7 @@ impl ChartType {
         Self::Flow,
         Self::State,
         Self::Architecture,
+        Self::Tree,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -600,6 +608,7 @@ impl ChartSpec {
             ChartType::Flow => return self.validate_flow(),
             ChartType::State => return self.validate_state(),
             ChartType::Architecture => return self.validate_architecture(),
+            ChartType::Tree => return self.validate_tree(),
             ChartType::Bar | ChartType::Line => {}
         }
         let warnings = self.validate_data()?;
@@ -1191,6 +1200,7 @@ impl ChartSpec {
                 self.architecture.is_some(),
                 ChartType::Architecture,
             ),
+            ("/tree", self.tree.is_some(), ChartType::Tree),
             ("/columns", self.columns.is_some(), ChartType::Multiples),
             ("/references", !self.references.is_empty(), ChartType::Bar),
             ("/stack", self.stack.is_some(), ChartType::Bar),
@@ -1246,6 +1256,7 @@ impl ChartSpec {
                 | ChartType::Flow
                 | ChartType::State
                 | ChartType::Architecture
+                | ChartType::Tree
         ) {
             for (field, present, owner) in [
                 ("/topicmap", self.topicmap.is_some(), ChartType::Topicmap),
@@ -1342,6 +1353,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Flow => "flow",
         ChartType::State => "state",
         ChartType::Architecture => "architecture",
+        ChartType::Tree => "tree",
     }
 }
 

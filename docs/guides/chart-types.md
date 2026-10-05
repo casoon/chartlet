@@ -34,12 +34,12 @@ order: 1
 | Range bars with central value | `"type": "rangebar"` with `ranges` | [Warming contributions](../../../showcase/warming-contributions/) |
 | Small multiples with a finding under each panel | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [Which cause matches the warming?](../../../showcase/warming-causes/) |
 | Range bars in groups, on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [Soil animals](../../../showcase/soil-animals/) |
-| Sequence diagram, portrait (experimental) | `"type": "sequence"` with `participants`, `messages` and `fragments` | [Reading an item through the cache](../../../showcase/cache-lookup/) |
-| Sequence diagram, landscape (experimental) | `"orientation": "landscape"` in `sequence` | [Exporting a report in the background](../../../showcase/async-export/) |
+| Sequence diagram, portrait | `"type": "sequence"` with `participants`, `messages` and `fragments` | [Reading an item through the cache](../../../showcase/cache-lookup/) |
+| Sequence diagram, landscape | `"orientation": "landscape"` in `sequence` | [Exporting a report in the background](../../../showcase/async-export/) |
 | Flow chart in lanes, with a loop back and a group (experimental) | `"type": "flow"` with `nodes`, `edges`, `lanes`, `groups`, `mainPath` | [From commit to release](../../../showcase/release-flow/) |
 | Flow chart, turned landscape by a wide canvas (experimental) | `"type": "flow"`, `"orientation": "auto"` | [Handling an order](../../../showcase/order-flow/) |
 | State diagram with a choice, a loop and two final states (experimental) | `"type": "state"` with `states`, `transitions`, `initial` | [Life of a support ticket](../../../showcase/ticket-states/) |
-| Architecture diagram with nested boundaries (experimental) | `"type": "architecture"` with `components`, `connections`, `boundaries` | [Web shop on one cloud region](../../../showcase/shop-architecture/) |
+| Architecture diagram with nested boundaries | `"type": "architecture"` with `components`, `connections`, `boundaries` | [Web shop on one cloud region](../../../showcase/shop-architecture/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
@@ -209,8 +209,7 @@ coordinate in the SVG, and reading it saves recomputing it from the wobbling out
 ## Sequence diagrams
 
 A sequence diagram (`"type": "sequence"`) shows participants and the messages they exchange, in the
-order they are sent. It is **experimental**, like the maps: it opens a family of software diagrams
-whose shared parts may still change between minor releases.
+order they are sent.
 
 ```json
 {
@@ -267,7 +266,8 @@ messages, up to 12 fragments. An `id` no participant has is `unknown_participant
 
 A flow chart (`"type": "flow"`) draws steps joined by arrows. chartlet lays it out by itself, in
 layers along the direction of the flow; the specification says only what is connected, never
-where anything goes. Like the sequence diagram it is **experimental**.
+where anything goes. Flow charts are **experimental**: their layout may still change between minor
+releases.
 
 ```json
 {
@@ -385,7 +385,12 @@ Limits: 1–40 states with unique `id`s and up to 80 transitions; an unknown `id
 ## Architecture diagrams
 
 An architecture diagram (`"type": "architecture"`) shows the components of a system, how they
-connect and where they run. It uses the layout of flow charts and is **experimental** like them.
+connect and where they run. It uses the layout of flow charts.
+
+The canvas size is yours: a diagram that needs more room grows the canvas and says so with
+`canvas_too_small`, but one that needs less is not shrunk, so a landscape diagram on a tall canvas
+leaves space above and below. With `orientation` left at `auto`, chartlet takes the orientation that
+grows the canvas least; set `orientation` to pin it, and `width` and `height` to what you want.
 
 ```json
 {
@@ -429,6 +434,46 @@ connect and where they run. It uses the layout of flow charts and is **experimen
 
 Limits: 1–40 components, up to 80 connections and 12 boundaries; identifiers are unique among
 components and boundaries together.
+
+## Trees
+
+A tree (`"type": "tree"`) draws a root and the nodes below it: an organization chart, an
+ownership structure, a hierarchy of norms or components. It is **experimental**: its layout may
+still change between minor releases. Every node but the root names its `parent`; the children of a
+node keep the order of the list. chartlet lays the tree out by itself: one row per level, the
+children of a node side by side, the node centered over them, and subtrees pushed together until
+they are a gap apart at every level, so that a narrow subtree tucks in under a broad neighbour.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "tree",
+  "title": "Group structure",
+  "tree": {
+    "nodes": [
+      { "id": "holding", "label": "Holding", "sublabel": "parent company" },
+      { "id": "retail", "label": "Retail", "parent": "holding", "link": "100 %" },
+      { "id": "digital", "label": "Digital", "parent": "holding", "link": "60 %" },
+      { "id": "labs", "label": "Labs", "parent": "digital", "link": "50 %" }
+    ]
+  }
+}
+```
+
+- **Nodes** have a `label`, an optional `sublabel` (a role, a legal form) and a `parent`. Exactly
+  one node has no parent: the root (`invalid_root`). Parents must exist (`unknown_node`) and run
+  up to the root without a circle (`circular_parent`); the tree goes at most twelve levels
+  below the root (`tree_too_deep`).
+- **Links** are the lines from a parent to its children. A node's `link` is written on the line
+  to its parent, for a share, a weight or a relation; the root has none.
+- **Orientation.** `portrait` runs down from the root, `landscape` to the right; `auto` takes the
+  one that grows the canvas less, as in the other diagrams.
+- **Text alternative.** The description names the root and, for every node with children, what
+  hangs below it; the data table has one row per node in reading order, with its level, its
+  parent, its link and its children.
+
+Limits: 1–150 nodes. A node has one parent; a node with two parents (a shared holding) is not a
+tree — use an architecture or a flow diagram.
 
 ## Time series
 

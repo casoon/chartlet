@@ -297,7 +297,7 @@ fn type_class(chart_type: ChartType) -> String {
 fn diagram_style(chart_type: ChartType) -> String {
     let parts: &[&str] = match chart_type {
         ChartType::Sequence => &[DIAGRAM_STYLE, SEQUENCE_STYLE],
-        ChartType::Flow => &[DIAGRAM_STYLE, FLOW_STYLE],
+        ChartType::Flow | ChartType::Tree => &[DIAGRAM_STYLE, FLOW_STYLE],
         ChartType::State => &[DIAGRAM_STYLE, FLOW_STYLE, STATE_STYLE],
         ChartType::Architecture => &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE],
         _ => &[],
@@ -405,7 +405,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
         Architecture, Atlas, Bar, Calendar, Flow, Line, Multiples, Rangebar, Sequence, State,
-        Stripes, Time, Topicmap,
+        Stripes, Time, Topicmap, Tree,
     };
     let groups: [(&str, &[ChartType]); 26] = [
         (STYLE, &[]),
@@ -428,9 +428,9 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (OUTLINE_STYLE, &[Bar]),
         (TOPICMAP_STYLE, &[Topicmap]),
         (ATLAS_STYLE, &[Atlas]),
-        (DIAGRAM_STYLE, &[Sequence, Flow, State, Architecture]),
+        (DIAGRAM_STYLE, &[Sequence, Flow, State, Architecture, Tree]),
         (SEQUENCE_STYLE, &[Sequence]),
-        (FLOW_STYLE, &[Flow, State, Architecture]),
+        (FLOW_STYLE, &[Flow, State, Architecture, Tree]),
         (STATE_STYLE, &[State]),
         (ARCHITECTURE_STYLE, &[Architecture]),
         (OHLC_STYLE, &[Time]),
@@ -870,7 +870,11 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
     // values.
     if matches!(
         spec.chart_type,
-        ChartType::Sequence | ChartType::Flow | ChartType::State | ChartType::Architecture
+        ChartType::Sequence
+            | ChartType::Flow
+            | ChartType::State
+            | ChartType::Architecture
+            | ChartType::Tree
     ) {
         let table = data_table(spec);
         return TableHooks {
@@ -1454,6 +1458,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Flow => return crate::flow::data_table(spec),
         ChartType::State => return crate::state::data_table(spec),
         ChartType::Architecture => return crate::architecture::data_table(spec),
+        ChartType::Tree => return crate::tree::data_table(spec),
         _ => {}
     }
     let words = spec.locale.words();
@@ -1470,7 +1475,11 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Stripes => words.year,
         ChartType::Calendar => words.date,
         ChartType::Bar | ChartType::Line | ChartType::Rangebar => words.category,
-        ChartType::Sequence | ChartType::Flow | ChartType::State | ChartType::Architecture => {
+        ChartType::Sequence
+        | ChartType::Flow
+        | ChartType::State
+        | ChartType::Architecture
+        | ChartType::Tree => {
             unreachable!("a diagram writes its own table")
         }
     };

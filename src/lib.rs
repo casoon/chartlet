@@ -27,6 +27,7 @@ mod state;
 mod stripes;
 mod text;
 mod time;
+mod tree;
 
 use describe::automatic_description;
 pub use error::{ChartError, ChartWarning};
@@ -41,7 +42,8 @@ pub use spec::{
     Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec, ReferenceSpec,
     SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StripesSpec,
     Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, Tooltips, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, TransitionSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
+    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeSpec, TreeSpec, ValueAxisSpec, ValueFormat,
+    ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

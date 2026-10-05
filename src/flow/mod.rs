@@ -426,14 +426,19 @@ fn node_boxes(
             Shape::Subprocess => (16.0, 0.0),
             Shape::Store => (0.0, 10.0),
             Shape::Final => (8.0, 8.0),
-            Shape::Person => (0.0, 8.0),
             Shape::Frontend => (0.0, 12.0),
             Shape::Bucket => (16.0, 4.0),
             Shape::Cache => (24.0, 0.0),
-            Shape::Shield => (0.0, 18.0),
+            Shape::Shield | Shape::Person => (0.0, 18.0),
             _ => (0.0, 0.0),
         };
-        let room = spacing.max_node - 2.0 * PAD;
+        // Never narrower than the longest word, which cannot wrap.
+        let word = node
+            .label
+            .split(' ')
+            .map(|word| metrics.width(word, LABEL_SIZE))
+            .fold(0.0, f64::max);
+        let room = (spacing.max_node - 2.0 * PAD).max(word);
         let path = format!("{}/label", node.path);
         let lines = wrap(&node.label, room, LABEL_SIZE, metrics, warnings, &path);
         let sublines = node.sublabel.as_ref().map_or_else(Vec::new, |sublabel| {
@@ -449,7 +454,9 @@ fn node_boxes(
                     .map(|line| metrics.width(line, SUBLABEL_SIZE)),
             )
             .fold(0.0, f64::max);
-        let width = (text + 2.0 * PAD).clamp(spacing.min_node, spacing.max_node) + extra_width;
+        let width = (text + 2.0 * PAD)
+            .clamp(spacing.min_node, spacing.max_node.max(room + 2.0 * PAD))
+            + extra_width;
         let height =
             20.0 + NODE_LINE * count(lines.len()) + 14.0 * count(sublines.len()) + extra_height;
         labels.push(lines);
@@ -471,9 +478,13 @@ fn edge_labels(
     let mut edge_widths = Vec::with_capacity(diagram.edges.len());
     for edge in &diagram.edges {
         let mut lines = edge.label.as_ref().map_or_else(Vec::new, |label| {
+            let word = label
+                .split(' ')
+                .map(|word| metrics.width(word, EDGE_SIZE))
+                .fold(0.0, f64::max);
             wrap(
                 label,
-                widest,
+                widest.max(word),
                 EDGE_SIZE,
                 metrics,
                 warnings,
@@ -481,9 +492,10 @@ fn edge_labels(
             )
         });
         if let Some(technology) = &edge.technology {
+            // A technology cannot wrap: it may run as wide as a label does on a wide canvas.
             lines.push(crate::layout::fit_text(
                 &format!("[{technology}]"),
-                widest,
+                widest.max(EDGE_LABEL),
                 EDGE_SIZE,
                 metrics,
                 warnings,
@@ -1544,7 +1556,6 @@ impl Gaps {
         }
         let mut tracks = vec![0; gaps];
         for (gap, tracks) in tracks.iter_mut().enumerate() {
-            let mut ends: Vec<f64> = Vec::new();
             let mut bending: Vec<usize> = (0..pieces.len())
                 .filter(|index| {
                     pieces[*index].layer == gap
@@ -1557,20 +1568,15 @@ impl Gaps {
                     .total_cmp(&low(&pieces[*b]))
                     .then(pieces[*a].edge.cmp(&pieces[*b].edge))
             });
-            for index in bending {
-                let piece = &mut pieces[index];
-                let (low, high) = (piece.from.min(piece.to), piece.from.max(piece.to));
-                let track = ends
-                    .iter()
-                    .position(|end| *end + 10.0 < low)
-                    .unwrap_or_else(|| {
-                        ends.push(f64::NEG_INFINITY);
-                        ends.len() - 1
-                    });
-                ends[track] = high;
-                piece.track = Some(track);
+            let assigned = assign_tracks(&pieces, &bending);
+            for (index, track) in &assigned {
+                pieces[*index].track = Some(*track);
             }
-            *tracks = ends.len();
+            *tracks = assigned
+                .iter()
+                .map(|(_, track)| track + 1)
+                .max()
+                .unwrap_or(0);
         }
         let (frame_before, frame_after) = frame_room(model, landscape);
         Self {
@@ -1705,6 +1711,68 @@ fn depth(graph: &Graph, layer: &[usize], main_size: &impl Fn(usize) -> f64) -> f
         .filter_map(|item| graph.items[*item].node)
         .map(main_size)
         .fold(0.0, f64::max)
+}
+
+/// The tracks of the pieces that change course in one gap, so that no edge crosses another where
+/// that can be avoided. A piece leaves its layer at `from`, runs along its track and arrives at
+/// `to`: it crosses a piece whose track lies before its own when that one's start lies under it,
+/// and one whose track lies after its own when that one's end does. So a piece whose start lies
+/// under another takes the earlier track, and one whose end lies under another the later.
+/// Pieces that cannot both be satisfied, and pieces left over, follow the order given.
+fn assign_tracks(pieces: &[Piece], order: &[usize]) -> Vec<(usize, usize)> {
+    let range = |piece: &Piece| (piece.from.min(piece.to), piece.from.max(piece.to));
+    let under = |x: f64, (low, high): (f64, f64)| low + 0.5 < x && x < high - 0.5;
+    // `before[v]` lists the pieces that must have an earlier track than `v`.
+    let mut before: Vec<Vec<usize>> = vec![Vec::new(); order.len()];
+    for (a, &first) in order.iter().enumerate() {
+        for (b, &second) in order.iter().enumerate() {
+            if a == b {
+                continue;
+            }
+            let (one, other) = (&pieces[first], &pieces[second]);
+            // `a`'s start under `b`'s run: `a` goes first. `a`'s end under it: `a` goes last.
+            if under(one.from, range(other)) {
+                before[b].push(a);
+            }
+            if under(one.to, range(other)) {
+                before[a].push(b);
+            }
+        }
+    }
+    let mut tracks: Vec<Option<usize>> = vec![None; order.len()];
+    let mut on_track: Vec<Vec<(f64, f64)>> = Vec::new();
+    let mut result = Vec::with_capacity(order.len());
+    for _ in 0..order.len() {
+        // The next piece is the first whose predecessors all have tracks; with a cycle, the first
+        // left.
+        let next = (0..order.len())
+            .find(|&v| tracks[v].is_none() && before[v].iter().all(|&u| tracks[u].is_some()))
+            .or_else(|| (0..order.len()).find(|&v| tracks[v].is_none()))
+            .expect("a piece is left");
+        let (low, high) = range(&pieces[order[next]]);
+        let earliest = before[next]
+            .iter()
+            .filter_map(|&u| tracks[u])
+            .map(|track| track + 1)
+            .max()
+            .unwrap_or(0);
+        let track = (earliest..on_track.len())
+            .find(|&track| {
+                on_track.get(track).is_none_or(|ranges| {
+                    ranges
+                        .iter()
+                        .all(|&(l, h)| h + 10.0 < low || high + 10.0 < l)
+                })
+            })
+            .unwrap_or(earliest.max(on_track.len()));
+        if on_track.len() <= track {
+            on_track.resize(track + 1, Vec::new());
+        }
+        on_track[track].push((low, high));
+        tracks[next] = Some(track);
+        result.push((order[next], track));
+    }
+    result
 }
 
 /// The way of every edge: out of its first step, along each piece and its track, into its last
@@ -1905,17 +1973,12 @@ impl Plan {
         }
     }
 
-    fn draw_groups(
-        &self,
-        model: &Model,
-        metrics: &impl TextMetrics,
-        warnings: &mut Vec<ChartWarning>,
-        elements: &mut Vec<Element>,
-    ) {
+    /// The frame of every group: around its own steps and the frames inside it.
+    fn group_frames(&self, model: &Model) -> Vec<(f64, f64, f64, f64)> {
         let diagram = model.diagram;
         let groups = diagram.groups.len();
         let depth = |group: usize| diagram.chain(Some(group)).len();
-        // Frames from the innermost out: each around its own steps and the frames inside it.
+        // Frames from the innermost out.
         let mut frames: Vec<(f64, f64, f64, f64)> = vec![(0.0, 0.0, 0.0, 0.0); groups];
         let mut inner_first: Vec<usize> = (0..groups).collect();
         inner_first.sort_by_key(|group| (std::cmp::Reverse(depth(*group)), *group));
@@ -1949,6 +2012,22 @@ impl Plan {
                 bottom + GROUP_PAD,
             );
         }
+        frames
+    }
+
+    fn draw_groups(
+        &self,
+        model: &Model,
+        metrics: &impl TextMetrics,
+        warnings: &mut Vec<ChartWarning>,
+        elements: &mut Vec<Element>,
+    ) {
+        let diagram = model.diagram;
+        let groups = diagram.groups.len();
+        let frames = self.group_frames(model);
+        let depth = |group: usize| diagram.chain(Some(group)).len();
+        let mut inner_first: Vec<usize> = (0..groups).collect();
+        inner_first.sort_by_key(|group| (std::cmp::Reverse(depth(*group)), *group));
         for &group in inner_first.iter().rev() {
             let (left, top, right, bottom) = frames[group];
             let intruder = (0..diagram.nodes.len())
@@ -1990,6 +2069,33 @@ impl Plan {
                 ),
             }));
         }
+    }
+
+    /// The label of an edge that leaves a step beside others that go the same way. Beyond their
+    /// lines it would read as theirs, so in portrait it goes under the longest stretch the edge
+    /// runs across instead.
+    fn run_label(
+        &self,
+        model: &Model,
+        edge: usize,
+        route: &Route,
+        lines: &[String],
+    ) -> Option<Label> {
+        if self.landscape || route.clear <= 0.5 {
+            return None;
+        }
+        let corners: Vec<(f64, f64)> = route.points.iter().map(|p| self.page(*p)).collect();
+        let run = corners
+            .windows(2)
+            .filter(|pair| (pair[0].1 - pair[1].1).abs() < 0.5)
+            .max_by(|a, b| (a[0].0 - a[1].0).abs().total_cmp(&(b[0].0 - b[1].0).abs()))?;
+        Some(Label {
+            lines: lines.to_vec(),
+            classes: model.edge_classes(edge),
+            at: (f64::midpoint(run[0].0, run[1].0), run[0].1 + 18.0),
+            anchor: TextAnchor::Middle,
+            beside: None,
+        })
     }
 
     fn draw_edge(
@@ -2054,6 +2160,10 @@ impl Plan {
         if lines.is_empty() {
             return;
         }
+        if let Some(label) = self.run_label(model, edge, route, lines) {
+            labels.push(label);
+            return;
+        }
         let (x, y) = self.page(route.label_at);
         let last = count(lines.len() - 1);
         let reach = CHIP_REACH + 2.0 + route.clear;
@@ -2109,10 +2219,38 @@ impl Plan {
         let mut placed: Vec<(f64, f64, f64, f64)> = (0..model.diagram.nodes.len())
             .map(|node| self.node_box(model, node))
             .collect();
+        // In portrait the borders of the frames are kept clear too, as thin boxes.
+        let borders: Vec<(f64, f64, f64, f64)> = self
+            .group_frames(model)
+            .into_iter()
+            .flat_map(|(left, top, right, bottom)| {
+                if self.landscape {
+                    [
+                        (left, top, 0.0, bottom - top),
+                        (right, top, 0.0, bottom - top),
+                    ]
+                } else {
+                    [
+                        (left, top, right - left, 0.0),
+                        (left, bottom, right - left, 0.0),
+                    ]
+                }
+            })
+            .collect();
         for mut label in labels {
             label.keep_on_page(self.width, metrics);
             for _ in 0..12 {
                 let (x, y, width, height) = chip_box(&label.lines, label.at, label.anchor, metrics);
+                let hits = |other: &&(f64, f64, f64, f64)| {
+                    x < other.0 + other.2 + AIR
+                        && other.0 < x + width + AIR
+                        && y < other.1 + other.3 + AIR
+                        && other.1 < y + height + AIR
+                };
+                if let Some(border) = borders.iter().find(hits) {
+                    label.at.1 += border.1 + border.3 + AIR - y;
+                    continue;
+                }
                 let Some(other) = placed.iter().find(|other| {
                     x < other.0 + other.2 + AIR
                         && other.0 < x + width + AIR
@@ -2242,7 +2380,8 @@ impl Plan {
         let block = NODE_LINE * count(lines.len() - 1) + 14.0 * count(sublines.len());
         // Text clears what a shape draws at its top.
         let shift = match spec.shape {
-            Shape::Store | Shape::Person => 3.0,
+            Shape::Store => 3.0,
+            Shape::Person => 8.0,
             Shape::Frontend => 6.0,
             Shape::Shield => -6.0,
             _ => 0.0,
@@ -2470,7 +2609,7 @@ fn component_shape(
                 rect(x, y, "chartlet-flow-node chartlet-role-violet", tooltip),
                 elements,
             );
-            head(x + width / 2.0, y, elements);
+            head(x + width / 2.0, y + 11.0, elements);
         }
         Shape::Frontend => {
             with_shadow(
@@ -2548,7 +2687,7 @@ fn head(x: f64, y: f64, elements: &mut Vec<Element>) {
     elements.push(Element::Circle(Circle {
         cx: x,
         cy: y,
-        radius: 7.0,
+        radius: 6.0,
         class: "chartlet-arch-head",
         topic: None,
         series_index: None,
@@ -2721,3 +2860,36 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod track_tests {
+    use super::{Piece, assign_tracks};
+
+    fn piece(edge: usize, from: f64, to: f64) -> Piece {
+        Piece {
+            edge,
+            layer: 0,
+            from,
+            to,
+            track: None,
+        }
+    }
+
+    #[test]
+    fn edges_turning_the_same_way_take_tracks_that_do_not_cross() {
+        // The left edge leaves at 561 and turns right at its track; the right edge leaves at 584,
+        // under the left one's run, so it must turn first: its start would cross the left run
+        // otherwise.
+        let pieces = [piece(0, 561.0, 703.0), piece(1, 584.0, 860.0)];
+        let tracks = assign_tracks(&pieces, &[0, 1]);
+        let track = |index: usize| tracks.iter().find(|(piece, _)| *piece == index).unwrap().1;
+        assert!(track(1) < track(0), "{tracks:?}");
+    }
+
+    #[test]
+    fn pieces_that_do_not_overlap_share_a_track() {
+        let pieces = [piece(0, 10.0, 50.0), piece(1, 100.0, 140.0)];
+        let tracks = assign_tracks(&pieces, &[0, 1]);
+        assert!(tracks.iter().all(|(_, track)| *track == 0), "{tracks:?}");
+    }
+}

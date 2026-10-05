@@ -10,7 +10,7 @@ is the complete contract and can be used for editor validation.
 | Field | Required | Description |
 | --- | --- | --- |
 | `schemaVersion` | yes | Always `1`. |
-| `type` | yes | `bar`, `line`, `time`, `topicmap`, `atlas`, `stripes`, `calendar`, `rangebar`, `multiples`, `sequence`, `flow`, `state`, or `architecture`. |
+| `type` | yes | `bar`, `line`, `time`, `topicmap`, `atlas`, `stripes`, `calendar`, `rangebar`, `multiples`, `sequence`, `flow`, `state`, `architecture`, or `tree`. |
 | `title` | yes | Visible title; also the accessible name of the chart (`<title>`). The SVG profile draws it in the chart: a title wider than the chart wraps onto a second line at a space, and the chart below it moves down; only what does not fit on two lines is shortened (`text_truncated`). The HTML profile shows it as the `<figcaption>` and draws no title in its SVGs, so it never shortens it. |
 | `data` | one of | Single series: `[{ "label": "…", "value": 1 }]`. |
 | `categories` + `series` | one of | Several series: unique category labels, and `[{ "name": "…", "values": […] }]`. |
@@ -58,6 +58,7 @@ is the complete contract and can be used for editor validation.
 | `flow` | flow | `{ "nodes": [{ "id": "a", "label": "…", "sublabel": "…", "kind": "process", "lane": "x" }], "edges": [{ "from": "a", "to": "b", "label": "…", "dash": "solid" }], "lanes": [{ "id": "x", "label": "…" }], "groups": [{ "label": "…", "nodes": ["a"] }], "mainPath": ["a", "b"], "orientation": "auto" }`. `kind` of a step: `process` (default), `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external`. See [Flow charts](../guides/chart-types.md#flow-charts). |
 | `state` | state | `{ "states": [{ "id": "a", "label": "…", "sublabel": "…", "kind": "state", "final": false, "in": "c" }], "transitions": [{ "from": "a", "to": "b", "event": "…", "guard": "…", "action": "…", "dash": "solid" }], "initial": "a", "mainPath": ["a", "b"], "orientation": "auto" }`. `kind`: `state` (default), `choice` or `composite`. See [State diagrams](../guides/chart-types.md#state-diagrams). |
 | `architecture` | architecture | `{ "components": [{ "id": "a", "label": "…", "sublabel": "…", "kind": "service", "in": "net" }], "connections": [{ "from": "a", "to": "b", "label": "…", "technology": "…", "dash": "solid" }], "boundaries": [{ "id": "net", "label": "…", "in": "region" }], "mainPath": ["a", "b"], "orientation": "auto" }`. `kind`: `person`, `frontend`, `service` (default), `database`, `queue`, `storage`, `cache`, `security`, `external`. See [Architecture diagrams](../guides/chart-types.md#architecture-diagrams). |
+| `tree` | tree | `{ "nodes": [{ "id": "a", "label": "…", "sublabel": "…", "parent": "root", "link": "60 %" }], "orientation": "auto" }`. Exactly one node has no parent: the root. The children of a node keep the order of the list. See [Trees](../guides/chart-types.md#trees). |
 | `patterns` | no | `bar` with `series` only: `true` draws every other series as an outline — the background inside, the series color around it — in the bars, the legend and stacks, so that series differ in form as well as in color. |
 | `stack` | no | `bar` with `series` only: `"normal"` stacks the series of a category by value, positive ones up and negative ones down, with the total beyond each stack; `"percent"` stacks shares of each category's total (values of zero or more, axis in percent). A stack has no series filter. |
 | `references` | no | `bar` only: up to four reference lines across the bars, `[{ "value": 48, "label": "EU average" }]`. A line widens the value axis to reach its value; the description names it. |
@@ -131,7 +132,7 @@ up to 80 connections (`too_many_edges`) and 12 boundaries (`too_many_boundaries`
 four deep (`boundaries_too_deep`); identifiers are unique among components and boundaries
 (`duplicate_id`), components and boundaries lie in existing boundaries (`unknown_boundary`)
 without a circle (`boundary_cycle`), every boundary holds a component (`empty_boundary`), and
-connections and the main path name existing components (`unknown_node`, `main_path_gap`).
+connections and the main path name existing components (`unknown_node`, `main_path_gap`). A tree takes 1–150 nodes (`too_many_nodes`) down to twelve levels below the root (`tree_too_deep`); identifiers are unique (`duplicate_id`), exactly one node has no parent (`invalid_root`), parents exist (`unknown_node`) and run up to the root without a circle (`circular_parent`), and the root has no `link` (`option_not_supported`).
 
 A pane takes up to six annotation layers — zones, reference lines and point markers together
 (`too_many_annotations`). A zone needs `bottom` and `top`, `from` and `to`, or both
@@ -145,7 +146,7 @@ Fields that belong to a later milestone are refused with a named error rather th
 `zoomSteps` on small multiples, the `ohlc` mark on small multiples (`option_not_supported`), `title`
 on the pane of a `time` chart, and the bar and line fields `data`, `categories`, `series`, `orientation`, and `categoryAxis` on a
 `time` chart (`option_not_supported`). A block that belongs to another type (`stripes`,
-`calendar`, `ranges`, `sequence`, `flow`, `state`, `architecture`, `columns`) is refused the same way.
+`calendar`, `ranges`, `sequence`, `flow`, `state`, `architecture`, `tree`, `columns`) is refused the same way.
 
 ## Diverging scale
 

@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -109,6 +109,10 @@
     "architecture": {
       "description": "The components, connections and boundaries of a type: \"architecture\" diagram.",
       "$ref": "#/$defs/architecture"
+    },
+    "tree": {
+      "description": "The nodes of a type: \"tree\" diagram.",
+      "$ref": "#/$defs/tree"
     },
     "topicmap": {
       "description": "Topic areas of a type: \"topicmap\" chart.",
@@ -329,6 +333,17 @@
               { "required": ["panes"] }
             ]
           }
+        },
+        {
+          "required": ["tree"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
         }
       ]
     },
@@ -418,6 +433,24 @@
         }
       },
       "else": { "not": { "required": ["architecture"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "tree" } } },
+      "then": {
+        "required": ["tree"],
+        "not": {
+          "anyOf": [
+            { "required": ["zoomSteps"] },
+            { "required": ["orientation"] },
+            { "required": ["categoryAxis"] },
+            { "required": ["valueAxis"] },
+            { "required": ["timeAxis"] },
+            { "required": ["topicmap"] },
+            { "required": ["atlas"] }
+          ]
+        }
+      },
+      "else": { "not": { "required": ["tree"] } }
     },
     {
       "if": { "properties": { "type": { "const": "multiples" } } },
@@ -635,6 +668,32 @@
           "description": "The usual way through the states, as ids joined by transitions: kept in line and drawn stronger.",
           "type": "array",
           "items": { "$ref": "#/$defs/identifier" }
+        },
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "tree": {
+      "description": "A tree: one root and, below it, nodes that each name their parent; the children of a node keep the order of the list. Identifiers are unique, exactly one node has no parent, the parents run to the root without a circle, and the tree goes at most twelve levels below the root.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 150,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "parent": { "$ref": "#/$defs/identifier" },
+              "link": { "description": "What joins the node to its parent, such as a share; not on the root.", "type": "string", "minLength": 1, "maxLength": 40 }
+            }
+          }
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
       }

@@ -16,14 +16,14 @@ Nothing runs in the browser: no chart JavaScript, no hydration, no layout shift.
   diffed and cached like any other build artifact.
 - **Honest about problems:** invalid input is rejected with a code, a path and a fix; layout
   compromises such as shortened labels are reported as warnings instead of happening silently.
-- **Diagrams laid out for you:** sequence, flow, state and architecture diagrams come from a
+- **Diagrams laid out for you:** sequence, flow, state, architecture and tree diagrams come from a
   description of what is connected; chartlet places every box and routes every edge, in portrait
   or landscape, and lists the whole structure in the data table.
 
 > **Status:** 0.8. Bar charts (single, grouped and stacked, vertical and horizontal), categorical
 > line charts, time series with uncertainty bands, reference lines, points and stacked areas,
-> warming stripes, calendar heatmaps, range bars and small multiples are supported, and — new and
-> experimental — sequence, flow, state and architecture diagrams. Until 1.0, a minor release (0.9, 0.10, …) may still change the specification; a
+> warming stripes, calendar heatmaps, range bars and small multiples are supported, and — new —
+> sequence, architecture and tree diagrams, plus experimental flow and state diagrams. Until 1.0, a minor release (0.9, 0.10, …) may still change the specification; a
 > patch release never does.
 
 ## Quick start
@@ -92,12 +92,15 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
 | Small multiples with a finding under each panel, one column on phones | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
-| Sequence diagram, portrait (experimental) | `"type": "sequence"` with `participants`, `messages`, `fragments` | [cache-lookup](examples/cache-lookup.json) |
-| Sequence diagram, landscape (experimental) | `"orientation": "landscape"` | [async-export](examples/async-export.json) |
+| Sequence diagram, portrait | `"type": "sequence"` with `participants`, `messages`, `fragments` | [cache-lookup](examples/cache-lookup.json) |
+| Sequence diagram, landscape | `"orientation": "landscape"` | [async-export](examples/async-export.json) |
 | Flow chart in lanes with loops back and a group (experimental) | `"type": "flow"` with `nodes`, `edges`, `lanes`, `groups`, `mainPath` | [release-flow](examples/release-flow.json) |
 | Flow chart turned landscape by a wide canvas (experimental) | `"orientation": "auto"` | [order-flow](examples/order-flow.json) |
 | State diagram with a composite state, a choice and final states (experimental) | `"type": "state"` with `states`, `transitions`, `initial` | [ticket-states](examples/ticket-states.json) |
-| Architecture diagram in nested boundaries (experimental) | `"type": "architecture"` with `components`, `connections`, `boundaries` | [shop-architecture](examples/shop-architecture.json) |
+| Architecture diagram in nested boundaries | `"type": "architecture"` with `components`, `connections`, `boundaries` | [shop-architecture](examples/shop-architecture.json) |
+| Sequence diagram with a phone variant: sign-in with a backend for frontend | `"type": "sequence"`, `"mobile"` | [sign-in-sequence](examples/sign-in-sequence.json) |
+| Architecture diagram with a phone variant: a multi-tenant application | `"type": "architecture"`, `"mobile"` | [tenant-architecture](examples/tenant-architecture.json) |
+| Tree: an ownership structure with shares, with a phone variant | `"type": "tree"` with `nodes`, each with a `parent` and a `link` | [ownership-structure](examples/ownership-structure.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 | Compact chart for a panel in a grid of columns | `"width": 240`, `"height": 180` (from 200 × 160 px: narrower gutter, same text size), `"timeAxis": { "step": 50, "min": "1850" }` for the ticks the panel's claim needs, `"stroke": "medium"`, `"valueAxis": { "unit": "W/m²" }` at the top tick instead of an axis title | – |
 
@@ -179,6 +182,7 @@ accessible output as for a chart.
 | `flow` | steps (`process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external`), labelled edges, lanes, groups, a main path |
 | `state` | states, choices, composite and final states, an initial state, transitions `event [guard] / action` |
 | `architecture` | components (`person`, `frontend`, `service`, `database`, `queue`, `storage`, `cache`, `security`, `external`), connections with a technology, nested boundaries |
+| `tree` | a root and the nodes below it, each naming its parent, with an optional link label such as a share |
 
 ```json
 {

@@ -10,7 +10,7 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     diagram::{
-        self, BADGE, CHIP_REACH, HEAD, arrowhead, badge, chip, cylinder, pixels, rounded,
+        self, BADGE, CHIP_REACH, HEAD, arrowhead, badge, chip, chip_box, cylinder, pixels, rounded,
         warn_growth, with_shadow, wrap,
     },
     error::ChartWarning,
@@ -41,6 +41,10 @@ const TAG_SIZE: f64 = 11.0;
 const LINE: f64 = 15.0;
 /// Text inset inside a participant's box.
 const PAD: f64 = 12.0;
+/// The same in a diagram narrower than [`NARROW`], where five columns share 360 pixels.
+const COMPACT_PAD: f64 = 5.0;
+/// The widest message label in a compact diagram: it may reach over the lifelines beside its arrow.
+const COMPACT_LABEL: f64 = 150.0;
 /// Narrowest and widest box of a participant.
 const MIN_BOX: f64 = 72.0;
 const COMPACT_BOX: f64 = 56.0;
@@ -122,6 +126,11 @@ pub(crate) fn layout(
     }
 }
 
+/// Text inset inside a participant's box.
+fn pad(compact: bool) -> f64 {
+    if compact { COMPACT_PAD } else { PAD }
+}
+
 fn sequence(spec: &ChartSpec) -> &SequenceSpec {
     spec.sequence
         .as_ref()
@@ -199,7 +208,11 @@ impl<'a> Model<'a> {
                     .map_or(0.0, |sublabel| metrics.width(sublabel, SUBLABEL_SIZE));
                 // A compact box is as wide as its widest line, even a long word.
                 let low = if compact { COMPACT_BOX } else { MIN_BOX };
-                (label.max(sublabel) + 2.0 * PAD).clamp(low, MAX_BOX)
+                // Rounded up: a width that is the text plus padding exactly can fall a hair short of
+                // the text again after the padding is taken off, and the name would be shortened.
+                (label.max(sublabel) + 2.0 * pad(compact))
+                    .ceil()
+                    .clamp(low, MAX_BOX)
             })
             .collect();
         let has_sublabel = sequence
@@ -231,7 +244,8 @@ impl<'a> Model<'a> {
 
     /// The widest box any participant needs.
     fn widest_box(&self) -> f64 {
-        self.box_widths.iter().copied().fold(MIN_BOX, f64::max)
+        let floor = if self.compact { COMPACT_BOX } else { MIN_BOX };
+        self.box_widths.iter().copied().fold(floor, f64::max)
     }
 
     /// Whether `participant` is busy while message `index` is sent.
@@ -470,7 +484,7 @@ impl Portrait {
         warnings: &mut Vec<ChartWarning>,
     ) -> Self {
         let participants = crate::layout::count(model.participants());
-        let needed = model.widest_box() + if model.compact { 8.0 } else { 12.0 };
+        let needed = model.widest_box() + if model.compact { 4.0 } else { 12.0 };
         let width = f64::from(spec.width).max(2.0 * model.margin + needed * participants);
         let column = (width - 2.0 * model.margin) / participants;
         let lines: Vec<Vec<String>> = model
@@ -479,10 +493,19 @@ impl Portrait {
             .zip(&model.ends)
             .enumerate()
             .map(|(index, (label, (from, to)))| {
-                let room = if from == to {
+                let room = if from == to && model.compact {
+                    // Beside the loop, as far as the canvas goes.
+                    let center = model.margin + column * (crate::layout::count(*from) + 0.5);
+                    width - model.margin - center - CHIP_REACH - 8.0
+                } else if from == to {
                     column - LOOP_OUT - 8.0
                 } else {
-                    column * crate::layout::count(from.abs_diff(*to)) - 16.0
+                    let span = column * crate::layout::count(from.abs_diff(*to)) - 16.0;
+                    if model.compact {
+                        span.max(COMPACT_LABEL.min(width - 2.0 * model.margin - 16.0))
+                    } else {
+                        span
+                    }
                 };
                 wrap(
                     label,
@@ -583,12 +606,20 @@ impl Portrait {
             let half = (self.column / 2.0 - 4.0).min(72.0);
             let inset = FRAME_INSET * crate::layout::count(model.depths[index]);
             let (top, bottom) = self.track.frames[index];
+            let left = self.center(low) - half + inset;
+            // A frame over few participants grows to the right, as far as the canvas allows, so
+            // that its label is not shortened.
+            let needed = fragment.label.as_ref().map_or(0.0, |label| {
+                tab_width(fragment, metrics) + 12.0 + metrics.width(&format!("[{label}]"), TAG_SIZE)
+            });
+            let right = (self.center(high) + half - inset)
+                .max((left + needed).min(self.width - model.margin));
             let frame = Frame {
-                left: self.center(low) - half + inset,
+                left,
                 top: self.base + top,
-                right: self.center(high) + half - inset,
+                right,
                 bottom: self.base + bottom + 4.0,
-                label_end: self.center(high) + half - inset,
+                label_end: right,
             };
             frame.draw(index, fragment, metrics, warnings, elements);
             for (number, (branch, at)) in fragment
@@ -624,7 +655,7 @@ impl Portrait {
             self.draw_message(model, index, metrics, elements);
             elements.push(Element::GroupEnd);
         }
-        let gap = if model.compact { 8.0 } else { 12.0 };
+        let gap = if model.compact { 4.0 } else { 12.0 };
         let box_width = |participant: usize| model.box_widths[participant].min(self.column - gap);
         for index in 0..sequence.participants.len() {
             let width = box_width(index);
@@ -636,6 +667,7 @@ impl Portrait {
                 height: model.band,
                 figure: (self.center(index), self.band_top - FIGURE),
                 wrap: model.compact,
+                pad: pad(model.compact),
             };
             focusable_participant(model, &header, metrics, warnings, elements);
         }
@@ -711,9 +743,15 @@ impl Portrait {
             0.0
         };
         let first = y - 9.0 - lift - LINE * crate::layout::count(lines.len() - 1);
+        // A label wider than the span between its lifelines stays inside the canvas.
+        let middle = f64::midpoint(x1, x2);
+        let (chip_left, _, chip_width, _) =
+            chip_box(lines, (middle, first), TextAnchor::Middle, metrics);
+        let shift = (model.margin - chip_left).max(0.0)
+            - (chip_left + chip_width - (self.width - model.margin)).max(0.0);
         chip(
             lines,
-            (f64::midpoint(x1, x2), first),
+            (middle + shift, first),
             TextAnchor::Middle,
             metrics,
             elements,
@@ -913,6 +951,7 @@ impl Landscape {
                 height: model.band,
                 figure: (model.margin + FIGURE / 2.0, center - FIGURE / 2.0),
                 wrap: model.compact,
+                pad: pad(model.compact),
             };
             focusable_participant(model, &header, metrics, warnings, elements);
         }
@@ -1165,6 +1204,8 @@ struct Header {
     figure: (f64, f64),
     /// Whether a name too wide for the box wraps onto a second line rather than being shortened.
     wrap: bool,
+    /// Text inset inside the box.
+    pad: f64,
 }
 
 fn draw_participant(
@@ -1259,11 +1300,12 @@ fn participant_text(
         y,
         width,
         height,
+        pad,
         ..
     } = *header;
     let center = x + width / 2.0;
     let path = format!("/sequence/participants/{index}");
-    let room = width - 2.0 * PAD;
+    let room = width - 2.0 * pad;
     let label_path = format!("{path}/label");
     let lines = if header.wrap {
         wrap(
@@ -1705,6 +1747,35 @@ mod tests {
         let output = svg(&json);
         assert!(output.warnings.is_empty(), "{:?}", output.warnings);
         assert!(output.content.contains(">[unknown]</text>"));
+    }
+
+    #[test]
+    fn a_name_that_fills_its_box_exactly_is_not_shortened() {
+        // 56.29 pixels of text plus the inset, less the inset again, is a hair under the text.
+        let json = SPEC.replace(
+            r#""label": "Users", "kind": "database""#,
+            r#""label": "Keycloak", "kind": "database""#,
+        );
+        let output = svg(&json);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(output.content.contains(">Keycloak</text>"));
+    }
+
+    #[test]
+    fn a_narrow_diagram_lets_message_labels_reach_over_lifelines() {
+        let json = SPEC.replace(
+            "\"title\": \"Login\",",
+            "\"title\": \"Login\", \"width\": 400, \"height\": 600,",
+        );
+        let output = svg(&json);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .all(|warning| warning.code != "text_truncated"),
+            "{:?}",
+            output.warnings
+        );
     }
 
     #[test]

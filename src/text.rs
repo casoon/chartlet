@@ -72,6 +72,12 @@ pub(crate) struct Words {
     pub component: &'static str,
     pub boundary: &'static str,
     pub connects_to: &'static str,
+    /// The columns of a tree's table.
+    pub node: &'static str,
+    pub level: &'static str,
+    pub parent: &'static str,
+    pub link: &'static str,
+    pub children: &'static str,
     /// The names of a diagram's focus links, and of the link that clears the focus.
     pub focus: &'static str,
     pub show_all: &'static str,
@@ -139,6 +145,11 @@ const EN: Words = Words {
     next_state: "To",
     start: "Start",
     component: "Component",
+    node: "Node",
+    level: "Level",
+    parent: "Parent",
+    link: "Link",
+    children: "Children",
     boundary: "Boundary",
     connects_to: "Connects to",
     focus: "Focus",
@@ -209,6 +220,11 @@ const DE: Words = Words {
     next_state: "Nach",
     start: "Start",
     component: "Komponente",
+    node: "Knoten",
+    level: "Ebene",
+    parent: "Übergeordnet",
+    link: "Verknüpfung",
+    children: "Untergeordnet",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
     focus: "Fokus",
@@ -1206,6 +1222,30 @@ pub(crate) fn component(
         (Locale::De, false) => format!("verbunden mit {}", listed(locale, next)),
     };
     format!("{label} ({kind}): {next}.")
+}
+
+/// The opening sentence of a tree: how many nodes it has and how many levels they lie in.
+pub(crate) fn tree_opening(locale: Locale, nodes: usize, levels: usize) -> String {
+    match locale {
+        Locale::En => format!(
+            "Tree with {nodes} node{} in {levels} level{}.",
+            plural(nodes, "", "s"),
+            plural(levels, "", "s"),
+        ),
+        Locale::De => format!(
+            "Baum mit {nodes} {} in {levels} {}.",
+            plural(nodes, "Knoten", "Knoten"),
+            plural(levels, "Ebene", "Ebenen"),
+        ),
+    }
+}
+
+/// The root of a tree, as a sentence.
+pub(crate) fn tree_root(locale: Locale, root: &str) -> String {
+    match locale {
+        Locale::En => format!("Root: {root}."),
+        Locale::De => format!("Wurzel: {root}."),
+    }
 }
 
 #[cfg(test)]
