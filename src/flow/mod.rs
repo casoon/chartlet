@@ -322,6 +322,8 @@ struct Model<'a> {
     graph: Graph,
     /// Each step's label on one or two lines, and its box: width and height on the page.
     labels: Vec<Vec<String>>,
+    /// Each step's sublabel on one or two lines.
+    sublabels: Vec<Vec<String>>,
     sizes: Vec<(f64, f64)>,
     /// Each edge's label on one or two lines, and the widest of them.
     edge_labels: Vec<Vec<String>>,
@@ -341,47 +343,7 @@ impl<'a> Model<'a> {
     ) -> Self {
         let ends = diagram.ends();
         let graph = Graph::new(diagram);
-        let mut labels = Vec::with_capacity(diagram.nodes.len());
-        let mut sizes = Vec::with_capacity(diagram.nodes.len());
-        for node in &diagram.nodes {
-            if node.shape == Shape::Initial {
-                labels.push(Vec::new());
-                sizes.push((INITIAL, INITIAL));
-                continue;
-            }
-            let (extra_width, extra_height) = match node.shape {
-                Shape::Decision => (48.0, 24.0),
-                Shape::Io => (20.0, 0.0),
-                Shape::Subprocess => (16.0, 0.0),
-                Shape::Store => (0.0, 10.0),
-                Shape::Final => (8.0, 8.0),
-                Shape::Person => (0.0, 8.0),
-                Shape::Frontend => (0.0, 12.0),
-                Shape::Bucket => (16.0, 4.0),
-                Shape::Cache => (24.0, 0.0),
-                Shape::Shield => (0.0, 18.0),
-                _ => (0.0, 0.0),
-            };
-            let room = spacing.max_node - 2.0 * PAD;
-            let path = format!("{}/label", node.path);
-            let lines = wrap(&node.label, room, LABEL_SIZE, metrics, warnings, &path);
-            let text = lines
-                .iter()
-                .map(|line| metrics.width(line, LABEL_SIZE))
-                .chain(
-                    node.sublabel
-                        .iter()
-                        .map(|sublabel| metrics.width(sublabel, SUBLABEL_SIZE)),
-                )
-                .fold(0.0, f64::max);
-            let width = (text + 2.0 * PAD).clamp(spacing.min_node, spacing.max_node) + extra_width;
-            let height = 20.0
-                + NODE_LINE * count(lines.len())
-                + if node.sublabel.is_some() { 14.0 } else { 0.0 }
-                + extra_height;
-            labels.push(lines);
-            sizes.push((width, height));
-        }
+        let (labels, sublabels, sizes) = node_boxes(diagram, &spacing, metrics, warnings);
         let (edge_labels, edge_widths) =
             edge_labels(diagram, spacing.edge_label, metrics, warnings);
         let loops: Vec<Option<String>> = (0..diagram.nodes.len())
@@ -430,6 +392,7 @@ impl<'a> Model<'a> {
             ends,
             graph,
             labels,
+            sublabels,
             sizes,
             edge_labels,
             edge_widths,
@@ -437,6 +400,63 @@ impl<'a> Model<'a> {
             loop_lines,
         }
     }
+}
+
+/// Each step's label and sublabel on one or two lines, and its box: width and height.
+#[allow(clippy::type_complexity)]
+fn node_boxes(
+    diagram: &Diagram,
+    spacing: &Spacing,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) -> (Vec<Vec<String>>, Vec<Vec<String>>, Vec<(f64, f64)>) {
+    let mut labels = Vec::with_capacity(diagram.nodes.len());
+    let mut sublabels = Vec::with_capacity(diagram.nodes.len());
+    let mut sizes = Vec::with_capacity(diagram.nodes.len());
+    for node in &diagram.nodes {
+        if node.shape == Shape::Initial {
+            labels.push(Vec::new());
+            sublabels.push(Vec::new());
+            sizes.push((INITIAL, INITIAL));
+            continue;
+        }
+        let (extra_width, extra_height) = match node.shape {
+            Shape::Decision => (48.0, 24.0),
+            Shape::Io => (20.0, 0.0),
+            Shape::Subprocess => (16.0, 0.0),
+            Shape::Store => (0.0, 10.0),
+            Shape::Final => (8.0, 8.0),
+            Shape::Person => (0.0, 8.0),
+            Shape::Frontend => (0.0, 12.0),
+            Shape::Bucket => (16.0, 4.0),
+            Shape::Cache => (24.0, 0.0),
+            Shape::Shield => (0.0, 18.0),
+            _ => (0.0, 0.0),
+        };
+        let room = spacing.max_node - 2.0 * PAD;
+        let path = format!("{}/label", node.path);
+        let lines = wrap(&node.label, room, LABEL_SIZE, metrics, warnings, &path);
+        let sublines = node.sublabel.as_ref().map_or_else(Vec::new, |sublabel| {
+            let path = format!("{}/sublabel", node.path);
+            wrap(sublabel, room, SUBLABEL_SIZE, metrics, warnings, &path)
+        });
+        let text = lines
+            .iter()
+            .map(|line| metrics.width(line, LABEL_SIZE))
+            .chain(
+                sublines
+                    .iter()
+                    .map(|line| metrics.width(line, SUBLABEL_SIZE)),
+            )
+            .fold(0.0, f64::max);
+        let width = (text + 2.0 * PAD).clamp(spacing.min_node, spacing.max_node) + extra_width;
+        let height =
+            20.0 + NODE_LINE * count(lines.len()) + 14.0 * count(sublines.len()) + extra_height;
+        labels.push(lines);
+        sublabels.push(sublines);
+        sizes.push((width, height));
+    }
+    (labels, sublabels, sizes)
 }
 
 /// Each edge's label on one or two lines with its technology in brackets below, and the widest
@@ -1209,12 +1229,78 @@ fn clear_frames(
             }
         }
     }
+    separate_frames(model, cross, cross_size, landscape);
     let low = (0..graph.items.len())
         .map(|item| cross[item] - cross_size(item) / 2.0)
         .fold(f64::INFINITY, f64::min)
         .min(frames_reach(model, cross, cross_size, landscape).0);
     for position in cross.iter_mut() {
         *position -= low;
+    }
+}
+
+/// Moves frames of unrelated groups apart where they share a layer and overlap on the cross
+/// axis: a frame reaches over every layer of its steps, so two groups that stand side by side in
+/// one layer and above each other in another would otherwise be drawn into each other. The frame
+/// further along the cross axis moves on, with the steps beside it in the layers it spans.
+fn separate_frames(
+    model: &Model,
+    cross: &mut [f64],
+    cross_size: &impl Fn(usize) -> f64,
+    landscape: bool,
+) {
+    const SEPARATION: f64 = 16.0;
+    let (graph, diagram) = (&model.graph, model.diagram);
+    let groups = diagram.groups.len();
+    let span = |group: usize| -> Option<(usize, usize)> {
+        let layers = (0..diagram.nodes.len())
+            .filter(|node| diagram.inside(*node, group))
+            .map(|node| graph.layer[node]);
+        layers.clone().min().zip(layers.max())
+    };
+    let related = |a: usize, b: usize| {
+        diagram.chain(Some(a)).contains(&b) || diagram.chain(Some(b)).contains(&a)
+    };
+    for _ in 0..=groups * groups {
+        let mut moved = false;
+        for a in 0..groups {
+            for b in 0..groups {
+                if a == b || related(a, b) {
+                    continue;
+                }
+                let (Some((a_first, a_last)), Some((b_first, b_last))) = (span(a), span(b)) else {
+                    continue;
+                };
+                if a_last < b_first || b_last < a_first {
+                    continue;
+                }
+                let (a_low, a_high) = frame_range(diagram, cross, cross_size, a, landscape);
+                let (b_low, b_high) = frame_range(diagram, cross, cross_size, b, landscape);
+                // `a` is the frame on the low side of the cross axis.
+                if a_low + a_high >= b_low + b_high
+                    || a_high + SEPARATION <= b_low
+                    || b_high <= a_low
+                {
+                    continue;
+                }
+                let shift = a_high + SEPARATION - b_low;
+                let anchor = (0..diagram.nodes.len())
+                    .filter(|node| diagram.inside(*node, b))
+                    .map(|node| cross[node])
+                    .fold(f64::INFINITY, f64::min);
+                for layer in b_first..=b_last {
+                    for &item in &graph.layers[layer] {
+                        if cross[item] >= anchor {
+                            cross[item] += shift;
+                        }
+                    }
+                }
+                moved = true;
+            }
+        }
+        if !moved {
+            break;
+        }
     }
 }
 
@@ -1749,7 +1835,7 @@ impl Plan {
         self.draw_labels(model, labels, metrics, elements);
         for node in 0..model.diagram.nodes.len() {
             elements.push(Element::Group(model.node_classes(node)));
-            self.draw_node(model, node, metrics, warnings, elements);
+            self.draw_node(model, node, elements);
             elements.push(Element::GroupEnd);
             let spec = &model.diagram.nodes[node];
             if spec.shape != Shape::Initial {
@@ -2127,14 +2213,7 @@ impl Plan {
         }
     }
 
-    fn draw_node(
-        &self,
-        model: &Model,
-        node: usize,
-        metrics: &impl TextMetrics,
-        warnings: &mut Vec<ChartWarning>,
-        elements: &mut Vec<Element>,
-    ) {
+    fn draw_node(&self, model: &Model, node: usize, elements: &mut Vec<Element>) {
         let spec = &model.diagram.nodes[node];
         let (x, y, width, height) = self.node_box(model, node);
         let tooltip = Some(match &spec.sublabel {
@@ -2142,14 +2221,7 @@ impl Plan {
             None => spec.label.clone(),
         });
         shape(spec.shape, (x, y, width, height), tooltip, elements);
-        Self::node_text(
-            model,
-            node,
-            (x, y, width, height),
-            metrics,
-            warnings,
-            elements,
-        );
+        Self::node_text(model, node, (x, y, width, height), elements);
     }
 
     /// A step's label, centered on one or two lines, and its sublabel below.
@@ -2157,8 +2229,6 @@ impl Plan {
         model: &Model,
         node: usize,
         (x, y, width, height): (f64, f64, f64, f64),
-        metrics: &impl TextMetrics,
-        warnings: &mut Vec<ChartWarning>,
         elements: &mut Vec<Element>,
     ) {
         let spec = &model.diagram.nodes[node];
@@ -2168,8 +2238,8 @@ impl Plan {
         }
         let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
         let lines = &model.labels[node];
-        let sublabel = spec.sublabel.is_some();
-        let block = NODE_LINE * count(lines.len() - 1) + if sublabel { 14.0 } else { 0.0 };
+        let sublines = &model.sublabels[node];
+        let block = NODE_LINE * count(lines.len() - 1) + 14.0 * count(sublines.len());
         // Text clears what a shape draws at its top.
         let shift = match spec.shape {
             Shape::Store | Shape::Person => 3.0,
@@ -2187,22 +2257,13 @@ impl Plan {
                 content: line.clone(),
             }));
         }
-        if let Some(sublabel) = &spec.sublabel {
-            let room = width - 2.0 * PAD;
-            let path = format!("{}/sublabel", spec.path);
+        for (index, line) in sublines.iter().enumerate() {
             elements.push(Element::Text(Text {
                 x: middle_x,
-                y: first + NODE_LINE * count(lines.len() - 1) + 14.0,
+                y: first + NODE_LINE * count(lines.len() - 1) + 14.0 * count(index + 1),
                 class: "chartlet-flow-sublabel",
                 anchor: TextAnchor::Middle,
-                content: crate::layout::fit_text(
-                    sublabel,
-                    room,
-                    SUBLABEL_SIZE,
-                    metrics,
-                    warnings,
-                    &path,
-                ),
+                content: line.clone(),
             }));
         }
     }

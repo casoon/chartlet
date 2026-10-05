@@ -12,7 +12,8 @@ use super::Diagram;
 pub(super) struct Item {
     pub node: Option<usize>,
     pub lane: Option<usize>,
-    /// The groups the item lies in, outermost first; none for a placeholder.
+    /// The groups the item lies in, outermost first; for a placeholder those both ends of its edge
+    /// lie in.
     pub groups: Vec<usize>,
     /// A placeholder of an edge that runs against the flow; it keeps to the outside of its lane,
     /// so that the way back does not cut through the steps.
@@ -91,6 +92,14 @@ impl Graph {
                 continue;
             };
             let mut chain = vec![from];
+            // The frames both ends lie in; the way between them stays inside.
+            let shared: Vec<usize> = items[from]
+                .groups
+                .iter()
+                .zip(&items[to].groups)
+                .take_while(|(a, b)| a == b)
+                .map(|(a, _)| *a)
+                .collect();
             let (first, last) = (node_layers[from], node_layers[to]);
             for between in first + 1..last {
                 // A placeholder keeps to the lane of the step it comes from for the first half of
@@ -104,7 +113,7 @@ impl Graph {
                 items.push(Item {
                     node: None,
                     lane,
-                    groups: Vec::new(),
+                    groups: shared.clone(),
                     back: reversed[index],
                 });
                 layer.push(between);

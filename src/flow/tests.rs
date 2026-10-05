@@ -350,3 +350,82 @@ fn invalid_flows_name_the_field() {
     let missing = r#"{"schemaVersion": 1, "type": "flow", "title": "Empty"}"#;
     assert_eq!(error(missing), ("missing_flow", "/flow".to_owned()));
 }
+
+/// Two frames that share a layer but reach over different ones must not be drawn into each other.
+#[test]
+fn frames_of_unrelated_groups_do_not_overlap() {
+    let json = r#"{
+        "schemaVersion": 1, "type": "architecture", "title": "Two sides", "width": 900, "height": 900,
+        "architecture": {
+            "boundaries": [
+                {"id": "client", "label": "Client"},
+                {"id": "server", "label": "Server"}
+            ],
+            "components": [
+                {"id": "form", "label": "Form", "kind": "frontend", "in": "client"},
+                {"id": "local", "label": "Local module", "in": "client"},
+                {"id": "caller", "label": "Caller", "kind": "external"},
+                {"id": "api", "label": "API", "in": "server"},
+                {"id": "rpc", "label": "RPC", "in": "server"},
+                {"id": "core", "label": "Core", "in": "server"}
+            ],
+            "connections": [
+                {"from": "form", "to": "local"},
+                {"from": "form", "to": "api", "dash": "dashed"},
+                {"from": "local", "to": "api", "dash": "dashed"},
+                {"from": "caller", "to": "rpc"},
+                {"from": "api", "to": "core"},
+                {"from": "rpc", "to": "core"}
+            ],
+            "mainPath": ["form", "local"]
+        }
+    }"#;
+    let output = svg(json);
+    let frames: Vec<(f64, f64, f64, f64)> = output
+        .content
+        .split('<')
+        .filter(|shape| shape.contains("class=\"chartlet-flow-group\""))
+        .map(|shape| {
+            let number = |name: &str| -> f64 {
+                let start =
+                    shape.find(&format!(" {name}=\"")).expect("an attribute") + name.len() + 3;
+                shape[start..]
+                    .split('"')
+                    .next()
+                    .expect("a value")
+                    .parse()
+                    .expect("a number")
+            };
+            (number("x"), number("y"), number("width"), number("height"))
+        })
+        .collect();
+    assert_eq!(frames.len(), 2);
+    let (a, b) = (frames[0], frames[1]);
+    let apart = a.0 + a.2 <= b.0 || b.0 + b.2 <= a.0 || a.1 + a.3 <= b.1 || b.1 + b.3 <= a.1;
+    assert!(apart, "{a:?} overlaps {b:?}");
+}
+
+#[test]
+fn a_long_sublabel_wraps_instead_of_being_cut_off() {
+    let json = r#"{
+        "schemaVersion": 1, "type": "architecture", "title": "Wrap", "width": 900, "height": 400,
+        "architecture": {
+            "components": [
+                {"id": "gen", "label": "Generators", "sublabel": "Puzzles · worksheets · certificates · invoices"},
+                {"id": "out", "label": "Writer"}
+            ],
+            "connections": [{"from": "gen", "to": "out"}]
+        }
+    }"#;
+    let output = svg(json);
+    assert!(
+        output
+            .warnings
+            .iter()
+            .all(|warning| warning.code != "text_truncated"),
+        "{:?}",
+        output.warnings
+    );
+    assert!(output.content.contains("Puzzles · worksheets"));
+    assert!(output.content.contains("certificates · invoices"));
+}
