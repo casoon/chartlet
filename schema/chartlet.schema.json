@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -94,6 +94,27 @@
       "maxItems": 100,
       "items": { "$ref": "#/$defs/range" }
     },
+    "boxes": {
+      "description": "The boxes of a type: \"boxplot\" chart, one per category: observations (values) from which the box is computed, or the five numbers of a box computed elsewhere.",
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "values": { "description": "5 to 1000 observations. The box runs from the first to the third quartile (linear interpolation), the whiskers to the most extreme observations within 1.5 times that distance, every other observation is a point.", "type": "array", "minItems": 5, "maxItems": 1000, "items": { "type": "number" } },
+          "min": { "type": "number" },
+          "q1": { "type": "number" },
+          "median": { "type": "number" },
+          "q3": { "type": "number" },
+          "max": { "type": "number" },
+          "outliers": { "description": "Points beyond the whiskers of a box given by its five numbers.", "type": "array", "items": { "type": "number" } }
+        }
+      }
+    },
     "sequence": {
       "description": "The participants and messages of a type: \"sequence\" diagram.",
       "$ref": "#/$defs/sequence"
@@ -165,6 +186,8 @@
         "properties": {
           "label": { "type": "string", "minLength": 1, "maxLength": 200 },
           "value": { "$ref": "#/$defs/value" },
+          "lower": { "description": "Bar charts of one series without groups: the lower end of an error bar through the end of the bar; upper goes with it, and the value lies between them.", "type": "number" },
+          "upper": { "type": "number" },
           "group": { "description": "Bar charts only: the group a bar belongs to, one palette color and legend entry per group (at most 4). Either every point names a group or none does.", "type": "string", "minLength": 1, "maxLength": 60 }
         }
       }
@@ -281,6 +304,17 @@
           }
         },
         {
+          "required": ["boxes"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["ranges"],
           "not": {
             "anyOf": [
@@ -362,6 +396,11 @@
       "if": { "properties": { "type": { "const": "rangebar" } } },
       "then": { "required": ["ranges"] },
       "else": { "not": { "required": ["ranges"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "boxplot" } } },
+      "then": { "required": ["boxes"] },
+      "else": { "not": { "required": ["boxes"] } }
     },
     {
       "if": { "properties": { "type": { "const": "sequence" } } },

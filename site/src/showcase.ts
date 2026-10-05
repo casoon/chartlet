@@ -341,6 +341,20 @@ const catalogue = [
       'Four frameworks on three measures that share no unit: requests per second, memory and cold start on a logarithmic axis. One panel per measure, each with its own value axis, unit and verdict, over the same categories. On a phone the panels stack in one column. Illustrative values.',
   },
   {
+    slug: 'response-times',
+    chart: 'Box plot',
+    useCase: 'Compare distributions, not averages',
+    blurb:
+      'Four endpoints side by side: three boxes computed from their measurements (quartiles, whiskers to the last value within 1.5 boxes, a point for the stray 140 ms) and one drawn from the five numbers of a report that was computed elsewhere. The table has every box with its outliers. Illustrative measurements, with a phone variant.',
+  },
+  {
+    slug: 'satisfaction-scores',
+    chart: 'Bar chart with error bars',
+    useCase: 'Show how sure an estimate is',
+    blurb:
+      'Satisfaction by plan with its 95 % confidence interval as an error bar through the end of each bar: Enterprise scores 4.0 but could be anywhere from 3.3 to 4.7. The interval is also in the tooltip and in an extra column of the table. Illustrative survey.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

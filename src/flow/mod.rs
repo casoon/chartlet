@@ -134,30 +134,46 @@ pub(crate) fn layout_diagram(
             )
         }
     };
-    let plan = Plan::new(spec, &model, landscape, top, metrics);
-    let mut elements = Vec::new();
-    push_title(
-        &mut elements,
-        spec,
-        margin,
-        width - 2.0 * margin,
-        metrics,
-        warnings,
-    );
-    let (labels_right, labels_bottom) = plan.draw(&model, metrics, warnings, &mut elements);
-    // The edge labels are placed last and may reach beyond what the layers need: the canvas holds
-    // them too, and says so.
-    let (width, height) = (
-        plan.width.max((labels_right + 2.0).ceil()),
-        plan.height.max((labels_bottom + 2.0).ceil()),
-    );
-    warn_growth(spec, width, height, warnings);
-    Scene {
-        width: pixels(width),
-        height: pixels(height),
-        elements,
+    // The edge labels are placed last and may reach beyond what the layers need. The canvas then
+    // grows to hold them, and the layers spread over the wider canvas, which moves the labels
+    // again: so the layout is repeated at the larger size until the labels fit. The size it ends
+    // at is the size the warning names, and laying the diagram out at that size changes nothing.
+    let mut canvas = spec.clone();
+    for round in 1..=GROWTH_ROUNDS {
+        let plan = Plan::new(&canvas, &model, landscape, top, metrics);
+        let mut elements = Vec::new();
+        let mut round_warnings = Vec::new();
+        push_title(
+            &mut elements,
+            &canvas,
+            margin,
+            f64::from(canvas.width) - 2.0 * margin,
+            metrics,
+            &mut round_warnings,
+        );
+        let (labels_right, labels_bottom) =
+            plan.draw(&model, metrics, &mut round_warnings, &mut elements);
+        let (width, height) = (
+            plan.width.max((labels_right + 2.0).ceil()),
+            plan.height.max((labels_bottom + 2.0).ceil()),
+        );
+        if width <= plan.width && height <= plan.height || round == GROWTH_ROUNDS {
+            warnings.append(&mut round_warnings);
+            warn_growth(spec, width, height, warnings);
+            return Scene {
+                width: pixels(width),
+                height: pixels(height),
+                elements,
+            };
+        }
+        canvas.width = pixels(width);
+        canvas.height = pixels(height);
     }
+    unreachable!("the last round returns")
 }
+
+/// How often a diagram is laid out again on a canvas grown to hold its edge labels.
+const GROWTH_ROUNDS: usize = 24;
 
 fn flow(spec: &ChartSpec) -> &FlowSpec {
     spec.flow

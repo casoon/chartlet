@@ -65,7 +65,12 @@ pub(super) fn layout_vertical(
                 thickness,
                 (baseline - value_y).abs(),
             ),
-            vertical_value_label(value_y <= baseline, x + thickness / 2.0, value_y, content),
+            vertical_value_label(
+                value_y <= baseline,
+                x + thickness / 2.0,
+                scale.map(error_reach(spec, index, value), top + plot_height, top),
+                content,
+            ),
         )
     };
     let crowded = crowded_groups(dataset, bar_and_label, metrics);
@@ -78,24 +83,14 @@ pub(super) fn layout_vertical(
                 continue;
             };
             let ((x, y, width, height), label) = bar_and_label(index, series_index, value);
-            if value != 0.0 {
-                elements.push(Element::Rect(Rect {
-                    x,
-                    y,
-                    width,
-                    height,
-                    class: bar_class(spec, dataset, series_index),
-                    series_index: (dataset.series.len() > 1).then_some(series_index),
-                    style_index: None,
-                    tooltip: Some(tooltip(
-                        category,
-                        value,
-                        spec.number_style(),
-                        series.name.as_deref(),
-                    )),
-                }));
-            }
-
+            push_bar(
+                &mut elements,
+                (spec, dataset),
+                (index, series_index),
+                (x, y, width, height),
+                (category, value),
+                (true, &|value| scale.map(value, top + plot_height, top)),
+            );
             if spec.show_values && !crowded[index] {
                 elements.push(series_text(label, dataset, series_index));
             }
@@ -181,7 +176,10 @@ pub(super) fn layout_horizontal(
             ),
             horizontal_value_label(
                 value,
-                value_x,
+                (
+                    value_x,
+                    scale.map(error_reach(spec, index, value), left, left + plot_width),
+                ),
                 baseline,
                 y + thickness / 2.0,
                 spec.number_style(),
@@ -199,24 +197,14 @@ pub(super) fn layout_horizontal(
                 continue;
             };
             let ((x, y, width, height), label) = bar_and_label(index, series_index, value);
-            if value != 0.0 {
-                elements.push(Element::Rect(Rect {
-                    x,
-                    y,
-                    width,
-                    height,
-                    class: bar_class(spec, dataset, series_index),
-                    series_index: (dataset.series.len() > 1).then_some(series_index),
-                    style_index: None,
-                    tooltip: Some(tooltip(
-                        category,
-                        value,
-                        spec.number_style(),
-                        series.name.as_deref(),
-                    )),
-                }));
-            }
-
+            push_bar(
+                &mut elements,
+                (spec, dataset),
+                (index, series_index),
+                (x, y, width, height),
+                (category, value),
+                (false, &|value| scale.map(value, left, left + plot_width)),
+            );
             if spec.show_values && !crowded[index] {
                 elements.push(series_text(label, dataset, series_index));
             }
@@ -307,9 +295,125 @@ fn reference_xs(spec: &ChartSpec, scale: &NumericScale, left: f64, plot_width: f
         .collect()
 }
 
+/// One bar: its rectangle with a tooltip, unless it has no extent, and its error bar. `along` maps
+/// a value onto the value axis, which runs up on a vertical chart.
+fn push_bar(
+    elements: &mut Vec<Element>,
+    (spec, dataset): (&ChartSpec, &Dataset),
+    (index, series_index): (usize, usize),
+    (x, y, width, height): (f64, f64, f64, f64),
+    (category, value): (&str, f64),
+    (vertical, along): (bool, &dyn Fn(f64) -> f64),
+) {
+    if value != 0.0 {
+        elements.push(Element::Rect(Rect {
+            x,
+            y,
+            width,
+            height,
+            class: bar_class(spec, dataset, series_index),
+            series_index: (dataset.series.len() > 1).then_some(series_index),
+            style_index: None,
+            tooltip: Some(bar_tooltip(
+                spec,
+                index,
+                category,
+                value,
+                dataset.series[series_index].name.as_deref(),
+            )),
+        }));
+    }
+    let middle = if vertical {
+        (x + width / 2.0, width)
+    } else {
+        (y + height / 2.0, height)
+    };
+    push_error_bar(elements, spec, index, vertical, along, middle);
+}
+
+/// The tooltip of a bar, with the interval of its error bar when it has one.
+fn bar_tooltip(
+    spec: &ChartSpec,
+    index: usize,
+    category: &str,
+    value: f64,
+    series_name: Option<&str>,
+) -> String {
+    let text = tooltip(category, value, spec.number_style(), series_name);
+    match spec.data.get(index) {
+        Some(point) if spec.series.is_empty() => match point.lower.zip(point.upper) {
+            Some((lower, upper)) => format!(
+                "{text} ({} {} {})",
+                format_value(lower, spec.number_style()),
+                spec.locale.words().to,
+                format_value(upper, spec.number_style())
+            ),
+            None => text,
+        },
+        _ => text,
+    }
+}
+
+/// The furthest a bar of a single series reaches, with its error bar: where its value label goes.
+fn error_reach(spec: &ChartSpec, index: usize, value: f64) -> f64 {
+    match spec.data.get(index) {
+        Some(point) if spec.series.is_empty() => {
+            let bound = if value >= 0.0 {
+                point.upper
+            } else {
+                point.lower
+            };
+            bound.unwrap_or(value)
+        }
+        _ => value,
+    }
+}
+
+/// The error bar of a bar: a stroke from `lower` to `upper` along the value axis through the
+/// middle of the bar, with a cap at either end. `along` maps a value onto the axis, `middle` is
+/// the middle of the bar across it.
+fn push_error_bar(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    index: usize,
+    vertical: bool,
+    along: impl Fn(f64) -> f64,
+    (middle, thickness): (f64, f64),
+) {
+    let Some(bounds) = spec
+        .data
+        .get(index)
+        .filter(|_| spec.series.is_empty())
+        .and_then(|point| point.lower.zip(point.upper))
+    else {
+        return;
+    };
+    let cap = (thickness * 0.25).clamp(3.0, 8.0);
+    let line = |from: (f64, f64), to: (f64, f64)| {
+        // `(along, across)` pairs, turned into page coordinates.
+        let (x1, y1, x2, y2) = if vertical {
+            (from.1, from.0, to.1, to.0)
+        } else {
+            (from.0, from.1, to.0, to.1)
+        };
+        Element::Line(crate::scene::Line {
+            x1,
+            y1,
+            x2,
+            y2,
+            class: "chartlet-error",
+        })
+    };
+    let (lower, upper) = (along(bounds.0), along(bounds.1));
+    elements.push(line((lower, middle), (upper, middle)));
+    for end in [lower, upper] {
+        elements.push(line((end, middle - cap), (end, middle + cap)));
+    }
+}
+
 fn horizontal_value_label(
     value: f64,
-    value_x: f64,
+    (value_x, reach_x): (f64, f64),
     baseline: f64,
     center_y: f64,
     style: NumberStyle,
@@ -321,11 +425,11 @@ fn horizontal_value_label(
     // outside, left of the bar end.
     let fits_inside = metrics.width(&content, LABEL_SIZE) + 16.0 <= (baseline - value_x).abs();
     let (x, class, anchor) = if value_x >= baseline {
-        (value_x + 8.0, "chartlet-value", TextAnchor::Start)
+        (reach_x + 8.0, "chartlet-value", TextAnchor::Start)
     } else if fits_inside {
         (value_x + 8.0, "chartlet-value-inverse", TextAnchor::Start)
     } else {
-        (value_x - 8.0, "chartlet-value", TextAnchor::End)
+        (reach_x - 8.0, "chartlet-value", TextAnchor::End)
     };
     // A label that a reference line would run through moves to the far side of the line.
     let reach = metrics.width(&content, LABEL_SIZE);
@@ -478,7 +582,11 @@ pub(super) fn label_gutter(dataset: &Dataset, metrics: &impl TextMetrics) -> f64
 /// and the declared range of the value axis.
 fn value_scale(spec: &ChartSpec, dataset: &Dataset) -> NumericScale {
     NumericScale::for_axis(
-        dataset.values().chain(reference::values(spec)),
+        dataset.values().chain(reference::values(spec)).chain(
+            spec.data
+                .iter()
+                .flat_map(|point| [point.lower, point.upper].into_iter().flatten()),
+        ),
         true,
         &spec.value_axis,
     )

@@ -15,7 +15,7 @@ use crate::{
     },
     error::ChartWarning,
     flow::focus_classes,
-    layout::{NARROW, fit_text, push_title, title_extra},
+    layout::{fit_text, push_title, title_extra},
     metrics::TextMetrics,
     scene::{Circle, Element, Hotspot, Line, Polyline, Rect, Scene, Text, TextAnchor},
     spec::{
@@ -25,10 +25,13 @@ use crate::{
     text,
 };
 
+/// The widest canvas that gets the compact layout: that of a mobile variant, whose width is at most
+/// 600. A canvas that grows to fit its labels stays in the layout it was asked for.
+const COMPACT_BELOW: u32 = 600;
 /// Margin around the diagram.
 const MARGIN: f64 = 24.0;
 /// The margin, and the widest text in a participant's box, of a diagram narrower than
-/// [`NARROW`], such as a mobile variant: there a participant's name wraps onto two lines.
+/// [`COMPACT_BELOW`], such as a mobile variant: there a participant's name wraps onto two lines.
 const COMPACT_MARGIN: f64 = 12.0;
 const COMPACT_TEXT: f64 = 64.0;
 /// Space kept free below the diagram.
@@ -41,7 +44,7 @@ const TAG_SIZE: f64 = 11.0;
 const LINE: f64 = 15.0;
 /// Text inset inside a participant's box.
 const PAD: f64 = 12.0;
-/// The same in a diagram narrower than [`NARROW`], where five columns share 360 pixels.
+/// The same in a diagram narrower than [`COMPACT_BELOW`], where five columns share 360 pixels.
 const COMPACT_PAD: f64 = 5.0;
 /// The widest message label in a compact diagram: it may reach over the lifelines beside its arrow.
 const COMPACT_LABEL: f64 = 150.0;
@@ -77,7 +80,7 @@ pub(crate) fn layout(
 ) -> Scene {
     let sequence = sequence(spec);
     let width = f64::from(spec.width);
-    let compact = spec.width < NARROW;
+    let compact = spec.width < COMPACT_BELOW;
     let margin = if compact { COMPACT_MARGIN } else { MARGIN };
     let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
     let model = Model::new(sequence, compact, metrics);
@@ -162,7 +165,7 @@ struct Model<'a> {
     box_widths: Vec<f64>,
     /// Height of the band that holds the participants' names.
     band: f64,
-    /// Whether the diagram is narrower than [`NARROW`]: participant names wrap, margins shrink.
+    /// Whether the diagram is narrower than [`COMPACT_BELOW`]: participant names wrap, margins shrink.
     compact: bool,
     margin: f64,
     has_actor: bool,
@@ -477,6 +480,37 @@ struct Portrait {
     height: f64,
 }
 
+/// How far right of the last lifeline the label of a message of the last participant to itself
+/// reaches: the strip that is kept free for it; zero without such a message.
+fn last_self_tail(model: &Model, metrics: &impl TextMetrics) -> f64 {
+    let last = model.participants() - 1;
+    let tail = model
+        .labels
+        .iter()
+        .zip(&model.ends)
+        .filter(|(_, (from, to))| from == to && *from == last)
+        .map(|(label, _)| {
+            let mut ignored = Vec::new();
+            wrap(
+                label,
+                LAST_SELF_LABEL,
+                MESSAGE_SIZE,
+                metrics,
+                &mut ignored,
+                "",
+            )
+            .iter()
+            .map(|line| metrics.width(line, MESSAGE_SIZE))
+            .fold(0.0, f64::max)
+        })
+        .fold(0.0, f64::max);
+    if tail > 0.0 {
+        BAR + 2.0 * CHIP_REACH + tail
+    } else {
+        0.0
+    }
+}
+
 impl Portrait {
     fn new(
         spec: &ChartSpec,
@@ -487,16 +521,29 @@ impl Portrait {
     ) -> Self {
         let participants = crate::layout::count(model.participants());
         let needed = model.widest_box() + if model.compact { 4.0 } else { 12.0 };
-        let width = f64::from(spec.width).max(2.0 * model.margin + needed * participants);
-        let column = (width - 2.0 * model.margin) / participants;
+        let last = model.participants() - 1;
+        // A message of the last participant to itself writes its label beyond the lifeline, into
+        // the room the half column right of it leaves. When that is too little, a strip of the
+        // size of the label is kept free on the right. It does not depend on the canvas that was
+        // asked for, so the width the warning names is the width that works.
+        let tail = last_self_tail(model, metrics);
+        let narrowest = 2.0 * model.margin + needed * participants;
+        let natural = f64::from(spec.width).max(narrowest);
+        let reserve = if (natural - 2.0 * model.margin) / (2.0 * participants) < tail {
+            tail
+        } else {
+            0.0
+        };
+        let grid = (f64::from(spec.width) - reserve).max(narrowest);
+        let width = grid + reserve;
+        let column = (grid - 2.0 * model.margin) / participants;
         let lines: Vec<Vec<String>> = model
             .labels
             .iter()
             .zip(&model.ends)
             .enumerate()
             .map(|(index, (label, (from, to)))| {
-                let room = if from == to && *from == model.participants() - 1 {
-                    // The last participant has nothing to its right: the canvas grows for a label.
+                let room = if from == to && *from == last {
                     LAST_SELF_LABEL
                 } else if from == to && model.compact {
                     // Beside the loop, as far as the canvas goes.
@@ -522,27 +569,6 @@ impl Portrait {
                 )
             })
             .collect();
-        // A message of the last participant to itself writes its label beyond the lifeline; the
-        // canvas grows on the right when that does not fit.
-        let last = model.participants() - 1;
-        let beyond = lines
-            .iter()
-            .zip(&model.ends)
-            .filter(|(_, (from, to))| from == to && *from == last)
-            .flat_map(|(lines, _)| lines.iter())
-            .map(|line| metrics.width(line, MESSAGE_SIZE))
-            .fold(0.0, f64::max);
-        let right_need = if beyond > 0.0 {
-            model.margin
-                + column * (crate::layout::count(last) + 0.5)
-                + BAR
-                + 2.0 * CHIP_REACH
-                + beyond
-                + model.margin
-        } else {
-            0.0
-        };
-        let width = width.max(right_need.ceil());
         let (head, branch) = Slots::uniform(model.sequence, 24.0, 22.0);
         // A numbered message's label rises above the badge on its arrow.
         let above = 10.0

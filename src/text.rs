@@ -79,6 +79,15 @@ pub(crate) struct Words {
     pub link: &'static str,
     pub children: &'static str,
     pub partner: &'static str,
+    /// The columns of a boxplot's table.
+    pub minimum: &'static str,
+    pub quartile_1: &'static str,
+    pub median: &'static str,
+    pub quartile_3: &'static str,
+    pub maximum: &'static str,
+    pub outliers: &'static str,
+    pub observations: &'static str,
+    pub interval: &'static str,
     /// The names of a diagram's focus links, and of the link that clears the focus.
     pub focus: &'static str,
     pub show_all: &'static str,
@@ -152,6 +161,14 @@ const EN: Words = Words {
     link: "Link",
     children: "Children",
     partner: "Partner",
+    minimum: "Minimum",
+    quartile_1: "Q1",
+    median: "Median",
+    quartile_3: "Q3",
+    maximum: "Maximum",
+    outliers: "Outliers",
+    observations: "Observations",
+    interval: "Interval",
     boundary: "Boundary",
     connects_to: "Connects to",
     focus: "Focus",
@@ -228,6 +245,14 @@ const DE: Words = Words {
     link: "Verknüpfung",
     children: "Untergeordnet",
     partner: "Partner",
+    minimum: "Minimum",
+    quartile_1: "Q1",
+    median: "Median",
+    quartile_3: "Q3",
+    maximum: "Maximum",
+    outliers: "Ausreißer",
+    observations: "Beobachtungen",
+    interval: "Intervall",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
     focus: "Fokus",
@@ -1260,6 +1285,48 @@ pub(crate) fn tree_root(locale: Locale, root: &str) -> String {
     match locale {
         Locale::En => format!("Root: {root}."),
         Locale::De => format!("Wurzel: {root}."),
+    }
+}
+
+/// What a boxplot shows: how many boxes, which median is highest and lowest, and where there are
+/// outliers.
+pub(crate) fn boxplot_summary(
+    locale: Locale,
+    boxes: usize,
+    highest: (&str, &str),
+    lowest: (&str, &str),
+    outliers: &[&str],
+) -> String {
+    let outliers = match (locale, outliers.is_empty()) {
+        (_, true) => String::new(),
+        (Locale::En, false) => format!(" Outliers beyond the whiskers: {}.", outliers.join(", ")),
+        (Locale::De, false) => format!(" Ausreißer jenseits der Whisker: {}.", outliers.join(", ")),
+    };
+    match locale {
+        Locale::En => format!(
+            "Box plot with {boxes} box{}, each from the first to the third quartile with its median. Highest median: {} ({}). Lowest median: {} ({}).{outliers}",
+            plural(boxes, "", "es"),
+            highest.0,
+            highest.1,
+            lowest.0,
+            lowest.1,
+        ),
+        Locale::De => format!(
+            "Boxplot mit {boxes} {}, jeweils vom ersten bis zum dritten Quartil mit dem Median. Höchster Median: {} ({}). Niedrigster Median: {} ({}).{outliers}",
+            plural(boxes, "Box", "Boxen"),
+            highest.0,
+            highest.1,
+            lowest.0,
+            lowest.1,
+        ),
+    }
+}
+
+/// The sentence that says what the error bars of a bar chart show.
+pub(crate) fn error_bars(locale: Locale) -> String {
+    match locale {
+        Locale::En => " Error bars show the interval from lower to upper; the table gives it for every bar.".to_owned(),
+        Locale::De => " Fehlerbalken zeigen das Intervall von unten bis oben; die Tabelle nennt es für jeden Balken.".to_owned(),
     }
 }
 

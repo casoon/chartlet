@@ -269,6 +269,7 @@ pub(crate) fn layout(
         (ChartType::Stripes, _) => crate::stripes::layout(spec, warnings, metrics),
         (ChartType::Calendar, _) => crate::calendar::layout(spec, warnings, metrics),
         (ChartType::Rangebar, _) => crate::rangebar::layout(spec, warnings, metrics),
+        (ChartType::Boxplot, _) => crate::boxplot::layout(spec, warnings, metrics),
         (ChartType::Topicmap, _) => layout_topicmap(spec, warnings, metrics),
         (ChartType::Atlas, _) => layout_atlas(spec, warnings, metrics),
         (ChartType::Sequence, _) => crate::sequence::layout(spec, warnings, metrics),

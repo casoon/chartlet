@@ -1,5 +1,6 @@
 mod architecture;
 mod atlas;
+mod boxplot;
 mod calendar;
 mod color;
 mod contour;
@@ -35,7 +36,7 @@ pub use error::{ChartError, ChartWarning};
 pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
-    ArchitectureSpec, AxisScale, BoundarySpec, BranchSpec, CalendarDay, CalendarLayout,
+    ArchitectureSpec, AxisScale, BoundarySpec, BoxSpec, BranchSpec, CalendarDay, CalendarLayout,
     CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ComponentKind,
     ComponentSpec, ConnectionSpec, Corner, Curve, Dash, DataPoint, DiagramOrientation,
     FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec,
@@ -3819,6 +3820,200 @@ mod tests {
         let error = render_json(time, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
         assert_eq!(error.code, "option_not_supported");
         assert_eq!(error.path, "/panes/0/values");
+    }
+
+    /// The width a render asks for with `canvas_too_small`, if it does.
+    fn asked_width(json: &str) -> Option<u32> {
+        let warnings = render_ok(json).warnings;
+        let warning = warnings
+            .iter()
+            .find(|warning| warning.code == "canvas_too_small" && warning.path == "/width")?;
+        let after = warning.message.split("raise width to ").nth(1)?;
+        after.split(',').next()?.parse().ok()
+    }
+
+    #[test]
+    fn the_width_a_diagram_asks_for_is_a_width_that_works() {
+        let sequence = |width: u32| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "sequence", "title": "S", "width": {width}, "height": 600,
+                "sequence": {{"participants": [{{"id": "a", "label": "A"}}, {{"id": "b", "label": "B"}}, {{"id": "c", "label": "Infrastructure"}}],
+                "messages": [{{"from": "a", "to": "c", "label": "call"}}, {{"from": "c", "to": "c", "label": "run the tool locally for half a second"}}]}}}}"#
+            )
+        };
+        let asked = asked_width(&sequence(400)).expect("400 pixels are too few");
+        assert_eq!(asked_width(&sequence(asked)), None, "{asked}");
+        let architecture = |width: u32| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "architecture", "title": "A", "width": {width}, "height": 500,
+                "architecture": {{"orientation": "landscape",
+                "components": [{{"id": "a", "label": "Application"}}, {{"id": "b", "label": "Database", "kind": "database"}}, {{"id": "c", "label": "Monitoring", "kind": "external"}}],
+                "connections": [{{"from": "a", "to": "b", "label": "reads and writes"}}, {{"from": "a", "to": "c", "label": "forwards every event it sees"}}]}}}}"#
+            )
+        };
+        for start in [300, 600, 900] {
+            if let Some(asked) = asked_width(&architecture(start)) {
+                assert_eq!(
+                    asked_width(&architecture(asked)),
+                    None,
+                    "{start} -> {asked}"
+                );
+            }
+        }
+    }
+
+    const BOXES: &str = r#"{"schemaVersion": 1, "type": "boxplot", "title": "Latency", "width": 700, "height": 360,
+        "boxes": [
+            {"label": "Search", "values": [10, 11, 12, 13, 14, 15, 16, 90]},
+            {"label": "Export", "min": 20, "q1": 30, "median": 40, "q3": 50, "max": 70, "outliers": [95]}
+        ]}"#;
+
+    #[test]
+    fn boxes_are_computed_from_observations_or_drawn_from_five_numbers() {
+        for orientation in ["vertical", "horizontal"] {
+            let json = BOXES.replace(
+                "\"boxes\"",
+                &format!("\"orientation\": \"{orientation}\", \"boxes\""),
+            );
+            let output = render_ok(&json);
+            assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+            let svg = &output.content;
+            assert_eq!(
+                svg.matches("class=\"chartlet-box\"").count(),
+                2,
+                "{orientation}"
+            );
+            assert_eq!(svg.matches("class=\"chartlet-box-median\"").count(), 2);
+            // One outlier computed (90), one given (95); each box has four whisker strokes.
+            assert_eq!(svg.matches("class=\"chartlet-box-outlier\"").count(), 2);
+            assert_eq!(svg.matches("class=\"chartlet-box-whisker\"").count(), 8);
+            assert!(svg.contains("<title>Search: Median: 13.5 (Q1: 11.75, Q3: 15.25, Minimum: 10, Maximum: 16), Outliers: 90, Observations 8</title>"));
+            assert!(svg.contains("<title>Export: Median: 40 (Q1: 30, Q3: 50, Minimum: 20, Maximum: 70), Outliers: 95</title>"));
+        }
+        let html = render_json(BOXES, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("<th scope=\"col\">Category</th><th scope=\"col\">Minimum</th><th scope=\"col\">Q1</th><th scope=\"col\">Median</th><th scope=\"col\">Q3</th><th scope=\"col\">Maximum</th><th scope=\"col\">Outliers</th>"));
+        assert!(html.contains("<th scope=\"row\">Search</th><td>10</td><td>11.75</td><td>13.5</td><td>15.25</td><td>16</td><td>90</td>"));
+        assert!(html.contains(
+            "Box plot with 2 boxes, each from the first to the third quartile with its median. Highest median: 40 (Export). Lowest median: 13.5 (Search). Outliers beyond the whiskers: Search, Export."
+        ));
+    }
+
+    #[test]
+    fn boxes_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""values": [10, 11, 12, 13, 14, 15, 16, 90]"#,
+                r#""values": [10, 11, 12]"#,
+                "invalid_values",
+                "/boxes/0/values",
+            ),
+            (
+                r#""values": [10, 11, 12, 13, 14, 15, 16, 90]"#,
+                r#""min": 1"#,
+                "incomplete_box",
+                "/boxes/0",
+            ),
+            (
+                r#""values": [10, 11, 12, 13, 14, 15, 16, 90]"#,
+                r#""values": [1, 2, 3, 4, 5], "min": 1"#,
+                "conflicting_data_shape",
+                "/boxes/0/values",
+            ),
+            (
+                r#""median": 40"#,
+                r#""median": 25"#,
+                "invalid_box",
+                "/boxes/1/median",
+            ),
+            (
+                r#""label": "Export""#,
+                r#""label": "Search""#,
+                "duplicate_label",
+                "/boxes/1/label",
+            ),
+        ] {
+            let error = render_json(
+                &BOXES.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+    }
+
+    #[test]
+    fn error_bars_run_through_the_bar_end_and_are_written_in_text() {
+        let json = r#"{"schemaVersion": 1, "type": "bar", "title": "Scores", "width": 600, "height": 300,
+            "data": [{"label": "A", "value": 4, "lower": 3.5, "upper": 4.5}, {"label": "B", "value": 2, "lower": 1, "upper": 3}]}"#;
+        for orientation in ["vertical", "horizontal"] {
+            let spec = json.replace(
+                "\"type\": \"bar\"",
+                &format!("\"type\": \"bar\", \"orientation\": \"{orientation}\""),
+            );
+            let output = render_ok(&spec);
+            assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+            // A stroke and two caps for each of the two bars.
+            assert_eq!(
+                output.content.matches("class=\"chartlet-error\"").count(),
+                6,
+                "{orientation}"
+            );
+            assert!(output.content.contains("<title>A: 4 (3.5 to 4.5)</title>"));
+        }
+        let html = render_json(json, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("<th scope=\"col\">Interval</th>"));
+        assert!(html.contains("<th scope=\"row\">B</th><td>2</td><td>1 to 3</td>"));
+        assert!(html.contains("Error bars show the interval from lower to upper"));
+    }
+
+    #[test]
+    fn error_bars_and_groups_exclude_each_other() {
+        let json = r#"{"schemaVersion": 1, "type": "bar", "title": "S", "width": 600, "height": 300,
+            "data": [{"label": "A", "value": 4, "group": "x", "lower": 3, "upper": 5}, {"label": "B", "value": 2, "group": "y", "lower": 1, "upper": 3}]}"#;
+        let error = render_json(json, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("option_not_supported", "/data/0/group")
+        );
+    }
+
+    #[test]
+    fn error_bars_are_validated_by_name() {
+        let base = r#"{"schemaVersion": 1, "type": "bar", "title": "S", "width": 600, "height": 300,
+            "data": [{"label": "A", "value": 4, "lower": 3.5, "upper": 4.5}, {"label": "B", "value": 2, "lower": 1, "upper": 3}]}"#;
+        for (from, to, code, path) in [
+            (
+                r#""lower": 1, "upper": 3"#,
+                r#""lower": 1"#,
+                "missing_bounds",
+                "/data/1",
+            ),
+            (
+                r#""lower": 1, "upper": 3"#,
+                r#""lower": 2.5, "upper": 3"#,
+                "invalid_bounds",
+                "/data/1/lower",
+            ),
+            (
+                r#""type": "bar""#,
+                r#""type": "line""#,
+                "option_not_supported",
+                "/data/0/lower",
+            ),
+        ] {
+            let error = render_json(
+                &base.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
     }
 
     #[test]

@@ -16,6 +16,12 @@ pub struct DataPoint {
     /// point names a group or none does. Bar charts only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    /// The lower end of an error bar through the end of the bar, such as a confidence interval.
+    /// Bar charts of one series only; `upper` goes with it, and the value lies between them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lower: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upper: Option<f64>,
 }
 
 /// One named series with one value per category; `None` marks a missing value.
@@ -71,6 +77,58 @@ impl ChartSpec {
         view.data.clear();
         view.stack = Some(Stack::Normal);
         Some(view)
+    }
+
+    /// Whether the bars carry error bars.
+    pub(crate) fn has_error_bars(&self) -> bool {
+        self.data.iter().any(|point| point.lower.is_some())
+    }
+
+    /// Error bars: `lower` and `upper` together on every point or on none, around the value, on
+    /// a bar chart without groups.
+    fn validate_error_bars(&self) -> Result<(), ChartError> {
+        let used = self
+            .data
+            .iter()
+            .any(|point| point.lower.is_some() || point.upper.is_some());
+        if !used {
+            return Ok(());
+        }
+        for (index, point) in self.data.iter().enumerate() {
+            let path = format!("/data/{index}");
+            if self.chart_type != ChartType::Bar {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    format!("{path}/lower"),
+                    "error bars belong to a bar chart",
+                ));
+            }
+            if point.group.is_some() {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    format!("{path}/group"),
+                    "a bar chart takes error bars or groups, not both",
+                ));
+            }
+            let (Some(lower), Some(upper)) = (point.lower, point.upper) else {
+                return Err(ChartError::new(
+                    "missing_bounds",
+                    path,
+                    "give every point both lower and upper, or none",
+                ));
+            };
+            validate_number(lower, &format!("{path}/lower"))?;
+            validate_number(upper, &format!("{path}/upper"))?;
+            let value = point.value.expect("bar points have values");
+            if !(lower..=upper).contains(&value) {
+                return Err(ChartError::new(
+                    "invalid_bounds",
+                    format!("{path}/lower"),
+                    "the value must lie between lower and upper",
+                ));
+            }
+        }
+        Ok(())
     }
 
     /// Either every point names a group or none does, and there are no more groups than palette
@@ -300,6 +358,7 @@ impl ChartSpec {
         }
 
         self.validate_data_groups()?;
+        self.validate_error_bars()?;
         if self.data.len() > 16 {
             warnings.push(ChartWarning::new(
                 "dense_chart",

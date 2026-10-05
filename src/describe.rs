@@ -15,6 +15,7 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         ChartType::Stripes => return stripes::description(spec),
         ChartType::Calendar => return calendar::description(spec),
         ChartType::Rangebar => return rangebar::description(spec),
+        ChartType::Boxplot => return crate::boxplot::description(spec),
         ChartType::Sequence => return sequence::description(spec),
         ChartType::Flow => return flow::description(spec),
         ChartType::State => return state::description(spec),
@@ -81,6 +82,9 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
     }
     description.push_str(&describe_stack(spec, &dataset, &show));
     description.push_str(&describe_groups(spec));
+    if spec.has_error_bars() {
+        description.push_str(&text::error_bars(locale));
+    }
     if !spec.references.is_empty() {
         let references = spec
             .references

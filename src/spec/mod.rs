@@ -1,5 +1,6 @@
 mod architecture;
 mod atlas;
+mod boxplot;
 mod calendar;
 mod categorical;
 mod dataset;
@@ -23,6 +24,8 @@ pub use architecture::{
     ArchitectureSpec, BoundarySpec, ComponentKind, ComponentSpec, ConnectionSpec,
 };
 pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
+pub use boxplot::BoxSpec;
+pub(crate) use boxplot::BoxSummary;
 pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
@@ -147,6 +150,9 @@ pub struct ChartSpec {
     /// The nodes of a `type: "tree"` diagram. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tree: Option<TreeSpec>,
+    /// The boxes of a `type: "boxplot"` chart, one per category.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub boxes: Vec<BoxSpec>,
     /// The spans of a `type: "rangebar"` chart, one per category.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ranges: Vec<RangeSpec>,
@@ -291,11 +297,13 @@ pub enum ChartType {
     Architecture,
     /// A tree: a root and the nodes below it, such as an organization chart.
     Tree,
+    /// Boxes with whiskers and outliers, one per category: distributions side by side.
+    Boxplot,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -310,6 +318,7 @@ impl ChartType {
         Self::State,
         Self::Architecture,
         Self::Tree,
+        Self::Boxplot,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -612,6 +621,7 @@ impl ChartSpec {
             ChartType::State => return self.validate_state(),
             ChartType::Architecture => return self.validate_architecture(),
             ChartType::Tree => return self.validate_tree(),
+            ChartType::Boxplot => return self.validate_boxplot(),
             ChartType::Bar | ChartType::Line => {}
         }
         let warnings = self.validate_data()?;
@@ -648,6 +658,13 @@ impl ChartSpec {
                         *value,
                         format!("/series/{series_index}/values/{index}"),
                     ));
+                }
+            }
+        }
+        for (index, point) in self.data.iter().enumerate() {
+            for (name, value) in [("lower", point.lower), ("upper", point.upper)] {
+                if let Some(value) = value {
+                    values.push((None, value, format!("/data/{index}/{name}")));
                 }
             }
         }
@@ -1201,6 +1218,7 @@ impl ChartSpec {
             ("/stripes", self.stripes.is_some(), ChartType::Stripes),
             ("/calendar", self.calendar.is_some(), ChartType::Calendar),
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
+            ("/boxes", !self.boxes.is_empty(), ChartType::Boxplot),
             ("/sequence", self.sequence.is_some(), ChartType::Sequence),
             ("/flow", self.flow.is_some(), ChartType::Flow),
             ("/state", self.state.is_some(), ChartType::State),
@@ -1260,6 +1278,7 @@ impl ChartSpec {
             ChartType::Stripes
                 | ChartType::Calendar
                 | ChartType::Rangebar
+                | ChartType::Boxplot
                 | ChartType::Multiples
                 | ChartType::Sequence
                 | ChartType::Flow
@@ -1363,6 +1382,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::State => "state",
         ChartType::Architecture => "architecture",
         ChartType::Tree => "tree",
+        ChartType::Boxplot => "boxplot",
     }
 }
 

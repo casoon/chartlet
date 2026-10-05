@@ -67,6 +67,12 @@ const CALENDAR_STYLE: &str =
 
 /// Range bars: a translucent span in the accent color, a hatch on top of a modeled one, and a
 /// strong mark for the central value.
+/// Box plots: the box, its median, whiskers and the points beyond them.
+/// The error bars of a bar chart.
+const ERROR_STYLE: &str =
+    ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
+/// Box plots: the box, its median, whiskers and the points beyond them.
+const BOXPLOT_STYLE: &str = ".chartlet-box{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-box-median{stroke:var(--chartlet-text);stroke-width:3}.chartlet-box-whisker{stroke:var(--chartlet-accent);stroke-width:1.5;fill:none}.chartlet-box-outlier{fill:none;stroke:var(--chartlet-accent);stroke-width:1.5}";
 const RANGEBAR_STYLE: &str = ".chartlet-range{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1}.chartlet-range-hatch{stroke:none}.chartlet-hatch-line{stroke:var(--chartlet-accent);stroke-width:1.2;opacity:.75}.chartlet-range-mid{stroke:var(--chartlet-text);stroke-width:3}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Range bars in groups: each group's spans in its palette color.
 const RANGE_GROUP_STYLE: &str = ".chartlet-range-series-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-range-series-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-range-series-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-range-series-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}";
@@ -321,11 +327,12 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_diverging = matches!(spec.chart_type, ChartType::Stripes | ChartType::Calendar);
     let is_calendar = spec.chart_type == ChartType::Calendar;
     let is_rangebar = spec.chart_type == ChartType::Rangebar;
+    let is_boxplot = spec.chart_type == ChartType::Boxplot;
     let is_topicmap = spec.chart_type == ChartType::Topicmap;
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -371,6 +378,12 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         },
         if is_calendar { CALENDAR_STYLE } else { "" },
         if is_rangebar { RANGEBAR_STYLE } else { "" },
+        if is_boxplot { BOXPLOT_STYLE } else { "" },
+        if spec.has_error_bars() {
+            ERROR_STYLE
+        } else {
+            ""
+        },
         if is_rangebar && spec.ranges.iter().any(|range| range.group.is_some()) {
             RANGE_GROUP_STYLE
         } else {
@@ -407,10 +420,10 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Architecture, Atlas, Bar, Calendar, Flow, Line, Multiples, Rangebar, Sequence, State,
-        Stripes, Time, Topicmap, Tree,
+        Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Rangebar, Sequence,
+        State, Stripes, Time, Topicmap, Tree,
     };
-    let groups: [(&str, &[ChartType]); 26] = [
+    let groups: [(&str, &[ChartType]); 28] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -426,6 +439,8 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (crate::diverging::STYLE, &[Stripes, Calendar]),
         (CALENDAR_STYLE, &[Calendar]),
         (RANGEBAR_STYLE, &[Rangebar]),
+        (BOXPLOT_STYLE, &[Boxplot]),
+        (ERROR_STYLE, &[Bar]),
         (RANGE_GROUP_STYLE, &[Rangebar]),
         (REFERENCE_STYLE, &[Bar]),
         (OUTLINE_STYLE, &[Bar]),
@@ -892,8 +907,8 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
     }
     let dataset = spec.table_dataset();
     let rows = dataset.categories.len();
-    // The Group column of a grouped bar chart comes last and has no value.
-    let grouped = !spec.data_groups().is_empty();
+    // The text column after the values has no value.
+    let grouped = table_extra(spec).is_some();
     let values = (0..rows)
         .map(|row| {
             dataset
@@ -1483,7 +1498,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Atlas => words.region,
         ChartType::Stripes => words.year,
         ChartType::Calendar => words.date,
-        ChartType::Bar | ChartType::Line | ChartType::Rangebar => words.category,
+        ChartType::Bar | ChartType::Line | ChartType::Rangebar | ChartType::Boxplot => {
+            words.category
+        }
         ChartType::Sequence
         | ChartType::Flow
         | ChartType::State
@@ -1492,8 +1509,8 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             unreachable!("a diagram writes its own table")
         }
     };
-    // The points of a grouped bar chart name their group, in a column of its own.
-    let grouped = !spec.data_groups().is_empty();
+    // A column of text after the values: the group of a grouped bar chart, the outliers of a box.
+    let extra = table_extra(spec);
     let columns = std::iter::once(first.to_owned())
         .chain(
             dataset
@@ -1501,7 +1518,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 .iter()
                 .map(|series| series.name.as_deref().unwrap_or(words.value).to_owned()),
         )
-        .chain(grouped.then(|| words.group.to_owned()))
+        .chain(extra.as_ref().map(|(head, _)| (*head).to_owned()))
         .collect();
     let rows = dataset
         .categories
@@ -1517,7 +1534,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                         },
                     )
                 }))
-                .chain(grouped.then(|| spec.data[index].group.clone().unwrap_or_default()))
+                .chain(extra.as_ref().map(|(_, cells)| cells[index].clone()))
                 .collect()
         })
         .collect();
@@ -1526,6 +1543,38 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         columns,
         rows,
     }
+}
+
+/// The text column that follows the values of a table, if the chart has one: its head and one
+/// cell per row. A grouped bar chart names the group of every bar, a box plot its outliers.
+fn table_extra(spec: &ChartSpec) -> Option<(&'static str, Vec<String>)> {
+    let words = spec.locale.words();
+    if spec.chart_type == ChartType::Boxplot {
+        return Some((words.outliers, crate::boxplot::outlier_cells(spec)));
+    }
+    if spec.has_error_bars() {
+        let show = |value| format_value(value, spec.number_style());
+        return Some((
+            words.interval,
+            spec.data
+                .iter()
+                .map(|point| match point.lower.zip(point.upper) {
+                    Some((lower, upper)) => format!("{} {} {}", show(lower), words.to, show(upper)),
+                    None => String::new(),
+                })
+                .collect(),
+        ));
+    }
+    if spec.data_groups().is_empty() {
+        return None;
+    }
+    Some((
+        words.group,
+        spec.data
+            .iter()
+            .map(|point| point.group.clone().unwrap_or_default())
+            .collect(),
+    ))
 }
 
 pub(crate) fn escape(value: &str) -> String {

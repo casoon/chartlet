@@ -11,6 +11,8 @@ order: 1
 | Bar with a reference line, thousands separated | `references` with `value` and `label`; `valueAxis.thousandsSeparator` | [Open support tickets](../../../showcase/ticket-backlog/) |
 | Stacked bar, by value or as 100 % | `"stack": "normal"` or `"percent"` with `series` | [Electricity generation](../../../showcase/energy-mix/), [Accessibility checks](../../../showcase/audit-outcomes/) |
 | Grouped bar, series told apart by form as well as color | `"patterns": true` | [Population and emissions](../../../showcase/population-and-emissions/) |
+| Bar chart with error bars | `lower` and `upper` on every `data` point | [Satisfaction scores](../../../showcase/satisfaction-scores/) |
+| Box plot from observations and from five numbers | `"type": "boxplot"` with `boxes` | [Response times](../../../showcase/response-times/) |
 | Bars colored by group, one legend entry per group | `group` on every `data` point | [Effects of an evening without a phone](../../../showcase/benefit-and-harm/) |
 | Grouped bar, up to four series | `categories` and `series` instead of `data` | [Budget vs. actual](../../../showcase/budget-vs-actual/) |
 | Line with several series, color and pattern per series | `"type": "line"` with `categories` and `series` | [Weekly visitors](../../../showcase/visitors-by-channel/) |
@@ -139,6 +141,50 @@ under the axis; `showValues` writes the values at the bar ends. The top-level `v
 description names, for each panel, its highest and its lowest category; the data table has one
 column per panel, headed by its title and unit. A phone variant with `"columns": 1` stacks the
 panels. At most 20 categories.
+
+## Error bars
+
+A bar chart of one series draws an error bar through the end of each bar when every `data` point
+has a `lower` and an `upper`: a stroke between them with a cap at either end, such as the
+confidence interval of an estimate. The value lies between them (`invalid_bounds`). The value
+label moves beyond the error bar, the tooltip reads `Team: 4.1 (3.9 to 4.3)`, and the data
+table gains an Interval column. A chart takes error bars or groups, not both.
+
+```json
+{ "data": [
+  { "label": "Free", "value": 3.4, "lower": 3.1, "upper": 3.7 },
+  { "label": "Team", "value": 4.1, "lower": 3.9, "upper": 4.3 }
+] }
+```
+
+## Box plots
+
+`"type": "boxplot"` puts the distributions of several categories side by side: one box per
+category, from its first to its third quartile, with the median across it, whiskers to the most
+extreme values within reach and a point for every value beyond.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "boxplot",
+  "title": "Response time by endpoint",
+  "boxes": [
+    { "label": "Search", "values": [42, 45, 47, 48, 50, 52, 53, 55, 58, 61, 64, 140] },
+    { "label": "Report export", "min": 90, "q1": 130, "median": 160, "q3": 210, "max": 300, "outliers": [380, 450] }
+  ]
+}
+```
+
+- **From observations or from five numbers.** With `values` (5 to 1000 of them), chartlet computes
+  the quartiles by linear interpolation, the way R and NumPy do, draws the whiskers to the last
+  value within 1.5 times the box and every value beyond as a point. With `min`, `q1`, `median`,
+  `q3` and `max` it draws a box that was computed elsewhere, and `outliers` adds the points. Giving
+  both, or only some of the five numbers, or numbers out of order, is an error by name.
+- **Orientation** is vertical by default, `"orientation": "horizontal"` lays the boxes on their
+  side. `showValues` writes each median; the value axis can be linear or logarithmic.
+- **Text alternative.** The description names the highest and the lowest median and the boxes with
+  outliers; the data table has the five numbers of every box and its outliers; a tooltip adds the
+  number of observations. 1–100 boxes with unique labels.
 
 ## Reference lines
 

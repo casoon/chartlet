@@ -47,6 +47,7 @@ impl ChartSpec {
             ChartType::Stripes => self.stripes_dataset(),
             ChartType::Calendar => self.calendar_dataset(),
             ChartType::Rangebar => self.rangebar_dataset(),
+            ChartType::Boxplot => self.boxplot_dataset(),
             ChartType::Bar | ChartType::Line => self.dataset(),
             ChartType::Sequence
             | ChartType::Flow
@@ -93,6 +94,30 @@ impl ChartSpec {
 
     /// One row per range with its low, high and, where any range has one, its central value.
     /// A modeled range says so in its row label, since the table cannot show the hatching.
+    /// One row per box and one column per number of its summary.
+    fn boxplot_dataset(&self) -> Dataset {
+        let words = self.locale.words();
+        let summaries = self.box_summaries();
+        let column = |name: &str, number: fn(&super::BoxSummary) -> f64| Series {
+            name: Some(name.to_owned()),
+            values: summaries
+                .iter()
+                .map(|summary| Some(number(summary)))
+                .collect(),
+            style: None,
+        };
+        Dataset {
+            categories: self.boxes.iter().map(|boxed| boxed.label.clone()).collect(),
+            series: vec![
+                column(words.minimum, |summary| summary.min),
+                column(words.quartile_1, |summary| summary.q1),
+                column(words.median, |summary| summary.median),
+                column(words.quartile_3, |summary| summary.q3),
+                column(words.maximum, |summary| summary.max),
+            ],
+        }
+    }
+
     fn rangebar_dataset(&self) -> Dataset {
         let words = self.locale.words();
         let mut series = vec![
@@ -370,9 +395,11 @@ impl ChartSpec {
     pub(crate) fn number_style(&self) -> NumberStyle {
         let axis = match self.chart_type {
             ChartType::Time => self.panes.first().map(|pane| &pane.value_axis),
-            ChartType::Bar | ChartType::Line | ChartType::Rangebar | ChartType::Multiples => {
-                Some(&self.value_axis)
-            }
+            ChartType::Bar
+            | ChartType::Line
+            | ChartType::Rangebar
+            | ChartType::Boxplot
+            | ChartType::Multiples => Some(&self.value_axis),
             ChartType::Topicmap
             | ChartType::Atlas
             | ChartType::Stripes
@@ -438,9 +465,11 @@ impl ChartSpec {
             | ChartType::State
             | ChartType::Architecture
             | ChartType::Tree => ValueFormat::Number,
-            ChartType::Bar | ChartType::Line | ChartType::Rangebar | ChartType::Multiples => {
-                self.value_axis.format
-            }
+            ChartType::Bar
+            | ChartType::Line
+            | ChartType::Rangebar
+            | ChartType::Boxplot
+            | ChartType::Multiples => self.value_axis.format,
         }
     }
 

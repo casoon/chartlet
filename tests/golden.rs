@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 36] = [
+const EXAMPLES: [(&str, &str, &str); 38] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -182,10 +182,20 @@ const EXAMPLES: [(&str, &str, &str); 36] = [
         include_str!("../examples/benefit-and-harm.json"),
         include_str!("../examples/benefit-and-harm.svg"),
     ),
+    (
+        "response-times",
+        include_str!("../examples/response-times.json"),
+        include_str!("../examples/response-times.svg"),
+    ),
+    (
+        "satisfaction-scores",
+        include_str!("../examples/satisfaction-scores.json"),
+        include_str!("../examples/satisfaction-scores.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 6] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 7] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -215,6 +225,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 6] = [
         "framework-benchmarks",
         include_str!("../examples/framework-benchmarks.json"),
         include_str!("../examples/framework-benchmarks.mobile.svg"),
+    ),
+    (
+        "response-times",
+        include_str!("../examples/response-times.json"),
+        include_str!("../examples/response-times.mobile.svg"),
     ),
 ];
 

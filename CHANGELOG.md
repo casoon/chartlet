@@ -4,6 +4,27 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Added
+
+- Box plots (`"type": "boxplot"`): one box per category, computed from `values` (quartiles by
+  linear interpolation, whiskers to the last value within 1.5 boxes, a point for every value
+  beyond) or drawn from `min`, `q1`, `median`, `q3`, `max` and `outliers`; vertical or
+  horizontal; median labels with `showValues`; text alternative and table with the five numbers
+  and the outliers. Example `response-times` (with a phone variant).
+- Error bars on bar charts: `lower` and `upper` on every `data` point of a bar chart without
+  groups; the value label moves beyond the bar, the table gains an Interval column. Example
+  `satisfaction-scores`. Both additions extend the specification, so they belong to 0.11.
+
+### Fixed
+
+- Diagrams that ask for a larger canvas (`canvas_too_small`) now ask for a size that works: laying
+  the diagram out at the size named in the warning raises no further warning. Before, the
+  size named for an edge label past the last layer, or for a self-message of the last sequence
+  participant, grew with every attempt. A sequence diagram up to 600 pixels wide takes the
+  compact layout, so that a mobile variant that grows keeps its layout.
+
 ## [0.10.0] - 2026-10-05
 
 Bars colored by group, small multiples of bars, the fixes found when casoon.de was moved to 0.9,

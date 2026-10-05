@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "orientation": "horizontal",
+  "title": "Satisfaction score by plan, with 95 % confidence interval",
+  "source": "Illustrative survey",
+  "width": 720,
+  "height": 320,
+  "showValues": true,
+  "valueAxis": {
+    "title": "Score from 1 to 5",
+    "max": 5
+  },
+  "data": [
+    {
+      "label": "Free",
+      "value": 3.4,
+      "lower": 3.1,
+      "upper": 3.7
+    },
+    {
+      "label": "Team",
+      "value": 4.1,
+      "lower": 3.9,
+      "upper": 4.3
+    },
+    {
+      "label": "Business",
+      "value": 4.4,
+      "lower": 4.0,
+      "upper": 4.8
+    },
+    {
+      "label": "Enterprise",
+      "value": 4.0,
+      "lower": 3.3,
+      "upper": 4.7
+    }
+  ]
+}

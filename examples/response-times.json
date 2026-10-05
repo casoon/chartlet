@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "type": "boxplot",
+  "title": "Response time by endpoint",
+  "source": "Illustrative measurements",
+  "width": 760,
+  "height": 420,
+  "showValues": true,
+  "valueAxis": {
+    "title": "Milliseconds"
+  },
+  "boxes": [
+    {
+      "label": "Search",
+      "values": [
+        42,
+        45,
+        47,
+        48,
+        50,
+        52,
+        53,
+        55,
+        58,
+        61,
+        64,
+        140
+      ]
+    },
+    {
+      "label": "Checkout",
+      "values": [
+        88,
+        92,
+        95,
+        97,
+        101,
+        104,
+        108,
+        112,
+        118,
+        125,
+        131,
+        138
+      ]
+    },
+    {
+      "label": "Profile",
+      "values": [
+        18,
+        19,
+        20,
+        21,
+        22,
+        22,
+        23,
+        24,
+        26,
+        27,
+        29,
+        33
+      ]
+    },
+    {
+      "label": "Report export",
+      "min": 90,
+      "q1": 130,
+      "median": 160,
+      "q3": 210,
+      "max": 300,
+      "outliers": [
+        380,
+        450
+      ]
+    }
+  ],
+  "mobile": {
+    "width": 400,
+    "height": 420
+  }
+}
