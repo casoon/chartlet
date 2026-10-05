@@ -413,7 +413,7 @@ impl Track {
         let mut arrows = Vec::with_capacity(sequence.messages.len());
         let mut at = 0.0;
         let mut by_depth: Vec<usize> = (0..fragments.len()).collect();
-        by_depth.sort_by_key(|index| (model.depths[*index], *index));
+        crate::sort::by_key(&mut by_depth, |index| (model.depths[*index], *index));
         for index in 0..sequence.messages.len() {
             for &fragment in &by_depth {
                 if fragments[fragment].from == index {
@@ -1480,7 +1480,7 @@ fn fragments_at(locale: Locale, sequence: &SequenceSpec, index: usize) -> String
         .filter(|(_, fragment)| fragment.from <= index && index <= fragment.to)
         .map(|(position, fragment)| (sequence.depth(position), fragment))
         .collect();
-    around.sort_by_key(|(depth, _)| *depth);
+    crate::sort::by_key(&mut around, |(depth, _)| *depth);
     around
         .iter()
         .map(|(_, fragment)| {

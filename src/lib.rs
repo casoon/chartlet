@@ -22,6 +22,7 @@ mod scene;
 mod sequence;
 mod sha256;
 mod social;
+mod sort;
 mod spec;
 mod state;
 mod stripes;

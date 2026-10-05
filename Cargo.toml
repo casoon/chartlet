@@ -39,7 +39,7 @@ members = ["wasm"]
 # --target wasm32-unknown-unknown`.
 [profile.wasm]
 inherits = "release"
-opt-level = "s"
+opt-level = "z"
 lto = true
 codegen-units = 1
 panic = "abort"

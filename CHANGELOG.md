@@ -4,6 +4,16 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Changed
+
+- The WebAssembly renderer is smaller: 1276 KB (478 KB gzip) to 1044 KB (409 KB gzip), −18 %, with
+  output byte for byte the same. The many small sorts of the layouts share one copy of the sort
+  code, and the WebAssembly build is optimized for size (`opt-level = "z"`, `wasm-opt -Oz`),
+  which costs about 15 % render time (1.3 ms instead of 1.15 ms for a chart). `npm run build:wasm`
+  prints the size of the module.
+
 ## [0.9.0] - 2026-10-05
 
 Trees, and finished sequence and architecture diagrams. Sequence and architecture diagrams are no

@@ -76,7 +76,7 @@ pub(crate) fn tooltips_fit(xs: &[f64]) -> bool {
     if gaps.is_empty() {
         return true;
     }
-    gaps.sort_by(f64::total_cmp);
+    crate::sort::by(&mut gaps, f64::total_cmp);
     gaps[gaps.len() / 2] >= MIN_TOOLTIP_SPACING
 }
 

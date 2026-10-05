@@ -355,7 +355,7 @@ fn push_end_labels(
                 Some((frame.y(value) + 4.0, end_label(spec, entry), path))
             })
             .collect();
-        labels.sort_by(|a, b| a.0.total_cmp(&b.0));
+        crate::sort::by(&mut labels, |a, b| a.0.total_cmp(&b.0));
         let plot = frame.plot;
         let mut floor = plot.top + LABEL_SIZE;
         for label in &mut labels {

@@ -235,7 +235,7 @@ pub(crate) fn roomiest(
 ) -> Vec<(usize, usize, u32)> {
     let mut ranked: Vec<usize> = (0..depth.len()).filter(|cell| depth[*cell] > 0).collect();
     // By depth, deepest first, and by cell index where two are equally deep.
-    ranked.sort_by(|a, b| depth[*b].cmp(&depth[*a]).then(a.cmp(b)));
+    crate::sort::by(&mut ranked, |a, b| depth[*b].cmp(&depth[*a]).then(a.cmp(b)));
 
     let mut found: Vec<(usize, usize, u32)> = Vec::new();
     for cell in ranked {

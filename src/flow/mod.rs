@@ -1190,7 +1190,9 @@ fn clear_frames(
     const MARGIN: f64 = 12.0;
     let (graph, diagram) = (&model.graph, model.diagram);
     let mut order: Vec<usize> = (0..diagram.groups.len()).collect();
-    order.sort_by_key(|group| (std::cmp::Reverse(diagram.chain(Some(*group)).len()), *group));
+    crate::sort::by_key(&mut order, |group| {
+        (std::cmp::Reverse(diagram.chain(Some(*group)).len()), *group)
+    });
     let item_size = |item: usize| cross_size(item);
     for &group in &order {
         let layers: Vec<usize> = (0..diagram.nodes.len())
@@ -1425,7 +1427,7 @@ impl Ports {
                         (end == node).then_some((cross[next], edge))
                     })
                     .collect();
-                edges.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+                crate::sort::by(&mut edges, |a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
                 let ports = count(edges.len());
                 if edges.len() < 2 {
                     continue;
@@ -1562,7 +1564,7 @@ impl Gaps {
                         && (pieces[*index].from - pieces[*index].to).abs() > 0.5
                 })
                 .collect();
-            bending.sort_by(|a, b| {
+            crate::sort::by(&mut bending, |a, b| {
                 let low = |piece: &Piece| piece.from.min(piece.to);
                 low(&pieces[*a])
                     .total_cmp(&low(&pieces[*b]))
@@ -1981,7 +1983,9 @@ impl Plan {
         // Frames from the innermost out.
         let mut frames: Vec<(f64, f64, f64, f64)> = vec![(0.0, 0.0, 0.0, 0.0); groups];
         let mut inner_first: Vec<usize> = (0..groups).collect();
-        inner_first.sort_by_key(|group| (std::cmp::Reverse(depth(*group)), *group));
+        crate::sort::by_key(&mut inner_first, |group| {
+            (std::cmp::Reverse(depth(*group)), *group)
+        });
         for &group in &inner_first {
             let boxes = (0..diagram.nodes.len())
                 .filter(|node| diagram.nodes[*node].group == Some(group))
@@ -2027,7 +2031,9 @@ impl Plan {
         let frames = self.group_frames(model);
         let depth = |group: usize| diagram.chain(Some(group)).len();
         let mut inner_first: Vec<usize> = (0..groups).collect();
-        inner_first.sort_by_key(|group| (std::cmp::Reverse(depth(*group)), *group));
+        crate::sort::by_key(&mut inner_first, |group| {
+            (std::cmp::Reverse(depth(*group)), *group)
+        });
         for &group in inner_first.iter().rev() {
             let (left, top, right, bottom) = frames[group];
             let intruder = (0..diagram.nodes.len())

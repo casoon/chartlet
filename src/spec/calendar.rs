@@ -52,7 +52,7 @@ impl CalendarSpec {
     /// calendar's year, so the text sorts like the date.
     pub(crate) fn sorted_days(&self) -> Vec<&CalendarDay> {
         let mut days: Vec<&CalendarDay> = self.days.iter().collect();
-        days.sort_by(|a, b| a.date.cmp(&b.date));
+        crate::sort::by(&mut days, |a, b| a.date.cmp(&b.date));
         days
     }
 

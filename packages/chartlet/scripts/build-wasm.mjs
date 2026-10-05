@@ -2,6 +2,7 @@
 // src/chartlet.wasm. Runs wasm-opt when it is on PATH; the output is valid without it.
 import { execFileSync, spawnSync } from "node:child_process";
 import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,7 +35,7 @@ const features = [
   "reference-types",
   "sign-ext",
 ].map((feature) => `--enable-${feature}`);
-const optimized = spawnSync("wasm-opt", ["-Os", ...features, output, "-o", output], {
+const optimized = spawnSync("wasm-opt", ["-Oz", ...features, output, "-o", output], {
   stdio: "inherit",
 });
 if (optimized.error?.code === "ENOENT") {
@@ -42,6 +43,14 @@ if (optimized.error?.code === "ENOENT") {
 } else if (optimized.status !== 0) {
   process.exit(optimized.status ?? 1);
 }
+
+// The size of the module as shipped, to watch it grow (plan 38); no limit is enforced yet.
+const shipped = readFileSync(output);
+const kilobytes = (bytes) => `${(bytes / 1000).toFixed(1)} KB`;
+console.log(
+  `chartlet.wasm: ${kilobytes(shipped.length)} (${shipped.length} B), ` +
+    `gzip -9 ${kilobytes(gzipSync(shipped, { level: 9 }).length)}`,
+);
 
 // The shared stylesheet for `styles: "external"`, from the renderer just built.
 const renderer = createRenderer(new WebAssembly.Module(readFileSync(output)));

@@ -597,7 +597,7 @@ fn relief(sites: &[Site], field: &Field, noise_seed: u64) -> Relief {
         .zip(&height)
         .filter_map(|(owner, one)| owner.map(|_| *one))
         .collect();
-    land.sort_by(f64::total_cmp);
+    crate::sort::by(&mut land, f64::total_cmp);
     let levels = (0..CONTOUR_COUNT)
         .map(|step| {
             if land.is_empty() {
@@ -663,7 +663,7 @@ fn places<'a>(sites: &[Site<'a>], field: &Field) -> Vec<Spot<'a>> {
         }
 
         let mut order: Vec<usize> = (0..site.region.places.len()).collect();
-        order.sort_by(|a, b| {
+        crate::sort::by(&mut order, |a, b| {
             site.region.places[*b]
                 .weight
                 .total_cmp(&site.region.places[*a].weight)

@@ -179,7 +179,7 @@ fn body_width(xs: &[f64]) -> f64 {
     if distances.is_empty() {
         return MAX_BODY;
     }
-    distances.sort_by(f64::total_cmp);
+    crate::sort::by(&mut distances, f64::total_cmp);
     let middle = distances.len() / 2;
     let median = if distances.len().is_multiple_of(2) {
         f64::midpoint(distances[middle - 1], distances[middle])

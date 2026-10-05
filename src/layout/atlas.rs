@@ -190,7 +190,7 @@ fn push_names(
         held[*owner] += 1;
     }
     let mut order: Vec<usize> = (0..landscape.sites.len()).collect();
-    order.sort_by(|a, b| held[*b].cmp(&held[*a]).then(a.cmp(b)));
+    crate::sort::by(&mut order, |a, b| held[*b].cmp(&held[*a]).then(a.cmp(b)));
 
     let ranges = crate::atlas::realm_ranges(atlas);
     for region in order {

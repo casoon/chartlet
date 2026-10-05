@@ -246,7 +246,7 @@ impl Graph {
             })
             .collect();
         let mut order: Vec<usize> = (0..items.len()).collect();
-        order.sort_by(|a, b| {
+        crate::sort::by(&mut order, |a, b| {
             let (a, b) = (&keys[*a], &keys[*b]);
             let path =
                 a.2.iter()

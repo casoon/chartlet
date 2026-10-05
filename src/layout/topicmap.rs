@@ -96,7 +96,7 @@ fn cap_links<'a>(
     warnings: &mut Vec<ChartWarning>,
 ) -> Vec<&'a TopicLinkSpec> {
     let mut by_weight: Vec<(usize, &TopicLinkSpec)> = topicmap.links.iter().enumerate().collect();
-    by_weight.sort_by(|a, b| b.1.weight.total_cmp(&a.1.weight));
+    crate::sort::by(&mut by_weight, |a, b| b.1.weight.total_cmp(&a.1.weight));
 
     let mut incident: HashMap<&str, usize> = HashMap::new();
     let mut kept = Vec::new();
@@ -953,7 +953,7 @@ pub(super) fn layout_topicmap(
     let plot_height = f64::from(spec.height) - top - margin;
 
     let mut ordered: Vec<(usize, &TopicSpec)> = topicmap.topics.iter().enumerate().collect();
-    ordered.sort_by(|a, b| b.1.value.total_cmp(&a.1.value));
+    crate::sort::by(&mut ordered, |a, b| b.1.value.total_cmp(&a.1.value));
     let kept_links = cap_links(topicmap, warnings);
     let plot = (margin, top, plot_width, plot_height);
     let furniture = plan_furniture(topicmap, plot, metrics, warnings);
@@ -1294,7 +1294,7 @@ fn settle_column(
         .take_while(|slots| count(*slots - 1) * TOPIC_OUTSIDE_SPACING <= last - first)
         .count();
     if labels.len() > capacity {
-        labels.sort_by(|a, b| b.weight.total_cmp(&a.weight));
+        crate::sort::by(&mut labels, |a, b| b.weight.total_cmp(&a.weight));
         for dropped in labels.split_off(capacity) {
             warnings.push(ChartWarning::new(
                 "dense_chart",
@@ -1304,7 +1304,7 @@ fn settle_column(
         }
     }
 
-    labels.sort_by(|a, b| a.y.total_cmp(&b.y));
+    crate::sort::by(&mut labels, |a, b| a.y.total_cmp(&b.y));
     let mut lowest = first;
     for label in &mut labels {
         label.y = label.y.max(lowest);
@@ -1419,7 +1419,7 @@ mod tests {
         let plot_width = 800.0 - margin * 2.0;
         let plot_height = 450.0 - top - margin;
         let mut ordered: Vec<(usize, &TopicSpec)> = topicmap.topics.iter().enumerate().collect();
-        ordered.sort_by(|a, b| b.1.value.total_cmp(&a.1.value));
+        crate::sort::by(&mut ordered, |a, b| b.1.value.total_cmp(&a.1.value));
         let mut warnings = Vec::new();
         let kept_links = cap_links(&topicmap, &mut warnings);
         let positions = topicmap_positions(
@@ -1545,7 +1545,7 @@ mod tests {
         let top = 78.0;
         let plot = (margin, top, 800.0 - margin * 2.0, 450.0 - top - margin);
         let mut ordered: Vec<(usize, &TopicSpec)> = topicmap.topics.iter().enumerate().collect();
-        ordered.sort_by(|a, b| b.1.value.total_cmp(&a.1.value));
+        crate::sort::by(&mut ordered, |a, b| b.1.value.total_cmp(&a.1.value));
         let mut warnings = Vec::new();
         let furniture = plan_furniture(&topicmap, plot, &BuiltinMetrics, &mut warnings);
         let reserved = furniture.reserved();

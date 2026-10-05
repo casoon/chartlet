@@ -645,7 +645,7 @@ fn topicmap_description(spec: &ChartSpec) -> String {
     // The strongest neighbourhoods, named as relationships in the data rather than as something
     // the drawing does: a weak route may have been dropped before it was ever drawn.
     let mut strongest: Vec<&spec::TopicLinkSpec> = topicmap.links.iter().collect();
-    strongest.sort_by(|a, b| b.weight.total_cmp(&a.weight));
+    crate::sort::by(&mut strongest, |a, b| b.weight.total_cmp(&a.weight));
     let named: Vec<(&str, &str)> = strongest
         .iter()
         .take(3)
