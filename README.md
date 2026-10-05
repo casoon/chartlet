@@ -91,6 +91,8 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
 | Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
+| Small multiples of bars: one panel per measure over shared categories, each with its own value axis | `"type": "multiples"` with `categories` and a `values` array per pane | [framework-benchmarks](examples/framework-benchmarks.json) |
+| Bars colored by group, one legend entry per group | `"group"` on every `data` point | [benefit-and-harm](examples/benefit-and-harm.json) |
 | Small multiples with a finding under each panel, one column on phones | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
 | Sequence diagram, portrait | `"type": "sequence"` with `participants`, `messages`, `fragments` | [cache-lookup](examples/cache-lookup.json) |
 | Sequence diagram, landscape | `"orientation": "landscape"` | [async-export](examples/async-export.json) |

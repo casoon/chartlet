@@ -31,6 +31,8 @@ pub(crate) const MAX_ANNOTATIONS: usize = 6;
 pub(crate) const MIN_PANELS: usize = 2;
 pub(crate) const MAX_PANELS: usize = 12;
 pub(crate) const MAX_COLUMNS: u32 = 6;
+/// How many categories small multiples of bars may share.
+const MAX_BAR_PANEL_CATEGORIES: usize = 20;
 
 /// What the positions of a time axis are: calendar timestamps, or plain numbers such as a
 /// distance, a depth or an age in millions of years.
@@ -167,6 +169,10 @@ pub struct PaneSpec {
     pub value_axis: ValueAxisSpec,
     #[serde(default)]
     pub layers: Vec<LayerSpec>,
+    /// Small multiples of bars: this panel's value for each of the chart's `categories`, in their
+    /// order; `null` for a category without a value. Instead of `layers`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub values: Vec<Option<f64>>,
     /// `"normal"` stacks the area layers of a time chart's pane in layer order, each on top of
     /// the ones before it, so that the top edge shows their total.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -932,9 +938,157 @@ impl ChartSpec {
 
     /// Small multiples: two to twelve titled panels, one shared value axis at the top level, and
     /// the layers of every panel validated like those of a time chart.
-    pub(super) fn validate_multiples(&self) -> Result<Vec<ChartWarning>, ChartError> {
-        self.reject_bar_and_line_options("a small-multiples chart")?;
-        let zone = self.validate_time_axis()?;
+    /// Whether this is small multiples of bars: one panel per measure over shared categories.
+    pub(crate) fn is_bar_multiples(&self) -> bool {
+        self.chart_type == super::ChartType::Multiples && !self.categories.is_empty()
+    }
+
+    /// The dataset behind small multiples of bars: the shared categories, and one series per
+    /// panel named by its title.
+    pub(crate) fn bar_multiples_dataset(&self) -> super::Dataset {
+        super::Dataset {
+            categories: self.categories.clone(),
+            series: self
+                .panes
+                .iter()
+                .enumerate()
+                .map(|(index, pane)| super::Series {
+                    // The unit goes into the column head of the table.
+                    name: pane
+                        .title
+                        .as_ref()
+                        .map(|title| match pane.value_axis.unit.as_deref() {
+                            Some(unit) => format!("{title} ({unit})"),
+                            None => title.clone(),
+                        }),
+                    values: pane.values.clone(),
+                    style: Some(self.pane_style(index)),
+                })
+                .collect(),
+        }
+    }
+
+    /// Small multiples of bars: unique categories, and panels that each have a unique title and
+    /// one value per category, on a value axis of their own.
+    fn validate_bar_multiples(&self) -> Result<Vec<ChartWarning>, ChartError> {
+        for (field, present) in [
+            ("/data", !self.data.is_empty()),
+            ("/series", !self.series.is_empty()),
+            ("/zoomSteps", !self.zoom_steps.is_empty()),
+            ("/timeAxis", !self.time_axis.is_default()),
+            ("/valueAxis", self.value_axis != ValueAxisSpec::default()),
+            ("/stack", self.stack.is_some()),
+        ] {
+            if present {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    field,
+                    "small multiples of bars take categories and the values and value axis of each panel; remove this field",
+                ));
+            }
+        }
+        if self.orientation != super::Orientation::Vertical {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/orientation",
+                "small multiples of bars draw horizontal bars; remove this field",
+            ));
+        }
+        if self.categories.len() > MAX_BAR_PANEL_CATEGORIES {
+            return Err(ChartError::new(
+                "too_many_data_points",
+                "/categories",
+                format!(
+                    "at most {MAX_BAR_PANEL_CATEGORIES} categories are supported in small multiples"
+                ),
+            ));
+        }
+        let mut labels = BTreeSet::new();
+        for (index, label) in self.categories.iter().enumerate() {
+            let path = format!("/categories/{index}");
+            validate_text(label, &path, 200)?;
+            if !labels.insert(label.as_str()) {
+                return Err(ChartError::new(
+                    "duplicate_label",
+                    path,
+                    "labels must be unique",
+                ));
+            }
+        }
+        self.validate_panel_count()?;
+        let mut titles = BTreeSet::new();
+        for (pane_index, pane) in self.panes.iter().enumerate() {
+            self.validate_bar_panel(pane_index, pane, &mut titles)?;
+        }
+        Ok(Vec::new())
+    }
+
+    /// One panel of small multiples of bars: a unique title, no layers, and one value per
+    /// category.
+    fn validate_bar_panel<'a>(
+        &'a self,
+        pane_index: usize,
+        pane: &'a PaneSpec,
+        titles: &mut BTreeSet<&'a str>,
+    ) -> Result<(), ChartError> {
+        let path = format!("/panes/{pane_index}");
+        let Some(title) = &pane.title else {
+            return Err(ChartError::new(
+                "missing_title",
+                format!("{path}/title"),
+                "every panel of small multiples needs a title",
+            ));
+        };
+        validate_text(title, &format!("{path}/title"), 100)?;
+        if !titles.insert(title.as_str()) {
+            return Err(ChartError::new(
+                "duplicate_title",
+                format!("{path}/title"),
+                "panel titles must be unique",
+            ));
+        }
+        if !pane.layers.is_empty() || pane.stack.is_some() {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("{path}/layers"),
+                "a panel of bars takes values, not layers; remove them",
+            ));
+        }
+        if pane.height_ratio != default_height_ratio() {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("{path}/heightRatio"),
+                "the panels of small multiples all have the same size",
+            ));
+        }
+        if pane.values.len() != self.categories.len() {
+            return Err(ChartError::new(
+                "series_length_mismatch",
+                format!("{path}/values"),
+                format!(
+                    "a panel needs one value per category: {} categories, {} values",
+                    self.categories.len(),
+                    pane.values.len()
+                ),
+            ));
+        }
+        if pane.values.iter().all(Option::is_none) {
+            return Err(ChartError::new(
+                "empty_data",
+                format!("{path}/values"),
+                "provide at least one value in every panel",
+            ));
+        }
+        for (index, value) in pane.values.iter().enumerate() {
+            if let Some(value) = value {
+                validate_number(*value, &format!("{path}/values/{index}"))?;
+            }
+        }
+        Ok(())
+    }
+
+    /// The number of panels and of columns of small multiples.
+    fn validate_panel_count(&self) -> Result<(), ChartError> {
         if self.panes.len() < MIN_PANELS {
             return Err(ChartError::new(
                 "not_enough_panes",
@@ -957,6 +1111,24 @@ impl ChartSpec {
                 format!("columns must be between 1 and {MAX_COLUMNS}"),
             ));
         }
+        Ok(())
+    }
+
+    pub(super) fn validate_multiples(&self) -> Result<Vec<ChartWarning>, ChartError> {
+        if self.is_bar_multiples() {
+            return self.validate_bar_multiples();
+        }
+        if let Some(index) = self.panes.iter().position(|pane| !pane.values.is_empty()) {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("/panes/{index}/values"),
+                "values belong to small multiples of bars, which take categories; time panels take layers",
+            ));
+        }
+        self.reject_bar_and_line_options("a small-multiples chart")?;
+        let zone = self.validate_time_axis()?;
+        self.validate_panel_count()?;
+        let columns = self.multiples_columns();
 
         let mut warnings = Vec::new();
         let plot_pixels = usize::try_from(crate::layout::panel_plot_pixels(self.width, columns))

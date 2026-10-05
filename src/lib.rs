@@ -3680,6 +3680,148 @@ mod tests {
     }
 
     #[test]
+    fn bars_named_by_group_get_one_color_and_legend_entry_per_group() {
+        let json = r#"{"schemaVersion": 1, "type": "bar", "title": "Benefit and harm", "width": 600, "height": 300,
+            "data": [{"label": "A", "value": 5, "group": "Benefit"}, {"label": "B", "value": 4, "group": "Harm"},
+                     {"label": "C", "value": 3, "group": "Benefit"}]}"#;
+        let output = render_ok(json);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert!(svg.contains("chartlet-series-1") && svg.contains("chartlet-series-2"));
+        assert!(svg.contains(">Benefit</text>") && svg.contains(">Harm</text>"));
+        assert!(svg.contains("Colors show groups: Benefit: A, C; Harm: B."));
+        // The data table keeps the chart as written: one value per category, and its group.
+        let html = render_json(json, RenderFormat::Html, &RenderOptions::default()).unwrap();
+        assert!(html.content.contains(
+            "<th scope=\"col\">Category</th><th scope=\"col\">Value</th><th scope=\"col\">Group</th>"
+        ));
+        assert!(
+            html.content
+                .contains("<th scope=\"row\">B</th><td>4</td><td>Harm</td>")
+        );
+        assert!(!html.content.contains("Missing"));
+    }
+
+    #[test]
+    fn groups_are_all_or_none_at_most_four_and_for_bars() {
+        let base = |data: &str, kind: &str| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "{kind}", "title": "T", "width": 600, "height": 300, "data": [{data}]}}"#
+            )
+        };
+        for (data, kind, code, path) in [
+            (
+                r#"{"label": "A", "value": 1, "group": "x"}, {"label": "B", "value": 2}"#,
+                "bar",
+                "missing_group",
+                "/data/1/group",
+            ),
+            (
+                r#"{"label": "A", "value": 1, "group": "a"}, {"label": "B", "value": 2, "group": "b"}, {"label": "C", "value": 3, "group": "c"}, {"label": "D", "value": 4, "group": "d"}, {"label": "E", "value": 5, "group": "e"}"#,
+                "bar",
+                "too_many_series",
+                "/data/4/group",
+            ),
+            (
+                r#"{"label": "A", "value": 1, "group": "x"}, {"label": "B", "value": 2, "group": "y"}"#,
+                "line",
+                "option_not_supported",
+                "/data/0/group",
+            ),
+        ] {
+            let error = render_json(
+                &base(data, kind),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{data}");
+        }
+    }
+
+    const PANEL_BARS: &str = r#"{"schemaVersion": 1, "type": "multiples", "title": "Benchmarks", "width": 900, "height": 400,
+        "categories": ["A", "B", "C"],
+        "panes": [
+            {"title": "Speed", "values": [10, 20, 30], "valueAxis": {"unit": "req/s"}},
+            {"title": "Memory", "values": [5, null, 3], "valueAxis": {"unit": "MB"}}
+        ]}"#;
+
+    #[test]
+    fn small_multiples_of_bars_have_a_value_axis_per_panel_and_say_so_in_text() {
+        let output = render_ok(PANEL_BARS);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        // Two panels of two and three bars; the missing value has none.
+        assert_eq!(svg.matches("class=\"chartlet-bar\"").count(), 5);
+        assert!(svg.contains(">req/s</text>") && svg.contains(">MB</text>"));
+        assert!(svg.contains("<title>A – Speed: 10</title>"));
+        assert!(svg.contains(
+            "Small multiples of bars: 2 panels over 3 categories, each with its own value axis. Speed: Highest 30 req/s (C), Lowest 10 req/s (A). Memory: Highest 5 MB (A), Lowest 3 MB (C)."
+        ));
+        let html = render_json(PANEL_BARS, RenderFormat::Html, &RenderOptions::default()).unwrap();
+        assert!(html.content.contains(
+            "<th scope=\"col\">Category</th><th scope=\"col\">Speed (req/s)</th><th scope=\"col\">Memory (MB)</th>"
+        ));
+        assert!(
+            html.content
+                .contains("<th scope=\"row\">B</th><td>20</td><td>Missing</td>")
+        );
+    }
+
+    #[test]
+    fn small_multiples_of_bars_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""values": [10, 20, 30]"#,
+                r#""values": [10, 20]"#,
+                "series_length_mismatch",
+                "/panes/0/values",
+            ),
+            (
+                r#""values": [5, null, 3]"#,
+                r#""values": [null, null, null]"#,
+                "empty_data",
+                "/panes/1/values",
+            ),
+            (
+                r#""title": "Memory""#,
+                r#""title": "Speed""#,
+                "duplicate_title",
+                "/panes/1/title",
+            ),
+            (
+                r#""categories": ["A", "B", "C"]"#,
+                r#""categories": ["A", "A", "C"]"#,
+                "duplicate_label",
+                "/categories/1",
+            ),
+            (
+                r#""title": "Benchmarks""#,
+                r#""title": "Benchmarks", "valueAxis": {"unit": "ms"}"#,
+                "option_not_supported",
+                "/valueAxis",
+            ),
+            (
+                r#""title": "Speed", "values": [10, 20, 30]"#,
+                r#""title": "Speed", "values": [10, 20, 30], "layers": [{"mark": "line", "points": []}]"#,
+                "option_not_supported",
+                "/panes/0/layers",
+            ),
+        ] {
+            let json = PANEL_BARS.replace(from, to);
+            let error =
+                render_json(&json, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+        // Values belong to bars: a time chart's panels take layers.
+        let time = r#"{"schemaVersion": 1, "type": "multiples", "title": "T", "width": 600, "height": 300,
+            "panes": [{"title": "A", "values": [1], "layers": []}, {"title": "B", "layers": []}]}"#;
+        let error = render_json(time, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(error.code, "option_not_supported");
+        assert_eq!(error.path, "/panes/0/values");
+    }
+
+    #[test]
     fn ranges_are_validated_by_name() {
         for (from, to, code, path) in [
             (

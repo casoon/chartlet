@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 34] = [
+const EXAMPLES: [(&str, &str, &str); 36] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -172,10 +172,20 @@ const EXAMPLES: [(&str, &str, &str); 34] = [
         include_str!("../examples/family-tree.json"),
         include_str!("../examples/family-tree.svg"),
     ),
+    (
+        "framework-benchmarks",
+        include_str!("../examples/framework-benchmarks.json"),
+        include_str!("../examples/framework-benchmarks.svg"),
+    ),
+    (
+        "benefit-and-harm",
+        include_str!("../examples/benefit-and-harm.json"),
+        include_str!("../examples/benefit-and-harm.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 5] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 6] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -200,6 +210,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 5] = [
         "family-tree",
         include_str!("../examples/family-tree.json"),
         include_str!("../examples/family-tree.mobile.svg"),
+    ),
+    (
+        "framework-benchmarks",
+        include_str!("../examples/framework-benchmarks.json"),
+        include_str!("../examples/framework-benchmarks.mobile.svg"),
     ),
 ];
 

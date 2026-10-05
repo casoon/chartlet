@@ -240,7 +240,8 @@ pub(super) fn layout(
                 );
             }
         }
-        if spec.show_values && !percent && stacks[index].iter().flatten().count() > 0 {
+        // A stack of one segment says its value in the segment; a total would repeat it.
+        if spec.show_values && !percent && stacks[index].iter().flatten().count() > 1 {
             elements.push(Element::Text(total_label(
                 spec,
                 &frame,

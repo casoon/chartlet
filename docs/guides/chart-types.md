@@ -11,6 +11,7 @@ order: 1
 | Bar with a reference line, thousands separated | `references` with `value` and `label`; `valueAxis.thousandsSeparator` | [Open support tickets](../../../showcase/ticket-backlog/) |
 | Stacked bar, by value or as 100 % | `"stack": "normal"` or `"percent"` with `series` | [Electricity generation](../../../showcase/energy-mix/), [Accessibility checks](../../../showcase/audit-outcomes/) |
 | Grouped bar, series told apart by form as well as color | `"patterns": true` | [Population and emissions](../../../showcase/population-and-emissions/) |
+| Bars colored by group, one legend entry per group | `group` on every `data` point | [Effects of an evening without a phone](../../../showcase/benefit-and-harm/) |
 | Grouped bar, up to four series | `categories` and `series` instead of `data` | [Budget vs. actual](../../../showcase/budget-vs-actual/) |
 | Line with several series, color and pattern per series | `"type": "line"` with `categories` and `series` | [Weekly visitors](../../../showcase/visitors-by-channel/) |
 | Line on a logarithmic axis | `"valueAxis": { "scale": "log" }` | [Earthquakes per year](../../../showcase/quake-frequency/) |
@@ -28,6 +29,7 @@ order: 1
 | Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio`; `"gaps": "collapse"` | [Daily share price](../../../showcase/share-price/) |
 | Profile or deep time on a numeric axis, reversed | `"timeAxis": { "kind": "number", "reverse": true }` | [Deep-sea oxygen isotopes](../../../showcase/deep-sea-isotopes/) |
 | Small multiples, each panel on its own value axis | `"independentAxes": true` | [Indicators of growth](../../../showcase/acceleration-indicators/) |
+| Small multiples of bars, one panel per measure with its own value axis | `"type": "multiples"` with `categories` and `values` per pane | [Web frameworks compared](../../../showcase/framework-benchmarks/) |
 | Small multiples, shared value axis | `"type": "multiples"` with titled `panes` | [Emission pathways](../../../showcase/emission-pathways/) |
 | Warming stripes | `"type": "stripes"` with `stripes` | [Warming stripes](../../../showcase/warming-stripes/) |
 | Calendar heatmap, by month or week | `"type": "calendar"` with `calendar` | [Daily anomaly calendar](../../../showcase/daily-anomaly-calendar/) |
@@ -91,6 +93,52 @@ description names the highest and lowest total; the data table lists the values 
   ]
 }
 ```
+
+## Bars colored by group
+
+A single-series bar chart can color its bars by group: give every `data` point a `group`. Each
+group takes one palette color and one legend entry (at most four), and either every point names a
+group or none does.
+
+```json
+{ "data": [
+  { "label": "Sleep quality", "value": 4.5, "group": "Benefit" },
+  { "label": "Missed messages", "value": 2, "group": "Harm" }
+] }
+```
+
+The bars keep their full width and their own row: the groups are not series, so nothing is
+stacked or missing. The description names the groups with their categories, and the data table
+keeps one value per category and gains a Group column. The groups do not toggle with a series
+filter. Bar charts only: a line chart refuses `group` (`option_not_supported`), and with a single
+group the bars are drawn as they are.
+
+## Small multiples of bars
+
+Small multiples can also compare categories on several measures that have nothing in common, such
+as requests per second, megabytes and milliseconds: give the chart `categories`, and each pane a
+`title` and its `values`, one per category (`null` for none), with a `valueAxis` of its own (`unit`,
+`scale`, `format`, `min`, `max`, …).
+
+```json
+{
+  "type": "multiples",
+  "categories": ["Rust", "Go", "Node"],
+  "columns": 3,
+  "panes": [
+    { "title": "Requests per second", "note": "higher is better",
+      "values": [118000, 96000, 64000], "valueAxis": { "unit": "req/s" } },
+    { "title": "Cold start", "values": [3, 5, 45], "valueAxis": { "unit": "ms", "scale": "log" } }
+  ]
+}
+```
+
+Every panel draws horizontal bars with the category names at its left, its own ticks and its unit
+under the axis; `showValues` writes the values at the bar ends. The top-level `valueAxis`,
+`timeAxis`, `orientation`, `stack` and `layers` do not apply (`option_not_supported`). The
+description names, for each panel, its highest and its lowest category; the data table has one
+column per panel, headed by its title and unit. A phone variant with `"columns": 1` stacks the
+panels. At most 20 categories.
 
 ## Reference lines
 

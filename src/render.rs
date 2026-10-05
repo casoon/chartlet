@@ -311,8 +311,9 @@ fn diagram_style(chart_type: ChartType) -> String {
 /// alike in a chart's own stylesheet and in the shared one. The print variant has no series
 /// filter to style.
 fn base_style(spec: &ChartSpec, print: bool) -> String {
-    let has_series = spec.series.len() > 1;
-    let is_time = matches!(spec.chart_type, ChartType::Time | ChartType::Multiples);
+    let has_series = spec.series.len() > 1 || spec.data_groups().len() > 1;
+    let is_time = matches!(spec.chart_type, ChartType::Time | ChartType::Multiples)
+        && !spec.is_bar_multiples();
     // A categorical line chart with several series draws its lines in the palette and patterns of
     // a time chart's lines.
     let several_lines = spec.chart_type == ChartType::Line && has_series;
@@ -891,19 +892,24 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
     }
     let dataset = spec.table_dataset();
     let rows = dataset.categories.len();
+    // The Group column of a grouped bar chart comes last and has no value.
+    let grouped = !spec.data_groups().is_empty();
     let values = (0..rows)
         .map(|row| {
             dataset
                 .series
                 .iter()
                 .map(|series| series.values[row])
+                .chain(grouped.then_some(None))
                 .collect()
         })
         .collect();
-    if !matches!(spec.chart_type, ChartType::Time | ChartType::Multiples) {
+    if !matches!(spec.chart_type, ChartType::Time | ChartType::Multiples) || spec.is_bar_multiples()
+    {
         return TableHooks {
             columns: (0..dataset.series.len())
                 .map(|index| (index, 0, "value", false))
+                .chain(grouped.then_some((dataset.series.len(), 0, "text", false)))
                 .collect(),
             x: (0..rows)
                 .map(|row| f64::from(u32::try_from(row).expect("rows are limited")))
@@ -1468,6 +1474,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     // A numeric axis is named by its title; it holds no times.
     let numeric = spec.time_axis.kind == crate::spec::TimeAxisKind::Number;
     let first = match spec.chart_type {
+        ChartType::Multiples if spec.is_bar_multiples() => words.category,
         ChartType::Time | ChartType::Multiples if numeric => {
             spec.time_axis.title.as_deref().unwrap_or(words.position)
         }
@@ -1485,6 +1492,8 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             unreachable!("a diagram writes its own table")
         }
     };
+    // The points of a grouped bar chart name their group, in a column of its own.
+    let grouped = !spec.data_groups().is_empty();
     let columns = std::iter::once(first.to_owned())
         .chain(
             dataset
@@ -1492,6 +1501,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 .iter()
                 .map(|series| series.name.as_deref().unwrap_or(words.value).to_owned()),
         )
+        .chain(grouped.then(|| words.group.to_owned()))
         .collect();
     let rows = dataset
         .categories
@@ -1507,6 +1517,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                         },
                     )
                 }))
+                .chain(grouped.then(|| spec.data[index].group.clone().unwrap_or_default()))
                 .collect()
         })
         .collect();

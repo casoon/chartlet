@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "orientation": "horizontal",
+  "title": "Effects of an evening without a phone",
+  "source": "Illustrative values",
+  "width": 720,
+  "height": 340,
+  "showValues": true,
+  "valueAxis": { "title": "Effect on a scale of 0 to 5" },
+  "data": [
+    { "label": "Sleep quality", "value": 4.5, "group": "Benefit" },
+    { "label": "Concentration", "value": 3.5, "group": "Benefit" },
+    { "label": "Conversation", "value": 3, "group": "Benefit" },
+    { "label": "Missed messages", "value": 2, "group": "Harm" },
+    { "label": "Less access to news", "value": 1.5, "group": "Harm" }
+  ]
+}

@@ -12,6 +12,10 @@ use crate::error::{ChartError, ChartWarning};
 pub struct DataPoint {
     pub label: String,
     pub value: Option<f64>,
+    /// The group a bar belongs to: one palette color and one legend entry per group. Either every
+    /// point names a group or none does. Bar charts only.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
 }
 
 /// One named series with one value per category; `None` marks a missing value.
@@ -23,6 +27,91 @@ pub struct SeriesSpec {
 }
 
 impl ChartSpec {
+    /// The groups of a single-series bar chart in the order they first appear; empty without
+    /// groups.
+    pub(crate) fn data_groups(&self) -> Vec<&str> {
+        let mut groups: Vec<&str> = Vec::new();
+        for group in self.data.iter().filter_map(|point| point.group.as_deref()) {
+            if !groups.contains(&group) {
+                groups.push(group);
+            }
+        }
+        groups
+    }
+
+    /// A bar chart whose points name groups, as the chart it is drawn as: one series per group,
+    /// each with a value only where the group has a bar, stacked so that every category keeps one
+    /// full-width bar and every group gets its color and legend entry. The description and the
+    /// table keep the chart as it was written.
+    pub(crate) fn group_view(&self) -> Option<Self> {
+        let groups = self.data_groups();
+        // One group is one color: the bars are drawn as they are.
+        if groups.len() < 2 {
+            return None;
+        }
+        let mut view = self.clone();
+        view.categories = self.data.iter().map(|point| point.label.clone()).collect();
+        view.series = groups
+            .iter()
+            .map(|group| SeriesSpec {
+                name: (*group).to_owned(),
+                values: self
+                    .data
+                    .iter()
+                    .map(|point| {
+                        if point.group.as_deref() == Some(*group) {
+                            point.value
+                        } else {
+                            None
+                        }
+                    })
+                    .collect(),
+            })
+            .collect();
+        view.data.clear();
+        view.stack = Some(Stack::Normal);
+        Some(view)
+    }
+
+    /// Either every point names a group or none does, and there are no more groups than palette
+    /// colors; only bar charts have groups.
+    fn validate_data_groups(&self) -> Result<(), ChartError> {
+        let grouped = self.data.iter().any(|point| point.group.is_some());
+        let mut groups: Vec<&str> = Vec::new();
+        for (index, point) in self.data.iter().enumerate() {
+            let path = format!("/data/{index}/group");
+            let Some(group) = point.group.as_deref() else {
+                if grouped {
+                    return Err(ChartError::new(
+                        "missing_group",
+                        path,
+                        "give every point a group, or none",
+                    ));
+                }
+                continue;
+            };
+            if self.chart_type != ChartType::Bar {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    path,
+                    "groups color the bars of a bar chart",
+                ));
+            }
+            validate_text(group, &path, 60)?;
+            if !groups.contains(&group) {
+                groups.push(group);
+            }
+            if groups.len() > MAX_SERIES {
+                return Err(ChartError::new(
+                    "too_many_series",
+                    path,
+                    format!("at most {MAX_SERIES} groups are supported, one per palette color"),
+                ));
+            }
+        }
+        Ok(())
+    }
+
     pub(super) fn validate_data(&self) -> Result<Vec<ChartWarning>, ChartError> {
         self.validate_stack()?;
         if self.categories.is_empty() && self.series.is_empty() {
@@ -210,6 +299,7 @@ impl ChartSpec {
             }
         }
 
+        self.validate_data_groups()?;
         if self.data.len() > 16 {
             warnings.push(ChartWarning::new(
                 "dense_chart",

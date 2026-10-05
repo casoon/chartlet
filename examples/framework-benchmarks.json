@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "type": "multiples",
+  "title": "Web frameworks compared",
+  "source": "Illustrative values",
+  "width": 960,
+  "height": 420,
+  "showValues": true,
+  "columns": 3,
+  "categories": ["Rust (Axum)", "Go (Gin)", "Node (Fastify)", "Python (FastAPI)"],
+  "panes": [
+    {
+      "title": "Requests per second",
+      "note": "higher is better",
+      "values": [118000, 96000, 64000, 18000],
+      "valueAxis": { "unit": "req/s", "thousandsSeparator": true }
+    },
+    {
+      "title": "Memory under load",
+      "note": "lower is better",
+      "values": [24, 41, 118, 96],
+      "valueAxis": { "unit": "MB" }
+    },
+    {
+      "title": "Cold start",
+      "note": "lower is better",
+      "values": [3, 5, 45, 210],
+      "valueAxis": { "unit": "ms", "scale": "log" }
+    }
+  ],
+  "mobile": { "width": 360, "height": 960, "columns": 1 }
+}

@@ -43,7 +43,7 @@ const fn time_tick_spacing(precision: Precision) -> u32 {
 /// Space between the end of the plot and the names at the ends of its lines.
 const END_LABEL_GAP: f64 = 8.0;
 /// Outer margin of a small-multiples grid, left and right.
-const MULTIPLES_MARGIN: f64 = 16.0;
+pub(super) const MULTIPLES_MARGIN: f64 = 16.0;
 /// Inset that keeps the outermost points and their labels inside the plot.
 const TIME_INSET: f64 = 6.0;
 /// Above this many observations a layer is drawn as a line only. At the default width the
@@ -198,7 +198,7 @@ pub(super) fn layout_time(
 
 /// The title, the legend and the shared value axis title above a small-multiples grid; returns
 /// where the grid starts.
-fn multiples_header(
+pub(super) fn multiples_header(
     spec: &ChartSpec,
     elements: &mut Vec<Element>,
     warnings: &mut Vec<ChartWarning>,
@@ -399,7 +399,7 @@ fn panel_lines(
 }
 
 /// The lines of a panel's title and of its note, and the class of the note.
-type PanelHead = (Vec<String>, Vec<String>, &'static str);
+pub(super) type PanelHead = (Vec<String>, Vec<String>, &'static str);
 
 /// Height of a line of a panel title and of a panel note.
 const PANEL_TITLE_LINE: f64 = 16.0;
@@ -407,7 +407,7 @@ const PANEL_NOTE_LINE: f64 = 15.0;
 
 /// The heading of every panel: its title and its note, each on up to two lines. Every panel
 /// reserves as many lines as the longest heading needs, so that the plots stay aligned.
-fn panel_heads(
+pub(super) fn panel_heads(
     spec: &ChartSpec,
     width: f64,
     warnings: &mut Vec<ChartWarning>,
@@ -459,7 +459,7 @@ fn panel_heads(
 }
 
 /// The heading of one panel above its plot, starting at `cell_top`.
-fn push_panel_head(
+pub(super) fn push_panel_head(
     (title, note, note_class): &PanelHead,
     title_lines: usize,
     plot: PlotArea,

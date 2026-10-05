@@ -8,6 +8,7 @@ use crate::{
 
 pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
     match spec.chart_type {
+        ChartType::Multiples if spec.is_bar_multiples() => return panel_bars_description(spec),
         ChartType::Time | ChartType::Multiples => return time_description(spec),
         ChartType::Topicmap => return topicmap_description(spec),
         ChartType::Atlas => return atlas_description(spec),
@@ -79,6 +80,7 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         description.push_str(&text::missing_values(locale, missing));
     }
     description.push_str(&describe_stack(spec, &dataset, &show));
+    description.push_str(&describe_groups(spec));
     if !spec.references.is_empty() {
         let references = spec
             .references
@@ -94,6 +96,28 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         .expect("writing to String cannot fail");
     }
     description
+}
+
+/// The groups of a bar chart, each with the labels of its bars; empty without groups.
+fn describe_groups(spec: &ChartSpec) -> String {
+    let groups: Vec<String> = spec
+        .data_groups()
+        .into_iter()
+        .map(|group| {
+            let labels: Vec<&str> = spec
+                .data
+                .iter()
+                .filter(|point| point.group.as_deref() == Some(group))
+                .map(|point| point.label.as_str())
+                .collect();
+            format!("{group}: {}", labels.join(", "))
+        })
+        .collect();
+    if groups.is_empty() {
+        String::new()
+    } else {
+        text::range_groups(spec.locale, &groups.join("; "))
+    }
 }
 
 /// The sentence about a stack: its highest and lowest total, or that it shows shares.
@@ -159,6 +183,68 @@ fn labels_at_value(dataset: &Dataset, value: f64, locale: spec::Locale) -> Strin
 /// Describes a time series: its range, its layers, and the extremes; then what the bands and the
 /// reference lines add. Small multiples name their panels first, since the panel is what a reader
 /// compares.
+/// Small multiples of bars: the panels, each with its highest and its lowest category.
+fn panel_bars_description(spec: &ChartSpec) -> String {
+    let locale = spec.locale;
+    let words = locale.words();
+    let dataset = spec.bar_multiples_dataset();
+    let mut description =
+        text::panel_bars_opening(locale, spec.panes.len(), dataset.categories.len());
+    for (index, pane) in spec.panes.iter().enumerate() {
+        let style = spec.pane_style(index);
+        let show = |value| {
+            with_unit(
+                layout::format_value(value, style),
+                pane.value_axis.unit.as_deref(),
+            )
+        };
+        let known = |highest: bool| {
+            let mut entries: Vec<(usize, f64)> = pane
+                .values
+                .iter()
+                .enumerate()
+                .filter_map(|(at, value)| value.map(|value| (at, value)))
+                .collect();
+            crate::sort::by(&mut entries, |a, b| {
+                if highest {
+                    b.1.total_cmp(&a.1)
+                } else {
+                    a.1.total_cmp(&b.1)
+                }
+            });
+            entries[0]
+        };
+        let (top, bottom) = (known(true), known(false));
+        write!(
+            description,
+            " {}: {} {} ({}), {} {} ({}).",
+            pane.title.as_deref().unwrap_or_default(),
+            words.highest,
+            show(top.1),
+            dataset.categories[top.0],
+            words.lowest,
+            show(bottom.1),
+            dataset.categories[bottom.0],
+        )
+        .expect("writing to String cannot fail");
+    }
+    let notes: Vec<String> = spec
+        .panes
+        .iter()
+        .filter_map(|pane| {
+            Some(format!(
+                "{}: {}",
+                pane.title.as_deref()?,
+                pane.note.as_deref()?
+            ))
+        })
+        .collect();
+    if !notes.is_empty() {
+        description.push_str(&text::panel_notes(locale, &notes.join("; ")));
+    }
+    description
+}
+
 fn time_description(spec: &ChartSpec) -> String {
     if spec.chart_type == ChartType::Time
         && (spec.panes.len() > 1 || spec.layers().any(|layer| layer.mark == spec::Mark::Ohlc))

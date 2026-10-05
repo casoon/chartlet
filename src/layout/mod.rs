@@ -5,6 +5,7 @@ mod bar;
 mod labels;
 mod legend;
 mod line;
+mod panelbars;
 mod stack;
 mod timechart;
 mod title;
@@ -25,6 +26,7 @@ pub(crate) use axis::{
 use bar::{layout_horizontal, layout_vertical};
 pub(crate) use labels::WithReserve;
 use line::layout_line;
+use panelbars::layout_panel_bars;
 pub(crate) use timechart::{TimeFrame, tooltip_name};
 use timechart::{layout_multiples, layout_time};
 pub(crate) use title::{
@@ -248,6 +250,10 @@ pub(crate) fn layout(
         (ChartType::Bar, _) if spec.stack.is_some() => {
             stack::layout(spec, &dataset, warnings, metrics)
         }
+        (ChartType::Bar, _) if spec.group_view().is_some() => {
+            let view = spec.group_view().expect("checked by the guard");
+            stack::layout(&view, &view.dataset(), warnings, metrics)
+        }
         (ChartType::Bar, Orientation::Vertical) => {
             layout_vertical(spec, &dataset, warnings, metrics)
         }
@@ -256,6 +262,9 @@ pub(crate) fn layout(
         }
         (ChartType::Line, _) => layout_line(spec, warnings, metrics),
         (ChartType::Time, _) => layout_time(spec, warnings, metrics),
+        (ChartType::Multiples, _) if spec.is_bar_multiples() => {
+            layout_panel_bars(spec, warnings, metrics)
+        }
         (ChartType::Multiples, _) => layout_multiples(spec, warnings, metrics),
         (ChartType::Stripes, _) => crate::stripes::layout(spec, warnings, metrics),
         (ChartType::Calendar, _) => crate::calendar::layout(spec, warnings, metrics),

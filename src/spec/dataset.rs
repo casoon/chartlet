@@ -37,6 +37,7 @@ impl ChartSpec {
     /// per category.
     pub(crate) fn table_dataset(&self) -> Dataset {
         match self.chart_type {
+            ChartType::Multiples if self.is_bar_multiples() => self.bar_multiples_dataset(),
             ChartType::Time | ChartType::Multiples => {
                 let zone = self.time_zone().unwrap_or_default();
                 self.time_dataset(zone, true)
@@ -408,14 +409,15 @@ impl ChartSpec {
     /// How the values of one pane are written: a time chart's pane has its own value axis, every
     /// other chart writes all values alike.
     pub(crate) fn pane_style(&self, pane_index: usize) -> NumberStyle {
-        match self.chart_type {
-            ChartType::Time => NumberStyle {
+        if self.chart_type == ChartType::Time || self.is_bar_multiples() {
+            NumberStyle {
                 format: self.panes[pane_index].value_axis.format,
                 decimals: self.panes[pane_index].value_axis.decimals,
                 locale: self.locale,
                 thousands: self.panes[pane_index].value_axis.thousands_separator,
-            },
-            _ => self.number_style(),
+            }
+        } else {
+            self.number_style()
         }
     }
 

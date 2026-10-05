@@ -412,6 +412,9 @@ impl ChartSpec {
     pub(crate) fn axis_unit(&self, pane: usize) -> Option<&str> {
         match self.chart_type {
             ChartType::Time => self.panes.get(pane)?.value_axis.unit.as_deref(),
+            ChartType::Multiples if self.is_bar_multiples() => {
+                self.panes.get(pane)?.value_axis.unit.as_deref()
+            }
             _ => self.value_axis.unit.as_deref(),
         }
     }
@@ -663,7 +666,13 @@ impl ChartSpec {
             }
         }
         for (pane_index, pane) in self.panes.iter().enumerate() {
-            let axis = (self.chart_type != ChartType::Multiples).then_some(pane_index);
+            let axis = (self.chart_type != ChartType::Multiples || self.is_bar_multiples())
+                .then_some(pane_index);
+            for (index, value) in pane.values.iter().enumerate() {
+                if let Some(value) = value {
+                    values.push((axis, *value, format!("/panes/{pane_index}/values/{index}")));
+                }
+            }
             for (layer_index, layer) in pane.layers.iter().enumerate() {
                 let path = format!("/panes/{pane_index}/layers/{layer_index}");
                 for (index, point) in layer.points.iter().enumerate() {
@@ -699,7 +708,7 @@ impl ChartSpec {
     /// pane.
     fn value_axes(&self) -> Vec<(Option<usize>, &ValueAxisSpec, String)> {
         let mut axes = vec![(None, &self.value_axis, "/valueAxis".to_owned())];
-        if self.chart_type == ChartType::Time {
+        if self.chart_type == ChartType::Time || self.is_bar_multiples() {
             for (index, pane) in self.panes.iter().enumerate() {
                 axes.push((
                     Some(index),

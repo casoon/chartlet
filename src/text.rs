@@ -486,6 +486,18 @@ pub(crate) fn bands(locale: Locale, banded: usize, hatched: bool) -> String {
     }
 }
 
+/// The opening sentence of small multiples of bars.
+pub(crate) fn panel_bars_opening(locale: Locale, panels: usize, categories: usize) -> String {
+    match locale {
+        Locale::En => format!(
+            "Small multiples of bars: {panels} panels over {categories} categories, each with its own value axis."
+        ),
+        Locale::De => format!(
+            "Kleine Vielfache aus Balken: {panels} Felder über {categories} Kategorien, jedes mit eigener Wertachse."
+        ),
+    }
+}
+
 /// The notes under the panel titles of small multiples, as `title: note` separated by semicolons.
 pub(crate) fn panel_notes(locale: Locale, notes: &str) -> String {
     match locale {

@@ -6,6 +6,15 @@ does.
 
 ## [Unreleased]
 
+### Added
+
+- Bars colored by group: `group` on the points of a single-series `bar` chart gives every group a
+  palette color and a legend entry (at most 4); the data table gains a Group column.
+- Small multiples of bars: `multiples` with `categories`, and in every pane `values` and a
+  `valueAxis` of its own, for categories compared on measures in different units. Examples
+  `benefit-and-harm` and `framework-benchmarks` (with a phone variant). Both additions extend the
+  specification, so they belong to 0.10.
+
 ### Fixed
 
 - Architecture and flow: an edge label that ends beyond the layers (next to the rightmost step)

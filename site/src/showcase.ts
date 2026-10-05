@@ -327,6 +327,20 @@ const catalogue = [
       'Three generations: persons in their own shape, couples side by side with their children hanging from the line between them, and a dashed box for something outside the family. The table gains a Partner column; the description names every couple as one. Illustrative family.',
   },
   {
+    slug: 'benefit-and-harm',
+    chart: 'Bar chart (groups)',
+    useCase: 'Set two kinds of effect apart',
+    blurb:
+      'Five effects as horizontal bars, colored by group: benefit and harm, each with a legend entry. The groups are not series — every category has one bar, one value and one group, and the data table says which. Illustrative values.',
+  },
+  {
+    slug: 'framework-benchmarks',
+    chart: 'Small multiples of bars (phone variant)',
+    useCase: 'Compare candidates on unlike measures',
+    blurb:
+      'Four frameworks on three measures that share no unit: requests per second, memory and cold start on a logarithmic axis. One panel per measure, each with its own value axis, unit and verdict, over the same categories. On a phone the panels stack in one column. Illustrative values.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',
