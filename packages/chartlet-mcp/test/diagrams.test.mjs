@@ -9,11 +9,6 @@ test("every diagram starter is a valid specification without warnings", () => {
     const starter = diagramStarter(type);
     assert.equal(starter.spec.type, type);
     const result = validateSpec(starter.spec);
-    // The installed @casoon/chartlet may predate a type; remove this guard when the dependency
-    // is raised to the release that adds `tree` (0.9).
-    if (!result.ok && /unknown variant/.test(result.error?.message ?? "")) {
-      continue;
-    }
     assert.equal(result.ok, true, `${type}: ${JSON.stringify(result)}`);
     assert.deepEqual(result.warnings, [], type);
     assert.ok(Object.keys(starter.kinds).length > 0, type);
