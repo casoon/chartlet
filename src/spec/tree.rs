@@ -34,6 +34,35 @@ pub struct TreeNodeSpec {
     /// What joins the node to its parent, such as a share of `60 %`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<String>,
+    /// What the node is; every kind has its own shape.
+    #[serde(default, skip_serializing_if = "TreeNodeKind::is_unit")]
+    pub kind: TreeNodeKind,
+    /// The `id` of the node this one is joined to as a couple: the two stand side by side with a
+    /// line between them, and the children of either hang from the middle of that line. A
+    /// partner has no `parent` of its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub partner: Option<String>,
+}
+
+/// What a node is.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TreeNodeKind {
+    /// A unit, a company, a norm: a box.
+    #[default]
+    Unit,
+    /// A person: a box with a head on top.
+    Person,
+    /// Something outside the scope: a dashed box.
+    External,
+}
+
+impl TreeNodeKind {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_unit(&self) -> bool {
+        matches!(self, Self::Unit)
+    }
 }
 
 impl TreeSpec {
@@ -41,34 +70,45 @@ impl TreeSpec {
         self.nodes.iter().position(|node| node.id == id)
     }
 
-    /// The index of the root: the only node without a parent.
-    pub(crate) fn root(&self) -> usize {
-        self.nodes
-            .iter()
-            .position(|node| node.parent.is_none())
-            .expect("a validated tree has a root")
-    }
-
-    /// The index of `node`'s parent, `None` on the root.
-    pub(crate) fn parent_of(&self, node: usize) -> Option<usize> {
+    /// The node a partner is joined to, `None` on every other node.
+    pub(crate) fn head_of(&self, node: usize) -> Option<usize> {
         self.nodes[node]
-            .parent
+            .partner
             .as_deref()
             .map(|id| self.node(id).expect("validated"))
     }
 
-    /// The children of `node`, in the order of the list.
-    pub(crate) fn children(&self, node: usize) -> Vec<usize> {
+    /// The partner joined to `node`, if one is.
+    pub(crate) fn partner_of(&self, node: usize) -> Option<usize> {
         let id = self.nodes[node].id.as_str();
+        (0..self.nodes.len()).find(|other| self.nodes[*other].partner.as_deref() == Some(id))
+    }
+
+    /// The index of the root: the only node with neither a parent nor a partner.
+    pub(crate) fn root(&self) -> usize {
         (0..self.nodes.len())
-            .filter(|child| self.nodes[*child].parent.as_deref() == Some(id))
+            .find(|node| self.nodes[*node].parent.is_none() && self.nodes[*node].partner.is_none())
+            .expect("a validated tree has a root")
+    }
+
+    /// The node above `node`, `None` on the root and on a partner. A child of a partner hangs
+    /// from the node the partner is joined to.
+    pub(crate) fn parent_of(&self, node: usize) -> Option<usize> {
+        let parent = self.node(self.nodes[node].parent.as_deref()?)?;
+        Some(self.head_of(parent).unwrap_or(parent))
+    }
+
+    /// The children of `node` and of its partner, in the order of the list.
+    pub(crate) fn children(&self, node: usize) -> Vec<usize> {
+        (0..self.nodes.len())
+            .filter(|child| self.parent_of(*child) == Some(node))
             .collect()
     }
 
-    /// How many nodes lie between `node` and the root.
+    /// How many nodes lie between `node` and the root; a partner lies as deep as its head.
     pub(crate) fn depth(&self, node: usize) -> usize {
         let mut depth = 0;
-        let mut at = node;
+        let mut at = self.head_of(node).unwrap_or(node);
         while let Some(parent) = self.parent_of(at) {
             depth += 1;
             at = parent;
@@ -76,12 +116,14 @@ impl TreeSpec {
         depth
     }
 
-    /// The nodes in reading order: each before its children, children in list order.
+    /// The nodes in reading order: each before its partner and its children, children in list
+    /// order.
     pub(crate) fn reading_order(&self) -> Vec<usize> {
         let mut order = Vec::with_capacity(self.nodes.len());
         let mut stack = vec![self.root()];
         while let Some(node) = stack.pop() {
             order.push(node);
+            order.extend(self.partner_of(node));
             stack.extend(self.children(node).into_iter().rev());
         }
         order
@@ -121,6 +163,48 @@ impl ChartSpec {
 }
 
 impl TreeSpec {
+    /// A partner exists, is another node, is not itself joined to a partner or named by two
+    /// nodes, and does not hang from a parent.
+    fn validate_partner(&self, index: usize, partner: &str, path: &str) -> Result<(), ChartError> {
+        let node = &self.nodes[index];
+        let invalid = |message: String| {
+            Err(ChartError::new(
+                "invalid_partner",
+                format!("{path}/partner"),
+                message,
+            ))
+        };
+        let Some(other) = self.node(partner) else {
+            return Err(ChartError::new(
+                "unknown_node",
+                format!("{path}/partner"),
+                format!("no node has the id \"{partner}\""),
+            ));
+        };
+        if other == index {
+            return invalid("a node cannot be its own partner".to_owned());
+        }
+        if node.parent.is_some() {
+            return invalid("a partner stands beside its partner, not below a parent".to_owned());
+        }
+        if self.nodes[other].partner.is_some() {
+            return invalid(format!(
+                "\"{partner}\" is itself a partner; a couple has one head and one partner"
+            ));
+        }
+        if self
+            .nodes
+            .iter()
+            .enumerate()
+            .any(|(at, other)| at != index && other.partner.as_deref() == Some(partner))
+        {
+            return invalid(format!(
+                "another node is already the partner of \"{partner}\""
+            ));
+        }
+        Ok(())
+    }
+
     /// Every node on its own: identifier, texts, link and a parent that exists.
     fn validate_nodes(&self) -> Result<(), ChartError> {
         let tree = self;
@@ -154,6 +238,9 @@ impl TreeSpec {
                     ));
                 }
             }
+            if let Some(partner) = &node.partner {
+                tree.validate_partner(index, partner, &path)?;
+            }
             if let Some(parent) = &node.parent
                 && tree.node(parent).is_none()
             {
@@ -172,7 +259,9 @@ impl TreeSpec {
     fn validate_structure(&self) -> Result<(), ChartError> {
         let tree = self;
         let roots: Vec<usize> = (0..tree.nodes.len())
-            .filter(|index| tree.nodes[*index].parent.is_none())
+            .filter(|index| {
+                tree.nodes[*index].parent.is_none() && tree.nodes[*index].partner.is_none()
+            })
             .collect();
         if roots.len() != 1 {
             let (path, message) = match roots.get(1) {

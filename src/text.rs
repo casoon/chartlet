@@ -78,6 +78,7 @@ pub(crate) struct Words {
     pub parent: &'static str,
     pub link: &'static str,
     pub children: &'static str,
+    pub partner: &'static str,
     /// The names of a diagram's focus links, and of the link that clears the focus.
     pub focus: &'static str,
     pub show_all: &'static str,
@@ -150,6 +151,7 @@ const EN: Words = Words {
     parent: "Parent",
     link: "Link",
     children: "Children",
+    partner: "Partner",
     boundary: "Boundary",
     connects_to: "Connects to",
     focus: "Focus",
@@ -225,6 +227,7 @@ const DE: Words = Words {
     parent: "Übergeordnet",
     link: "Verknüpfung",
     children: "Untergeordnet",
+    partner: "Partner",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
     focus: "Fokus",

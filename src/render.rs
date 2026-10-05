@@ -297,9 +297,11 @@ fn type_class(chart_type: ChartType) -> String {
 fn diagram_style(chart_type: ChartType) -> String {
     let parts: &[&str] = match chart_type {
         ChartType::Sequence => &[DIAGRAM_STYLE, SEQUENCE_STYLE],
-        ChartType::Flow | ChartType::Tree => &[DIAGRAM_STYLE, FLOW_STYLE],
+        ChartType::Flow => &[DIAGRAM_STYLE, FLOW_STYLE],
         ChartType::State => &[DIAGRAM_STYLE, FLOW_STYLE, STATE_STYLE],
-        ChartType::Architecture => &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE],
+        ChartType::Architecture | ChartType::Tree => {
+            &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE]
+        }
         _ => &[],
     };
     parts.concat()
@@ -432,7 +434,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (SEQUENCE_STYLE, &[Sequence]),
         (FLOW_STYLE, &[Flow, State, Architecture, Tree]),
         (STATE_STYLE, &[State]),
-        (ARCHITECTURE_STYLE, &[Architecture]),
+        (ARCHITECTURE_STYLE, &[Architecture, Tree]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();

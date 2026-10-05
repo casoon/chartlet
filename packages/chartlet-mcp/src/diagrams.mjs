@@ -3,7 +3,7 @@
 // they need neither chartlet_inspect_data nor the series facts of chartlet_explain.
 
 /** The diagram types chartlet draws. */
-export const DIAGRAM_TYPES = /** @type {const} */ (["sequence", "flow", "state", "architecture"]);
+export const DIAGRAM_TYPES = /** @type {const} */ (["sequence", "flow", "state", "architecture", "tree"]);
 
 /** @type {Record<string, Record<string, unknown>>} */
 const STARTERS = {
@@ -91,6 +91,19 @@ const STARTERS = {
       mainPath: ["reader", "site", "api", "db"],
     },
   },
+  tree: {
+    schemaVersion: 1,
+    type: "tree",
+    title: "Group structure",
+    tree: {
+      nodes: [
+        { id: "holding", label: "Holding", sublabel: "parent company" },
+        { id: "retail", label: "Retail", parent: "holding", link: "100 %" },
+        { id: "digital", label: "Digital", parent: "holding", link: "60 %" },
+        { id: "labs", label: "Labs", parent: "digital", link: "50 %" },
+      ],
+    },
+  },
 };
 
 /** The kinds of each element per diagram type, with the shape that draws them. */
@@ -154,10 +167,20 @@ const KINDS = {
     boundary: { boundary: "frame; boundaries nest with in, up to four deep" },
     connection: { label: "what it does", technology: "how, in brackets below the label" },
   },
+  tree: {
+    node: {
+      unit: "box (default)",
+      person: "box with a head",
+      external: "dashed box",
+    },
+    link: { link: "on a node: written on the line to its parent, such as a share; not on the root" },
+    partner: { partner: "on a node: joins it to another as a couple, side by side; children of either hang from the middle of the line between them" },
+  },
 };
 
 const NOTES = [
   "Ids are a letter followed by letters, digits, - or _, unique within the diagram.",
+  "A tree has exactly one root: the node with neither parent nor partner; every other node names its parent, or its partner.",
   "chartlet lays the diagram out itself; the specification says what is connected, never where it goes.",
   'orientation "auto" (default) takes portrait — time or flow running down — where that fits the canvas, landscape — running right — where only that fits, and otherwise the one that grows the canvas less (warning canvas_too_small names the size needed). "portrait" and "landscape" force one.',
   "Every kind has its own shape and a role color; say what an edge means in its label, the line pattern only repeats it.",
@@ -216,6 +239,8 @@ export function diagramCounts(spec) {
         connections: length(spec.architecture?.connections),
         boundaries: length(spec.architecture?.boundaries),
       };
+    case "tree":
+      return { nodes: length(spec.tree?.nodes) };
     default:
       return null;
   }

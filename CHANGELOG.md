@@ -25,12 +25,12 @@ specification is unchanged. Flow and state diagrams stay experimental.
 
 ### Added
 
-- Trees (`"type": "tree"`, experimental): a root and the nodes below it, each naming its `parent`,
+- Trees (`"type": "tree"`): a root and the nodes below it, each naming its `parent`,
   with an optional `link` label such as a share, laid out by chartlet in portrait or landscape —
   one row per level, parents centered over their children, subtrees pushed together. The
   description names the root and what hangs below every node; the data table lists each node with
   its level, parent, link and children. This adds a chart type, so it belongs to 0.9, not to a
-  0.8 patch. New example `ownership-structure`.
+  0.8 patch. Node `kind` (`unit`, `person`, `external`) and `partner`, which joins two nodes as a couple whose children hang from the middle of the line between them (family trees). New examples `ownership-structure` and `family-tree`.
 - Examples `sign-in-sequence` and `tenant-architecture`, with phone and print variants.
 
 ### Changed

@@ -673,7 +673,7 @@
       }
     },
     "tree": {
-      "description": "A tree: one root and, below it, nodes that each name their parent; the children of a node keep the order of the list. Identifiers are unique, exactly one node has no parent, the parents run to the root without a circle, and the tree goes at most twelve levels below the root.",
+      "description": "A tree: one root and, below it, nodes that each name their parent; the children of a node keep the order of the list. Identifiers are unique, exactly one node has neither a parent nor a partner, the parents run to the root without a circle, and the tree goes at most twelve levels below the root.",
       "type": "object",
       "additionalProperties": false,
       "required": ["nodes"],
@@ -691,7 +691,9 @@
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
               "parent": { "$ref": "#/$defs/identifier" },
-              "link": { "description": "What joins the node to its parent, such as a share; not on the root.", "type": "string", "minLength": 1, "maxLength": 40 }
+              "link": { "description": "What joins the node to its parent, such as a share; not on the root.", "type": "string", "minLength": 1, "maxLength": 40 },
+              "kind": { "enum": ["unit", "person", "external"], "default": "unit" },
+              "partner": { "description": "The id of the node this one is joined to as a couple: they stand side by side and the children of either hang from the middle of the line between them. A partner has no parent, and is not itself named as a partner.", "$ref": "#/$defs/identifier" }
             }
           }
         },

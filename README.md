@@ -101,6 +101,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Sequence diagram with a phone variant: sign-in with a backend for frontend | `"type": "sequence"`, `"mobile"` | [sign-in-sequence](examples/sign-in-sequence.json) |
 | Architecture diagram with a phone variant: a multi-tenant application | `"type": "architecture"`, `"mobile"` | [tenant-architecture](examples/tenant-architecture.json) |
 | Tree: an ownership structure with shares, with a phone variant | `"type": "tree"` with `nodes`, each with a `parent` and a `link` | [ownership-structure](examples/ownership-structure.json) |
+| Family tree: couples side by side, persons and an external node | `"type": "tree"` with `partner` and `kind` | [family-tree](examples/family-tree.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 | Compact chart for a panel in a grid of columns | `"width": 240`, `"height": 180` (from 200 × 160 px: narrower gutter, same text size), `"timeAxis": { "step": 50, "min": "1850" }` for the ticks the panel's claim needs, `"stroke": "medium"`, `"valueAxis": { "unit": "W/m²" }` at the top tick instead of an axis title | – |
 
@@ -182,7 +183,7 @@ accessible output as for a chart.
 | `flow` | steps (`process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external`), labelled edges, lanes, groups, a main path |
 | `state` | states, choices, composite and final states, an initial state, transitions `event [guard] / action` |
 | `architecture` | components (`person`, `frontend`, `service`, `database`, `queue`, `storage`, `cache`, `security`, `external`), connections with a technology, nested boundaries |
-| `tree` | a root and the nodes below it, each naming its parent, with an optional link label such as a share |
+| `tree` | a root and the nodes below it, each naming its parent, with an optional link label such as a share; kinds (`unit`, `person`, `external`) and couples for family trees |
 
 ```json
 {

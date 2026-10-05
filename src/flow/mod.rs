@@ -2410,7 +2410,7 @@ impl Plan {
 
 /// The shape of a step of `kind` in the box at `x`, `y`, with its shadow: every kind has its own,
 /// and its role color only repeats what the shape says.
-fn shape(
+pub(crate) fn shape(
     kind: Shape,
     (x, y, width, height): (f64, f64, f64, f64),
     tooltip: Option<String>,

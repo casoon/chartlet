@@ -40,6 +40,8 @@ order: 1
 | Flow chart, turned landscape by a wide canvas (experimental) | `"type": "flow"`, `"orientation": "auto"` | [Handling an order](../../../showcase/order-flow/) |
 | State diagram with a choice, a loop and two final states (experimental) | `"type": "state"` with `states`, `transitions`, `initial` | [Life of a support ticket](../../../showcase/ticket-states/) |
 | Architecture diagram with nested boundaries | `"type": "architecture"` with `components`, `connections`, `boundaries` | [Web shop on one cloud region](../../../showcase/shop-architecture/) |
+| Tree with a share on every link | `"type": "tree"` with `nodes`, `parent`, `link` | [Ownership structure](../../../showcase/ownership-structure/) |
+| Family tree with couples | `"type": "tree"` with `partner` and `kind` | [Three generations](../../../showcase/family-tree/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
@@ -438,8 +440,7 @@ components and boundaries together.
 ## Trees
 
 A tree (`"type": "tree"`) draws a root and the nodes below it: an organization chart, an
-ownership structure, a hierarchy of norms or components. It is **experimental**: its layout may
-still change between minor releases. Every node but the root names its `parent`; the children of a
+ownership structure, a family, a hierarchy of norms or components. Every node but the root names its `parent`; the children of a
 node keep the order of the list. chartlet lays the tree out by itself: one row per level, the
 children of a node side by side, the node centered over them, and subtrees pushed together until
 they are a gap apart at every level, so that a narrow subtree tucks in under a broad neighbour.
@@ -464,6 +465,12 @@ they are a gap apart at every level, so that a narrow subtree tucks in under a b
   one node has no parent: the root (`invalid_root`). Parents must exist (`unknown_node`) and run
   up to the root without a circle (`circular_parent`); the tree goes at most twelve levels
   below the root (`tree_too_deep`).
+- **Kinds.** `kind` gives a node its shape: `unit` (a box, the default), `person` (a box with a
+  head) and `external` (a dashed box).
+- **Couples.** `"partner": "id"` joins a node to another as a couple: the two stand side by side
+  (one above the other in landscape) with a short line between them, and the children of either
+  hang from the middle of that line, as in a family tree. A partner has no `parent` of its own
+  (`invalid_partner`); the node it names is the head of the couple.
 - **Links** are the lines from a parent to its children. A node's `link` is written on the line
   to its parent, for a share, a weight or a relation; the root has none.
 - **Orientation.** `portrait` runs down from the root, `landscape` to the right; `auto` takes the
@@ -473,7 +480,8 @@ they are a gap apart at every level, so that a narrow subtree tucks in under a b
   parent, its link and its children.
 
 Limits: 1–150 nodes. A node has one parent; a node with two parents (a shared holding) is not a
-tree — use an architecture or a flow diagram.
+tree — use an architecture or a flow diagram. The table of a tree with couples gains a Partner
+column.
 
 ## Time series
 

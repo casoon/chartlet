@@ -42,8 +42,8 @@ pub use spec::{
     Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec, ReferenceSpec,
     SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StripesSpec,
     Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, Tooltips, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeSpec, TreeSpec, ValueAxisSpec, ValueFormat,
-    ZoomBound, ZoomStep,
+    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, ValueAxisSpec,
+    ValueFormat, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

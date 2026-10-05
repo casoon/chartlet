@@ -11,13 +11,13 @@ use std::fmt::Write as _;
 
 use crate::{
     DataTable,
-    diagram::{self, chip, pixels, rounded, warn_growth, with_shadow, wrap},
+    diagram::{self, chip, pixels, rounded, warn_growth, wrap},
     error::ChartWarning,
-    flow::focus_classes,
+    flow::{Shape, focus_classes, shape},
     layout::{NARROW, count, push_title, title_extra},
     metrics::TextMetrics,
-    scene::{Element, Hotspot, Rect, Scene, Text, TextAnchor},
-    spec::{ChartSpec, DiagramOrientation, TreeSpec},
+    scene::{Element, Hotspot, Scene, Text, TextAnchor},
+    spec::{ChartSpec, DiagramOrientation, TreeNodeKind, TreeSpec},
     text,
 };
 
@@ -38,6 +38,8 @@ const COMPACT_MAX_NODE: f64 = 120.0;
 /// Space between two nodes next to each other, and between two subtrees.
 const SIBLING_GAP: f64 = 20.0;
 const COMPACT_SIBLING_GAP: f64 = 10.0;
+/// Space between the two boxes of a couple.
+const PARTNER_GAP: f64 = 28.0;
 /// Space between two levels, and the same when a link between them carries a label.
 const LEVEL_GAP: f64 = 36.0;
 const LINKED_LEVEL_GAP: f64 = 58.0;
@@ -151,8 +153,16 @@ fn boxes(
                         .map(|line| metrics.width(line, SUBLABEL_SIZE)),
                 )
                 .fold(0.0, f64::max);
-            let height =
-                20.0 + NODE_LINE * count(lines.len()) + SUBLABEL_LINE * count(sublines.len());
+            // A person's head takes room on top of the box.
+            let head = if node.kind == TreeNodeKind::Person {
+                18.0
+            } else {
+                0.0
+            };
+            let height = 20.0
+                + NODE_LINE * count(lines.len())
+                + SUBLABEL_LINE * count(sublines.len())
+                + head;
             NodeBox {
                 width: (text + 2.0 * PAD)
                     .clamp(min, max.max(room + 2.0 * PAD))
@@ -183,17 +193,24 @@ struct Plan {
 /// on either side at every level, measured from the node's own center. The next child of a node
 /// is pushed as far as it must so that it keeps `gap` from everything placed before it at every
 /// level, and the node then stands over the middle of its first and last child.
+///
+/// A couple counts as one node whose reach on the two sides is `extent`, from the middle of the
+/// line between its partners; a partner takes no position of its own here.
 fn cross_positions(
     tree: &TreeSpec,
     count_of_nodes: usize,
-    across: impl Fn(usize) -> f64,
+    extent: impl Fn(usize) -> (f64, f64),
     gap: f64,
 ) -> Vec<f64> {
     let order = tree.reading_order();
     let mut offset = vec![0.0; count_of_nodes];
     let mut reach: Vec<Vec<(f64, f64)>> = vec![Vec::new(); count_of_nodes];
-    for &node in order.iter().rev() {
-        let own = (-across(node) / 2.0, across(node) / 2.0);
+    for &node in order
+        .iter()
+        .rev()
+        .filter(|node| tree.head_of(**node).is_none())
+    {
+        let own = extent(node);
         let children = tree.children(node);
         let mut placed: Vec<(f64, f64)> = Vec::new();
         let mut at = Vec::with_capacity(children.len());
@@ -239,6 +256,36 @@ fn cross_positions(
     cross
 }
 
+/// The level of every node, where each level's row begins along the flow and how deep it is: as
+/// deep as its deepest node, with more room before a level whose links carry labels.
+fn level_rows(
+    tree: &TreeSpec,
+    count_of_nodes: usize,
+    along: impl Fn(usize) -> f64,
+    landscape: bool,
+) -> (Vec<usize>, Vec<f64>, Vec<f64>) {
+    let depths: Vec<usize> = (0..count_of_nodes).map(|node| tree.depth(node)).collect();
+    let levels = depths.iter().copied().max().unwrap_or(0) + 1;
+    let mut thickness = vec![0.0_f64; levels];
+    let mut linked = vec![false; levels];
+    for node in 0..count_of_nodes {
+        thickness[depths[node]] = thickness[depths[node]].max(along(node));
+        linked[depths[node]] |= tree.nodes[node].link.is_some();
+    }
+    let mut level_start = vec![0.0; levels];
+    for level in 1..levels {
+        let space = if linked[level] && landscape {
+            LINKED_COLUMN_GAP
+        } else if linked[level] {
+            LINKED_LEVEL_GAP
+        } else {
+            LEVEL_GAP
+        };
+        level_start[level] = level_start[level - 1] + thickness[level - 1] + space;
+    }
+    (depths, level_start, thickness)
+}
+
 impl Plan {
     fn new(
         spec: &ChartSpec,
@@ -267,28 +314,25 @@ impl Plan {
                 nodes[node].height
             }
         };
-        let cross = cross_positions(tree, nodes.len(), across, gap);
-        // Positions along: one row per level, as deep as its deepest node, with more room
-        // above a level whose links carry labels.
-        let depths: Vec<usize> = (0..nodes.len()).map(|node| tree.depth(node)).collect();
-        let levels = depths.iter().copied().max().unwrap_or(0) + 1;
-        let mut thickness = vec![0.0_f64; levels];
-        let mut linked = vec![false; levels];
+        // A couple is as wide as its two boxes and the room between them, and the middle of that
+        // room is where its children's lines start.
+        let extent = |node: usize| match tree.partner_of(node) {
+            Some(partner) => (
+                -(across(node) + PARTNER_GAP / 2.0),
+                across(partner) + PARTNER_GAP / 2.0,
+            ),
+            None => (-across(node) / 2.0, across(node) / 2.0),
+        };
+        let mut cross = cross_positions(tree, nodes.len(), extent, gap);
         for node in 0..nodes.len() {
-            thickness[depths[node]] = thickness[depths[node]].max(along(node));
-            linked[depths[node]] |= tree.nodes[node].link.is_some();
+            if let Some(partner) = tree.partner_of(node) {
+                let middle = cross[node];
+                cross[node] = middle - PARTNER_GAP / 2.0 - across(node) / 2.0;
+                cross[partner] = middle + PARTNER_GAP / 2.0 + across(partner) / 2.0;
+            }
         }
-        let mut level_start = vec![0.0; levels];
-        for level in 1..levels {
-            let space = if linked[level] && landscape {
-                LINKED_COLUMN_GAP
-            } else if linked[level] {
-                LINKED_LEVEL_GAP
-            } else {
-                LEVEL_GAP
-            };
-            level_start[level] = level_start[level - 1] + thickness[level - 1] + space;
-        }
+        let (depths, level_start, thickness) = level_rows(tree, nodes.len(), along, landscape);
+        let levels = thickness.len();
         let length = level_start[levels - 1] + thickness[levels - 1];
         let (low, high) = cross.iter().enumerate().fold(
             (f64::INFINITY, f64::NEG_INFINITY),
@@ -376,6 +420,25 @@ impl Plan {
             related.sort_unstable();
             related
         };
+        for node in 0..nodes.len() {
+            let Some(partner) = tree.partner_of(node) else {
+                continue;
+            };
+            elements.push(Element::Group(focus_classes(
+                None,
+                &[node.min(partner), node.max(partner)],
+            )));
+            let (from, to) = self.couple_line(nodes, node, partner);
+            elements.push(Element::Polyline(diagram::polyline(
+                vec![from, to],
+                "chartlet-flow-edge",
+                Some(format!(
+                    "{} + {}",
+                    tree.nodes[node].label, tree.nodes[partner].label
+                )),
+            )));
+            elements.push(Element::GroupEnd);
+        }
         let mut labels = Vec::new();
         for node in tree.reading_order() {
             let Some(parent) = tree.parent_of(node) else {
@@ -401,20 +464,18 @@ impl Plan {
                 Some(sublabel) => format!("{} – {sublabel}", spec.label),
                 None => spec.label.clone(),
             });
-            with_shadow(
-                Element::Rect(Rect {
-                    x,
-                    y,
-                    width,
-                    height,
-                    class: "chartlet-flow-node chartlet-role-blue",
-                    series_index: None,
-                    style_index: None,
-                    tooltip,
-                }),
+            let kind = match spec.kind {
+                TreeNodeKind::Unit => Shape::Process,
+                TreeNodeKind::Person => Shape::Person,
+                TreeNodeKind::External => Shape::External,
+            };
+            shape(kind, (x, y, width, height), tooltip, elements);
+            Self::node_text(
+                &nodes[node],
+                spec.kind == TreeNodeKind::Person,
+                (x, y, width, height),
                 elements,
             );
-            Self::node_text(&nodes[node], (x, y, width, height), elements);
             elements.push(Element::GroupEnd);
             elements.push(Element::Hotspot(Hotspot {
                 node,
@@ -424,6 +485,40 @@ impl Plan {
                 width,
                 height,
             }));
+        }
+    }
+
+    /// The short line between the two boxes of a couple: from the head to its partner.
+    fn couple_line(
+        &self,
+        nodes: &[NodeBox],
+        head: usize,
+        partner: usize,
+    ) -> ((f64, f64), (f64, f64)) {
+        let (ax, ay, aw, ah) = self.node_box(nodes, head);
+        let (bx, by, bw, bh) = self.node_box(nodes, partner);
+        if self.landscape {
+            // Stacked: the line runs down where the two boxes overlap across.
+            let x = f64::midpoint(ax.max(bx), (ax + aw).min(bx + bw));
+            ((x, ay + ah), (x, by))
+        } else {
+            let y = f64::midpoint(ay.max(by), (ay + ah).min(by + bh));
+            ((ax + aw, y), (bx, y))
+        }
+    }
+
+    /// Where the lines to the children of `parent` start: on its bottom edge, or, for a couple,
+    /// in the middle of the line between the partners.
+    fn start_of(&self, nodes: &[NodeBox], parent: usize, partner: Option<usize>) -> (f64, f64) {
+        if let Some(partner) = partner {
+            let (from, to) = self.couple_line(nodes, parent, partner);
+            return (f64::midpoint(from.0, to.0), f64::midpoint(from.1, to.1));
+        }
+        let (x, y, width, height) = self.node_box(nodes, parent);
+        if self.landscape {
+            (x + width, y + height / 2.0)
+        } else {
+            (x + width / 2.0, y + height)
         }
     }
 
@@ -438,19 +533,19 @@ impl Plan {
         elements: &mut Vec<Element>,
         labels: &mut Vec<(Vec<String>, (f64, f64), String)>,
     ) {
-        let (px, py, pw, ph) = self.node_box(nodes, parent);
         let (cx, cy, cw, ch) = self.node_box(nodes, child);
         // The line turns halfway between the row of the parent and the row of the child, the
         // same for all children of a level.
         let (_, parent_end) = self.rows[self.levels[parent]];
         let (child_start, _) = self.rows[self.levels[child]];
         let middle = f64::midpoint(parent_end, child_start);
+        let from = self.start_of(nodes, parent, tree.partner_of(parent));
         let points = if self.landscape {
-            let (start, end) = (py + ph / 2.0, cy + ch / 2.0);
-            vec![(px + pw, start), (middle, start), (middle, end), (cx, end)]
+            let end = cy + ch / 2.0;
+            vec![from, (middle, from.1), (middle, end), (cx, end)]
         } else {
-            let (start, end) = (px + pw / 2.0, cx + cw / 2.0);
-            vec![(start, py + ph), (start, middle), (end, middle), (end, cy)]
+            let end = cx + cw / 2.0;
+            vec![from, (from.0, middle), (end, middle), (end, cy)]
         };
         let link = tree.nodes[child].link.as_deref();
         let tooltip = match link {
@@ -484,13 +579,15 @@ impl Plan {
     /// A node's label, centered on one or two lines, and its sublabel below.
     fn node_text(
         node: &NodeBox,
+        person: bool,
         (x, y, width, height): (f64, f64, f64, f64),
         elements: &mut Vec<Element>,
     ) {
         let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
         let block =
             NODE_LINE * count(node.lines.len() - 1) + SUBLABEL_LINE * count(node.sublines.len());
-        let first = middle_y - block / 2.0 + 4.5;
+        // The text clears the head of a person.
+        let first = middle_y - block / 2.0 + 4.5 + if person { 8.0 } else { 0.0 };
         for (index, line) in node.lines.iter().enumerate() {
             elements.push(Element::Text(Text {
                 x: middle_x,
@@ -514,17 +611,27 @@ impl Plan {
     }
 }
 
-/// A node named with its sublabel and link in a parenthesis: `Holding GmbH (holding, 60 %)`.
+/// A node named with its sublabel and link in a parenthesis: `Holding GmbH (holding, 60 %)`; a
+/// couple names both of its partners.
 fn mention(tree: &TreeSpec, node: usize) -> String {
-    let spec = &tree.nodes[node];
-    let notes: Vec<&str> = [spec.sublabel.as_deref(), spec.link.as_deref()]
+    let named = |node: usize, with_link: bool| {
+        let spec = &tree.nodes[node];
+        let notes: Vec<&str> = [
+            spec.sublabel.as_deref(),
+            spec.link.as_deref().filter(|_| with_link),
+        ]
         .into_iter()
         .flatten()
         .collect();
-    if notes.is_empty() {
-        spec.label.clone()
-    } else {
-        format!("{} ({})", spec.label, notes.join(", "))
+        if notes.is_empty() {
+            spec.label.clone()
+        } else {
+            format!("{} ({})", spec.label, notes.join(", "))
+        }
+    };
+    match tree.partner_of(node) {
+        Some(partner) => format!("{} + {}", named(node, true), named(partner, false)),
+        None => named(node, true),
     }
 }
 
@@ -548,13 +655,12 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             .map(|child| mention(tree, child))
             .collect();
         if !children.is_empty() {
-            write!(
-                description,
-                " {}: {}.",
-                tree.nodes[node].label,
-                children.join(", ")
-            )
-            .expect("writing to String cannot fail");
+            let name = tree.partner_of(node).map_or_else(
+                || tree.nodes[node].label.clone(),
+                |partner| format!("{} + {}", tree.nodes[node].label, tree.nodes[partner].label),
+            );
+            write!(description, " {name}: {}.", children.join(", "))
+                .expect("writing to String cannot fail");
         }
     }
     description
@@ -565,11 +671,15 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let tree = tree(spec);
     let words = spec.locale.words();
     let linked = tree.nodes.iter().any(|node| node.link.is_some());
+    let coupled = tree.nodes.iter().any(|node| node.partner.is_some());
     let mut columns = vec![
         words.node.to_owned(),
         words.level.to_owned(),
         words.parent.to_owned(),
     ];
+    if coupled {
+        columns.push(words.partner.to_owned());
+    }
     if linked {
         columns.push(words.link.to_owned());
     }
@@ -584,6 +694,13 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 tree.parent_of(node)
                     .map_or_else(String::new, |parent| tree.nodes[parent].label.clone()),
             ];
+            if coupled {
+                row.push(
+                    tree.partner_of(node)
+                        .or_else(|| tree.head_of(node))
+                        .map_or_else(String::new, |other| tree.nodes[other].label.clone()),
+                );
+            }
             if linked {
                 row.push(tree.nodes[node].link.clone().unwrap_or_default());
             }
@@ -794,5 +911,141 @@ mod tests {
         let missing =
             r#"{"schemaVersion": 1, "type": "tree", "title": "None", "width": 600, "height": 300}"#;
         assert_eq!(error(missing), ("missing_tree", "/tree".to_owned()));
+    }
+
+    const COUPLES: &str = r#"{
+        "schemaVersion": 1,
+        "type": "tree",
+        "title": "Family",
+        "width": 900,
+        "height": 500,
+        "tree": {
+            "nodes": [
+                {"id": "a", "label": "Ana", "kind": "person"},
+                {"id": "t", "label": "Tomas", "kind": "person", "partner": "a"},
+                {"id": "l", "label": "Lena", "kind": "person", "parent": "a"},
+                {"id": "m", "label": "Marc", "kind": "person", "partner": "l"},
+                {"id": "p", "label": "Paul", "kind": "person", "parent": "t"},
+                {"id": "s", "label": "Sofia", "parent": "l"},
+                {"id": "f", "label": "Foundation", "kind": "external", "parent": "p"}
+            ]
+        }
+    }"#;
+
+    #[test]
+    fn a_couple_stands_side_by_side_and_its_children_hang_from_the_middle() {
+        for landscape in [false, true] {
+            let (plan, boxes) = plan(COUPLES, landscape);
+            // ids by position: a 0, t 1, l 2, m 3, p 4, s 5, f 6. Ana and Tomas share a row.
+            let (a, t) = (boxes[0], boxes[1]);
+            if landscape {
+                assert!((a.0 - t.0).abs() < 0.01 && t.1 > a.1 + a.3);
+            } else {
+                assert!((a.1 - t.1).abs() < 0.01 && t.0 > a.0 + a.2);
+            }
+            // Lena (a child of Ana) and Paul (a child of Tomas) are both below the couple, and
+            // Sofia is below Lena and Marc.
+            let level = |node: usize| {
+                if landscape {
+                    plan.center[node].0
+                } else {
+                    plan.center[node].1
+                }
+            };
+            assert!(level(2) > level(0) && (level(2) - level(4)).abs() < 0.01);
+            assert!(level(5) > level(2) && (level(3) - level(2)).abs() < 0.01);
+        }
+    }
+
+    #[test]
+    fn couples_and_kinds_are_drawn_and_described() {
+        let output = svg(COUPLES);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(output.content.contains("chartlet-arch-head"));
+        assert!(output.content.contains("chartlet-flow-external"));
+        let alternative =
+            text_alternative(&ChartSpec::from_json(COUPLES).expect("parses")).expect("valid");
+        assert!(alternative.description.contains("Root: Ana + Tomas."));
+        assert!(
+            alternative
+                .description
+                .contains("Ana + Tomas: Lena + Marc, Paul.")
+        );
+        assert_eq!(alternative.table.columns[3], "Partner");
+    }
+
+    #[test]
+    fn invalid_partners_name_the_field() {
+        for (from, to, code, path) in [
+            (
+                r#""partner": "a""#,
+                r#""partner": "nobody""#,
+                "unknown_node",
+                "/tree/nodes/1/partner",
+            ),
+            (
+                r#""partner": "a""#,
+                r#""partner": "t""#,
+                "invalid_partner",
+                "/tree/nodes/1/partner",
+            ),
+            (
+                r#""partner": "l""#,
+                r#""partner": "t""#,
+                "invalid_partner",
+                "/tree/nodes/3/partner",
+            ),
+            (
+                r#""kind": "person", "partner": "a""#,
+                r#""kind": "person", "parent": "a", "partner": "a""#,
+                "invalid_partner",
+                "/tree/nodes/1/partner",
+            ),
+        ] {
+            let (got_code, got_path) = error(&COUPLES.replace(from, to));
+            assert_eq!((got_code, got_path.as_str()), (code, path), "{from}");
+        }
+    }
+
+    #[test]
+    fn a_broad_tree_of_long_names_keeps_its_nodes_apart_and_its_text() {
+        let mut nodes =
+            vec![r#"{"id": "root", "label": "Root of the whole organization"}"#.to_owned()];
+        for branch in 0..9 {
+            nodes.push(format!(
+                r#"{{"id": "b{branch}", "label": "Branch number {branch} of the organization", "parent": "root"}}"#
+            ));
+            for leaf in 0..14 {
+                nodes.push(format!(
+                    r#"{{"id": "l{branch}x{leaf}", "label": "Team {leaf} of branch {branch}", "sublabel": "responsible for something long", "parent": "b{branch}"}}"#
+                ));
+            }
+        }
+        let json = format!(
+            r#"{{"schemaVersion": 1, "type": "tree", "title": "Big", "width": 800, "height": 400, "tree": {{"nodes": [{}]}}}}"#,
+            nodes.join(",")
+        );
+        assert_eq!(nodes.len(), 136);
+        for landscape in [false, true] {
+            let (_, boxes) = plan(&json, landscape);
+            for (index, a) in boxes.iter().enumerate() {
+                for b in &boxes[index + 1..] {
+                    let apart = a.0 + a.2 <= b.0
+                        || b.0 + b.2 <= a.0
+                        || a.1 + a.3 <= b.1
+                        || b.1 + b.3 <= a.1;
+                    assert!(apart, "{a:?} overlaps {b:?}");
+                }
+            }
+        }
+        let output = svg(&json);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .all(|warning| warning.code != "text_truncated"),
+            "{:?}",
+            output.warnings
+        );
     }
 }

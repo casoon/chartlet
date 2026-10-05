@@ -320,6 +320,13 @@ const catalogue = [
       'A group of companies as a tree: ten nodes in four levels, a share written on every link, parents centered over their children, and subtrees pushed together so that a narrow branch tucks in under a broad one. Laid out twice, at 1000 pixels and at 448 for a phone. The description names the root and what hangs below every node; the table lists each node with its level, parent, link and children. Illustrative values.',
   },
   {
+    slug: 'family-tree',
+    chart: 'Tree (couples)',
+    useCase: 'Draw a family or a household',
+    blurb:
+      'Three generations: persons in their own shape, couples side by side with their children hanging from the line between them, and a dashed box for something outside the family. The table gains a Partner column; the description names every couple as one. Illustrative family.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

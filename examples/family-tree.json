@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "type": "tree",
+  "title": "Three generations of the Reyes family",
+  "source": "Illustrative family",
+  "width": 960,
+  "height": 480,
+  "tree": {
+    "nodes": [
+      { "id": "ana", "label": "Ana Reyes", "sublabel": "born 1948", "kind": "person" },
+      { "id": "tomas", "label": "Tomás Reyes", "sublabel": "born 1945", "kind": "person", "partner": "ana" },
+      { "id": "lena", "label": "Lena Reyes", "sublabel": "born 1974", "kind": "person", "parent": "ana" },
+      { "id": "marc", "label": "Marc Duval", "sublabel": "born 1972", "kind": "person", "partner": "lena" },
+      { "id": "paul", "label": "Paul Reyes", "sublabel": "born 1978", "kind": "person", "parent": "ana" },
+      { "id": "sofia", "label": "Sofia Duval", "sublabel": "born 2003", "kind": "person", "parent": "lena" },
+      { "id": "nico", "label": "Nico Duval", "sublabel": "born 2006", "kind": "person", "parent": "lena" },
+      { "id": "estate", "label": "Family foundation", "sublabel": "owns the house", "kind": "external", "parent": "paul", "link": "trustee" }
+    ]
+  },
+  "mobile": { "width": 448, "height": 560 }
+}

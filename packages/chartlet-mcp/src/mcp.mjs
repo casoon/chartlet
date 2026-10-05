@@ -159,7 +159,7 @@ Use after drafting or editing a spec and before chartlet_render. An invalid spec
     "chartlet_render",
     {
       title: "Render a chartlet chart",
-      description: `Compile a chartlet specification into static, accessible SVG or HTML: data charts, and software diagrams (sequence, flow, state, architecture; chartlet_diagram_starter gives a starting point). The same spec and options always give the same bytes; the manifest records the compiler version and SHA-256 of spec and output.
+      description: `Compile a chartlet specification into static, accessible SVG or HTML: data charts, and software diagrams (sequence, flow, state, architecture, tree; chartlet_diagram_starter gives a starting point). The same spec and options always give the same bytes; the manifest records the compiler version and SHA-256 of spec and output.
 
 Returns content (or, with outputPath, the written path and byte size instead), warnings, styleHashes (CSP 'sha256-…' sources for the inline styles) and manifest. Charts can be 10–200 KB: prefer outputPath when the content does not need to be read.
 
@@ -233,7 +233,7 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
       title: "Compute facts about a chart",
       description: `Report facts about a chartlet chart, computed and not interpreted: the accessible description chartlet generates (as in the SVG <desc>; the spec's own description is returned separately), the chart type, and per data series or layer its count, missing values, min and max (with every label or time that has that value), and first and last value with label or time.
 
-Diagrams (sequence, flow, state, architecture) have no series; for them structure gives the counts of their elements and every row of their data table in reading order — messages, steps with where they lead, transitions with event, guard and action, or components with their boundaries and connections.
+Diagrams (sequence, flow, state, architecture, tree) have no series; for them structure gives the counts of their elements and every row of their data table in reading order — messages, steps with where they lead, transitions with event, guard and action, or components with their boundaries and connections.
 
 For ohlc layers min is the lowest low, max the highest high, first the first open and last the last close. Zones, reference lines and markers are not series. topicmap and atlas charts have no series. Nothing here judges causes, trends or significance: state such conclusions only from the data and say they are yours.`,
       inputSchema: z.object({ spec }),

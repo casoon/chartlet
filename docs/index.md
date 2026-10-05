@@ -12,7 +12,7 @@ browser – no chart JavaScript, no hydration, no layout shift.
 line charts, time series with uncertainty bands and reference lines, small multiples, warming
 stripes, calendar heatmaps and range bars are supported, plus two map-like types
 (topic map and knowledge landscape, both experimental), and sequence, flow, state, architecture and
-tree diagrams that chartlet lays out itself (flow, state and tree are experimental). Until 1.0, a minor release (0.9, 0.10, …) may still change
+tree diagrams that chartlet lays out itself (flow and state are experimental). Until 1.0, a minor release (0.9, 0.10, …) may still change
 the specification; a patch release never does.
 
 ## Principles

@@ -41,7 +41,7 @@ pub use timechart::{
 };
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
-pub use tree::{TreeNodeSpec, TreeSpec};
+pub use tree::{TreeNodeKind, TreeNodeSpec, TreeSpec};
 
 const MAX_DATA_POINTS: usize = 100;
 /// Limited so that every series keeps a color that stays distinguishable for common
