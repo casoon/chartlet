@@ -4,7 +4,14 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
-## [Unreleased]
+## [0.10.0] - 2026-10-05
+
+Bars colored by group, small multiples of bars, the fixes found when casoon.de was moved to 0.9,
+and a smaller WebAssembly renderer. Both additions extend the specification; every specification
+that rendered with 0.9.0 still renders. Charts with a logarithmic axis, with a reference line
+through a value label, with a span of one value, and flow and sequence diagrams with the cases
+fixed below come out differently, so their examples changed; every other example is
+byte-identical.
 
 ### Added
 

@@ -4,7 +4,7 @@ description: What has been verified, what is designed but not yet tested, and wh
 order: 4
 ---
 
-chartlet is at 0.9; screen reader and user testing are still pending. Statuses: **Verified**, **Experimental** (works, but may change between minor releases), **Designed, not yet verified**, **Planned**,
+chartlet is at 0.10; screen reader and user testing are still pending. Statuses: **Verified**, **Experimental** (works, but may change between minor releases), **Designed, not yet verified**, **Planned**,
 **Not supported**.
 
 ## Embedding
@@ -73,9 +73,10 @@ chartlet is at 0.9; screen reader and user testing are still pending. Statuses: 
 | Context | Status | Notes |
 | --- | --- | --- |
 | Warming stripes, calendar heatmap | Verified | Shared diverging scale of 17 colors as CSS custom properties; covered by unit and golden-file tests. |
+| Bars colored by group, small multiples of bars | Verified | New in 0.10: `group` on `data` points (one color and legend entry per group, a Group column in the table) and `multiples` with `categories` and a `values` array and value axis per pane; covered by unit tests of validation, text and rendering and by golden-file tests, including the phone variant. |
 | Range bars | Verified | Vertical and horizontal, optional central value and hatched modeled ranges. |
 | Sequence and architecture diagrams | Verified | Laid out by chartlet; covered by unit tests of layout invariants (no overlapping boxes, main path straight, frames clear, no shortened names), and golden-file tests for portrait, landscape and the phone variant. Known limits: on a phone, five participants or a wide architecture still need 400–470 pixels (the canvas grows and says so); in landscape, edges that leave one component side by side keep their labels close to the component rather than on their own stretch. |
-| Tree diagrams | Verified | New in 0.9: laid out by chartlet (subtrees pushed together, parents centered over their children, couples side by side); covered by unit tests of layout invariants (no overlapping boxes at 136 nodes with long names, parents centered, couples on one row, no shortened names) and golden-file tests for portrait, landscape and the phone variant. |
+| Tree diagrams | Verified | Since 0.9: laid out by chartlet (subtrees pushed together, parents centered over their children, couples side by side); covered by unit tests of layout invariants (no overlapping boxes at 136 nodes with long names, parents centered, couples on one row, no shortened names) and golden-file tests for portrait, landscape and the phone variant. |
 | Flow and state diagrams | Experimental | Laid out by chartlet on the same engine; covered by unit tests of layout invariants and golden-file tests. The layout may change between minor releases. |
 | Diagram focus | Designed, not yet verified | Radio buttons and labels over the nodes, CSS `:has()`; checked with axe, not yet with screen readers. |
 | Topic map, knowledge landscape | Experimental | Rendered and tested like every other type; the layout is tuned to one production site so far and may change between minor releases. |
