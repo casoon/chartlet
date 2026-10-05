@@ -4,11 +4,16 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
-## [Unreleased]
+## [0.9.0] - 2026-10-05
 
-Sequence and architecture diagrams are no longer experimental: they are laid out for a real
-reference architecture and a sign-in sequence, on a desktop canvas and at phone width. The
-specification is unchanged. Flow and state diagrams stay experimental.
+Trees, and finished sequence and architecture diagrams. Sequence and architecture diagrams are no
+longer experimental: they are laid out for a real reference architecture and a sign-in sequence,
+on a desktop canvas and at phone width. The new `tree` type (organization charts, ownership
+structures, family trees) is added to the specification; every specification that rendered with
+0.8.0 still renders. Sequence, flow, state and architecture diagrams may come out slightly
+differently (a participant box a pixel wider, edges that no longer cross, labels in other places),
+so their examples changed; every other example is byte-identical. Flow and state diagrams stay
+experimental.
 
 ### Fixed
 
