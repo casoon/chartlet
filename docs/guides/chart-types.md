@@ -187,6 +187,13 @@ extreme values within reach and a point for every value beyond.
 - **Text alternative.** The description names the highest and the lowest median and the boxes with
   outliers; the data table has the five numbers of every box and its outliers; a tooltip adds the
   number of observations. 1–100 boxes with unique labels.
+- **Violins and strips.** `"boxDisplay": "violin"` draws the estimated density of the
+  observations (a Gaussian kernel, Silverman's bandwidth, from the lowest to the highest value) as
+  an outline mirrored about the middle, every violin as wide as the others at its widest, with
+  the quartile box and the median inside. `"boxDisplay": "strip"` draws every observation as a
+  point, spread across the width by a fixed sequence so the same data always gives the same
+  picture, with the median across. Both need `values` on every box (`values_required`); the
+  value axis reaches every observation.
 
 ## Forest plots
 

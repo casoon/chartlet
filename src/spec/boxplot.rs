@@ -10,6 +10,27 @@ pub(crate) const MAX_OBSERVATIONS: usize = 1000;
 /// The fewest observations a box is computed from.
 pub(crate) const MIN_OBSERVATIONS: usize = 5;
 
+/// How the observations of a `boxplot` chart are drawn.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum BoxDisplay {
+    /// A box with whiskers and the points beyond them.
+    #[default]
+    Box,
+    /// The estimated density of the observations as a mirrored outline, with the box inside.
+    Violin,
+    /// Every observation as a point, spread across the width, with the median.
+    Strip,
+}
+
+impl BoxDisplay {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub(super) const fn is_box(&self) -> bool {
+        matches!(self, Self::Box)
+    }
+}
+
 /// One box of a `boxplot` chart: a category with either its observations, from which chartlet
 /// computes the box, or the five numbers of a box that was computed elsewhere.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -147,6 +168,13 @@ impl ChartSpec {
         let mut labels = BTreeSet::new();
         for (index, boxed) in self.boxes.iter().enumerate() {
             let path = format!("/boxes/{index}");
+            if self.box_display != BoxDisplay::Box && boxed.values.is_empty() {
+                return Err(ChartError::new(
+                    "values_required",
+                    format!("{path}/values"),
+                    "a violin or a strip is drawn from observations; give values instead of the five numbers",
+                ));
+            }
             validate_text(&boxed.label, &format!("{path}/label"), 200)?;
             if !labels.insert(boxed.label.as_str()) {
                 return Err(ChartError::new(

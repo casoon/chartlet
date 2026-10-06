@@ -42,18 +42,18 @@ pub use error::{ChartError, ChartWarning};
 pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
-    ArchitectureSpec, AxisScale, BoundarySpec, BoxSpec, BranchSpec, CalendarDay, CalendarLayout,
-    CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ComponentKind,
-    ComponentSpec, ConnectionSpec, Corner, Curve, Dash, DataPoint, DiagramOrientation,
-    FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec,
-    LayerSpec, LegendPlacement, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NodeKind,
-    OhlcPoint, Orientation, PaneSpec, ParliamentSpec, ParticipantKind, ParticipantSpec, PartySpec,
-    RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeySpec, SequenceSpec, SeriesSpec, Shape, Stack,
-    StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke, Theme,
-    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
-    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec,
-    WaterfallSpec, ZoomBound, ZoomStep,
+    ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
+    CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType,
+    ComponentKind, ComponentSpec, ConnectionSpec, Corner, Curve, Dash, DataPoint,
+    DiagramOrientation, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps,
+    GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Mark, MarkerSpec, MessageKind, MessageSpec,
+    MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec, ParliamentSpec, ParticipantKind,
+    ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeySpec, SequenceSpec,
+    SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec,
+    Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
+    TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind,
+    TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
+    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4378,6 +4378,54 @@ mod tests {
             .unwrap_err();
             assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
         }
+    }
+
+    #[test]
+    fn violins_and_strips_draw_the_observations_and_need_them() {
+        let boxes = r#""boxes": [{"label": "A", "values": [1, 2, 3, 4, 5, 6, 7, 8]}, {"label": "B", "values": [2, 3, 3, 4, 4, 4, 5, 9]}]"#;
+        let spec = |display: &str| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "boxplot", "boxDisplay": "{display}", "title": "T", {boxes}}}"#
+            )
+        };
+        let violin = render_ok(&spec("violin"));
+        assert!(violin.warnings.is_empty(), "{:?}", violin.warnings);
+        assert_eq!(
+            violin.content.matches("class=\"chartlet-violin\"").count(),
+            2
+        );
+        assert_eq!(
+            violin
+                .content
+                .matches("class=\"chartlet-violin-median\"")
+                .count(),
+            2
+        );
+        let strip = render_ok(&spec("strip"));
+        assert_eq!(
+            strip
+                .content
+                .matches("class=\"chartlet-box-point\"")
+                .count(),
+            16
+        );
+        let again = render_ok(&spec("strip"));
+        assert_eq!(strip.content, again.content);
+        let five = spec("violin").replace(
+            r#"{"label": "B", "values": [2, 3, 3, 4, 4, 4, 5, 9]}"#,
+            r#"{"label": "B", "min": 1, "q1": 2, "median": 3, "q3": 4, "max": 5}"#,
+        );
+        let error = render_json(&five, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("values_required", "/boxes/1/values")
+        );
+        let bar = r#"{"schemaVersion": 1, "type": "bar", "boxDisplay": "violin", "title": "T", "data": [{"label": "a", "value": 1}]}"#;
+        let error = render_json(bar, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("option_not_supported", "/boxDisplay")
+        );
     }
 
     const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,

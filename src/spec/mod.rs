@@ -30,8 +30,8 @@ pub use architecture::{
     ArchitectureSpec, BoundarySpec, ComponentKind, ComponentSpec, ConnectionSpec,
 };
 pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
-pub use boxplot::BoxSpec;
 pub(crate) use boxplot::BoxSummary;
+pub use boxplot::{BoxDisplay, BoxSpec};
 pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
@@ -84,6 +84,9 @@ pub struct ChartSpec {
     pub chart_type: ChartType,
     #[serde(default)]
     pub orientation: Orientation,
+    /// How a `type: "boxplot"` chart draws its observations: boxes (the default), violins or strips.
+    #[serde(default, skip_serializing_if = "BoxDisplay::is_box")]
+    pub box_display: BoxDisplay,
     /// Draws every other series of a `type: "bar"` chart as an outline, so that series differ
     /// in form as well as in color.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -1239,6 +1242,7 @@ impl ChartSpec {
     }
 
     /// Rejects a block that belongs to another chart type, so that it is never silently ignored.
+    #[allow(clippy::too_many_lines)]
     fn reject_foreign_blocks(&self) -> Result<(), ChartError> {
         let own = self.chart_type;
         for (index, pane) in self.panes.iter().enumerate() {
@@ -1276,6 +1280,11 @@ impl ChartSpec {
             ("/calendar", self.calendar.is_some(), ChartType::Calendar),
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/boxes", !self.boxes.is_empty(), ChartType::Boxplot),
+            (
+                "/boxDisplay",
+                self.box_display != BoxDisplay::Box,
+                ChartType::Boxplot,
+            ),
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
             ("/sankey", self.sankey.is_some(), ChartType::Sankey),
             ("/treemap", self.treemap.is_some(), ChartType::Treemap),

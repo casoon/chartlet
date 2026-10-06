@@ -390,6 +390,13 @@ const catalogue = [
       'Two hundred seats in six parties, in blocks from left to right, with a dashed line at the 101st seat and a ring round the seats of a four-party coalition. The legend, the description and the table give each party with its seats and share and say whether the coalition has a majority. Illustrative result, with a phone variant.',
   },
   {
+    slug: 'response-distribution',
+    chart: 'Violin plot',
+    useCase: 'Show the shape of a distribution',
+    blurb:
+      'The same kind of data as the box plot, drawn as violins: three endpoints with sixty response times each, where the outline shows what a box hides — a long tail for search, two peaks for checkout — with the quartile box and the median inside. A strip shows every observation instead. Illustrative measurements, with a phone variant.',
+  },
+  {
     slug: 'energy-flow',
     chart: 'Sankey diagram',
     useCase: 'Follow a quantity from source to use',

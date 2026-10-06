@@ -64,6 +64,11 @@
       "type": "boolean",
       "default": false
     },
+    "boxDisplay": {
+      "description": "type: \"boxplot\": how the observations are drawn: boxes with whiskers (the default), violins (the estimated density with the box inside) or strips (every observation as a point). Violins and strips need `values` on every box.",
+      "enum": ["box", "violin", "strip"],
+      "default": "box"
+    },
     "patterns": {
       "description": "type: \"bar\" with series: draw every other series as an outline, so that series differ in form as well as in color.",
       "type": "boolean",
