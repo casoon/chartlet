@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -93,6 +93,10 @@
       "minItems": 1,
       "maxItems": 100,
       "items": { "$ref": "#/$defs/range" }
+    },
+    "waterfall": {
+      "description": "The steps of a type: \"waterfall\" chart.",
+      "$ref": "#/$defs/waterfall"
     },
     "timeline": {
       "description": "The items and markers of a type: \"timeline\" chart.",
@@ -308,6 +312,17 @@
           }
         },
         {
+          "required": ["waterfall"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["timeline"],
           "not": {
             "anyOf": [
@@ -411,6 +426,11 @@
       "if": { "properties": { "type": { "const": "rangebar" } } },
       "then": { "required": ["ranges"] },
       "else": { "not": { "required": ["ranges"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "waterfall" } } },
+      "then": { "required": ["waterfall"] },
+      "else": { "not": { "required": ["waterfall"] } }
     },
     {
       "if": { "properties": { "type": { "const": "timeline" } } },
@@ -743,6 +763,29 @@
           "items": { "$ref": "#/$defs/identifier" }
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "waterfall": {
+      "description": "A waterfall: a running total that rises and falls step by step. A delta adds its value, a start sets the total as a bar from zero, a total shows the running total (and, if it names a value, that value must equal it).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps"],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 40,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "value": { "type": "number" },
+              "kind": { "enum": ["delta", "start", "total"], "default": "delta" }
+            }
+          }
+        }
       }
     },
     "timeline": {

@@ -255,6 +255,39 @@ a Gantt chart, a roadmap, the course of a procedure with its deadlines.
   the marked days; the data table has one row per item with its kind, start, end, group and
   predecessors. 1–60 items, up to six markers.
 
+## Waterfalls
+
+`"type": "waterfall"` shows how a total is made up: a running total that rises and falls step by
+step, from revenue to profit, from a budget to its spending.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "waterfall",
+  "title": "From revenue to profit",
+  "waterfall": {
+    "steps": [
+      { "label": "Revenue", "value": 1250, "kind": "start" },
+      { "label": "Materials", "value": -420 },
+      { "label": "Staff", "value": -380 },
+      { "label": "Gross margin", "kind": "total" }
+    ]
+  }
+}
+```
+
+- **Kinds.** A `delta` (the default) moves the total by its value: a bar between the total before
+  and after it, drawn in one color when it rises and another when it falls, and written `+60`
+  or `−420`. A `start` sets the total to its value, as a bar from zero. A `total` is a bar from
+  zero to the running total so far — a subtotal or the end result; it takes no value, or the
+  value it names must be the running total (`total_mismatch`). A dashed line carries the total
+  from one bar to the next.
+- **Orientation** is vertical by default; `"orientation": "horizontal"` lays the steps on their
+  side. The `valueAxis` applies as on a bar chart.
+- **Text alternative.** The description gives the end result, the biggest rise and the biggest
+  fall; the table lists every step with its kind, its change and the total after it. 2–40 steps
+  with unique labels.
+
 ## Reference lines
 
 A bar chart takes up to four reference lines, such as an average or a target. Each runs across

@@ -70,6 +70,8 @@ const CALENDAR_STYLE: &str =
 /// Box plots: the box, its median, whiskers and the points beyond them.
 /// Timelines: phases in the colors of their groups, milestones, markers and arrows.
 const TIMELINE_STYLE: &str = ".chartlet-timeline-phase{fill:var(--chartlet-accent);stroke:none;rx:3px}.chartlet-timeline-milestone{fill:var(--chartlet-accent);stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-timeline-group-1{fill:var(--chartlet-color-1)}.chartlet-timeline-group-2{fill:var(--chartlet-color-2)}.chartlet-timeline-group-3{fill:var(--chartlet-color-3)}.chartlet-timeline-group-4{fill:var(--chartlet-color-4)}.chartlet-timeline-marker{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-timeline-marker-label{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-timeline-link{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}.chartlet-timeline-head{fill:var(--chartlet-zero);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Waterfalls: bars that rise, fall and total.
+const WATERFALL_STYLE: &str = ".chartlet-wf-up{fill:var(--chartlet-color-1);stroke:none}.chartlet-wf-down{fill:var(--chartlet-color-2);stroke:none}.chartlet-wf-total{fill:var(--chartlet-color-3);stroke:none}.chartlet-wf-link{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:3 3}";
 /// The error bars of a bar chart.
 const ERROR_STYLE: &str =
     ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
@@ -334,7 +336,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -386,6 +388,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         } else {
             ""
         },
+        if spec.chart_type == ChartType::Waterfall {
+            WATERFALL_STYLE
+        } else {
+            ""
+        },
         if spec.has_error_bars() {
             ERROR_STYLE
         } else {
@@ -428,9 +435,9 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
         Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Rangebar, Sequence,
-        State, Stripes, Time, Timeline, Topicmap, Tree,
+        State, Stripes, Time, Timeline, Topicmap, Tree, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 29] = [
+    let groups: [(&str, &[ChartType]); 30] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -459,6 +466,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (FLOW_STYLE, &[Flow, State, Architecture, Tree]),
         (STATE_STYLE, &[State]),
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
+        (WATERFALL_STYLE, &[Waterfall]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
@@ -902,6 +910,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
+            | ChartType::Waterfall
     ) {
         let table = data_table(spec);
         return TableHooks {
@@ -1492,6 +1501,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
         ChartType::Timeline => return crate::timeline::data_table(spec),
+        ChartType::Waterfall => return crate::waterfall::data_table(spec),
         _ => {}
     }
     let words = spec.locale.words();
@@ -1516,7 +1526,8 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::State
         | ChartType::Architecture
         | ChartType::Tree
-        | ChartType::Timeline => {
+        | ChartType::Timeline
+        | ChartType::Waterfall => {
             unreachable!("a diagram writes its own table")
         }
     };

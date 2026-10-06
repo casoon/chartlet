@@ -90,6 +90,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
 | Forest plot: squares by weight, a summary diamond, the line of no effect | `"type": "rangebar"` with `weight`, `summary`, `references` | [trial-effects](examples/trial-effects.json) |
 | Timeline: phases, milestones, today's marker and dependencies (Gantt, roadmap) | `"type": "timeline"` with `items`, `markers` | [product-roadmap](examples/product-roadmap.json) |
+| Waterfall: a total made up of rises, falls and subtotals | `"type": "waterfall"` with `waterfall.steps` | [revenue-to-profit](examples/revenue-to-profit.json) |
 | Box plot from observations, with a box given by its five numbers | `"type": "boxplot"` with `boxes` | [response-times](examples/response-times.json) |
 | Bars with error bars (confidence intervals) | `lower` and `upper` on every `data` point | [satisfaction-scores](examples/satisfaction-scores.json) |
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |

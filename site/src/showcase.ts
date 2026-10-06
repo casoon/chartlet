@@ -369,6 +369,13 @@ const catalogue = [
       'Seven items over nine months in three groups: phases as bars, milestones as diamonds, a dashed marker for today and arrows from each item to the ones that follow it. The description and the table list every item with its days and what it follows; on a phone the dates move into the tooltips. Illustrative plan.',
   },
   {
+    slug: 'revenue-to-profit',
+    chart: 'Waterfall chart',
+    useCase: 'Explain how a total comes about',
+    blurb:
+      'From revenue to operating profit in eight steps: a start bar, costs that take the running total down, a license income that lifts it, and two totals. A dashed line carries the total from bar to bar; every change is written with its sign. The table gives the change and the total after each step. Illustrative figures, with a phone variant.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "type": "waterfall",
+  "title": "From revenue to profit",
+  "source": "Illustrative figures, in thousands",
+  "width": 860,
+  "height": 420,
+  "showValues": true,
+  "valueAxis": { "title": "Thousands of euros", "thousandsSeparator": true },
+  "waterfall": {
+    "steps": [
+      { "label": "Revenue", "value": 1250, "kind": "start" },
+      { "label": "Materials", "value": -420 },
+      { "label": "Staff", "value": -380 },
+      { "label": "Gross margin", "kind": "total" },
+      { "label": "Marketing", "value": -140 },
+      { "label": "Licenses", "value": 60 },
+      { "label": "Depreciation", "value": -95 },
+      { "label": "Operating profit", "kind": "total" }
+    ]
+  },
+  "mobile": { "width": 400, "height": 440 }
+}

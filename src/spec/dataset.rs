@@ -54,7 +54,8 @@ impl ChartSpec {
             | ChartType::State
             | ChartType::Architecture
             | ChartType::Tree
-            | ChartType::Timeline => {
+            | ChartType::Timeline
+            | ChartType::Waterfall => {
                 unreachable!("a diagram's table holds text, see its data_table")
             }
         }
@@ -408,6 +409,7 @@ impl ChartSpec {
             | ChartType::Line
             | ChartType::Rangebar
             | ChartType::Boxplot
+            | ChartType::Waterfall
             | ChartType::Multiples => Some(&self.value_axis),
             ChartType::Topicmap
             | ChartType::Atlas
@@ -480,6 +482,7 @@ impl ChartSpec {
             | ChartType::Line
             | ChartType::Rangebar
             | ChartType::Boxplot
+            | ChartType::Waterfall
             | ChartType::Multiples => self.value_axis.format,
         }
     }

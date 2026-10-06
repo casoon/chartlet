@@ -31,6 +31,7 @@ mod text;
 mod time;
 mod timeline;
 mod tree;
+mod waterfall;
 
 use describe::automatic_description;
 pub use error::{ChartError, ChartWarning};
@@ -43,10 +44,11 @@ pub use spec::{
     FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec,
     LayerSpec, LegendPlacement, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NodeKind,
     OhlcPoint, Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec, ReferenceSpec,
-    SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StripesSpec,
-    Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
-    TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind,
-    TreeNodeSpec, TreeSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
+    SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind,
+    StepSpec, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision,
+    TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec,
+    TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, ValueAxisSpec, ValueFormat,
+    WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4237,6 +4239,74 @@ mod tests {
                 .any(|warning| warning.code == "follows_overlap"
                     && warning.path == "/timeline/items/1/after/0")
         );
+    }
+
+    const WATERFALL: &str = r#"{"schemaVersion": 1, "type": "waterfall", "title": "Profit", "width": 700, "height": 360,
+        "waterfall": {"steps": [
+            {"label": "Revenue", "value": 100, "kind": "start"},
+            {"label": "Costs", "value": -40},
+            {"label": "Other", "value": 15},
+            {"label": "Profit", "kind": "total"}
+        ]}}"#;
+
+    #[test]
+    fn a_waterfall_carries_the_running_total_from_bar_to_bar() {
+        for orientation in ["vertical", "horizontal"] {
+            let json = WATERFALL.replace(
+                "\"waterfall\": {",
+                &format!("\"orientation\": \"{orientation}\", \"waterfall\": {{"),
+            );
+            let output = render_ok(&json);
+            assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+            let svg = &output.content;
+            assert_eq!(
+                svg.matches("class=\"chartlet-wf-total\"").count(),
+                2,
+                "{orientation}"
+            );
+            assert_eq!(svg.matches("class=\"chartlet-wf-down\"").count(), 1);
+            assert_eq!(svg.matches("class=\"chartlet-wf-up\"").count(), 1);
+            assert_eq!(svg.matches("class=\"chartlet-wf-link\"").count(), 3);
+            assert!(svg.contains("<title>Costs: −40, total 60</title>"));
+            assert!(svg.contains(">+15</text>"));
+        }
+        let html = render_json(WATERFALL, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("Waterfall with 4 steps, ending at 75. Biggest rise: Other (+15). Biggest fall: Costs (−40)."));
+        assert!(html.contains("<th scope=\"row\">Profit</th><td>Total</td><td>75</td><td>75</td>"));
+    }
+
+    #[test]
+    fn waterfall_steps_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""value": -40"#,
+                r#""kind": "delta""#,
+                "missing_value",
+                "/waterfall/steps/1/value",
+            ),
+            (
+                r#""label": "Profit", "kind": "total""#,
+                r#""label": "Profit", "kind": "total", "value": 80"#,
+                "total_mismatch",
+                "/waterfall/steps/3/value",
+            ),
+            (
+                r#""label": "Costs""#,
+                r#""label": "Revenue""#,
+                "duplicate_label",
+                "/waterfall/steps/1/label",
+            ),
+        ] {
+            let error = render_json(
+                &WATERFALL.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
     }
 
     #[test]

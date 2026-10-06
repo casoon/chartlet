@@ -22,6 +22,7 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         ChartType::Architecture => return architecture::description(spec),
         ChartType::Tree => return tree::description(spec),
         ChartType::Timeline => return crate::timeline::description(spec),
+        ChartType::Waterfall => return crate::waterfall::description(spec),
         ChartType::Bar | ChartType::Line => {}
     }
     let dataset = spec.dataset();

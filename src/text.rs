@@ -97,6 +97,10 @@ pub(crate) struct Words {
     pub begin: &'static str,
     pub finish: &'static str,
     pub follows: &'static str,
+    /// The columns of a waterfall's table.
+    pub total: &'static str,
+    pub step_delta: &'static str,
+    pub step_start: &'static str,
     /// The names of a diagram's focus links, and of the link that clears the focus.
     pub focus: &'static str,
     pub show_all: &'static str,
@@ -186,6 +190,9 @@ const EN: Words = Words {
     begin: "Start",
     finish: "End",
     follows: "After",
+    total: "Total",
+    step_delta: "Change",
+    step_start: "Start",
     boundary: "Boundary",
     connects_to: "Connects to",
     focus: "Focus",
@@ -278,6 +285,9 @@ const DE: Words = Words {
     begin: "Beginn",
     finish: "Ende",
     follows: "Nach",
+    total: "Summe",
+    step_delta: "Änderung",
+    step_start: "Start",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
     focus: "Fokus",
@@ -1407,6 +1417,29 @@ pub(crate) fn timeline_markers(locale: Locale, markers: &str) -> String {
         Locale::En => format!(" Marked days: {markers}."),
         Locale::De => format!(" Markierte Tage: {markers}."),
     }
+}
+
+/// What a waterfall shows: its steps, where it ends, and its biggest rise and fall.
+pub(crate) fn waterfall_summary(
+    locale: Locale,
+    (steps, end): (usize, &str),
+    rise: Option<(&str, String)>,
+    fall: Option<(&str, String)>,
+) -> String {
+    let (rise_word, fall_word) = match locale {
+        Locale::En => ("Biggest rise", "Biggest fall"),
+        Locale::De => ("Größter Anstieg", "Größter Rückgang"),
+    };
+    let mut text = match locale {
+        Locale::En => format!("Waterfall with {steps} steps, ending at {end}."),
+        Locale::De => format!("Wasserfall mit {steps} Schritten, endend bei {end}."),
+    };
+    for (word, entry) in [(rise_word, rise), (fall_word, fall)] {
+        if let Some((label, value)) = entry {
+            write!(text, " {word}: {label} ({value}).").expect("writing to String cannot fail");
+        }
+    }
+    text
 }
 
 #[cfg(test)]
