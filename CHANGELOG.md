@@ -4,6 +4,20 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Added
+
+- Forest plots: a range bar chart takes a `weight` on a span (a square on the mid whose area
+  follows it), `"summary": true` (a diamond for an overall result), and `references` (the line of
+  no effect, as on a bar chart). Value labels keep off the lines. Example `trial-effects`, with a
+  phone variant.
+- Timelines (`"type": "timeline"`): phases (`start`, `end`), milestones (`at`), marker lines,
+  groups, and dependencies (`after`) drawn as arrows; Gantt charts, roadmaps, the course of a
+  procedure. Description and table list every item. Example `product-roadmap`, with a phone
+  variant. Both additions extend the specification, so they belong to 0.12. The range bar style
+  gains two rules, so range bar charts differ in their style block.
+
 ## [0.11.0] - 2026-10-05
 
 Box plots and error bars, and canvas sizes that hold: the size a diagram asks for with

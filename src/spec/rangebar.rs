@@ -23,6 +23,14 @@ pub struct RangeSpec {
     /// entry in the legend. Either every range names one or none does.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    /// How much the span counts, such as the weight of a study: the central mark becomes a square
+    /// whose area follows it. Needs `mid`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<f64>,
+    /// The span is an overall result, such as a pooled effect: it is drawn as a diamond from low
+    /// to high, widest at `mid`, which it needs.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub summary: bool,
 }
 
 impl ChartSpec {
@@ -125,6 +133,23 @@ impl ChartSpec {
                     "high must not be below low",
                 ));
             }
+            if let Some(weight) = range.weight {
+                validate_number(weight, &format!("{path}/weight"))?;
+                if weight <= 0.0 || range.mid.is_none() {
+                    return Err(ChartError::new(
+                        "invalid_weight",
+                        format!("{path}/weight"),
+                        "a weight is above zero and goes with a mid, where the square sits",
+                    ));
+                }
+            }
+            if range.summary && range.mid.is_none() {
+                return Err(ChartError::new(
+                    "summary_without_mid",
+                    format!("{path}/summary"),
+                    "a summary diamond is widest at mid; give the range one",
+                ));
+            }
             if let Some(mid) = range.mid {
                 validate_number(mid, &format!("{path}/mid"))?;
                 if !(range.low..=range.high).contains(&mid) {
@@ -137,6 +162,7 @@ impl ChartSpec {
             }
         }
         self.validate_range_groups()?;
+        self.validate_references()?;
         let mut warnings = Vec::new();
         if self.ranges.len() > 16 {
             warnings.push(ChartWarning::new(

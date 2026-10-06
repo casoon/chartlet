@@ -355,6 +355,20 @@ const catalogue = [
       'Satisfaction by plan with its 95 % confidence interval as an error bar through the end of each bar: Enterprise scores 4.0 but could be anywhere from 3.3 to 4.7. The interval is also in the tooltip and in an extra column of the table. Illustrative survey.',
   },
   {
+    slug: 'trial-effects',
+    chart: 'Forest plot',
+    useCase: 'Pool the results of several studies',
+    blurb:
+      'Five studies and their pooled result: each effect with its confidence interval as a thin line, a square on the effect whose area follows the weight of the study, a diamond for the overall result and a dashed line at no effect. Effect and interval are written beside every span, the weights are in the table. Illustrative meta-analysis, with a phone variant.',
+  },
+  {
+    slug: 'product-roadmap',
+    chart: 'Timeline',
+    useCase: 'Plan phases, milestones and dependencies',
+    blurb:
+      'Seven items over nine months in three groups: phases as bars, milestones as diamonds, a dashed marker for today and arrows from each item to the ones that follow it. The description and the table list every item with its days and what it follows; on a phone the dates move into the tooltips. Illustrative plan.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

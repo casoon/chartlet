@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "type": "rangebar",
+  "orientation": "horizontal",
+  "title": "Effect of the intervention on systolic blood pressure",
+  "source": "Illustrative meta-analysis",
+  "width": 820,
+  "height": 380,
+  "showValues": true,
+  "valueAxis": { "title": "Difference in mmHg (negative favors the intervention)", "min": -12, "max": 6 },
+  "references": [{ "label": "No effect", "value": 0 }],
+  "ranges": [
+    { "label": "Alvarez 2018 (n=240)", "low": -7.8, "high": -1.2, "mid": -4.5, "weight": 24 },
+    { "label": "Berg 2019 (n=120)", "low": -9.9, "high": 1.7, "mid": -4.1, "weight": 11 },
+    { "label": "Chen 2020 (n=410)", "low": -5.4, "high": -0.2, "mid": -2.8, "weight": 41 },
+    { "label": "Dubois 2021 (n=95)", "low": -6.5, "high": 4.1, "mid": -1.2, "weight": 9 },
+    { "label": "Evans 2022 (n=180)", "low": -8.6, "high": -0.4, "mid": -4.5, "weight": 15 },
+    { "label": "Overall (random effects)", "low": -4.7, "high": -1.9, "mid": -3.3, "summary": true }
+  ],
+  "mobile": { "width": 400, "height": 420 }
+}

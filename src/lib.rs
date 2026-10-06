@@ -29,6 +29,7 @@ mod state;
 mod stripes;
 mod text;
 mod time;
+mod timeline;
 mod tree;
 
 use describe::automatic_description;
@@ -40,12 +41,12 @@ pub use spec::{
     CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ComponentKind,
     ComponentSpec, ConnectionSpec, Corner, Curve, Dash, DataPoint, DiagramOrientation,
     FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec,
-    LayerSpec, LegendPlacement, Mark, MessageKind, MessageSpec, MobileSpec, NodeKind, OhlcPoint,
-    Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec, ReferenceSpec,
+    LayerSpec, LegendPlacement, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NodeKind,
+    OhlcPoint, Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec, ReferenceSpec,
     SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StripesSpec,
-    Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, Tooltips, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, ValueAxisSpec,
-    ValueFormat, ZoomBound, ZoomStep,
+    Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
+    TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind,
+    TreeNodeSpec, TreeSpec, ValueAxisSpec, ValueFormat, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4014,6 +4015,228 @@ mod tests {
             .unwrap_err();
             assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
         }
+    }
+
+    const FOREST: &str = r#"{"schemaVersion": 1, "type": "rangebar", "orientation": "horizontal", "title": "Effects", "width": 700, "height": 320,
+        "references": [{"label": "No effect", "value": 0}],
+        "ranges": [
+            {"label": "Study A", "low": -4, "high": 1, "mid": -1.5, "weight": 30},
+            {"label": "Study B", "low": -6, "high": -1, "mid": -3.5, "weight": 10},
+            {"label": "Overall", "low": -3.5, "high": -1, "mid": -2.2, "summary": true}
+        ]}"#;
+
+    #[test]
+    fn a_forest_plot_draws_squares_by_weight_a_diamond_and_the_line_of_no_effect() {
+        let output = render_ok(FOREST);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(svg.matches("class=\"chartlet-range-weight\"").count(), 2);
+        assert_eq!(svg.matches("class=\"chartlet-range-summary\"").count(), 1);
+        assert_eq!(svg.matches("class=\"chartlet-rule\"").count(), 1);
+        assert!(svg.contains(">No effect</text>"));
+        assert!(svg.contains("<title>Study A: −1.5 (−4 to 1), weight 30</title>"));
+        // The square of the lighter study is smaller: sqrt(10 / 30) of 14 pixels.
+        let sides: Vec<f64> = svg
+            .match_indices("class=\"chartlet-range-weight\"")
+            .map(|(at, _)| {
+                let rect = &svg[svg[..at].rfind("<rect").unwrap()..at];
+                let value = rect
+                    .split("width=\"")
+                    .nth(1)
+                    .unwrap()
+                    .split('"')
+                    .next()
+                    .unwrap();
+                value.parse().unwrap()
+            })
+            .collect();
+        assert!(
+            (sides[0] - 14.0).abs() < 0.01
+                && (sides[1] - 14.0 * (1.0_f64 / 3.0).sqrt()).abs() < 0.01,
+            "{sides:?}"
+        );
+        let html = render_json(FOREST, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("<th scope=\"col\">Weight</th>"));
+        assert!(html.contains("<th scope=\"row\">Overall (summary)</th>"));
+        assert!(html.contains("Overall result, drawn as a diamond: Overall (−2.2 (−3.5 to −1))."));
+        assert!(html.contains("Reference lines: No effect at 0."));
+    }
+
+    #[test]
+    fn weights_and_summaries_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""mid": -1.5, "weight": 30"#,
+                r#""weight": 30"#,
+                "invalid_weight",
+                "/ranges/0/weight",
+            ),
+            (
+                r#""weight": 10"#,
+                r#""weight": 0"#,
+                "invalid_weight",
+                "/ranges/1/weight",
+            ),
+            (
+                r#""mid": -2.2, "summary": true"#,
+                r#""summary": true"#,
+                "summary_without_mid",
+                "/ranges/2/summary",
+            ),
+        ] {
+            let error = render_json(
+                &FOREST.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+    }
+
+    const TIMELINE: &str = r#"{"schemaVersion": 1, "type": "timeline", "title": "Plan", "width": 800, "height": 320,
+        "timeline": {
+            "items": [
+                {"id": "a", "label": "Design", "start": "2027-01-04", "end": "2027-02-26", "group": "Early"},
+                {"id": "b", "label": "Build", "start": "2027-03-01", "end": "2027-05-28", "group": "Late", "after": ["a"]},
+                {"label": "Launch", "at": "2027-06-15", "group": "Late", "after": ["b"]}
+            ],
+            "markers": [{"label": "Today", "at": "2027-02-10"}]
+        }}"#;
+
+    #[test]
+    fn a_timeline_draws_phases_milestones_markers_and_arrows_and_says_them_in_text() {
+        let output = render_ok(TIMELINE);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(
+            svg.matches("chartlet-timeline-phase chartlet-timeline-group-")
+                .count(),
+            2 + 2
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-timeline-milestone chartlet-timeline-group-2\"")
+                .count(),
+            1
+        );
+        assert_eq!(svg.matches("class=\"chartlet-timeline-marker\"").count(), 1);
+        assert_eq!(svg.matches("class=\"chartlet-timeline-link\"").count(), 2);
+        assert_eq!(svg.matches("class=\"chartlet-timeline-head\"").count(), 2);
+        assert!(svg.contains("<title>Design: 2027-01-04 – 2027-02-26</title>"));
+        let html = render_json(TIMELINE, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains(
+            "Timeline with 2 phases and 1 milestone from 2027-01-04 to 2027-06-15. Design: 2027-01-04 – 2027-02-26. Build: 2027-03-01 – 2027-05-28, after Design. Launch: 2027-06-15, after Build. Marked days: Today (2027-02-10)."
+        ));
+        assert!(html.contains("<th scope=\"col\">Item</th>"));
+        assert!(html.contains("<th scope=\"row\">Launch</th><td>Milestone</td><td>2027-06-15</td><td></td><td>Late</td><td>Build</td>"));
+    }
+
+    #[test]
+    fn the_height_of_a_timeline_grows_with_its_items() {
+        let rows: Vec<String> = (0..20)
+            .map(|index| {
+                format!(
+                    r#"{{"label": "Item {index}", "start": "2027-01-04", "end": "2027-02-26"}}"#
+                )
+            })
+            .collect();
+        let json = format!(
+            r#"{{"schemaVersion": 1, "type": "timeline", "title": "Many", "width": 700, "height": 300, "timeline": {{"items": [{}]}}}}"#,
+            rows.join(",")
+        );
+        let output = render_ok(&json);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "canvas_too_small" && warning.path == "/height")
+        );
+    }
+
+    #[test]
+    fn timelines_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""end": "2027-02-26""#,
+                r#""end": "2026-12-01""#,
+                "invalid_range",
+                "/timeline/items/0/end",
+            ),
+            (
+                r#""end": "2027-02-26""#,
+                r#""at": "2027-02-26""#,
+                "invalid_item",
+                "/timeline/items/0",
+            ),
+            (
+                r#""at": "2027-06-15""#,
+                r#""start": "2027-06-15""#,
+                "invalid_item",
+                "/timeline/items/2",
+            ),
+            (
+                r#""after": ["a"]"#,
+                r#""after": ["nowhere"]"#,
+                "unknown_node",
+                "/timeline/items/1/after/0",
+            ),
+            (
+                r#""after": ["b"]"#,
+                r#""after": ["launch"], "id": "launch""#,
+                "circular_dependency",
+                "/timeline/items/2/after/0",
+            ),
+            (r#""group": "Early""#, r#""group": "Late""#, "", ""),
+            (
+                r#""start": "2027-01-04""#,
+                r#""start": "soon""#,
+                "invalid_time",
+                "/timeline/items/0/start",
+            ),
+        ] {
+            if code.is_empty() {
+                continue;
+            }
+            let error = render_json(
+                &TIMELINE.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+        // A circle of items that follow each other.
+        let circle = TIMELINE.replace(
+            r#""id": "a", "label": "Design""#,
+            r#""id": "a", "after": ["b"], "label": "Design""#,
+        );
+        let error = render_json(&circle, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(error.code, "circular_dependency");
+        // A group on some items only.
+        let partial = TIMELINE.replace(r#", "group": "Early""#, "");
+        let error =
+            render_json(&partial, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("missing_group", "/timeline/items/0/group")
+        );
+    }
+
+    #[test]
+    fn an_item_that_starts_before_its_predecessor_ends_is_a_warning() {
+        let json = TIMELINE.replace(r#""start": "2027-03-01""#, r#""start": "2027-02-01""#);
+        let output = render_ok(&json);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "follows_overlap"
+                    && warning.path == "/timeline/items/1/after/0")
+        );
     }
 
     #[test]

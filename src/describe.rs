@@ -21,6 +21,7 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         ChartType::State => return state::description(spec),
         ChartType::Architecture => return architecture::description(spec),
         ChartType::Tree => return tree::description(spec),
+        ChartType::Timeline => return crate::timeline::description(spec),
         ChartType::Bar | ChartType::Line => {}
     }
     let dataset = spec.dataset();

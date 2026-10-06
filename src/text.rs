@@ -88,6 +88,15 @@ pub(crate) struct Words {
     pub outliers: &'static str,
     pub observations: &'static str,
     pub interval: &'static str,
+    pub weight: &'static str,
+    pub summary: &'static str,
+    /// The columns of a timeline's table.
+    pub item: &'static str,
+    pub phase: &'static str,
+    pub milestone: &'static str,
+    pub begin: &'static str,
+    pub finish: &'static str,
+    pub follows: &'static str,
     /// The names of a diagram's focus links, and of the link that clears the focus.
     pub focus: &'static str,
     pub show_all: &'static str,
@@ -169,6 +178,14 @@ const EN: Words = Words {
     outliers: "Outliers",
     observations: "Observations",
     interval: "Interval",
+    weight: "Weight",
+    summary: "summary",
+    item: "Item",
+    phase: "Phase",
+    milestone: "Milestone",
+    begin: "Start",
+    finish: "End",
+    follows: "After",
     boundary: "Boundary",
     connects_to: "Connects to",
     focus: "Focus",
@@ -253,6 +270,14 @@ const DE: Words = Words {
     outliers: "Ausreißer",
     observations: "Beobachtungen",
     interval: "Intervall",
+    weight: "Gewicht",
+    summary: "Gesamt",
+    item: "Eintrag",
+    phase: "Phase",
+    milestone: "Meilenstein",
+    begin: "Beginn",
+    finish: "Ende",
+    follows: "Nach",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
     focus: "Fokus",
@@ -1327,6 +1352,60 @@ pub(crate) fn error_bars(locale: Locale) -> String {
     match locale {
         Locale::En => " Error bars show the interval from lower to upper; the table gives it for every bar.".to_owned(),
         Locale::De => " Fehlerbalken zeigen das Intervall von unten bis oben; die Tabelle nennt es für jeden Balken.".to_owned(),
+    }
+}
+
+/// The overall results among the spans of a range chart, drawn as diamonds.
+pub(crate) fn summary_ranges(locale: Locale, summaries: &str) -> String {
+    match locale {
+        Locale::En => format!(" Overall result, drawn as a diamond: {summaries}."),
+        Locale::De => format!(" Gesamtergebnis, als Raute gezeichnet: {summaries}."),
+    }
+}
+
+/// What the squares of a range chart mean.
+pub(crate) fn weighted_ranges(locale: Locale) -> String {
+    match locale {
+        Locale::En => " The area of each square follows the weight of its span.".to_owned(),
+        Locale::De => " Die Fläche jedes Quadrats folgt dem Gewicht seiner Spanne.".to_owned(),
+    }
+}
+
+/// The opening sentence of a timeline: its phases and milestones, and the days it spans.
+pub(crate) fn timeline_opening(
+    locale: Locale,
+    (phases, milestones): (usize, usize),
+    (first, last): (&str, &str),
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "Timeline with {phases} phase{} and {milestones} milestone{} from {first} to {last}.",
+            plural(phases, "", "s"),
+            plural(milestones, "", "s"),
+        ),
+        Locale::De => format!(
+            "Zeitstrahl mit {phases} {} und {milestones} {} vom {first} bis zum {last}.",
+            plural(phases, "Phase", "Phasen"),
+            plural(milestones, "Meilenstein", "Meilensteinen"),
+        ),
+    }
+}
+
+/// One item of a timeline as a sentence: its days, and what it follows.
+pub(crate) fn timeline_item(locale: Locale, label: &str, days: &str, follows: &[&str]) -> String {
+    let after = match (locale, follows.is_empty()) {
+        (_, true) => String::new(),
+        (Locale::En, false) => format!(", after {}", follows.join(" and ")),
+        (Locale::De, false) => format!(", nach {}", follows.join(" und ")),
+    };
+    format!("{label}: {days}{after}.")
+}
+
+/// The days that matter, drawn as lines across the timeline.
+pub(crate) fn timeline_markers(locale: Locale, markers: &str) -> String {
+    match locale {
+        Locale::En => format!(" Marked days: {markers}."),
+        Locale::De => format!(" Markierte Tage: {markers}."),
     }
 }
 

@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 38] = [
+const EXAMPLES: [(&str, &str, &str); 40] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -192,10 +192,20 @@ const EXAMPLES: [(&str, &str, &str); 38] = [
         include_str!("../examples/satisfaction-scores.json"),
         include_str!("../examples/satisfaction-scores.svg"),
     ),
+    (
+        "trial-effects",
+        include_str!("../examples/trial-effects.json"),
+        include_str!("../examples/trial-effects.svg"),
+    ),
+    (
+        "product-roadmap",
+        include_str!("../examples/product-roadmap.json"),
+        include_str!("../examples/product-roadmap.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 7] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 9] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -230,6 +240,16 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 7] = [
         "response-times",
         include_str!("../examples/response-times.json"),
         include_str!("../examples/response-times.mobile.svg"),
+    ),
+    (
+        "trial-effects",
+        include_str!("../examples/trial-effects.json"),
+        include_str!("../examples/trial-effects.mobile.svg"),
+    ),
+    (
+        "product-roadmap",
+        include_str!("../examples/product-roadmap.json"),
+        include_str!("../examples/product-roadmap.mobile.svg"),
     ),
 ];
 

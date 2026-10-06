@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -74,7 +74,7 @@
       "enum": ["normal", "percent"]
     },
     "references": {
-      "description": "Reference lines across a type: \"bar\" chart, such as an average or a target.",
+      "description": "Reference lines across a type: \"bar\" or \"rangebar\" chart, such as an average, a target or the line of no effect.",
       "type": "array",
       "maxItems": 4,
       "items": {
@@ -93,6 +93,10 @@
       "minItems": 1,
       "maxItems": 100,
       "items": { "$ref": "#/$defs/range" }
+    },
+    "timeline": {
+      "description": "The items and markers of a type: \"timeline\" chart.",
+      "$ref": "#/$defs/timeline"
     },
     "boxes": {
       "description": "The boxes of a type: \"boxplot\" chart, one per category: observations (values) from which the box is computed, or the five numbers of a box computed elsewhere.",
@@ -304,6 +308,17 @@
           }
         },
         {
+          "required": ["timeline"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["boxes"],
           "not": {
             "anyOf": [
@@ -396,6 +411,24 @@
       "if": { "properties": { "type": { "const": "rangebar" } } },
       "then": { "required": ["ranges"] },
       "else": { "not": { "required": ["ranges"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "timeline" } } },
+      "then": {
+        "required": ["timeline"],
+        "not": {
+          "anyOf": [
+            { "required": ["zoomSteps"] },
+            { "required": ["orientation"] },
+            { "required": ["categoryAxis"] },
+            { "required": ["valueAxis"] },
+            { "required": ["timeAxis"] },
+            { "required": ["topicmap"] },
+            { "required": ["atlas"] }
+          ]
+        }
+      },
+      "else": { "not": { "required": ["timeline"] } }
     },
     {
       "if": { "properties": { "type": { "const": "boxplot" } } },
@@ -710,6 +743,46 @@
           "items": { "$ref": "#/$defs/identifier" }
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "timeline": {
+      "description": "A timeline: phases (start and end), milestones (at), dashed marker lines for days that matter, and which items follow which. Days are ISO 8601 dates, optionally with a time, or Unix seconds. Either every item names a group or none does (at most 4); `after` names the ids of earlier or later items, in no circle.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "id": { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "start": { "$ref": "#/$defs/timeValue" },
+              "end": { "$ref": "#/$defs/timeValue" },
+              "at": { "$ref": "#/$defs/timeValue" },
+              "group": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "after": { "type": "array", "items": { "$ref": "#/$defs/identifier" } }
+            }
+          }
+        },
+        "markers": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "at"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "at": { "$ref": "#/$defs/timeValue" }
+            }
+          }
+        }
       }
     },
     "tree": {
@@ -1074,6 +1147,8 @@
         "low": { "type": "number" },
         "high": { "type": "number" },
         "mid": { "type": "number" },
+        "weight": { "description": "A forest plot: the central mark becomes a square whose area follows the weight. Above zero; needs mid.", "type": "number", "exclusiveMinimum": 0 },
+        "summary": { "description": "An overall result such as a pooled effect: drawn as a diamond from low to high, widest at mid, which it needs.", "type": "boolean", "default": false },
         "modeled": { "type": "boolean", "default": false },
         "group": {
           "description": "The group of the span, drawn in its own palette color with a legend entry. Either every range names a group or none does; at most 4 groups.",

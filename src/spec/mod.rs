@@ -10,6 +10,7 @@ mod sequence;
 mod state;
 mod stripes;
 mod timechart;
+mod timeline;
 mod topicmap;
 mod tree;
 
@@ -43,6 +44,8 @@ pub use timechart::{
     TimeAxisSpec, TimePoint, TimePrecision, Tooltips,
 };
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
+pub use timeline::{MarkerSpec, TimelineItemSpec, TimelineSpec};
+pub(crate) use timeline::{Span, zone as timeline_zone};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
 pub use tree::{TreeNodeKind, TreeNodeSpec, TreeSpec};
 
@@ -150,6 +153,9 @@ pub struct ChartSpec {
     /// The nodes of a `type: "tree"` diagram. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tree: Option<TreeSpec>,
+    /// The items of a `type: "timeline"` chart. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeline: Option<TimelineSpec>,
     /// The boxes of a `type: "boxplot"` chart, one per category.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub boxes: Vec<BoxSpec>,
@@ -299,11 +305,13 @@ pub enum ChartType {
     Tree,
     /// Boxes with whiskers and outliers, one per category: distributions side by side.
     Boxplot,
+    /// A timeline: phases, milestones and the days that matter, in rows over one time axis.
+    Timeline,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 15] = [
+    pub const ALL: [Self; 16] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -319,6 +327,7 @@ impl ChartType {
         Self::Architecture,
         Self::Tree,
         Self::Boxplot,
+        Self::Timeline,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -622,6 +631,7 @@ impl ChartSpec {
             ChartType::Architecture => return self.validate_architecture(),
             ChartType::Tree => return self.validate_tree(),
             ChartType::Boxplot => return self.validate_boxplot(),
+            ChartType::Timeline => return self.validate_timeline(),
             ChartType::Bar | ChartType::Line => {}
         }
         let warnings = self.validate_data()?;
@@ -911,7 +921,7 @@ impl ChartSpec {
     }
 
     /// Every reference line has a usable value and a label; a chart takes at most four.
-    fn validate_references(&self) -> Result<(), ChartError> {
+    pub(super) fn validate_references(&self) -> Result<(), ChartError> {
         if self.references.len() > MAX_REFERENCES {
             return Err(ChartError::new(
                 "too_many_references",
@@ -1219,6 +1229,7 @@ impl ChartSpec {
             ("/calendar", self.calendar.is_some(), ChartType::Calendar),
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/boxes", !self.boxes.is_empty(), ChartType::Boxplot),
+            ("/timeline", self.timeline.is_some(), ChartType::Timeline),
             ("/sequence", self.sequence.is_some(), ChartType::Sequence),
             ("/flow", self.flow.is_some(), ChartType::Flow),
             ("/state", self.state.is_some(), ChartType::State),
@@ -1229,7 +1240,11 @@ impl ChartSpec {
             ),
             ("/tree", self.tree.is_some(), ChartType::Tree),
             ("/columns", self.columns.is_some(), ChartType::Multiples),
-            ("/references", !self.references.is_empty(), ChartType::Bar),
+            (
+                "/references",
+                !self.references.is_empty() && own != ChartType::Rangebar,
+                ChartType::Bar,
+            ),
             ("/stack", self.stack.is_some(), ChartType::Bar),
             (
                 "/legend",
@@ -1279,6 +1294,7 @@ impl ChartSpec {
                 | ChartType::Calendar
                 | ChartType::Rangebar
                 | ChartType::Boxplot
+                | ChartType::Timeline
                 | ChartType::Multiples
                 | ChartType::Sequence
                 | ChartType::Flow
@@ -1383,6 +1399,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Architecture => "architecture",
         ChartType::Tree => "tree",
         ChartType::Boxplot => "boxplot",
+        ChartType::Timeline => "timeline",
     }
 }
 

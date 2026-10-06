@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "type": "timeline",
+  "title": "Product roadmap 2027",
+  "source": "Illustrative plan",
+  "width": 900,
+  "height": 480,
+  "showValues": true,
+  "timeline": {
+    "items": [
+      { "id": "research", "label": "User research", "start": "2027-01-11", "end": "2027-02-19", "group": "Discovery" },
+      { "id": "design", "label": "Design", "start": "2027-02-22", "end": "2027-04-02", "group": "Discovery", "after": ["research"] },
+      { "id": "alpha", "label": "Alpha build", "start": "2027-04-05", "end": "2027-06-11", "group": "Build", "after": ["design"] },
+      { "id": "review", "label": "Security review", "start": "2027-06-14", "end": "2027-07-09", "group": "Build", "after": ["alpha"] },
+      { "id": "beta", "label": "Beta", "start": "2027-07-12", "end": "2027-09-03", "group": "Launch", "after": ["review"] },
+      { "id": "freeze", "label": "Feature freeze", "at": "2027-07-30", "group": "Launch", "after": ["review"] },
+      { "id": "release", "label": "General availability", "at": "2027-09-20", "group": "Launch", "after": ["beta", "freeze"] }
+    ],
+    "markers": [{ "label": "Today", "at": "2027-03-08" }]
+  },
+  "mobile": { "width": 400, "height": 480 }
+}

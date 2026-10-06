@@ -68,12 +68,14 @@ const CALENDAR_STYLE: &str =
 /// Range bars: a translucent span in the accent color, a hatch on top of a modeled one, and a
 /// strong mark for the central value.
 /// Box plots: the box, its median, whiskers and the points beyond them.
+/// Timelines: phases in the colors of their groups, milestones, markers and arrows.
+const TIMELINE_STYLE: &str = ".chartlet-timeline-phase{fill:var(--chartlet-accent);stroke:none;rx:3px}.chartlet-timeline-milestone{fill:var(--chartlet-accent);stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-timeline-group-1{fill:var(--chartlet-color-1)}.chartlet-timeline-group-2{fill:var(--chartlet-color-2)}.chartlet-timeline-group-3{fill:var(--chartlet-color-3)}.chartlet-timeline-group-4{fill:var(--chartlet-color-4)}.chartlet-timeline-marker{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-timeline-marker-label{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-timeline-link{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}.chartlet-timeline-head{fill:var(--chartlet-zero);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// The error bars of a bar chart.
 const ERROR_STYLE: &str =
     ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
 /// Box plots: the box, its median, whiskers and the points beyond them.
 const BOXPLOT_STYLE: &str = ".chartlet-box{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-box-median{stroke:var(--chartlet-text);stroke-width:3}.chartlet-box-whisker{stroke:var(--chartlet-accent);stroke-width:1.5;fill:none}.chartlet-box-outlier{fill:none;stroke:var(--chartlet-accent);stroke-width:1.5}";
-const RANGEBAR_STYLE: &str = ".chartlet-range{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1}.chartlet-range-hatch{stroke:none}.chartlet-hatch-line{stroke:var(--chartlet-accent);stroke-width:1.2;opacity:.75}.chartlet-range-mid{stroke:var(--chartlet-text);stroke-width:3}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+const RANGEBAR_STYLE: &str = ".chartlet-range{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1}.chartlet-range-hatch{stroke:none}.chartlet-hatch-line{stroke:var(--chartlet-accent);stroke-width:1.2;opacity:.75}.chartlet-range-mid{stroke:var(--chartlet-text);stroke-width:3}.chartlet-range-weight{fill:var(--chartlet-text);stroke:none}.chartlet-range-summary{fill:var(--chartlet-text);fill-opacity:.85;stroke:var(--chartlet-text);stroke-width:1}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Range bars in groups: each group's spans in its palette color.
 const RANGE_GROUP_STYLE: &str = ".chartlet-range-series-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-range-series-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-range-series-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-range-series-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}";
 
@@ -332,7 +334,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -379,6 +381,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         if is_calendar { CALENDAR_STYLE } else { "" },
         if is_rangebar { RANGEBAR_STYLE } else { "" },
         if is_boxplot { BOXPLOT_STYLE } else { "" },
+        if spec.chart_type == ChartType::Timeline {
+            TIMELINE_STYLE
+        } else {
+            ""
+        },
         if spec.has_error_bars() {
             ERROR_STYLE
         } else {
@@ -421,9 +428,9 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
         Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Rangebar, Sequence,
-        State, Stripes, Time, Topicmap, Tree,
+        State, Stripes, Time, Timeline, Topicmap, Tree,
     };
-    let groups: [(&str, &[ChartType]); 28] = [
+    let groups: [(&str, &[ChartType]); 29] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -440,9 +447,10 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (CALENDAR_STYLE, &[Calendar]),
         (RANGEBAR_STYLE, &[Rangebar]),
         (BOXPLOT_STYLE, &[Boxplot]),
+        (TIMELINE_STYLE, &[Timeline]),
         (ERROR_STYLE, &[Bar]),
         (RANGE_GROUP_STYLE, &[Rangebar]),
-        (REFERENCE_STYLE, &[Bar]),
+        (REFERENCE_STYLE, &[Bar, Rangebar]),
         (OUTLINE_STYLE, &[Bar]),
         (TOPICMAP_STYLE, &[Topicmap]),
         (ATLAS_STYLE, &[Atlas]),
@@ -893,6 +901,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::State
             | ChartType::Architecture
             | ChartType::Tree
+            | ChartType::Timeline
     ) {
         let table = data_table(spec);
         return TableHooks {
@@ -1482,6 +1491,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::State => return crate::state::data_table(spec),
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
+        ChartType::Timeline => return crate::timeline::data_table(spec),
         _ => {}
     }
     let words = spec.locale.words();
@@ -1505,7 +1515,8 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Flow
         | ChartType::State
         | ChartType::Architecture
-        | ChartType::Tree => {
+        | ChartType::Tree
+        | ChartType::Timeline => {
             unreachable!("a diagram writes its own table")
         }
     };

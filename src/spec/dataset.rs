@@ -53,7 +53,8 @@ impl ChartSpec {
             | ChartType::Flow
             | ChartType::State
             | ChartType::Architecture
-            | ChartType::Tree => {
+            | ChartType::Tree
+            | ChartType::Timeline => {
                 unreachable!("a diagram's table holds text, see its data_table")
             }
         }
@@ -132,6 +133,13 @@ impl ChartSpec {
                 style: None,
             },
         ];
+        if self.ranges.iter().any(|range| range.weight.is_some()) {
+            series.push(Series {
+                name: Some(words.weight.to_owned()),
+                values: self.ranges.iter().map(|range| range.weight).collect(),
+                style: None,
+            });
+        }
         if self.ranges.iter().any(|range| range.mid.is_some()) {
             series.insert(
                 1,
@@ -152,6 +160,7 @@ impl ChartSpec {
                         .as_deref()
                         .into_iter()
                         .chain(range.modeled.then_some(words.modeled))
+                        .chain(range.summary.then_some(words.summary))
                         .collect();
                     if notes.is_empty() {
                         range.label.clone()
@@ -408,7 +417,8 @@ impl ChartSpec {
             | ChartType::Flow
             | ChartType::State
             | ChartType::Architecture
-            | ChartType::Tree => None,
+            | ChartType::Tree
+            | ChartType::Timeline => None,
         };
         NumberStyle {
             format: self.value_format(),
@@ -464,7 +474,8 @@ impl ChartSpec {
             | ChartType::Flow
             | ChartType::State
             | ChartType::Architecture
-            | ChartType::Tree => ValueFormat::Number,
+            | ChartType::Tree
+            | ChartType::Timeline => ValueFormat::Number,
             ChartType::Bar
             | ChartType::Line
             | ChartType::Rangebar

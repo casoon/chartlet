@@ -3,6 +3,8 @@
 //! and modeled does not rest on color. Spans may belong to groups, each in a palette color with
 //! an entry in the legend.
 
+use std::fmt::Write as _;
+
 use crate::{
     error::ChartWarning,
     layout::{
@@ -32,6 +34,9 @@ const LEGEND_HEIGHT: f64 = 24.0;
 const LEGEND_SWATCH: f64 = 16.0;
 /// A span of zero width is still drawn this wide, so that it does not vanish.
 const MIN_EXTENT: f64 = 2.0;
+/// The side of the square of the heaviest span, and the least a square measures.
+const SQUARE: f64 = 14.0;
+const MIN_SQUARE: f64 = 4.0;
 /// How far the central mark reaches beyond the bar on either side.
 const MID_OVERHANG: f64 = 3.0;
 
@@ -59,6 +64,16 @@ fn span_label(spec: &ChartSpec, range: &RangeSpec) -> String {
 }
 
 fn tooltip(spec: &ChartSpec, range: &RangeSpec) -> String {
+    let weight = range
+        .weight
+        .map(|weight| {
+            format!(
+                ", {} {}",
+                spec.locale.words().weight.to_lowercase(),
+                format_value(weight, spec.number_style())
+            )
+        })
+        .unwrap_or_default();
     let modeled = if range.modeled {
         format!(", {}", spec.locale.words().modeled)
     } else {
@@ -70,7 +85,7 @@ fn tooltip(spec: &ChartSpec, range: &RangeSpec) -> String {
         .map(|group| format!(" ({group})"))
         .unwrap_or_default();
     format!(
-        "{}{group}: {}{modeled}",
+        "{}{group}: {}{modeled}{weight}",
         range.label,
         span_label(spec, range)
     )
@@ -97,7 +112,8 @@ pub(crate) fn layout(
         .ranges
         .iter()
         .flat_map(|range| [Some(range.low), Some(range.high), range.mid])
-        .flatten();
+        .flatten()
+        .chain(crate::reference::values(spec));
     let scale = NumericScale::for_axis(values, false, &spec.value_axis);
     let elements = match spec.orientation {
         Orientation::Horizontal => layout_horizontal(spec, &scale, warnings, metrics),
@@ -251,6 +267,7 @@ fn push_span(
     orientation: Orientation,
     along: impl Fn(f64) -> f64,
     across: (f64, f64),
+    max_weight: f64,
 ) {
     let (low, high) = (along(range.low), along(range.high));
     let (start, extent) = (low.min(high), (high - low).abs().max(MIN_EXTENT));
@@ -270,30 +287,104 @@ fn push_span(
             tooltip: Some(tooltip(spec, range)),
         })
     };
+    if range.summary {
+        push_diamond(elements, spec, range, orientation, &along, across);
+        return;
+    }
     elements.push(rect(range_class(spec, range)));
     if range.modeled {
         elements.push(rect("chartlet-range-hatch"));
     }
-    if let Some(mid) = range.mid {
-        let position = along(mid);
-        let (from, to) = (across.0 - MID_OVERHANG, across.0 + across.1 + MID_OVERHANG);
-        elements.push(Element::Line(match orientation {
-            Orientation::Horizontal => Line {
-                x1: position,
-                y1: from,
-                x2: position,
-                y2: to,
-                class: "chartlet-range-mid",
-            },
-            Orientation::Vertical => Line {
-                x1: from,
-                y1: position,
-                x2: to,
-                y2: position,
-                class: "chartlet-range-mid",
-            },
+    let Some(mid) = range.mid else {
+        return;
+    };
+    let position = along(mid);
+    if let Some(weight) = range.weight {
+        // A square whose area follows the weight, centered on the mid.
+        let side = (SQUARE * (weight / max_weight).sqrt()).max(MIN_SQUARE);
+        let center = across.0 + across.1 / 2.0;
+        let (x, y) = match orientation {
+            Orientation::Horizontal => (position - side / 2.0, center - side / 2.0),
+            Orientation::Vertical => (center - side / 2.0, position - side / 2.0),
+        };
+        elements.push(Element::Rect(Rect {
+            x,
+            y,
+            width: side,
+            height: side,
+            class: "chartlet-range-weight",
+            series_index: None,
+            style_index: None,
+            tooltip: Some(tooltip(spec, range)),
         }));
+        return;
     }
+    let (from, to) = (across.0 - MID_OVERHANG, across.0 + across.1 + MID_OVERHANG);
+    elements.push(Element::Line(match orientation {
+        Orientation::Horizontal => Line {
+            x1: position,
+            y1: from,
+            x2: position,
+            y2: to,
+            class: "chartlet-range-mid",
+        },
+        Orientation::Vertical => Line {
+            x1: from,
+            y1: position,
+            x2: to,
+            y2: position,
+            class: "chartlet-range-mid",
+        },
+    }));
+}
+
+/// An overall result: a diamond from low to high, widest at its mid.
+fn push_diamond(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    range: &RangeSpec,
+    orientation: Orientation,
+    along: &impl Fn(f64) -> f64,
+    across: (f64, f64),
+) {
+    let mid = along(range.mid.expect("validated summaries have a mid"));
+    let center = across.0 + across.1 / 2.0;
+    let half = (across.1 * 0.75).max(SQUARE * 0.65);
+    // Points as `(along, across)`, turned into page coordinates.
+    let points = [
+        (along(range.low), center),
+        (mid, center - half),
+        (along(range.high), center),
+        (mid, center + half),
+    ]
+    .into_iter()
+    .map(|(a, b)| match orientation {
+        Orientation::Horizontal => (a, b),
+        Orientation::Vertical => (b, a),
+    })
+    .collect();
+    let mut polygon =
+        crate::diagram::polyline(points, "chartlet-range-summary", Some(tooltip(spec, range)));
+    polygon.points.push(polygon.points[0]);
+    elements.push(Element::Polyline(polygon));
+}
+
+/// Whether the chart is a forest plot: its spans are thin lines under squares and diamonds.
+fn forest(spec: &ChartSpec) -> bool {
+    spec.ranges
+        .iter()
+        .any(|range| range.weight.is_some() || range.summary)
+}
+
+/// The thickness of the line of a span in a forest plot.
+const FOREST_LINE: f64 = 3.0;
+
+/// The greatest weight of any span; the square of the heaviest is the biggest.
+fn heaviest(spec: &ChartSpec) -> f64 {
+    spec.ranges
+        .iter()
+        .filter_map(|range| range.weight)
+        .fold(f64::MIN_POSITIVE, f64::max)
 }
 
 /// Room left of a horizontal plot for the longest category label.
@@ -344,9 +435,20 @@ fn layout_horizontal(
         vertical_bars: false,
     };
     let mut elements = base_elements_with_title(spec, scale, plot, title, warnings, metrics);
+    let bars = elements.len();
+    let max_weight = heaviest(spec);
     let band = plot.height / count(spec.ranges.len());
-    let thickness = (band * 0.5).clamp(2.0, 28.0);
+    let thickness = if forest(spec) {
+        FOREST_LINE
+    } else {
+        (band * 0.5).clamp(2.0, 28.0)
+    };
     let along = |value| scale.map(value, plot.left, plot.left + plot.width);
+    let rules: Vec<f64> = spec
+        .references
+        .iter()
+        .map(|reference| along(reference.value))
+        .collect();
 
     for (index, range) in spec.ranges.iter().enumerate() {
         let center = plot.top + band * (count(index) + 0.5);
@@ -357,10 +459,18 @@ fn layout_horizontal(
             Orientation::Horizontal,
             along,
             (center - thickness / 2.0, thickness),
+            max_weight,
         );
         if spec.show_values {
+            // A reference line never runs through the label: it moves to the line's far side.
+            let start = along(range.high).max(along(range.low)) + 8.0;
+            let reach = WithReserve(metrics).width(&span_label(spec, range), LABEL_SIZE);
+            let x = rules
+                .iter()
+                .find(|rule| **rule > start - 3.0 && **rule < start + reach + 3.0)
+                .map_or(start, |rule| rule + 6.0);
             elements.push(Element::Text(Text {
-                x: along(range.high).max(along(range.low)) + 8.0,
+                x,
                 y: center + 4.0,
                 class: "chartlet-value",
                 anchor: TextAnchor::Start,
@@ -377,6 +487,7 @@ fn layout_horizontal(
             &format!("/ranges/{index}/label"),
         );
     }
+    crate::reference::push(spec, *scale, plot, bars, &mut elements, warnings, metrics);
     push_legend(&mut elements, warnings, spec, (plot.left, title.1), metrics);
     elements
 }
@@ -405,8 +516,14 @@ fn layout_vertical(
         vertical_bars: true,
     };
     let mut elements = base_elements(spec, scale, plot, warnings, metrics);
+    let bars = elements.len();
+    let max_weight = heaviest(spec);
     let band = plot.width / count(spec.ranges.len());
-    let thickness = (band * 0.5).clamp(2.0, 36.0);
+    let thickness = if forest(spec) {
+        FOREST_LINE
+    } else {
+        (band * 0.5).clamp(2.0, 36.0)
+    };
     let along = |value| scale.map(value, plot.top + plot.height, plot.top);
     let mut omitted = false;
 
@@ -419,6 +536,7 @@ fn layout_vertical(
             Orientation::Vertical,
             along,
             (center - thickness / 2.0, thickness),
+            max_weight,
         );
         if spec.show_values {
             let content = span_label(spec, range);
@@ -454,6 +572,7 @@ fn layout_vertical(
         warnings,
         metrics,
     );
+    crate::reference::push(spec, *scale, plot, bars, &mut elements, warnings, metrics);
     push_legend(
         &mut elements,
         warnings,
@@ -508,6 +627,33 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     }
     if !modeled.is_empty() {
         description.push_str(&text::modeled_ranges(spec.locale, &modeled.join(", ")));
+    }
+    let summaries: Vec<String> = spec
+        .ranges
+        .iter()
+        .filter(|range| range.summary)
+        .map(|range| format!("{} ({})", range.label, span_label(spec, range)))
+        .collect();
+    if !summaries.is_empty() {
+        description.push_str(&text::summary_ranges(spec.locale, &summaries.join(", ")));
+    }
+    if spec.ranges.iter().any(|range| range.weight.is_some()) {
+        description.push_str(&text::weighted_ranges(spec.locale));
+    }
+    if !spec.references.is_empty() {
+        let words = spec.locale.words();
+        let references: Vec<String> = spec
+            .references
+            .iter()
+            .map(|reference| format!("{} {} {}", reference.label, words.at, show(reference.value)))
+            .collect();
+        write!(
+            description,
+            " {}: {}.",
+            words.reference_lines,
+            references.join("; ")
+        )
+        .expect("writing to String cannot fail");
     }
     description
 }

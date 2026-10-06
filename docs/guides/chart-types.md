@@ -12,6 +12,8 @@ order: 1
 | Stacked bar, by value or as 100 % | `"stack": "normal"` or `"percent"` with `series` | [Electricity generation](../../../showcase/energy-mix/), [Accessibility checks](../../../showcase/audit-outcomes/) |
 | Grouped bar, series told apart by form as well as color | `"patterns": true` | [Population and emissions](../../../showcase/population-and-emissions/) |
 | Bar chart with error bars | `lower` and `upper` on every `data` point | [Satisfaction scores](../../../showcase/satisfaction-scores/) |
+| Forest plot: squares by weight, a diamond, the line of no effect | `"type": "rangebar"` with `weight`, `summary` and `references` | [Effect of an intervention](../../../showcase/trial-effects/) |
+| Timeline: phases, milestones, markers and arrows | `"type": "timeline"` with `items` and `markers` | [Product roadmap](../../../showcase/product-roadmap/) |
 | Box plot from observations and from five numbers | `"type": "boxplot"` with `boxes` | [Response times](../../../showcase/response-times/) |
 | Bars colored by group, one legend entry per group | `group` on every `data` point | [Effects of an evening without a phone](../../../showcase/benefit-and-harm/) |
 | Grouped bar, up to four series | `categories` and `series` instead of `data` | [Budget vs. actual](../../../showcase/budget-vs-actual/) |
@@ -185,6 +187,73 @@ extreme values within reach and a point for every value beyond.
 - **Text alternative.** The description names the highest and the lowest median and the boxes with
   outliers; the data table has the five numbers of every box and its outliers; a tooltip adds the
   number of observations. 1–100 boxes with unique labels.
+
+## Forest plots
+
+A range bar chart becomes a forest plot — the usual picture of a meta-analysis — with three
+additions: a `weight` on a span, a `summary` span and a reference line for the line of no effect.
+
+```json
+{
+  "type": "rangebar",
+  "orientation": "horizontal",
+  "references": [{ "label": "No effect", "value": 0 }],
+  "ranges": [
+    { "label": "Study A (n=240)", "low": -7.8, "high": -1.2, "mid": -4.5, "weight": 24 },
+    { "label": "Study B (n=120)", "low": -9.9, "high": 1.7, "mid": -4.1, "weight": 11 },
+    { "label": "Overall", "low": -4.7, "high": -1.9, "mid": -3.3, "summary": true }
+  ]
+}
+```
+
+- A span with a `weight` is drawn as a thin line with a **square** on its `mid` whose area follows
+  the weight; the heaviest span has the biggest square. A weight is above zero and needs a `mid`
+  (`invalid_weight`).
+- A span with `"summary": true` is an overall result: a **diamond** from `low` to `high`, widest at
+  `mid` (`summary_without_mid`).
+- `references` draws the line of no effect across the plot with its label; a value label never
+  sits on it.
+- With `showValues` each span writes its effect and interval, `−4.5 (−7.8 to −1.2)`; put the
+  size of the study in its label. The data table has a Weight column, the description names the
+  overall result and the reference line.
+
+## Timelines
+
+`"type": "timeline"` puts phases, milestones and the days that matter in rows over one time axis:
+a Gantt chart, a roadmap, the course of a procedure with its deadlines.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "timeline",
+  "title": "Product roadmap",
+  "timeline": {
+    "items": [
+      { "id": "design", "label": "Design", "start": "2027-01-04", "end": "2027-02-26" },
+      { "id": "build", "label": "Build", "start": "2027-03-01", "end": "2027-05-28", "after": ["design"] },
+      { "label": "Launch", "at": "2027-06-15", "after": ["build"] }
+    ],
+    "markers": [{ "label": "Today", "at": "2027-02-10" }]
+  }
+}
+```
+
+- **Phases and milestones.** An item with `start` and `end` is a bar, an item with `at` a
+  diamond; mixing them is an error (`invalid_item`). Days are ISO 8601 dates, optionally with a
+  time, or Unix seconds, read in UTC. The axis runs over all items and markers with a little room
+  at both ends, and its ticks are chosen like those of a time chart.
+- **Groups** give items a color and a legend entry: on every item or none, at most four.
+- **Markers** are dashed lines across all rows with their label on top: today, a deadline.
+- **Arrows.** `after` names the `id`s of the items an item follows; an arrow runs from the end of
+  each to the start of the item, below the bars. Following in a circle is an error
+  (`circular_dependency`); an item that starts before the one it follows ends is a warning,
+  `follows_overlap`, and its arrow runs round the long way.
+- **Size.** Every item takes a row of 30 pixels; a canvas that is too low grows and says so with
+  `canvas_too_small`. With `showValues` the dates stand beside each item; on a phone (a canvas
+  narrower than 480 pixels) they stay in the tooltips and the table.
+- **Text alternative.** The description lists every item with its days and what it follows, then
+  the marked days; the data table has one row per item with its kind, start, end, group and
+  predecessors. 1–60 items, up to six markers.
 
 ## Reference lines
 
