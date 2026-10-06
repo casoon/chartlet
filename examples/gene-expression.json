@@ -108,7 +108,7 @@
     "group": "Up"
    },
    {
-    "x": -0.0,
+    "x": 0,
     "y": 1.16,
     "group": "Not significant"
    },
@@ -240,7 +240,7 @@
     "group": "Up"
    },
    {
-    "x": -1.0,
+    "x": -1,
     "y": 0.94,
     "group": "Not significant"
    },
@@ -655,7 +655,7 @@
     "group": "Not significant"
    },
    {
-    "x": 0.0,
+    "x": 0,
     "y": 0.73,
     "group": "Not significant"
    },
@@ -1245,7 +1245,7 @@
     "group": "Up"
    },
    {
-    "x": -1.0,
+    "x": -1,
     "y": 1.97,
     "group": "Down"
    },
@@ -1392,7 +1392,7 @@
    },
    {
     "x": 0.12,
-    "y": 1.0,
+    "y": 1,
     "group": "Not significant"
    },
    {
@@ -1447,7 +1447,7 @@
    },
    {
     "x": 0.21,
-    "y": 1.0,
+    "y": 1,
     "group": "Not significant"
    },
    {
@@ -1993,7 +1993,7 @@
    },
    {
     "x": -0.15,
-    "y": 1.0,
+    "y": 1,
     "group": "Not significant"
    },
    {
@@ -2283,7 +2283,7 @@
    },
    {
     "x": 0.83,
-    "y": 1.0,
+    "y": 1,
     "group": "Not significant"
    },
    {
@@ -2708,7 +2708,7 @@
    },
    {
     "x": 0.19,
-    "y": 1.0,
+    "y": 1,
     "group": "Not significant"
    },
    {
@@ -3008,7 +3008,7 @@
    },
    {
     "x": 0.21,
-    "y": 1.0,
+    "y": 1,
     "group": "Not significant"
    },
    {
@@ -3528,7 +3528,7 @@
    }
   ],
   "xTitle": "log2 fold change",
-  "yTitle": "\u2212log10 p"
+  "yTitle": "−log10 p"
  },
  "mobile": {
   "width": 380,
