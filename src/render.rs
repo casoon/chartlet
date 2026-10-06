@@ -78,6 +78,8 @@ const WAFFLE_STYLE: &str = ".chartlet-waffle-1{fill:var(--chartlet-color-1)}.cha
 const PARLIAMENT_STYLE: &str = ".chartlet-root{--chartlet-parl-5:#0f766e;--chartlet-parl-6:#6d28d9;--chartlet-parl-7:#b45309;--chartlet-parl-8:#be185d}.chartlet-root.chartlet-theme-dark{--chartlet-parl-5:#2dd4bf;--chartlet-parl-6:#b69cff;--chartlet-parl-7:#fbbf24;--chartlet-parl-8:#f472b6}.chartlet-parl-1{fill:var(--chartlet-color-1)}.chartlet-parl-2{fill:var(--chartlet-color-2)}.chartlet-parl-3{fill:var(--chartlet-color-3)}.chartlet-parl-4{fill:var(--chartlet-color-4)}.chartlet-parl-5{fill:var(--chartlet-parl-5)}.chartlet-parl-6{fill:var(--chartlet-parl-6)}.chartlet-parl-7{fill:var(--chartlet-parl-7)}.chartlet-parl-8{fill:var(--chartlet-parl-8)}.chartlet-parl-seat{stroke:none}.chartlet-parl-coalition{fill:none;stroke:var(--chartlet-text);stroke-width:2}.chartlet-parl-majority{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:4 3}.chartlet-parl-total{font-size:28px;font-weight:700;fill:var(--chartlet-text)}.chartlet-parl-note{font-size:12px;fill:var(--chartlet-muted)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Treemaps: the rectangles in the palette colors.
 const TREEMAP_STYLE: &str = ".chartlet-tm-0{fill:var(--chartlet-color-1)}.chartlet-tm-1{fill:var(--chartlet-color-1)}.chartlet-tm-2{fill:var(--chartlet-color-2)}.chartlet-tm-3{fill:var(--chartlet-color-3)}.chartlet-tm-4{fill:var(--chartlet-color-4)}.chartlet-tm-cell{stroke:none}.chartlet-tm-label{font-size:12px;font-weight:600;fill:var(--chartlet-background)}.chartlet-tm-value{font-size:11px;fill:var(--chartlet-background);opacity:.9}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Sankey diagrams: the bands and nodes in the palette colors.
+const SANKEY_STYLE: &str = ".chartlet-sk-1{fill:var(--chartlet-color-1)}.chartlet-sk-2{fill:var(--chartlet-color-2)}.chartlet-sk-3{fill:var(--chartlet-color-3)}.chartlet-sk-4{fill:var(--chartlet-color-4)}.chartlet-sk-node{stroke:none}.chartlet-sk-link{stroke:none;opacity:.35}.chartlet-sk-label{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-sk-value{font-size:11px;fill:var(--chartlet-muted)}";
 /// The error bars of a bar chart.
 const ERROR_STYLE: &str =
     ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
@@ -332,6 +334,7 @@ const fn type_style(chart_type: ChartType) -> &'static str {
         ChartType::Waffle => WAFFLE_STYLE,
         ChartType::Parliament => PARLIAMENT_STYLE,
         ChartType::Treemap => TREEMAP_STYLE,
+        ChartType::Sankey => SANKEY_STYLE,
         _ => "",
     }
 }
@@ -443,9 +446,10 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
         Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Parliament, Rangebar,
-        Sequence, State, Stripes, Time, Timeline, Topicmap, Tree, Treemap, Waffle, Waterfall,
+        Sankey, Sequence, State, Stripes, Time, Timeline, Topicmap, Tree, Treemap, Waffle,
+        Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 33] = [
+    let groups: [(&str, &[ChartType]); 34] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -478,6 +482,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (WAFFLE_STYLE, &[Waffle]),
         (PARLIAMENT_STYLE, &[Parliament]),
         (TREEMAP_STYLE, &[Treemap]),
+        (SANKEY_STYLE, &[Sankey]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
@@ -921,6 +926,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
+            | ChartType::Sankey
             | ChartType::Treemap
             | ChartType::Parliament
             | ChartType::Waffle
@@ -1515,6 +1521,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
         ChartType::Timeline => return crate::timeline::data_table(spec),
+        ChartType::Sankey => return crate::sankey::data_table(spec),
         ChartType::Treemap => return crate::treemap::data_table(spec),
         ChartType::Parliament => return crate::parliament::data_table(spec),
         ChartType::Waffle => return crate::waffle::data_table(spec),
@@ -1547,7 +1554,8 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Waterfall
         | ChartType::Waffle
         | ChartType::Parliament
-        | ChartType::Treemap => {
+        | ChartType::Treemap
+        | ChartType::Sankey => {
             unreachable!("a diagram writes its own table")
         }
     };

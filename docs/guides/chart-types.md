@@ -383,6 +383,39 @@ many items, where a bar chart would run out of room.
 - **Text alternative.** The description names the biggest items and the shares of the groups;
   the table lists every item from the largest to the smallest with value, share and group.
 
+## Sankey diagrams
+
+`"type": "sankey"` shows how a quantity flows from sources through stages to uses: nodes in
+columns, joined by bands as thick as the flow.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "sankey",
+  "title": "From energy source to use",
+  "sankey": {
+    "links": [
+      { "from": "Gas", "to": "Power", "value": 120 },
+      { "from": "Wind", "to": "Power", "value": 90 },
+      { "from": "Power", "to": "Households", "value": 100 },
+      { "from": "Power", "to": "Losses", "value": 110 }
+    ]
+  }
+}
+```
+
+- **Links** name their ends by label; the nodes are the labels in the order they first appear. A
+  value is above zero (`invalid_value`), a link joins two different nodes (`self_link`), a pair
+  has one link (`duplicate_link`), and the links must not run in a circle (`link_cycle`). Up to
+  100 links and 40 nodes.
+- **Columns** follow the longest path from a node without incoming links; within a column the
+  nodes are ordered so that the bands cross as little as they can. A node is as tall as the
+  larger of what flows in and out; the flows need not balance.
+- **Colors.** The nodes without incoming links take the palette colors in turn; every other node
+  and every band takes the color of the node its biggest flow comes from.
+- **Text alternative.** The description gives the total and the biggest links; the table lists
+  every link with value and share of the total.
+
 ## Reference lines
 
 A bar chart takes up to four reference lines, such as an average or a target. Each runs across

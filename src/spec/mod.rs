@@ -7,6 +7,7 @@ mod dataset;
 mod flow;
 mod parliament;
 mod rangebar;
+mod sankey;
 mod sequence;
 mod state;
 mod stripes;
@@ -37,6 +38,8 @@ pub use categorical::{DataPoint, SeriesSpec};
 pub use flow::{FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, NodeKind};
 pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::RangeSpec;
+pub(crate) use sankey::SankeyGraph;
+pub use sankey::{SankeyLinkSpec, SankeySpec};
 pub use sequence::{
     BranchSpec, DiagramOrientation, FragmentKind, FragmentSpec, MessageKind, MessageSpec,
     ParticipantKind, ParticipantSpec, SequenceSpec,
@@ -174,6 +177,9 @@ pub struct ChartSpec {
     /// A treemap: rectangles whose areas follow the values. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub treemap: Option<TreemapSpec>,
+    /// A Sankey diagram: bands between nodes in columns, as thick as the flow. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sankey: Option<SankeySpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -336,11 +342,13 @@ pub enum ChartType {
     Parliament,
     /// A treemap: rectangles whose areas follow the values.
     Treemap,
+    /// A Sankey diagram: bands between nodes in columns, as thick as the flow.
+    Sankey,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 20] = [
+    pub const ALL: [Self; 21] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -361,6 +369,7 @@ impl ChartType {
         Self::Waffle,
         Self::Parliament,
         Self::Treemap,
+        Self::Sankey,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -665,6 +674,7 @@ impl ChartSpec {
             ChartType::Tree => return self.validate_tree(),
             ChartType::Boxplot => return self.validate_boxplot(),
             ChartType::Timeline => return self.validate_timeline(),
+            ChartType::Sankey => return self.validate_sankey(),
             ChartType::Treemap => return self.validate_treemap(),
             ChartType::Parliament => return self.validate_parliament(),
             ChartType::Waffle => return self.validate_waffle(),
@@ -1267,6 +1277,7 @@ impl ChartSpec {
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/boxes", !self.boxes.is_empty(), ChartType::Boxplot),
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
+            ("/sankey", self.sankey.is_some(), ChartType::Sankey),
             ("/treemap", self.treemap.is_some(), ChartType::Treemap),
             (
                 "/parliament",
@@ -1340,6 +1351,7 @@ impl ChartSpec {
                 | ChartType::Rangebar
                 | ChartType::Boxplot
                 | ChartType::Timeline
+                | ChartType::Sankey
                 | ChartType::Treemap
                 | ChartType::Parliament
                 | ChartType::Waffle
@@ -1449,6 +1461,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Tree => "tree",
         ChartType::Boxplot => "boxplot",
         ChartType::Timeline => "timeline",
+        ChartType::Sankey => "sankey",
         ChartType::Treemap => "treemap",
         ChartType::Parliament => "parliament",
         ChartType::Waffle => "waffle",

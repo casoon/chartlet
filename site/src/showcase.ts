@@ -390,6 +390,13 @@ const catalogue = [
       'Two hundred seats in six parties, in blocks from left to right, with a dashed line at the 101st seat and a ring round the seats of a four-party coalition. The legend, the description and the table give each party with its seats and share and say whether the coalition has a majority. Illustrative result, with a phone variant.',
   },
   {
+    slug: 'energy-flow',
+    chart: 'Sankey diagram',
+    useCase: 'Follow a quantity from source to use',
+    blurb:
+      'Energy from five sources through power plants and heating to households, industry and transport, with the losses on the way: every band is as thick as its flow and takes the color of where it comes from. The description names the biggest links, the table lists every link with value and share. Illustrative flows, with a phone variant.',
+  },
+  {
     slug: 'budget-by-department',
     chart: 'Treemap',
     useCase: 'Show many parts of a whole',

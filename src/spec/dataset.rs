@@ -58,7 +58,8 @@ impl ChartSpec {
             | ChartType::Waterfall
             | ChartType::Waffle
             | ChartType::Parliament
-            | ChartType::Treemap => {
+            | ChartType::Treemap
+            | ChartType::Sankey => {
                 unreachable!("a diagram's table holds text, see its data_table")
             }
         }
@@ -426,7 +427,8 @@ impl ChartSpec {
             | ChartType::Timeline
             | ChartType::Waffle
             | ChartType::Parliament
-            | ChartType::Treemap => None,
+            | ChartType::Treemap
+            | ChartType::Sankey => None,
         };
         NumberStyle {
             format: self.value_format(),
@@ -486,7 +488,8 @@ impl ChartSpec {
             | ChartType::Timeline
             | ChartType::Waffle
             | ChartType::Parliament
-            | ChartType::Treemap => ValueFormat::Number,
+            | ChartType::Treemap
+            | ChartType::Sankey => ValueFormat::Number,
             ChartType::Bar
             | ChartType::Line
             | ChartType::Rangebar

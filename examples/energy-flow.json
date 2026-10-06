@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "type": "sankey",
+  "title": "From energy source to use",
+  "source": "Illustrative flows in TWh",
+  "width": 760,
+  "height": 460,
+  "sankey": {
+    "links": [
+      { "from": "Gas", "to": "Power", "value": 120 },
+      { "from": "Gas", "to": "Heating", "value": 160 },
+      { "from": "Coal", "to": "Power", "value": 80 },
+      { "from": "Wind", "to": "Power", "value": 90 },
+      { "from": "Solar", "to": "Power", "value": 40 },
+      { "from": "Oil", "to": "Transport", "value": 150 },
+      { "from": "Oil", "to": "Industry", "value": 50 },
+      { "from": "Power", "to": "Industry", "value": 120 },
+      { "from": "Power", "to": "Households", "value": 100 },
+      { "from": "Power", "to": "Transport", "value": 20 },
+      { "from": "Power", "to": "Losses", "value": 90 },
+      { "from": "Heating", "to": "Households", "value": 160 }
+    ]
+  },
+  "mobile": { "width": 380, "height": 560 }
+}

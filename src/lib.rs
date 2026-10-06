@@ -20,6 +20,7 @@ pub mod qr;
 mod rangebar;
 mod reference;
 mod render;
+mod sankey;
 mod scene;
 mod sequence;
 mod sha256;
@@ -47,12 +48,12 @@ pub use spec::{
     FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec,
     LayerSpec, LegendPlacement, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NodeKind,
     OhlcPoint, Orientation, PaneSpec, ParliamentSpec, ParticipantKind, ParticipantSpec, PartySpec,
-    RangeSpec, ReferenceSpec, SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec,
-    StateSpec, StepKind, StepSpec, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec,
-    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec,
-    TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
-    ZoomStep,
+    RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeySpec, SequenceSpec, SeriesSpec, Shape, Stack,
+    StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke, Theme,
+    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
+    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec,
+    WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4371,6 +4372,67 @@ mod tests {
         ] {
             let error = render_json(
                 &WAFFLE.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+    }
+
+    const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,
+        "sankey": {"links": [
+            {"from": "A", "to": "Mid", "value": 30},
+            {"from": "B", "to": "Mid", "value": 10},
+            {"from": "Mid", "to": "X", "value": 25},
+            {"from": "Mid", "to": "Y", "value": 15}
+        ]}}"#;
+
+    #[test]
+    fn a_sankey_diagram_draws_a_band_for_every_link_and_lists_them() {
+        let output = render_ok(SANKEY);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(svg.matches("class=\"chartlet-sk-link ").count(), 4);
+        assert_eq!(svg.matches("class=\"chartlet-sk-node ").count(), 5);
+        assert!(svg.contains("<title>A → Mid: 30</title>"));
+        let html = render_json(SANKEY, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("Sankey diagram of 5 nodes and 4 links; 40 enter it. Biggest links: A → Mid (30), Mid → X (25), Mid → Y (15)."));
+        assert!(html.contains("<th scope=\"row\">A</th><td>Mid</td><td>30</td><td>75.0%</td>"));
+    }
+
+    #[test]
+    fn sankey_diagrams_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""value": 30"#,
+                r#""value": 0"#,
+                "invalid_value",
+                "/sankey/links/0/value",
+            ),
+            (
+                r#""to": "Mid", "value": 10"#,
+                r#""to": "B", "value": 10"#,
+                "self_link",
+                "/sankey/links/1/to",
+            ),
+            (
+                r#"{"from": "B", "to": "Mid""#,
+                r#"{"from": "A", "to": "Mid""#,
+                "duplicate_link",
+                "/sankey/links/1",
+            ),
+            (
+                r#"{"from": "Mid", "to": "Y", "value": 15}"#,
+                r#"{"from": "Mid", "to": "Y", "value": 15}, {"from": "Y", "to": "A", "value": 1}"#,
+                "link_cycle",
+                "/sankey/links",
+            ),
+        ] {
+            let error = render_json(
+                &SANKEY.replace(from, to),
                 RenderFormat::Svg,
                 &RenderOptions::default(),
             )

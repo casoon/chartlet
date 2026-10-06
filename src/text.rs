@@ -1522,6 +1522,25 @@ pub(crate) fn parliament_coalition(
     }
 }
 
+/// What a Sankey diagram shows: its nodes, links and total, and its biggest links.
+pub(crate) fn sankey_summary(
+    locale: Locale,
+    (nodes, links): (usize, usize),
+    total: &str,
+    largest: &str,
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "Sankey diagram of {nodes} nodes and {links} link{}; {total} enter it. Biggest links: {largest}.",
+            plural(links, "", "s")
+        ),
+        Locale::De => format!(
+            "Sankey-Diagramm aus {nodes} Knoten und {links} {}; {total} fließen hinein. Größte Verbindungen: {largest}.",
+            plural(links, "Verbindung", "Verbindungen")
+        ),
+    }
+}
+
 /// What a treemap shows: its items and total, the biggest ones, and the shares of its groups.
 pub(crate) fn treemap_summary(
     locale: Locale,
