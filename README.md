@@ -20,10 +20,10 @@ Nothing runs in the browser: no chart JavaScript, no hydration, no layout shift.
   description of what is connected; chartlet places every box and routes every edge, in portrait
   or landscape, and lists the whole structure in the data table.
 
-> **Status:** 0.11. Bar charts (single, grouped, colored by group and stacked, vertical and horizontal),
+> **Status:** 0.12. Bar charts (single, grouped, colored by group and stacked, vertical and horizontal),
 > categorical line charts, time series with uncertainty bands, reference lines, points and stacked
 > areas, warming stripes, calendar heatmaps, range bars, box plots and small multiples (of time series and of
-> bars) are supported, and sequence, architecture and tree diagrams, plus experimental flow and state diagrams. Until 1.0, a minor release (0.12, 0.13, …) may still change the specification; a
+> bars) are supported, waterfalls, waffle charts, parliament charts, treemaps, Sankey diagrams, Kaplan-Meier curves, scatter plots and timelines, and sequence, architecture and tree diagrams, plus experimental flow and state diagrams. Until 1.0, a minor release (0.12, 0.13, …) may still change the specification; a
 > patch release never does.
 
 ## Quick start

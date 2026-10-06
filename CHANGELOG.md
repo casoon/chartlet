@@ -6,6 +6,8 @@ does.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-06
+
 ### Added
 
 - Scatter plots (`"type": "scatter"`): up to 5000 points on two numeric axes in up to four groups, with lines across the plot at a value of x or y and names beside labeled points — volcano and Manhattan plots; big plots draw small dots without tooltips and list only the named or the highest points in the table. Example `gene-expression`, with a phone variant.
