@@ -80,6 +80,8 @@ const PARLIAMENT_STYLE: &str = ".chartlet-root{--chartlet-parl-5:#0f766e;--chart
 const TREEMAP_STYLE: &str = ".chartlet-tm-0{fill:var(--chartlet-color-1)}.chartlet-tm-1{fill:var(--chartlet-color-1)}.chartlet-tm-2{fill:var(--chartlet-color-2)}.chartlet-tm-3{fill:var(--chartlet-color-3)}.chartlet-tm-4{fill:var(--chartlet-color-4)}.chartlet-tm-cell{stroke:none}.chartlet-tm-label{font-size:12px;font-weight:600;fill:var(--chartlet-background)}.chartlet-tm-value{font-size:11px;fill:var(--chartlet-background);opacity:.9}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Sankey diagrams: the bands and nodes in the palette colors.
 const SANKEY_STYLE: &str = ".chartlet-sk-1{fill:var(--chartlet-color-1)}.chartlet-sk-2{fill:var(--chartlet-color-2)}.chartlet-sk-3{fill:var(--chartlet-color-3)}.chartlet-sk-4{fill:var(--chartlet-color-4)}.chartlet-sk-node{stroke:none}.chartlet-sk-link{stroke:none;opacity:.35}.chartlet-sk-label{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-sk-value{font-size:11px;fill:var(--chartlet-muted)}";
+/// Kaplan-Meier curves: step lines, bands, marks and swatches in the palette colors.
+const SURVIVAL_STYLE: &str = ".chartlet-km-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-km-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-km-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-km-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}.chartlet-km-line{fill:none;stroke-width:2.5;stroke-linejoin:round}.chartlet-km-band{stroke:none;fill-opacity:.15}.chartlet-km-mark{stroke-width:1.5}.chartlet-km-swatch{stroke:none}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// The error bars of a bar chart.
 const ERROR_STYLE: &str =
     ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
@@ -335,6 +337,7 @@ const fn type_style(chart_type: ChartType) -> &'static str {
         ChartType::Parliament => PARLIAMENT_STYLE,
         ChartType::Treemap => TREEMAP_STYLE,
         ChartType::Sankey => SANKEY_STYLE,
+        ChartType::Survival => SURVIVAL_STYLE,
         _ => "",
     }
 }
@@ -446,10 +449,10 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
         Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Parliament, Rangebar,
-        Sankey, Sequence, State, Stripes, Time, Timeline, Topicmap, Tree, Treemap, Waffle,
-        Waterfall,
+        Sankey, Sequence, State, Stripes, Survival, Time, Timeline, Topicmap, Tree, Treemap,
+        Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 34] = [
+    let groups: [(&str, &[ChartType]); 35] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -483,6 +486,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (PARLIAMENT_STYLE, &[Parliament]),
         (TREEMAP_STYLE, &[Treemap]),
         (SANKEY_STYLE, &[Sankey]),
+        (SURVIVAL_STYLE, &[Survival]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
@@ -926,6 +930,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
+            | ChartType::Survival
             | ChartType::Sankey
             | ChartType::Treemap
             | ChartType::Parliament
@@ -1521,6 +1526,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
         ChartType::Timeline => return crate::timeline::data_table(spec),
+        ChartType::Survival => return crate::survival::data_table(spec),
         ChartType::Sankey => return crate::sankey::data_table(spec),
         ChartType::Treemap => return crate::treemap::data_table(spec),
         ChartType::Parliament => return crate::parliament::data_table(spec),
@@ -1555,7 +1561,8 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Waffle
         | ChartType::Parliament
         | ChartType::Treemap
-        | ChartType::Sankey => {
+        | ChartType::Sankey
+        | ChartType::Survival => {
             unreachable!("a diagram writes its own table")
         }
     };

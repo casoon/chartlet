@@ -59,7 +59,8 @@ impl ChartSpec {
             | ChartType::Waffle
             | ChartType::Parliament
             | ChartType::Treemap
-            | ChartType::Sankey => {
+            | ChartType::Sankey
+            | ChartType::Survival => {
                 unreachable!("a diagram's table holds text, see its data_table")
             }
         }
@@ -428,7 +429,8 @@ impl ChartSpec {
             | ChartType::Waffle
             | ChartType::Parliament
             | ChartType::Treemap
-            | ChartType::Sankey => None,
+            | ChartType::Sankey
+            | ChartType::Survival => None,
         };
         NumberStyle {
             format: self.value_format(),
@@ -489,7 +491,8 @@ impl ChartSpec {
             | ChartType::Waffle
             | ChartType::Parliament
             | ChartType::Treemap
-            | ChartType::Sankey => ValueFormat::Number,
+            | ChartType::Sankey
+            | ChartType::Survival => ValueFormat::Number,
             ChartType::Bar
             | ChartType::Line
             | ChartType::Rangebar

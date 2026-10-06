@@ -93,6 +93,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Waterfall: a total made up of rises, falls and subtotals | `"type": "waterfall"` with `waterfall.steps` | [revenue-to-profit](examples/revenue-to-profit.json) |
 | Waffle chart: shares of a whole as squares, with the rest | `"type": "waffle"` with `waffle.parts` and `total` | [energy-sources](examples/energy-sources.json) |
 | Parliament chart: seats by party, the majority line, a coalition ringed | `"type": "parliament"` with `parliament.parties`, `majority`, `coalition` | [election-result](examples/election-result.json) |
+| Kaplan-Meier curves: survival by group, censoring marks, confidence band, number at risk | `"type": "survival"` with `survival.groups` | [overall-survival](examples/overall-survival.json) |
 | Sankey diagram: flows between stages as bands | `"type": "sankey"` with `sankey.links` | [energy-flow](examples/energy-flow.json) |
 | Treemap: many parts of a whole as rectangles by value, in groups | `"type": "treemap"` with `treemap.items` | [budget-by-department](examples/budget-by-department.json) |
 | Box plot from observations, with a box given by its five numbers | `"type": "boxplot"` with `boxes` | [response-times](examples/response-times.json) |

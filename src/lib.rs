@@ -29,6 +29,7 @@ mod sort;
 mod spec;
 mod state;
 mod stripes;
+mod survival;
 mod text;
 mod time;
 mod timeline;
@@ -50,10 +51,11 @@ pub use spec::{
     MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec, ParliamentSpec, ParticipantKind,
     ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeySpec, SequenceSpec,
     SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec,
-    Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
-    TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind,
-    TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
-    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
+    TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
+    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec,
+    WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4426,6 +4428,69 @@ mod tests {
             (error.code, error.path.as_str()),
             ("option_not_supported", "/boxDisplay")
         );
+    }
+
+    const SURVIVAL: &str = r#"{"schemaVersion": 1, "type": "survival", "title": "Survival", "width": 640, "height": 440,
+        "survival": {"confidence": true, "timeTitle": "Months", "groups": [
+            {"label": "A", "observations": [{"time": 2}, {"time": 4}, {"time": 4, "event": false}, {"time": 7}, {"time": 9, "event": false}]},
+            {"label": "B", "observations": [{"time": 3}, {"time": 6}, {"time": 8}, {"time": 10}]}
+        ]}}"#;
+
+    #[test]
+    fn survival_curves_step_down_at_events_and_mark_the_censored() {
+        let output = render_ok(SURVIVAL);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(
+            svg.matches("class=\"chartlet-km-mark chartlet-km-1\"")
+                .count(),
+            2
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-km-band chartlet-km-2\"")
+                .count(),
+            1
+        );
+        assert!(svg.contains("Number at risk"));
+        let html = render_json(SURVIVAL, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        // A: 5 at risk, 1 event at 2 (0.8), at 4 one event with 4 at risk (0.6), a censor at 4,
+        // at 7 one event with 2 at risk (0.3).
+        assert!(html.contains("A: 5 observations, 3 events, median 7, 30.0% at the end."));
+        assert!(html.contains("B: 4 observations, 4 events, median 6, 0.0% at the end."));
+    }
+
+    #[test]
+    fn survival_curves_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#"{"time": 2}"#,
+                r#"{"time": -2}"#,
+                "invalid_value",
+                "/survival/groups/0/observations/0/time",
+            ),
+            (
+                r#""label": "B""#,
+                r#""label": "A""#,
+                "duplicate_label",
+                "/survival/groups/1/label",
+            ),
+            (
+                r#"[{"time": 3}, {"time": 6}, {"time": 8}, {"time": 10}]"#,
+                "[]",
+                "invalid_values",
+                "/survival/groups/1/observations",
+            ),
+        ] {
+            let error = render_json(
+                &SURVIVAL.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
     }
 
     const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,

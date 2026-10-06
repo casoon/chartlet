@@ -62,6 +62,9 @@ pub(crate) struct Words {
     pub lane: &'static str,
     pub group: &'static str,
     pub leads_to: &'static str,
+    pub at_risk: &'static str,
+    pub number_at_risk: &'static str,
+    pub survival: &'static str,
     /// The columns of a state diagram's table, and the name of its initial dot.
     pub event: &'static str,
     pub guard: &'static str,
@@ -173,6 +176,9 @@ const EN: Words = Words {
     lane: "Lane",
     group: "Group",
     leads_to: "Leads to",
+    at_risk: "At risk",
+    number_at_risk: "Number at risk",
+    survival: "Survival",
     event: "Event",
     guard: "Guard",
     action: "Action",
@@ -277,6 +283,9 @@ const DE: Words = Words {
     lane: "Bahn",
     group: "Gruppe",
     leads_to: "Führt zu",
+    at_risk: "Unter Risiko",
+    number_at_risk: "Anzahl unter Risiko",
+    survival: "Überleben",
     event: "Ereignis",
     guard: "Bedingung",
     action: "Aktion",
@@ -1519,6 +1528,58 @@ pub(crate) fn parliament_coalition(
         (Locale::En, false) => format!("Coalition {parties}: {seats} seats, no majority."),
         (Locale::De, true) => format!("Koalition {parties}: {seats} Sitze, eine Mehrheit."),
         (Locale::De, false) => format!("Koalition {parties}: {seats} Sitze, keine Mehrheit."),
+    }
+}
+
+/// One group of Kaplan-Meier curves: its observations, events, median time and last survival.
+pub(crate) fn survival_group(
+    locale: Locale,
+    (label, observations, events): (&str, usize, usize),
+    median: Option<&str>,
+    last: &str,
+) -> String {
+    match (locale, median) {
+        (Locale::En, Some(median)) => format!(
+            "{label}: {observations} observations, {events} events, median {median}, {last} at the end."
+        ),
+        (Locale::En, None) => format!(
+            "{label}: {observations} observations, {events} events, median not reached, {last} at the end."
+        ),
+        (Locale::De, Some(median)) => format!(
+            "{label}: {observations} Beobachtungen, {events} Ereignisse, Median {median}, {last} am Ende."
+        ),
+        (Locale::De, None) => format!(
+            "{label}: {observations} Beobachtungen, {events} Ereignisse, Median nicht erreicht, {last} am Ende."
+        ),
+    }
+}
+
+/// What Kaplan-Meier curves show: how many groups, whether bands are drawn, and each group.
+pub(crate) fn survival_summary(
+    locale: Locale,
+    groups: usize,
+    confidence: bool,
+    each: &str,
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "Kaplan-Meier curves of {groups} group{}{}.{each}",
+            plural(groups, "", "s"),
+            if confidence {
+                ", with 95% confidence bands"
+            } else {
+                ""
+            }
+        ),
+        Locale::De => format!(
+            "Kaplan-Meier-Kurven von {groups} {}{}.{each}",
+            plural(groups, "Gruppe", "Gruppen"),
+            if confidence {
+                ", mit 95-%-Konfidenzbändern"
+            } else {
+                ""
+            }
+        ),
     }
 }
 

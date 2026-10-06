@@ -11,6 +11,7 @@ mod sankey;
 mod sequence;
 mod state;
 mod stripes;
+mod survival;
 mod timechart;
 mod timeline;
 mod topicmap;
@@ -47,6 +48,8 @@ pub use sequence::{
 pub use state::{StateKind, StateNodeSpec, StateSpec, TransitionSpec};
 pub(crate) use stripes::Diverging;
 pub use stripes::StripesSpec;
+pub(crate) use survival::{KmCurve, KmStep};
+pub use survival::{SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec};
 pub use timechart::{
     Curve, Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimeAxisKind,
     TimeAxisSpec, TimePoint, TimePrecision, Tooltips,
@@ -183,6 +186,9 @@ pub struct ChartSpec {
     /// A Sankey diagram: bands between nodes in columns, as thick as the flow. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sankey: Option<SankeySpec>,
+    /// Kaplan-Meier survival curves: step curves of groups, with censoring marks, optional confidence bands and the number at risk. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub survival: Option<SurvivalSpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -347,11 +353,13 @@ pub enum ChartType {
     Treemap,
     /// A Sankey diagram: bands between nodes in columns, as thick as the flow.
     Sankey,
+    /// Kaplan-Meier survival curves: step curves of groups, with censoring marks, optional confidence bands and the number at risk.
+    Survival,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 21] = [
+    pub const ALL: [Self; 22] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -373,6 +381,7 @@ impl ChartType {
         Self::Parliament,
         Self::Treemap,
         Self::Sankey,
+        Self::Survival,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -677,6 +686,7 @@ impl ChartSpec {
             ChartType::Tree => return self.validate_tree(),
             ChartType::Boxplot => return self.validate_boxplot(),
             ChartType::Timeline => return self.validate_timeline(),
+            ChartType::Survival => return self.validate_survival(),
             ChartType::Sankey => return self.validate_sankey(),
             ChartType::Treemap => return self.validate_treemap(),
             ChartType::Parliament => return self.validate_parliament(),
@@ -1286,6 +1296,7 @@ impl ChartSpec {
                 ChartType::Boxplot,
             ),
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
+            ("/survival", self.survival.is_some(), ChartType::Survival),
             ("/sankey", self.sankey.is_some(), ChartType::Sankey),
             ("/treemap", self.treemap.is_some(), ChartType::Treemap),
             (
@@ -1360,6 +1371,7 @@ impl ChartSpec {
                 | ChartType::Rangebar
                 | ChartType::Boxplot
                 | ChartType::Timeline
+                | ChartType::Survival
                 | ChartType::Sankey
                 | ChartType::Treemap
                 | ChartType::Parliament
@@ -1470,6 +1482,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Tree => "tree",
         ChartType::Boxplot => "boxplot",
         ChartType::Timeline => "timeline",
+        ChartType::Survival => "survival",
         ChartType::Sankey => "sankey",
         ChartType::Treemap => "treemap",
         ChartType::Parliament => "parliament",

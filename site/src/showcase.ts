@@ -390,6 +390,13 @@ const catalogue = [
       'Two hundred seats in six parties, in blocks from left to right, with a dashed line at the 101st seat and a ring round the seats of a four-party coalition. The legend, the description and the table give each party with its seats and share and say whether the coalition has a majority. Illustrative result, with a phone variant.',
   },
   {
+    slug: 'overall-survival',
+    chart: 'Kaplan-Meier curves',
+    useCase: 'Compare survival between groups',
+    blurb:
+      'Two treatment arms of forty patients each as step curves, with a tick where a patient left the study, the 95% confidence bands and the number still at risk under the axis. The description gives every arm\'s events and median, the table the survival and the number at risk at every tick. Illustrative trial data, with a phone variant.',
+  },
+  {
     slug: 'response-distribution',
     chart: 'Violin plot',
     useCase: 'Show the shape of a distribution',

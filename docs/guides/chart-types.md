@@ -423,6 +423,40 @@ columns, joined by bands as thick as the flow.
 - **Text alternative.** The description gives the total and the biggest links; the table lists
   every link with value and share of the total.
 
+## Survival curves
+
+`"type": "survival"` draws Kaplan-Meier curves: for every group the share of subjects still
+without the event, from the observed times.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "survival",
+  "title": "Overall survival by treatment",
+  "survival": {
+    "groups": [
+      { "label": "Standard", "observations": [{ "time": 3.1 }, { "time": 8, "event": false }, { "time": 12.4 }] },
+      { "label": "New drug", "observations": [{ "time": 6.3 }, { "time": 14 }, { "time": 20, "event": false }] }
+    ],
+    "confidence": true,
+    "timeTitle": "Months since randomization"
+  }
+}
+```
+
+- **Observations.** A `time` is zero or more (`invalid_value`); `"event": false` means the subject
+  left the study before the event (censored) and is marked on the curve by a short vertical tick.
+  Every group has 2 to 2000 observations (`invalid_values`), up to four groups, one palette color
+  each.
+- **The curve** drops at every time with events by the share of those still at risk, and runs to the
+  last observed time. `"confidence": true` adds the 95 % band, computed from Greenwood's variance
+  on the log-log scale, so that it stays between 0 % and 100 %.
+- **Number at risk.** Under the time axis, on by default (`"atRisk": false` leaves it out): how
+  many observations reach each tick of the axis or beyond, for every group.
+- **Text alternative.** The description gives every group's observations, events, median and
+  survival at the end (the median is "not reached" while the curve stays above 50 %); the table
+  has the survival, the limits if drawn and the number at risk of every group at every tick.
+
 ## Reference lines
 
 A bar chart takes up to four reference lines, such as an average or a target. Each runs across
