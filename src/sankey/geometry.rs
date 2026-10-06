@@ -44,6 +44,7 @@ impl<'a> Plan<'a> {
         for sweep in 0..SWEEPS {
             sweep_columns(graph, &mut order, sweep % 2 == 0);
         }
+        uncross(graph, &rank, &mut order);
         let spacing = if columns > 1 {
             (bounds.2 - node_width) / (columns - 1) as f64
         } else {
@@ -54,7 +55,7 @@ impl<'a> Plan<'a> {
             node_width,
             columns,
             spacing,
-            color: colors(graph, &rank),
+            color: colors(&order, rank.len()),
             x: rank
                 .iter()
                 .map(|r| bounds.0 + spacing * *r as f64)
@@ -227,27 +228,70 @@ fn sweep_columns(graph: &SankeyGraph, order: &mut [Vec<usize>], forward: bool) {
     }
 }
 
-/// The nodes without incoming links take the palette colors in turn; every other node the color
-/// of the node its biggest incoming link comes from.
-fn colors(graph: &SankeyGraph, rank: &[usize]) -> Vec<usize> {
-    let mut color = vec![0; rank.len()];
-    let mut sources = 0;
-    let mut by_rank: Vec<usize> = (0..rank.len()).collect();
-    crate::sort::by(&mut by_rank, |a, b| rank[*a].cmp(&rank[*b]));
-    for node in by_rank {
-        let biggest = graph.links.iter().filter(|link| link.1 == node).fold(
-            None,
-            |best: Option<(usize, f64)>, &(from, _, value)| {
-                best.filter(|(_, most)| *most >= value)
-                    .or(Some((from, value)))
-            },
-        );
-        color[node] = if let Some((from, _)) = biggest {
-            color[from]
-        } else {
-            sources += 1;
-            (sources - 1) % 4 + 1
-        };
+/// Every node takes the next palette color, column by column from the top, so that neighbours
+/// differ; a band takes the color of the node it leaves.
+fn colors(order: &[Vec<usize>], nodes: usize) -> Vec<usize> {
+    let mut color = vec![0; nodes];
+    for (turn, node) in order.iter().flatten().enumerate() {
+        color[*node] = turn % 4 + 1;
     }
     color
+}
+
+/// How many pairs of links cross: two links that share columns and change sides between the
+/// first and the last of them. A link that skips a column is placed on the straight line between
+/// its ends there.
+fn crossings(graph: &SankeyGraph, rank: &[usize], order: &[Vec<usize>]) -> usize {
+    let mut place = vec![0.0; rank.len()];
+    for column in order {
+        for (position, node) in column.iter().enumerate() {
+            place[*node] = (position as f64 + 0.5) / column.len() as f64;
+        }
+    }
+    let at = |link: &(usize, usize, f64), column: usize| {
+        let (from, to) = (rank[link.0], rank[link.1]);
+        let t = (column - from) as f64 / (to - from) as f64;
+        place[link.0] + (place[link.1] - place[link.0]) * t
+    };
+    let mut count = 0;
+    for (index, first) in graph.links.iter().enumerate() {
+        for second in &graph.links[index + 1..] {
+            let start = rank[first.0].max(rank[second.0]);
+            let end = rank[first.1].min(rank[second.1]);
+            if start > end {
+                continue;
+            }
+            let (before, after) = (
+                at(first, start) - at(second, start),
+                at(first, end) - at(second, end),
+            );
+            if before * after < -1e-12 {
+                count += 1;
+            }
+        }
+    }
+    count
+}
+
+/// Swaps neighbours in a column while that lets fewer links cross.
+fn uncross(graph: &SankeyGraph, rank: &[usize], order: &mut [Vec<usize>]) {
+    let mut best = crossings(graph, rank, order);
+    loop {
+        let mut improved = false;
+        for column in 0..order.len() {
+            for position in 1..order[column].len() {
+                order[column].swap(position - 1, position);
+                let now = crossings(graph, rank, order);
+                if now < best {
+                    best = now;
+                    improved = true;
+                } else {
+                    order[column].swap(position - 1, position);
+                }
+            }
+        }
+        if !improved {
+            break;
+        }
+    }
 }

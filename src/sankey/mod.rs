@@ -1,7 +1,7 @@
 //! Sankey diagrams: nodes in columns by the longest path to them, joined by bands as thick as the
 //! flow between them. Within a column the nodes are ordered by the average place of what they are
-//! joined to, so that the bands cross as little as they can. A node takes the palette color of the
-//! first node it descends from, and a band the color of the node it leaves. The description and
+//! joined to, so that the bands cross as little as they can. The nodes take the palette colors in
+//! turn, and a band the color of the node it leaves. The description and
 //! the data table list every link with its share of what enters the diagram.
 
 use std::fmt::Write as _;

@@ -55,7 +55,7 @@ chartlet render revenue.json -o revenue.svg --manifest revenue.manifest.json
 
 ```json
 {
-  "chartlet": "0.12.0",
+  "chartlet": "0.12.2",
   "schemaVersion": 1,
   "specHash": "sha256:…",
   "outputHash": "sha256:…",

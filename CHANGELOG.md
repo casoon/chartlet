@@ -6,6 +6,13 @@ does.
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-10-06
+
+### Fixed
+
+- The showcase on GitHub Pages follows the site's theme: a light chart sits on a dark surface with chartlet's dark palette when the site is dark.
+- Sankey diagrams: nodes take the palette colors in turn instead of all inheriting the color of the first source, and neighbouring nodes in a column are swapped while that lets fewer bands cross.
+
 ## [0.12.0] - 2026-10-06
 
 ### Added

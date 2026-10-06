@@ -418,8 +418,10 @@ columns, joined by bands as thick as the flow.
 - **Columns** follow the longest path from a node without incoming links; within a column the
   nodes are ordered so that the bands cross as little as they can. A node is as tall as the
   larger of what flows in and out; the flows need not balance.
-- **Colors.** The nodes without incoming links take the palette colors in turn; every other node
-  and every band takes the color of the node its biggest flow comes from.
+- **Colors.** The nodes take the palette colors in turn, column by column from the top, so that
+  neighbours differ (the four colors repeat beyond four nodes); a band takes the color of the node
+  it leaves. After the barycenter sweeps, chartlet swaps neighbouring nodes while that lets fewer
+  bands cross.
 - **Text alternative.** The description gives the total and the biggest links; the table lists
   every link with value and share of the total.
 

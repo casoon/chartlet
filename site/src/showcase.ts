@@ -14,12 +14,21 @@ export function spec(slug: string): Spec {
   return found;
 }
 
+/** The colors of chartlet's dark palette, for a light chart shown on a dark page. */
+const DARK_VARS =
+  '--chartlet-text:#e8edf6;--chartlet-muted:#a9b4c7;--chartlet-grid:#2a3342;--chartlet-zero:#7b8697;--chartlet-accent:#7ea6ff;--chartlet-background:#0e131c;--chartlet-color-1:#7ea6ff;--chartlet-color-2:#ff9c72;--chartlet-color-3:#9aa7bd;--chartlet-color-4:#e2e8f4';
+
+/**
+ * The surface a light chart sits on: light by default, and dark with the dark palette where the
+ * site's theme is dark, by the toggle (`data-theme`) or by the system setting.
+ */
+const SURFACE_STYLE = `<style>.cl-surface{background:#fff;color:#172033;color-scheme:light;padding:16px;border-radius:10px}:root[data-theme=dark] .cl-surface{background:#0e131c;color:#e8edf6;color-scheme:dark}:root[data-theme=dark] .cl-surface .chartlet-root{${DARK_VARS}}@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .cl-surface{background:#0e131c;color:#e8edf6;color-scheme:dark}:root:not([data-theme=light]) .cl-surface .chartlet-root{${DARK_VARS}}}</style>`;
+
 /**
  * Renders a chart for the showcase.
  *
- * A light chart is wrapped in a light surface because chartlet's light palette assumes one and
- * the site's own theme may be dark. A chart with `"theme": "dark"` paints its own dark
- * background and is left as it is.
+ * A light chart sits on a surface that follows the site's theme, with chartlet's dark palette on
+ * a dark site. A chart with `"theme": "dark"` paints its own dark background and is left as it is.
  */
 export function render(
   source: Spec,
@@ -29,9 +38,7 @@ export function render(
   const { content, warnings } = renderChart(source, { format, table: 'details', idPrefix: id });
   const dark = source.theme === 'dark';
   return {
-    html: dark
-      ? content
-      : `<div style="background:#fff;color:#172033;color-scheme:light;padding:16px;border-radius:10px">${content}</div>`,
+    html: dark ? content : `${SURFACE_STYLE}<div class="cl-surface">${content}</div>`,
     warnings: warnings.map((warning: string) => warning.trim()),
   };
 }
