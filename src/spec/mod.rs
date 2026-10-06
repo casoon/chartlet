@@ -8,6 +8,7 @@ mod flow;
 mod parliament;
 mod rangebar;
 mod sankey;
+mod scatter;
 mod sequence;
 mod state;
 mod stripes;
@@ -41,6 +42,7 @@ pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::RangeSpec;
 pub(crate) use sankey::SankeyGraph;
 pub use sankey::{SankeyLinkSpec, SankeySpec};
+pub use scatter::{ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterSpec};
 pub use sequence::{
     BranchSpec, DiagramOrientation, FragmentKind, FragmentSpec, MessageKind, MessageSpec,
     ParticipantKind, ParticipantSpec, SequenceSpec,
@@ -189,6 +191,9 @@ pub struct ChartSpec {
     /// Kaplan-Meier survival curves: step curves of groups, with censoring marks, optional confidence bands and the number at risk. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub survival: Option<SurvivalSpec>,
+    /// A scatter plot: points on two numeric axes, in groups, with threshold lines and named points. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scatter: Option<ScatterSpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -355,11 +360,13 @@ pub enum ChartType {
     Sankey,
     /// Kaplan-Meier survival curves: step curves of groups, with censoring marks, optional confidence bands and the number at risk.
     Survival,
+    /// A scatter plot: points on two numeric axes, in groups, with threshold lines and named points.
+    Scatter,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 22] = [
+    pub const ALL: [Self; 23] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -382,6 +389,7 @@ impl ChartType {
         Self::Treemap,
         Self::Sankey,
         Self::Survival,
+        Self::Scatter,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -686,6 +694,7 @@ impl ChartSpec {
             ChartType::Tree => return self.validate_tree(),
             ChartType::Boxplot => return self.validate_boxplot(),
             ChartType::Timeline => return self.validate_timeline(),
+            ChartType::Scatter => return self.validate_scatter(),
             ChartType::Survival => return self.validate_survival(),
             ChartType::Sankey => return self.validate_sankey(),
             ChartType::Treemap => return self.validate_treemap(),
@@ -1296,6 +1305,7 @@ impl ChartSpec {
                 ChartType::Boxplot,
             ),
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
+            ("/scatter", self.scatter.is_some(), ChartType::Scatter),
             ("/survival", self.survival.is_some(), ChartType::Survival),
             ("/sankey", self.sankey.is_some(), ChartType::Sankey),
             ("/treemap", self.treemap.is_some(), ChartType::Treemap),
@@ -1371,6 +1381,7 @@ impl ChartSpec {
                 | ChartType::Rangebar
                 | ChartType::Boxplot
                 | ChartType::Timeline
+                | ChartType::Scatter
                 | ChartType::Survival
                 | ChartType::Sankey
                 | ChartType::Treemap
@@ -1482,6 +1493,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Tree => "tree",
         ChartType::Boxplot => "boxplot",
         ChartType::Timeline => "timeline",
+        ChartType::Scatter => "scatter",
         ChartType::Survival => "survival",
         ChartType::Sankey => "sankey",
         ChartType::Treemap => "treemap",

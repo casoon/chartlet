@@ -278,6 +278,7 @@ pub(crate) fn layout(
         (ChartType::Architecture, _) => crate::architecture::layout(spec, warnings, metrics),
         (ChartType::Tree, _) => crate::tree::layout(spec, warnings, metrics),
         (ChartType::Timeline, _) => crate::timeline::layout(spec, warnings, metrics),
+        (ChartType::Scatter, _) => crate::scatter::layout(spec, warnings, metrics),
         (ChartType::Survival, _) => crate::survival::layout(spec, warnings, metrics),
         (ChartType::Sankey, _) => crate::sankey::layout(spec, warnings, metrics),
         (ChartType::Treemap, _) => crate::treemap::layout(spec, warnings, metrics),

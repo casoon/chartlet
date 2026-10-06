@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament", "treemap", "sankey", "survival"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament", "treemap", "sankey", "survival", "scatter"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -98,6 +98,10 @@
       "minItems": 1,
       "maxItems": 100,
       "items": { "$ref": "#/$defs/range" }
+    },
+    "scatter": {
+      "description": "The points of a type: \"scatter\" chart.",
+      "$ref": "#/$defs/scatter"
     },
     "survival": {
       "description": "The groups of a type: \"survival\" chart.",
@@ -381,6 +385,17 @@
           }
         },
         {
+          "required": ["scatter"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["waffle"],
           "not": {
             "anyOf": [
@@ -526,6 +541,11 @@
       "if": { "properties": { "type": { "const": "survival" } } },
       "then": { "required": ["survival"] },
       "else": { "not": { "required": ["survival"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "scatter" } } },
+      "then": { "required": ["scatter"] },
+      "else": { "not": { "required": ["scatter"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waffle" } } },
@@ -868,6 +888,46 @@
           "items": { "$ref": "#/$defs/identifier" }
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "scatter": {
+      "description": "A scatter plot: points on two numeric axes, in up to 4 groups (on every point or none, one palette color each), with up to 8 lines across the plot at a value of x or y and names beside labeled points. Up to 5000 points; above 300 they are drawn small without tooltips, and above 100 the data table lists only the labeled points, or the 20 highest.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["points"],
+      "properties": {
+        "points": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5000,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y"],
+            "properties": {
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "group": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 }
+            }
+          }
+        },
+        "lines": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["axis", "value"],
+            "properties": {
+              "axis": { "enum": ["x", "y"] },
+              "value": { "type": "number" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 }
+            }
+          }
+        },
+        "xTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "yTitle": { "type": "string", "minLength": 1, "maxLength": 100 }
       }
     },
     "survival": {

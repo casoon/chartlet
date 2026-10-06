@@ -457,6 +457,47 @@ without the event, from the observed times.
   survival at the end (the median is "not reached" while the curve stays above 50 %); the table
   has the survival, the limits if drawn and the number at risk of every group at every tick.
 
+## Scatter plots
+
+`"type": "scatter"` draws points on two numeric axes — a volcano plot, a Manhattan plot, residuals,
+any cloud of observations — with groups, threshold lines and names on the points that matter.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "scatter",
+  "title": "Differential expression after treatment",
+  "scatter": {
+    "points": [
+      { "x": -4.0, "y": 9.3, "group": "Down", "label": "BRCA1" },
+      { "x": 2.5, "y": 6.5, "group": "Up", "label": "MYC" },
+      { "x": 0.2, "y": 0.4, "group": "Not significant" }
+    ],
+    "lines": [
+      { "axis": "x", "value": -1 },
+      { "axis": "x", "value": 1 },
+      { "axis": "y", "value": 1.3, "label": "p = 0.05" }
+    ],
+    "xTitle": "log2 fold change",
+    "yTitle": "−log10 p"
+  }
+}
+```
+
+- **Points** have finite `x` and `y`, up to 5000. `group` goes on every point or on none
+  (`missing_group`): up to four groups, one palette color each, with a legend — the first point of
+  each group fixes the order and so the color. A Manhattan plot colors its chromosomes alternately
+  with two groups.
+- **Lines** run across the plot at a value of `x` (vertical) or `y` (horizontal), up to eight, with
+  an optional label; the axes reach them.
+- **Names.** A point with a `label` gets its name beside it, in the order of the list; a name that
+  would run over one already written is left out (`value_labels_omitted`).
+- **Many points.** Up to 300 points have a tooltip each; beyond that the dots are small and plain.
+  The data table lists every point up to 100; for more, only the labeled ones, or the 20 highest
+  if none is labeled, and its caption says how many of how many.
+- **Text alternative.** The description gives the number of points, the span of both axes, the
+  points per group and how many lie above each line.
+
 ## Reference lines
 
 A bar chart takes up to four reference lines, such as an average or a target. Each runs across

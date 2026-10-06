@@ -63,6 +63,7 @@ pub(crate) struct Words {
     pub group: &'static str,
     pub leads_to: &'static str,
     pub at_risk: &'static str,
+    pub point: &'static str,
     pub number_at_risk: &'static str,
     pub survival: &'static str,
     /// The columns of a state diagram's table, and the name of its initial dot.
@@ -177,6 +178,7 @@ const EN: Words = Words {
     group: "Group",
     leads_to: "Leads to",
     at_risk: "At risk",
+    point: "Point",
     number_at_risk: "Number at risk",
     survival: "Survival",
     event: "Event",
@@ -284,6 +286,7 @@ const DE: Words = Words {
     group: "Gruppe",
     leads_to: "Führt zu",
     at_risk: "Unter Risiko",
+    point: "Punkt",
     number_at_risk: "Anzahl unter Risiko",
     survival: "Überleben",
     event: "Ereignis",
@@ -1528,6 +1531,54 @@ pub(crate) fn parliament_coalition(
         (Locale::En, false) => format!("Coalition {parties}: {seats} seats, no majority."),
         (Locale::De, true) => format!("Koalition {parties}: {seats} Sitze, eine Mehrheit."),
         (Locale::De, false) => format!("Koalition {parties}: {seats} Sitze, keine Mehrheit."),
+    }
+}
+
+/// What a scatter plot shows: its points, the spans of both axes, the groups and the lines.
+pub(crate) fn scatter_summary(
+    locale: Locale,
+    points: usize,
+    (x_span, y_span): (&str, &str),
+    (groups, lines): (&str, &str),
+) -> String {
+    let mut text = match locale {
+        Locale::En => format!(
+            "Scatter plot of {points} point{}: x from {x_span}, y from {y_span}.",
+            plural(points, "", "s")
+        ),
+        Locale::De => format!(
+            "Streudiagramm aus {points} {}: x von {x_span}, y von {y_span}.",
+            plural(points, "Punkt", "Punkten")
+        ),
+    };
+    if !groups.is_empty() {
+        let word = match locale {
+            Locale::En => "Groups (points)",
+            Locale::De => "Gruppen (Punkte)",
+        };
+        write!(text, " {word}: {groups}.").expect("writing to String cannot fail");
+    }
+    if !lines.is_empty() {
+        let word = match locale {
+            Locale::En => "Lines",
+            Locale::De => "Linien",
+        };
+        write!(text, " {word}: {lines}.").expect("writing to String cannot fail");
+    }
+    text
+}
+
+/// The caption of a table that lists only some of the points of a big plot.
+pub(crate) fn scatter_caption(
+    locale: Locale,
+    caption: &str,
+    (shown, all): (usize, usize),
+) -> String {
+    match locale {
+        Locale::En => format!("{caption} — {shown} of {all} points, the named or the highest"),
+        Locale::De => {
+            format!("{caption} — {shown} von {all} Punkten, die benannten oder die höchsten")
+        }
     }
 }
 

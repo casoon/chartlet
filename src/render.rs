@@ -82,6 +82,8 @@ const TREEMAP_STYLE: &str = ".chartlet-tm-0{fill:var(--chartlet-color-1)}.chartl
 const SANKEY_STYLE: &str = ".chartlet-sk-1{fill:var(--chartlet-color-1)}.chartlet-sk-2{fill:var(--chartlet-color-2)}.chartlet-sk-3{fill:var(--chartlet-color-3)}.chartlet-sk-4{fill:var(--chartlet-color-4)}.chartlet-sk-node{stroke:none}.chartlet-sk-link{stroke:none;opacity:.35}.chartlet-sk-label{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-sk-value{font-size:11px;fill:var(--chartlet-muted)}";
 /// Kaplan-Meier curves: step lines, bands, marks and swatches in the palette colors.
 const SURVIVAL_STYLE: &str = ".chartlet-km-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-km-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-km-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-km-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}.chartlet-km-line{fill:none;stroke-width:2.5;stroke-linejoin:round}.chartlet-km-band{stroke:none;fill-opacity:.15}.chartlet-km-mark{stroke-width:1.5}.chartlet-km-swatch{stroke:none}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Scatter plots: dots and swatches in the palette colors, threshold lines and names.
+const SCATTER_STYLE: &str = ".chartlet-sc-1{fill:var(--chartlet-color-1)}.chartlet-sc-2{fill:var(--chartlet-color-2)}.chartlet-sc-3{fill:var(--chartlet-color-3)}.chartlet-sc-4{fill:var(--chartlet-color-4)}.chartlet-sc-dot{fill-opacity:.65;stroke:none}.chartlet-sc-swatch{stroke:none;rx:5px}.chartlet-sc-line{stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-sc-label{font-size:11px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// The error bars of a bar chart.
 const ERROR_STYLE: &str =
     ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
@@ -338,6 +340,7 @@ const fn type_style(chart_type: ChartType) -> &'static str {
         ChartType::Treemap => TREEMAP_STYLE,
         ChartType::Sankey => SANKEY_STYLE,
         ChartType::Survival => SURVIVAL_STYLE,
+        ChartType::Scatter => SCATTER_STYLE,
         _ => "",
     }
 }
@@ -449,10 +452,10 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
         Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Parliament, Rangebar,
-        Sankey, Sequence, State, Stripes, Survival, Time, Timeline, Topicmap, Tree, Treemap,
-        Waffle, Waterfall,
+        Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline, Topicmap, Tree,
+        Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 35] = [
+    let groups: [(&str, &[ChartType]); 36] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -487,6 +490,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (TREEMAP_STYLE, &[Treemap]),
         (SANKEY_STYLE, &[Sankey]),
         (SURVIVAL_STYLE, &[Survival]),
+        (SCATTER_STYLE, &[Scatter]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
@@ -930,6 +934,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
+            | ChartType::Scatter
             | ChartType::Survival
             | ChartType::Sankey
             | ChartType::Treemap
@@ -1526,6 +1531,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
         ChartType::Timeline => return crate::timeline::data_table(spec),
+        ChartType::Scatter => return crate::scatter::data_table(spec),
         ChartType::Survival => return crate::survival::data_table(spec),
         ChartType::Sankey => return crate::sankey::data_table(spec),
         ChartType::Treemap => return crate::treemap::data_table(spec),
@@ -1562,7 +1568,8 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Parliament
         | ChartType::Treemap
         | ChartType::Sankey
-        | ChartType::Survival => {
+        | ChartType::Survival
+        | ChartType::Scatter => {
             unreachable!("a diagram writes its own table")
         }
     };

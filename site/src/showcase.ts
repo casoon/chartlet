@@ -390,6 +390,13 @@ const catalogue = [
       'Two hundred seats in six parties, in blocks from left to right, with a dashed line at the 101st seat and a ring round the seats of a four-party coalition. The legend, the description and the table give each party with its seats and share and say whether the coalition has a majority. Illustrative result, with a phone variant.',
   },
   {
+    slug: 'gene-expression',
+    chart: 'Volcano plot',
+    useCase: 'Find what stands out among many points',
+    blurb:
+      'Seven hundred genes by their change in expression and their significance: three groups in the palette colors, dashed lines at the cutoffs, and names on the four that stand out. The description counts the points per group and above each line; the table lists only the named points, so it stays short. Illustrative data, with a phone variant.',
+  },
+  {
     slug: 'overall-survival',
     chart: 'Kaplan-Meier curves',
     useCase: 'Compare survival between groups',

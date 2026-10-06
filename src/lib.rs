@@ -21,6 +21,7 @@ mod rangebar;
 mod reference;
 mod render;
 mod sankey;
+mod scatter;
 mod scene;
 mod sequence;
 mod sha256;
@@ -49,13 +50,14 @@ pub use spec::{
     DiagramOrientation, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps,
     GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Mark, MarkerSpec, MessageKind, MessageSpec,
     MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec, ParliamentSpec, ParticipantKind,
-    ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeySpec, SequenceSpec,
-    SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec,
-    Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
-    TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
-    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec,
-    WaterfallSpec, ZoomBound, ZoomStep,
+    ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeySpec, ScatterAxis,
+    ScatterLineSpec, ScatterPointSpec, ScatterSpec, SequenceSpec, SeriesSpec, Shape, Stack,
+    StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke,
+    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
+    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
+    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec,
+    TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
+    ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4428,6 +4430,88 @@ mod tests {
             (error.code, error.path.as_str()),
             ("option_not_supported", "/boxDisplay")
         );
+    }
+
+    const SCATTER: &str = r#"{"schemaVersion": 1, "type": "scatter", "title": "Plot", "width": 640, "height": 440,
+        "scatter": {"xTitle": "Effect", "yTitle": "Significance",
+            "lines": [{"axis": "x", "value": 1, "label": "Cutoff"}, {"axis": "y", "value": 2}],
+            "points": [
+                {"x": -1, "y": 0.5, "group": "Low"}, {"x": 2, "y": 3, "group": "High", "label": "Gene A"},
+                {"x": 0.2, "y": 1.1, "group": "Low"}, {"x": 1.5, "y": 2.5, "group": "High"}
+            ]}}"#;
+
+    #[test]
+    fn a_scatter_plot_draws_points_lines_and_names() {
+        let output = render_ok(SCATTER);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(
+            svg.matches("class=\"chartlet-sc-dot chartlet-sc-1\"")
+                .count(),
+            2
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-sc-dot chartlet-sc-2\"")
+                .count(),
+            2
+        );
+        assert_eq!(svg.matches("class=\"chartlet-sc-line\"").count(), 2);
+        assert!(svg.contains("<title>Gene A: 2, 3</title>"));
+        assert!(svg.contains(">Gene A</text>"));
+        let html = render_json(SCATTER, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("Scatter plot of 4 points: x from −1 to 2, y from 0.5 to 3. Groups (points): Low 2, High 2. Lines: Cutoff: x = 1, 2 points above it; y = 2, 2 points above it."));
+        assert!(html.contains("<th scope=\"row\">Gene A</th><td>High</td><td>2</td><td>3</td>"));
+    }
+
+    #[test]
+    fn a_big_scatter_plot_lists_only_its_named_points() {
+        let points: Vec<String> = (0..400)
+            .map(|i| {
+                let label = if i == 7 { r#", "label": "Seven""# } else { "" };
+                format!(r#"{{"x": {i}, "y": {}{label}}}"#, i % 13)
+            })
+            .collect();
+        let spec = format!(
+            r#"{{"schemaVersion": 1, "type": "scatter", "title": "Big", "scatter": {{"points": [{}]}}}}"#,
+            points.join(",")
+        );
+        let html = render_json(&spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("1 of 400 points, the named or the highest"));
+        assert_eq!(html.matches("<th scope=\"row\">").count(), 1);
+        let svg = render_ok(&spec).content;
+        assert_eq!(
+            svg.matches("<title>").count(),
+            1,
+            "only the named point has a tooltip"
+        );
+    }
+
+    #[test]
+    fn scatter_plots_are_validated_by_name() {
+        let error = render_json(
+            &SCATTER.replace(r#""group": "High", "label""#, r#""label""#),
+            RenderFormat::Svg,
+            &RenderOptions::default(),
+        )
+        .unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("missing_group", "/scatter/points/1/group")
+        );
+        let bar = SCATTER.replace(r#""type": "scatter""#, r#""type": "bar""#);
+        let error = render_json(&bar, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(error.path, "/scatter");
+        for (from, to) in [
+            (r#""axis": "y""#, r#""axis": "z""#),
+            (r#""x": -1"#, r#""x": "a""#),
+        ] {
+            let spec = SCATTER.replace(from, to);
+            assert!(render_json(&spec, RenderFormat::Svg, &RenderOptions::default()).is_err());
+        }
     }
 
     const SURVIVAL: &str = r#"{"schemaVersion": 1, "type": "survival", "title": "Survival", "width": 640, "height": 440,

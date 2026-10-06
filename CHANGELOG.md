@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Scatter plots (`"type": "scatter"`): up to 5000 points on two numeric axes in up to four groups, with lines across the plot at a value of x or y and names beside labeled points — volcano and Manhattan plots; big plots draw small dots without tooltips and list only the named or the highest points in the table. Example `gene-expression`, with a phone variant.
 - Kaplan-Meier curves (`"type": "survival"`): up to four groups from observed times with censoring, as step curves with a tick for every censored observation, the optional 95 % confidence band (log-log, Greenwood) and the number at risk under the time axis. Example `overall-survival`, with a phone variant.
 - Violins and strips: `"boxDisplay": "violin"` or `"strip"` on a box plot draws the observations as an estimated density with the box inside, or as points spread across the width, with the median; every box needs `values` (`values_required`). Example `response-distribution`, with a phone variant.
 - Sankey diagrams (`"type": "sankey"`): up to 100 links between up to 40 nodes as bands in columns by the longest path, ordered to cross as little as they can, in the palette colors of their sources; cycles, self links and duplicate links are refused. Example `energy-flow`, with a phone variant.
