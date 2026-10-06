@@ -1,6 +1,6 @@
 {
   "name": "@casoon/chartlet-mcp",
-  "version": "0.12.0",
+  "version": "0.12.1",
   "description": "MCP server that inspects data and validates, renders and describes chartlet charts",
   "type": "module",
   "license": "MIT",

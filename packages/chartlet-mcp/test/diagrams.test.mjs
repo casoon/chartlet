@@ -36,3 +36,14 @@ test("charts other than diagrams carry no structure", () => {
   assert.equal(result.ok, true);
   assert.equal(result.structure, undefined);
 });
+
+test("every chart starter is a valid specification without warnings", async () => {
+  const { CHART_STARTER_TYPES, chartStarter } = await import("../src/starters.mjs");
+  for (const type of CHART_STARTER_TYPES) {
+    const starter = chartStarter(type);
+    const result = validateSpec(starter.spec);
+    assert.equal(result.ok, true, `${type}: ${JSON.stringify(result)}`);
+    assert.deepEqual(result.warnings, [], type);
+    assert.ok(starter.notes.length > 0, type);
+  }
+});

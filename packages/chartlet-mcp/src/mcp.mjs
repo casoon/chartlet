@@ -1,4 +1,4 @@
-// The MCP server: five tools, the specification schema as a resource, and the MCP App view of
+// The MCP server: six tools, the specification schema as a resource, and the MCP App view of
 // chartlet_render. The tools only read data, call the chartlet compiler and compute; there is no
 // model and no interpretation here.
 
@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { explainSpec, renderSpec, validateSpec } from "./charts.mjs";
 import { DIAGRAM_TYPES, diagramStarter } from "./diagrams.mjs";
+import { CHART_STARTER_TYPES, chartStarter } from "./starters.mjs";
 import { DISTINCT_CAP, inspectData } from "./inspect.mjs";
 import { supportsView, VIEW_META_KEY, VIEW_RESOURCE_META, VIEW_URI, viewHtml, viewPayload } from "./view.mjs";
 
@@ -296,6 +297,27 @@ chartlet lays a diagram out itself; the specification only says what is connecte
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
     async ({ type }) => success(diagramStarter(type)),
+  );
+
+  server.registerTool(
+    "chartlet_chart_starter",
+    {
+      title: "Start a chart from a block",
+      description: `Return a valid starting specification and notes for a chartlet chart that is drawn from a block of its own rather than from table rows: waterfall (a running total of deltas, starts and totals), waffle (shares as squares), parliament (seats by party with majority and coalition), treemap (rectangles by value, in groups), sankey (flows between nodes), survival (Kaplan-Meier curves from times with censoring), scatter (points with groups, threshold lines and names: volcano and Manhattan plots), timeline (phases, milestones and dependencies), forest (a range bar chart as a forest plot) and violin (a box plot drawn as violins).
+
+Adapt the starter, then check it with chartlet_validate_spec and render it with chartlet_render.`,
+      inputSchema: z.object({
+        type: z.enum(CHART_STARTER_TYPES).describe("The chart to start from."),
+      }),
+      outputSchema: z.object({
+        ok: z.literal(true),
+        type: z.string(),
+        spec: z.record(z.string(), z.unknown()),
+        notes: z.array(z.string()),
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ type }) => success(chartStarter(type)),
   );
 
   server.registerResource(
