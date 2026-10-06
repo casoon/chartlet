@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament", "treemap"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -93,6 +93,10 @@
       "minItems": 1,
       "maxItems": 100,
       "items": { "$ref": "#/$defs/range" }
+    },
+    "treemap": {
+      "description": "The items of a type: \"treemap\" chart.",
+      "$ref": "#/$defs/treemap"
     },
     "parliament": {
       "description": "The parties of a type: \"parliament\" chart.",
@@ -331,6 +335,17 @@
           }
         },
         {
+          "required": ["treemap"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["waffle"],
           "not": {
             "anyOf": [
@@ -461,6 +476,11 @@
       "if": { "properties": { "type": { "const": "parliament" } } },
       "then": { "required": ["parliament"] },
       "else": { "not": { "required": ["parliament"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "treemap" } } },
+      "then": { "required": ["treemap"] },
+      "else": { "not": { "required": ["treemap"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waffle" } } },
@@ -803,6 +823,29 @@
           "items": { "$ref": "#/$defs/identifier" }
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "treemap": {
+      "description": "A treemap: rectangles whose areas follow the values of the items, packed by the squarified method; the names and values stand inside the rectangles that have room. Up to 100 items with positive values; an optional group (up to 4, on every item or on none) colors the rectangles and shows a legend.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items"],
+      "properties": {
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "value"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "value": { "type": "number", "exclusiveMinimum": 0 },
+              "group": { "type": "string", "minLength": 1, "maxLength": 100 }
+            }
+          }
+        }
       }
     },
     "parliament": {

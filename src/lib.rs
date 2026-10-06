@@ -32,6 +32,7 @@ mod text;
 mod time;
 mod timeline;
 mod tree;
+mod treemap;
 mod waffle;
 mod waterfall;
 
@@ -49,8 +50,9 @@ pub use spec::{
     RangeSpec, ReferenceSpec, SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec,
     StateSpec, StepKind, StepSpec, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec,
     TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, ValueAxisSpec,
-    ValueFormat, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec,
+    TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
+    ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4369,6 +4371,72 @@ mod tests {
         ] {
             let error = render_json(
                 &WAFFLE.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+    }
+
+    const TREEMAP: &str = r#"{"schemaVersion": 1, "type": "treemap", "title": "Budget", "width": 640, "height": 400,
+        "treemap": {"items": [
+            {"label": "Schools", "value": 60, "group": "Society"},
+            {"label": "Roads", "value": 30, "group": "Infrastructure"},
+            {"label": "Parks", "value": 10, "group": "Society"}
+        ]}}"#;
+
+    #[test]
+    fn a_treemap_gives_every_item_an_area_by_its_value_and_names_it_everywhere() {
+        let output = render_ok(TREEMAP);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(
+            svg.matches("class=\"chartlet-tm-cell chartlet-tm-1\"")
+                .count(),
+            3
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-tm-cell chartlet-tm-2\"")
+                .count(),
+            2
+        );
+        assert!(svg.contains("<title>Schools: 60 (60.0%)</title>"));
+        let html = render_json(TREEMAP, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("Treemap of 3 items, together 100; the rectangle of each has the area of its value. Largest: Schools (60.0%), Roads (30.0%), Parks (10.0%). Groups: Society 70.0%, Infrastructure 30.0%."));
+        assert!(html.contains(
+            "<th scope=\"row\">Roads</th><td>30</td><td>30.0%</td><td>Infrastructure</td>"
+        ));
+    }
+
+    #[test]
+    fn treemaps_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""value": 10"#,
+                r#""value": 0"#,
+                "invalid_value",
+                "/treemap/items/2/value",
+            ),
+            (
+                r#""label": "Roads""#,
+                r#""label": "Parks""#,
+                "duplicate_label",
+                "/treemap/items/2/label",
+            ),
+            (
+                r#", "group": "Society"}
+        ]"#,
+                r"}
+        ]",
+                "missing_group",
+                "/treemap/items/2/group",
+            ),
+        ] {
+            let error = render_json(
+                &TREEMAP.replace(from, to),
                 RenderFormat::Svg,
                 &RenderOptions::default(),
             )

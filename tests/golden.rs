@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 43] = [
+const EXAMPLES: [(&str, &str, &str); 44] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -217,10 +217,15 @@ const EXAMPLES: [(&str, &str, &str); 43] = [
         include_str!("../examples/election-result.json"),
         include_str!("../examples/election-result.svg"),
     ),
+    (
+        "budget-by-department",
+        include_str!("../examples/budget-by-department.json"),
+        include_str!("../examples/budget-by-department.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 12] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 13] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -280,6 +285,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 12] = [
         "election-result",
         include_str!("../examples/election-result.json"),
         include_str!("../examples/election-result.mobile.svg"),
+    ),
+    (
+        "budget-by-department",
+        include_str!("../examples/budget-by-department.json"),
+        include_str!("../examples/budget-by-department.mobile.svg"),
     ),
 ];
 

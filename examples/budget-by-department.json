@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "type": "treemap",
+  "title": "Where the budget goes",
+  "source": "Illustrative budget in millions",
+  "width": 760,
+  "height": 460,
+  "treemap": {
+    "items": [
+      { "label": "Schools", "value": 310, "group": "Society" },
+      { "label": "Universities", "value": 140, "group": "Society" },
+      { "label": "Hospitals", "value": 280, "group": "Society" },
+      { "label": "Pensions", "value": 220, "group": "Society" },
+      { "label": "Roads", "value": 120, "group": "Infrastructure" },
+      { "label": "Rail", "value": 95, "group": "Infrastructure" },
+      { "label": "Net", "value": 55, "group": "Infrastructure" },
+      { "label": "Police", "value": 85, "group": "Security" },
+      { "label": "Defence", "value": 150, "group": "Security" },
+      { "label": "Fire", "value": 50, "group": "Security" },
+      { "label": "Parks", "value": 45, "group": "Environment" },
+      { "label": "Water", "value": 75, "group": "Environment" },
+      { "label": "Waste", "value": 60, "group": "Environment" }
+    ]
+  },
+  "mobile": { "width": 380, "height": 560 }
+}

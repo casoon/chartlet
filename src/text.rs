@@ -1522,6 +1522,30 @@ pub(crate) fn parliament_coalition(
     }
 }
 
+/// What a treemap shows: its items and total, the biggest ones, and the shares of its groups.
+pub(crate) fn treemap_summary(
+    locale: Locale,
+    (items, total): (usize, &str),
+    largest: &str,
+    groups: &str,
+) -> String {
+    let groups = match (locale, groups.is_empty()) {
+        (_, true) => String::new(),
+        (Locale::En, false) => format!(" Groups: {groups}."),
+        (Locale::De, false) => format!(" Gruppen: {groups}."),
+    };
+    match locale {
+        Locale::En => format!(
+            "Treemap of {items} item{}, together {total}; the rectangle of each has the area of its value. Largest: {largest}.{groups}",
+            plural(items, "", "s")
+        ),
+        Locale::De => format!(
+            "Treemap aus {items} {}, zusammen {total}; die Fläche jedes Rechtecks folgt seinem Wert. Am größten: {largest}.{groups}",
+            plural(items, "Eintrag", "Einträgen")
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{

@@ -353,6 +353,36 @@ semicircle, in blocks by party from left to right.
   and share, the table with a Coalition column; every dot has a tooltip with its party and its
   number.
 
+## Treemaps
+
+`"type": "treemap"` shows the parts of a whole as rectangles whose areas follow the values — for
+many items, where a bar chart would run out of room.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "treemap",
+  "title": "Where the budget goes",
+  "treemap": {
+    "items": [
+      { "label": "Schools", "value": 310, "group": "Society" },
+      { "label": "Roads", "value": 120, "group": "Infrastructure" },
+      { "label": "Defence", "value": 150, "group": "Security" }
+    ]
+  }
+}
+```
+
+- **Items** have unique labels and values above zero (`invalid_value`), up to 100. The rectangles
+  are packed by the squarified method, the largest first, so they stay close to squares.
+- **Groups.** `group` goes on every item or on none (`missing_group`): up to four groups, one
+  palette color each, with a legend. Without groups all rectangles take the accent color.
+- **Labels.** The name and the value stand inside a rectangle that has room for them; chartlet
+  leaves them out of the smaller ones (`value_labels_omitted`) and shortens long names
+  (`text_truncated`). Every rectangle has a tooltip with value and share.
+- **Text alternative.** The description names the biggest items and the shares of the groups;
+  the table lists every item from the largest to the smallest with value, share and group.
+
 ## Reference lines
 
 A bar chart takes up to four reference lines, such as an average or a target. Each runs across

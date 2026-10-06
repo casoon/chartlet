@@ -390,6 +390,13 @@ const catalogue = [
       'Two hundred seats in six parties, in blocks from left to right, with a dashed line at the 101st seat and a ring round the seats of a four-party coalition. The legend, the description and the table give each party with its seats and share and say whether the coalition has a majority. Illustrative result, with a phone variant.',
   },
   {
+    slug: 'budget-by-department',
+    chart: 'Treemap',
+    useCase: 'Show many parts of a whole',
+    blurb:
+      'A budget of thirteen items in four groups: the area of each rectangle follows its amount, the colors name the group, and the names and amounts stand inside. The description names the biggest items and the shares of the groups, the table lists every item with value, share and group. Illustrative amounts, with a phone variant.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

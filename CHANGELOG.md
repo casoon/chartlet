@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Treemaps (`"type": "treemap"`): up to 100 items as rectangles by value, packed by the squarified method, with up to four groups in the palette colors and a legend; names and values inside the rectangles that have room. Example `budget-by-department`, with a phone variant.
 - Parliament charts (`"type": "parliament"`): the seats of an assembly as dots in a semicircle, in blocks by party, with the line of the majority and a ringed coalition. Example `election-result`, with a phone variant.
 - Waffle charts (`"type": "waffle"`): up to four parts as squares by the largest remainder, each with at least one square, and the rest of a larger total; legend beside or below the grid. Example `energy-sources`, with a phone variant.
 - Waterfalls (`"type": "waterfall"`): a running total that rises and falls step by step, with starts, deltas and totals (checked against the running total), vertical or horizontal; the description names the biggest rise and fall. Example `revenue-to-profit`, with a phone variant.
