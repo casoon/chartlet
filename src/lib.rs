@@ -31,6 +31,7 @@ mod text;
 mod time;
 mod timeline;
 mod tree;
+mod waffle;
 mod waterfall;
 
 use describe::automatic_description;
@@ -48,7 +49,7 @@ pub use spec::{
     StepSpec, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision,
     TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec,
     TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, ValueAxisSpec, ValueFormat,
-    WaterfallSpec, ZoomBound, ZoomStep,
+    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4301,6 +4302,72 @@ mod tests {
         ] {
             let error = render_json(
                 &WATERFALL.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+    }
+
+    const WAFFLE: &str = r#"{"schemaVersion": 1, "type": "waffle", "title": "Mix", "width": 600, "height": 360,
+        "waffle": {"parts": [{"label": "A", "value": 60}, {"label": "B", "value": 30}, {"label": "C", "value": 0.4}]}}"#;
+
+    #[test]
+    fn a_waffle_fills_every_square_and_gives_each_part_at_least_one() {
+        let output = render_ok(WAFFLE);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        // 100 squares, and one swatch for each of three parts.
+        assert_eq!(
+            svg.matches("chartlet-waffle-cell chartlet-waffle-").count(),
+            100 + 3
+        );
+        let spec = ChartSpec::from_json(WAFFLE).unwrap();
+        let squares = spec.waffle.as_ref().unwrap().squares();
+        assert_eq!(squares.iter().sum::<u32>(), 100);
+        assert_eq!(squares, vec![66, 33, 1]);
+        let html = render_json(WAFFLE, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("<th scope=\"col\">Part</th><th scope=\"col\">Value</th><th scope=\"col\">Share</th><th scope=\"col\">Squares</th>"));
+        assert!(html.contains("<th scope=\"row\">C</th><td>0.4</td><td>0.4%</td><td>1</td>"));
+        // A total above the sum of the parts leaves squares for the rest.
+        let with_rest = WAFFLE.replace("\"parts\"", "\"total\": 200, \"parts\"");
+        let spec = ChartSpec::from_json(&with_rest).unwrap();
+        assert_eq!(spec.waffle.as_ref().unwrap().squares(), vec![30, 15, 1, 54]);
+    }
+
+    #[test]
+    fn waffles_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""value": 30"#,
+                r#""value": 0"#,
+                "invalid_value",
+                "/waffle/parts/1/value",
+            ),
+            (
+                r#""label": "B""#,
+                r#""label": "A""#,
+                "duplicate_label",
+                "/waffle/parts/1/label",
+            ),
+            (
+                r#""parts""#,
+                r#""cells": 5, "parts""#,
+                "invalid_cells",
+                "/waffle/cells",
+            ),
+            (
+                r#""parts""#,
+                r#""total": 10, "parts""#,
+                "invalid_total",
+                "/waffle/total",
+            ),
+        ] {
+            let error = render_json(
+                &WAFFLE.replace(from, to),
                 RenderFormat::Svg,
                 &RenderOptions::default(),
             )

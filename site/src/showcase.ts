@@ -376,6 +376,13 @@ const catalogue = [
       'From revenue to operating profit in eight steps: a start bar, costs that take the running total down, a license income that lifts it, and two totals. A dashed line carries the total from bar to bar; every change is written with its sign. The table gives the change and the total after each step. Illustrative figures, with a phone variant.',
   },
   {
+    slug: 'energy-sources',
+    chart: 'Waffle chart',
+    useCase: 'Make a share countable',
+    blurb:
+      'A hundred squares for one year of electricity: wind, solar, gas and coal each take as many squares as percent, and the 12 squares that are left stand for the rest. Every square has a tooltip, the legend names value and share, and the table counts the squares. Illustrative shares, with a phone variant.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

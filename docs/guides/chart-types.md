@@ -288,6 +288,37 @@ step, from revenue to profit, from a budget to its spending.
   fall; the table lists every step with its kind, its change and the total after it. 2–40 steps
   with unique labels.
 
+## Waffle charts
+
+`"type": "waffle"` shows parts of a whole as squares: a grid of 100 squares in which each square is
+one percent is read more easily than a pie.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "waffle",
+  "title": "Where the electricity came from",
+  "waffle": {
+    "parts": [
+      { "label": "Wind", "value": 31 },
+      { "label": "Gas", "value": 28 }
+    ],
+    "total": 100
+  }
+}
+```
+
+- **Squares.** The whole has `cells` squares (100 by default) in rows of `columns` (the grid is about
+  square by default). The parts take them by the largest remainder, in reading order, from the top
+  left; every part gets at least one square, however small. With a `total` above the sum of the
+  parts the squares that are left, in a pale color, stand for the rest.
+- **At most four parts** (`too_many_series`), one palette color each, with unique labels and values
+  above zero. The legend stands right of the grid, below it on a narrow canvas, and names every
+  part with its value and share.
+- **Text alternative.** The description says how many squares there are and what one stands for,
+  and lists every part with its value, share and squares; the table has a row for each, with the
+  rest.
+
 ## Reference lines
 
 A bar chart takes up to four reference lines, such as an average or a target. Each runs across

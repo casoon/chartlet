@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "type": "waffle",
+  "title": "Where the electricity came from",
+  "source": "Illustrative shares of one year",
+  "width": 760,
+  "height": 380,
+  "waffle": {
+    "parts": [
+      { "label": "Wind", "value": 31 },
+      { "label": "Solar", "value": 12 },
+      { "label": "Gas", "value": 28 },
+      { "label": "Coal", "value": 17 }
+    ],
+    "total": 100
+  },
+  "mobile": { "width": 380, "height": 520 }
+}

@@ -72,6 +72,8 @@ const CALENDAR_STYLE: &str =
 const TIMELINE_STYLE: &str = ".chartlet-timeline-phase{fill:var(--chartlet-accent);stroke:none;rx:3px}.chartlet-timeline-milestone{fill:var(--chartlet-accent);stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-timeline-group-1{fill:var(--chartlet-color-1)}.chartlet-timeline-group-2{fill:var(--chartlet-color-2)}.chartlet-timeline-group-3{fill:var(--chartlet-color-3)}.chartlet-timeline-group-4{fill:var(--chartlet-color-4)}.chartlet-timeline-marker{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-timeline-marker-label{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-timeline-link{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}.chartlet-timeline-head{fill:var(--chartlet-zero);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Waterfalls: bars that rise, fall and total.
 const WATERFALL_STYLE: &str = ".chartlet-wf-up{fill:var(--chartlet-color-1);stroke:none}.chartlet-wf-down{fill:var(--chartlet-color-2);stroke:none}.chartlet-wf-total{fill:var(--chartlet-color-3);stroke:none}.chartlet-wf-link{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:3 3}";
+/// Waffles: squares in the palette colors, and the rest.
+const WAFFLE_STYLE: &str = ".chartlet-waffle-1{fill:var(--chartlet-color-1)}.chartlet-waffle-2{fill:var(--chartlet-color-2)}.chartlet-waffle-3{fill:var(--chartlet-color-3)}.chartlet-waffle-4{fill:var(--chartlet-color-4)}.chartlet-waffle-rest{fill:var(--chartlet-grid)}.chartlet-waffle-cell{stroke:none;rx:2px}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// The error bars of a bar chart.
 const ERROR_STYLE: &str =
     ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
@@ -317,6 +319,17 @@ fn diagram_style(chart_type: ChartType) -> String {
     parts.concat()
 }
 
+/// The style of the chart types that have a style group of their own and need nothing else.
+const fn type_style(chart_type: ChartType) -> &'static str {
+    match chart_type {
+        ChartType::Boxplot => BOXPLOT_STYLE,
+        ChartType::Timeline => TIMELINE_STYLE,
+        ChartType::Waterfall => WATERFALL_STYLE,
+        ChartType::Waffle => WAFFLE_STYLE,
+        _ => "",
+    }
+}
+
 /// The style groups a chart uses, in the order of [`shared_stylesheet`], so that rules cascade
 /// alike in a chart's own stylesheet and in the shared one. The print variant has no series
 /// filter to style.
@@ -331,12 +344,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_diverging = matches!(spec.chart_type, ChartType::Stripes | ChartType::Calendar);
     let is_calendar = spec.chart_type == ChartType::Calendar;
     let is_rangebar = spec.chart_type == ChartType::Rangebar;
-    let is_boxplot = spec.chart_type == ChartType::Boxplot;
     let is_topicmap = spec.chart_type == ChartType::Topicmap;
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = spec.theme == Theme::Dark;
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -382,17 +394,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         },
         if is_calendar { CALENDAR_STYLE } else { "" },
         if is_rangebar { RANGEBAR_STYLE } else { "" },
-        if is_boxplot { BOXPLOT_STYLE } else { "" },
-        if spec.chart_type == ChartType::Timeline {
-            TIMELINE_STYLE
-        } else {
-            ""
-        },
-        if spec.chart_type == ChartType::Waterfall {
-            WATERFALL_STYLE
-        } else {
-            ""
-        },
+        type_style(spec.chart_type),
         if spec.has_error_bars() {
             ERROR_STYLE
         } else {
@@ -435,9 +437,9 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
         Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Rangebar, Sequence,
-        State, Stripes, Time, Timeline, Topicmap, Tree, Waterfall,
+        State, Stripes, Time, Timeline, Topicmap, Tree, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 30] = [
+    let groups: [(&str, &[ChartType]); 31] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -467,6 +469,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (STATE_STYLE, &[State]),
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
         (WATERFALL_STYLE, &[Waterfall]),
+        (WAFFLE_STYLE, &[Waffle]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
@@ -910,6 +913,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
+            | ChartType::Waffle
             | ChartType::Waterfall
     ) {
         let table = data_table(spec);
@@ -1501,6 +1505,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
         ChartType::Timeline => return crate::timeline::data_table(spec),
+        ChartType::Waffle => return crate::waffle::data_table(spec),
         ChartType::Waterfall => return crate::waterfall::data_table(spec),
         _ => {}
     }
@@ -1527,7 +1532,8 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Architecture
         | ChartType::Tree
         | ChartType::Timeline
-        | ChartType::Waterfall => {
+        | ChartType::Waterfall
+        | ChartType::Waffle => {
             unreachable!("a diagram writes its own table")
         }
     };

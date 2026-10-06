@@ -55,7 +55,8 @@ impl ChartSpec {
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
-            | ChartType::Waterfall => {
+            | ChartType::Waterfall
+            | ChartType::Waffle => {
                 unreachable!("a diagram's table holds text, see its data_table")
             }
         }
@@ -420,7 +421,8 @@ impl ChartSpec {
             | ChartType::State
             | ChartType::Architecture
             | ChartType::Tree
-            | ChartType::Timeline => None,
+            | ChartType::Timeline
+            | ChartType::Waffle => None,
         };
         NumberStyle {
             format: self.value_format(),
@@ -477,7 +479,8 @@ impl ChartSpec {
             | ChartType::State
             | ChartType::Architecture
             | ChartType::Tree
-            | ChartType::Timeline => ValueFormat::Number,
+            | ChartType::Timeline
+            | ChartType::Waffle => ValueFormat::Number,
             ChartType::Bar
             | ChartType::Line
             | ChartType::Rangebar

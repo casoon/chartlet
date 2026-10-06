@@ -101,6 +101,10 @@ pub(crate) struct Words {
     pub total: &'static str,
     pub step_delta: &'static str,
     pub step_start: &'static str,
+    /// The columns of a waffle's table, and the name of what its parts leave over.
+    pub part: &'static str,
+    pub squares: &'static str,
+    pub rest: &'static str,
     /// The names of a diagram's focus links, and of the link that clears the focus.
     pub focus: &'static str,
     pub show_all: &'static str,
@@ -193,6 +197,9 @@ const EN: Words = Words {
     total: "Total",
     step_delta: "Change",
     step_start: "Start",
+    part: "Part",
+    squares: "Squares",
+    rest: "Rest",
     boundary: "Boundary",
     connects_to: "Connects to",
     focus: "Focus",
@@ -288,6 +295,9 @@ const DE: Words = Words {
     total: "Summe",
     step_delta: "Änderung",
     step_start: "Start",
+    part: "Teil",
+    squares: "Felder",
+    rest: "Rest",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
     focus: "Fokus",
@@ -1440,6 +1450,18 @@ pub(crate) fn waterfall_summary(
         }
     }
     text
+}
+
+/// What a waffle shows: its squares, what one stands for, and every part.
+pub(crate) fn waffle_summary(locale: Locale, (squares, each): (u32, &str), parts: &str) -> String {
+    match locale {
+        Locale::En => format!(
+            "Waffle chart of {squares} squares, each standing for {each}. Parts, as value (share, squares): {parts}."
+        ),
+        Locale::De => format!(
+            "Waffeldiagramm aus {squares} Feldern, jedes für {each}. Teile als Wert (Anteil, Felder): {parts}."
+        ),
+    }
 }
 
 #[cfg(test)]

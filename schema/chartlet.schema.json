@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -93,6 +93,10 @@
       "minItems": 1,
       "maxItems": 100,
       "items": { "$ref": "#/$defs/range" }
+    },
+    "waffle": {
+      "description": "The parts of a type: \"waffle\" chart.",
+      "$ref": "#/$defs/waffle"
     },
     "waterfall": {
       "description": "The steps of a type: \"waterfall\" chart.",
@@ -312,6 +316,17 @@
           }
         },
         {
+          "required": ["waffle"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["waterfall"],
           "not": {
             "anyOf": [
@@ -426,6 +441,11 @@
       "if": { "properties": { "type": { "const": "rangebar" } } },
       "then": { "required": ["ranges"] },
       "else": { "not": { "required": ["ranges"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "waffle" } } },
+      "then": { "required": ["waffle"] },
+      "else": { "not": { "required": ["waffle"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waterfall" } } },
@@ -763,6 +783,31 @@
           "items": { "$ref": "#/$defs/identifier" }
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "waffle": {
+      "description": "A waffle: a grid of squares that each stand for the same share of a whole, filled by the parts in reading order, each part with at least one square. Up to 4 parts; cells 10–400 (default 100), columns 2–40; a total above the sum of the parts leaves the squares of the rest.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parts"],
+      "properties": {
+        "parts": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "value"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "value": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        },
+        "cells": { "type": "integer", "minimum": 10, "maximum": 400, "default": 100 },
+        "columns": { "type": "integer", "minimum": 2, "maximum": 40 },
+        "total": { "type": "number", "exclusiveMinimum": 0 }
       }
     },
     "waterfall": {

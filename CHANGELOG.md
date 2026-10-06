@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Waffle charts (`"type": "waffle"`): up to four parts as squares by the largest remainder, each with at least one square, and the rest of a larger total; legend beside or below the grid. Example `energy-sources`, with a phone variant.
 - Waterfalls (`"type": "waterfall"`): a running total that rises and falls step by step, with starts, deltas and totals (checked against the running total), vertical or horizontal; the description names the biggest rise and fall. Example `revenue-to-profit`, with a phone variant.
 - Forest plots: a range bar chart takes a `weight` on a span (a square on the mid whose area
   follows it), `"summary": true` (a diamond for an overall result), and `references` (the line of
