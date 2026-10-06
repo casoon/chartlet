@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -93,6 +93,10 @@
       "minItems": 1,
       "maxItems": 100,
       "items": { "$ref": "#/$defs/range" }
+    },
+    "parliament": {
+      "description": "The parties of a type: \"parliament\" chart.",
+      "$ref": "#/$defs/parliament"
     },
     "waffle": {
       "description": "The parts of a type: \"waffle\" chart.",
@@ -316,6 +320,17 @@
           }
         },
         {
+          "required": ["parliament"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["waffle"],
           "not": {
             "anyOf": [
@@ -441,6 +456,11 @@
       "if": { "properties": { "type": { "const": "rangebar" } } },
       "then": { "required": ["ranges"] },
       "else": { "not": { "required": ["ranges"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "parliament" } } },
+      "then": { "required": ["parliament"] },
+      "else": { "not": { "required": ["parliament"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waffle" } } },
@@ -783,6 +803,30 @@
           "items": { "$ref": "#/$defs/identifier" }
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "parliament": {
+      "description": "A parliament: the seats of an assembly as dots in a semicircle, in blocks by party from left to right in the order of the list. Up to 8 parties and 800 seats; majority marks the seat that makes a majority, coalition (labels of parties) rings their seats and sums them.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parties"],
+      "properties": {
+        "parties": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "seats"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "seats": { "type": "integer", "minimum": 1, "maximum": 800 }
+            }
+          }
+        },
+        "majority": { "type": "boolean", "default": false },
+        "coalition": { "type": "array", "items": { "type": "string" } }
       }
     },
     "waffle": {

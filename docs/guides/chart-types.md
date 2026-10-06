@@ -319,6 +319,40 @@ one percent is read more easily than a pie.
   and lists every part with its value, share and squares; the table has a row for each, with the
   rest.
 
+## Parliament charts
+
+`"type": "parliament"` shows who holds the seats of an assembly: one dot for every seat, in a
+semicircle, in blocks by party from left to right.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "parliament",
+  "title": "Seats after the election",
+  "parliament": {
+    "parties": [
+      { "label": "Left alliance", "seats": 38 },
+      { "label": "Social democrats", "seats": 41 },
+      { "label": "Conservatives", "seats": 52 }
+    ],
+    "majority": true,
+    "coalition": ["Left alliance", "Social democrats"]
+  }
+}
+```
+
+- **Parties** keep the order of the list from the left of the semicircle to the right, with one
+  palette color each: up to eight parties (`too_many_series`) and 800 seats. chartlet picks the
+  number of rows whose dots come out biggest.
+- **Majority.** `"majority": true` draws a dashed line at the seat that makes a majority — more
+  than half — and writes the number under the total.
+- **Coalition.** `coalition` names the parties that govern together by their labels
+  (`unknown_node` for a label that is not a party): their seats are ringed, and the legend adds
+  their seats and whether they make a majority.
+- **Text alternative.** The legend, the description and the table give every party with its seats
+  and share, the table with a Coalition column; every dot has a tooltip with its party and its
+  number.
+
 ## Reference lines
 
 A bar chart takes up to four reference lines, such as an average or a target. Each runs across

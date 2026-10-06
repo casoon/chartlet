@@ -383,6 +383,13 @@ const catalogue = [
       'A hundred squares for one year of electricity: wind, solar, gas and coal each take as many squares as percent, and the 12 squares that are left stand for the rest. Every square has a tooltip, the legend names value and share, and the table counts the squares. Illustrative shares, with a phone variant.',
   },
   {
+    slug: 'election-result',
+    chart: 'Parliament chart',
+    useCase: 'Show who holds the seats',
+    blurb:
+      'Two hundred seats in six parties, in blocks from left to right, with a dashed line at the 101st seat and a ring round the seats of a four-party coalition. The legend, the description and the table give each party with its seats and share and say whether the coalition has a majority. Illustrative result, with a phone variant.',
+  },
+  {
     slug: 'topicmap-sample',
     chart: 'Topic map',
     useCase: 'Compare how much there is of each subject',

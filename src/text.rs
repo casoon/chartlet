@@ -105,6 +105,13 @@ pub(crate) struct Words {
     pub part: &'static str,
     pub squares: &'static str,
     pub rest: &'static str,
+    /// The words of a parliament chart.
+    pub party: &'static str,
+    pub seats: &'static str,
+    pub seat: &'static str,
+    pub coalition: &'static str,
+    pub majority: &'static str,
+    pub yes: &'static str,
     /// The names of a diagram's focus links, and of the link that clears the focus.
     pub focus: &'static str,
     pub show_all: &'static str,
@@ -200,6 +207,12 @@ const EN: Words = Words {
     part: "Part",
     squares: "Squares",
     rest: "Rest",
+    party: "Party",
+    seats: "Seats",
+    seat: "seat",
+    coalition: "Coalition",
+    majority: "majority",
+    yes: "yes",
     boundary: "Boundary",
     connects_to: "Connects to",
     focus: "Focus",
@@ -298,6 +311,12 @@ const DE: Words = Words {
     part: "Teil",
     squares: "Felder",
     rest: "Rest",
+    party: "Partei",
+    seats: "Sitze",
+    seat: "Sitz",
+    coalition: "Koalition",
+    majority: "Mehrheit",
+    yes: "ja",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
     focus: "Fokus",
@@ -1461,6 +1480,45 @@ pub(crate) fn waffle_summary(locale: Locale, (squares, each): (u32, &str), parts
         Locale::De => format!(
             "Waffeldiagramm aus {squares} Feldern, jedes für {each}. Teile als Wert (Anteil, Felder): {parts}."
         ),
+    }
+}
+
+/// What a parliament chart shows: its seats and parties, with every party, and the majority.
+pub(crate) fn parliament_summary(
+    locale: Locale,
+    (seats, parties): (u32, usize),
+    list: &str,
+    majority: Option<u32>,
+) -> String {
+    let majority = match (locale, majority) {
+        (_, None) => String::new(),
+        (Locale::En, Some(seats)) => format!(" A majority takes {seats} seats."),
+        (Locale::De, Some(seats)) => format!(" Eine Mehrheit braucht {seats} Sitze."),
+    };
+    match locale {
+        Locale::En => format!(
+            "Parliament with {seats} seats and {parties} part{}: {list}.{majority}",
+            plural(parties, "y", "ies")
+        ),
+        Locale::De => format!(
+            "Parlament mit {seats} Sitzen und {parties} {}: {list}.{majority}",
+            plural(parties, "Partei", "Parteien")
+        ),
+    }
+}
+
+/// The parties that govern together, their seats and whether those are a majority.
+pub(crate) fn parliament_coalition(
+    locale: Locale,
+    parties: &str,
+    seats: u32,
+    majority: bool,
+) -> String {
+    match (locale, majority) {
+        (Locale::En, true) => format!("Coalition {parties}: {seats} seats, a majority."),
+        (Locale::En, false) => format!("Coalition {parties}: {seats} seats, no majority."),
+        (Locale::De, true) => format!("Koalition {parties}: {seats} Sitze, eine Mehrheit."),
+        (Locale::De, false) => format!("Koalition {parties}: {seats} Sitze, keine Mehrheit."),
     }
 }
 

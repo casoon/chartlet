@@ -13,6 +13,7 @@ mod layout;
 mod metrics;
 mod noise;
 mod ohlc;
+mod parliament;
 #[cfg(feature = "png")]
 mod png;
 pub mod qr;
@@ -44,12 +45,12 @@ pub use spec::{
     ComponentSpec, ConnectionSpec, Corner, Curve, Dash, DataPoint, DiagramOrientation,
     FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec,
     LayerSpec, LegendPlacement, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NodeKind,
-    OhlcPoint, Orientation, PaneSpec, ParticipantKind, ParticipantSpec, RangeSpec, ReferenceSpec,
-    SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind,
-    StepSpec, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision,
-    TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec,
-    TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, ValueAxisSpec, ValueFormat,
-    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    OhlcPoint, Orientation, PaneSpec, ParliamentSpec, ParticipantKind, ParticipantSpec, PartySpec,
+    RangeSpec, ReferenceSpec, SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec,
+    StateSpec, StepKind, StepSpec, StripesSpec, Stroke, Theme, TimeAxisKind, TimeAxisSpec,
+    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
+    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, ValueAxisSpec,
+    ValueFormat, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4368,6 +4369,79 @@ mod tests {
         ] {
             let error = render_json(
                 &WAFFLE.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+    }
+
+    const PARLIAMENT: &str = r#"{"schemaVersion": 1, "type": "parliament", "title": "Seats", "width": 640, "height": 460,
+        "parliament": {"parties": [
+            {"label": "Red", "seats": 40}, {"label": "Green", "seats": 25}, {"label": "Blue", "seats": 35}
+        ], "majority": true, "coalition": ["Red", "Green"]}}"#;
+
+    #[test]
+    fn a_parliament_draws_every_seat_in_blocks_and_names_the_majority_and_the_coalition() {
+        let output = render_ok(PARLIAMENT);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(
+            svg.matches("class=\"chartlet-parl-seat chartlet-parl-1\"")
+                .count(),
+            40 + 1
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-parl-seat chartlet-parl-2\"")
+                .count(),
+            25 + 1
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-parl-seat chartlet-parl-3\"")
+                .count(),
+            35 + 1
+        );
+        assert_eq!(svg.matches("class=\"chartlet-parl-coalition\"").count(), 65);
+        assert_eq!(svg.matches("class=\"chartlet-parl-majority\"").count(), 1);
+        assert!(svg.contains("<title>Red: seat 1 / 40</title>"));
+        let html = render_json(PARLIAMENT, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("Parliament with 100 seats and 3 parties: Red 40 (40.0%), Green 25 (25.0%), Blue 35 (35.0%). A majority takes 51 seats. Coalition Red + Green: 65 seats, a majority."));
+        assert!(html.contains("<th scope=\"row\">Blue</th><td>35</td><td>35.0%</td><td></td>"));
+    }
+
+    #[test]
+    fn parliaments_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""seats": 25"#,
+                r#""seats": 0"#,
+                "invalid_value",
+                "/parliament/parties/1/seats",
+            ),
+            (
+                r#""label": "Green""#,
+                r#""label": "Red""#,
+                "duplicate_label",
+                "/parliament/parties/1/label",
+            ),
+            (
+                r#""coalition": ["Red", "Green"]"#,
+                r#""coalition": ["Red", "Pink"]"#,
+                "unknown_node",
+                "/parliament/coalition/1",
+            ),
+            (
+                r#""seats": 40"#,
+                r#""seats": 900"#,
+                "too_many_data_points",
+                "/parliament/parties",
+            ),
+        ] {
+            let error = render_json(
+                &PARLIAMENT.replace(from, to),
                 RenderFormat::Svg,
                 &RenderOptions::default(),
             )

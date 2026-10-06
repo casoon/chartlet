@@ -74,6 +74,8 @@ const TIMELINE_STYLE: &str = ".chartlet-timeline-phase{fill:var(--chartlet-accen
 const WATERFALL_STYLE: &str = ".chartlet-wf-up{fill:var(--chartlet-color-1);stroke:none}.chartlet-wf-down{fill:var(--chartlet-color-2);stroke:none}.chartlet-wf-total{fill:var(--chartlet-color-3);stroke:none}.chartlet-wf-link{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:3 3}";
 /// Waffles: squares in the palette colors, and the rest.
 const WAFFLE_STYLE: &str = ".chartlet-waffle-1{fill:var(--chartlet-color-1)}.chartlet-waffle-2{fill:var(--chartlet-color-2)}.chartlet-waffle-3{fill:var(--chartlet-color-3)}.chartlet-waffle-4{fill:var(--chartlet-color-4)}.chartlet-waffle-rest{fill:var(--chartlet-grid)}.chartlet-waffle-cell{stroke:none;rx:2px}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Parliaments: seats by party, the majority line and the ring of a coalition.
+const PARLIAMENT_STYLE: &str = ".chartlet-root{--chartlet-parl-5:#0f766e;--chartlet-parl-6:#6d28d9;--chartlet-parl-7:#b45309;--chartlet-parl-8:#be185d}.chartlet-root.chartlet-theme-dark{--chartlet-parl-5:#2dd4bf;--chartlet-parl-6:#b69cff;--chartlet-parl-7:#fbbf24;--chartlet-parl-8:#f472b6}.chartlet-parl-1{fill:var(--chartlet-color-1)}.chartlet-parl-2{fill:var(--chartlet-color-2)}.chartlet-parl-3{fill:var(--chartlet-color-3)}.chartlet-parl-4{fill:var(--chartlet-color-4)}.chartlet-parl-5{fill:var(--chartlet-parl-5)}.chartlet-parl-6{fill:var(--chartlet-parl-6)}.chartlet-parl-7{fill:var(--chartlet-parl-7)}.chartlet-parl-8{fill:var(--chartlet-parl-8)}.chartlet-parl-seat{stroke:none}.chartlet-parl-coalition{fill:none;stroke:var(--chartlet-text);stroke-width:2}.chartlet-parl-majority{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:4 3}.chartlet-parl-total{font-size:28px;font-weight:700;fill:var(--chartlet-text)}.chartlet-parl-note{font-size:12px;fill:var(--chartlet-muted)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// The error bars of a bar chart.
 const ERROR_STYLE: &str =
     ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
@@ -326,6 +328,7 @@ const fn type_style(chart_type: ChartType) -> &'static str {
         ChartType::Timeline => TIMELINE_STYLE,
         ChartType::Waterfall => WATERFALL_STYLE,
         ChartType::Waffle => WAFFLE_STYLE,
+        ChartType::Parliament => PARLIAMENT_STYLE,
         _ => "",
     }
 }
@@ -436,10 +439,10 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Rangebar, Sequence,
-        State, Stripes, Time, Timeline, Topicmap, Tree, Waffle, Waterfall,
+        Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Parliament, Rangebar,
+        Sequence, State, Stripes, Time, Timeline, Topicmap, Tree, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 31] = [
+    let groups: [(&str, &[ChartType]); 32] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -470,6 +473,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
         (WATERFALL_STYLE, &[Waterfall]),
         (WAFFLE_STYLE, &[Waffle]),
+        (PARLIAMENT_STYLE, &[Parliament]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
@@ -913,6 +917,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
+            | ChartType::Parliament
             | ChartType::Waffle
             | ChartType::Waterfall
     ) {
@@ -1505,6 +1510,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
         ChartType::Timeline => return crate::timeline::data_table(spec),
+        ChartType::Parliament => return crate::parliament::data_table(spec),
         ChartType::Waffle => return crate::waffle::data_table(spec),
         ChartType::Waterfall => return crate::waterfall::data_table(spec),
         _ => {}
@@ -1533,7 +1539,8 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Tree
         | ChartType::Timeline
         | ChartType::Waterfall
-        | ChartType::Waffle => {
+        | ChartType::Waffle
+        | ChartType::Parliament => {
             unreachable!("a diagram writes its own table")
         }
     };

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "type": "parliament",
+  "title": "Seats after the election",
+  "source": "Illustrative result",
+  "width": 760,
+  "height": 520,
+  "parliament": {
+    "parties": [
+      { "label": "Left alliance", "seats": 38 },
+      { "label": "Greens", "seats": 24 },
+      { "label": "Social democrats", "seats": 41 },
+      { "label": "Liberals", "seats": 18 },
+      { "label": "Conservatives", "seats": 52 },
+      { "label": "Populists", "seats": 27 }
+    ],
+    "majority": true,
+    "coalition": ["Greens", "Social democrats", "Liberals", "Left alliance"]
+  },
+  "mobile": { "width": 380, "height": 620 }
+}

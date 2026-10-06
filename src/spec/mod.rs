@@ -5,6 +5,7 @@ mod calendar;
 mod categorical;
 mod dataset;
 mod flow;
+mod parliament;
 mod rangebar;
 mod sequence;
 mod state;
@@ -33,6 +34,7 @@ pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use flow::{FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, NodeKind};
+pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::RangeSpec;
 pub use sequence::{
     BranchSpec, DiagramOrientation, FragmentKind, FragmentSpec, MessageKind, MessageSpec,
@@ -164,6 +166,9 @@ pub struct ChartSpec {
     /// A waffle: squares that each stand for a share of a whole. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waffle: Option<WaffleSpec>,
+    /// A parliament: seats as dots in a semicircle, in blocks by party. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parliament: Option<ParliamentSpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -322,11 +327,13 @@ pub enum ChartType {
     Waterfall,
     /// A waffle: squares that each stand for a share of a whole.
     Waffle,
+    /// A parliament: seats as dots in a semicircle, in blocks by party.
+    Parliament,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 18] = [
+    pub const ALL: [Self; 19] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -345,6 +352,7 @@ impl ChartType {
         Self::Timeline,
         Self::Waterfall,
         Self::Waffle,
+        Self::Parliament,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -649,6 +657,7 @@ impl ChartSpec {
             ChartType::Tree => return self.validate_tree(),
             ChartType::Boxplot => return self.validate_boxplot(),
             ChartType::Timeline => return self.validate_timeline(),
+            ChartType::Parliament => return self.validate_parliament(),
             ChartType::Waffle => return self.validate_waffle(),
             ChartType::Waterfall => return self.validate_waterfall(),
             ChartType::Bar | ChartType::Line => {}
@@ -1249,6 +1258,11 @@ impl ChartSpec {
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/boxes", !self.boxes.is_empty(), ChartType::Boxplot),
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
+            (
+                "/parliament",
+                self.parliament.is_some(),
+                ChartType::Parliament,
+            ),
             ("/waffle", self.waffle.is_some(), ChartType::Waffle),
             ("/waterfall", self.waterfall.is_some(), ChartType::Waterfall),
             ("/sequence", self.sequence.is_some(), ChartType::Sequence),
@@ -1316,6 +1330,7 @@ impl ChartSpec {
                 | ChartType::Rangebar
                 | ChartType::Boxplot
                 | ChartType::Timeline
+                | ChartType::Parliament
                 | ChartType::Waffle
                 | ChartType::Waterfall
                 | ChartType::Multiples
@@ -1423,6 +1438,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Tree => "tree",
         ChartType::Boxplot => "boxplot",
         ChartType::Timeline => "timeline",
+        ChartType::Parliament => "parliament",
         ChartType::Waffle => "waffle",
         ChartType::Waterfall => "waterfall",
     }
