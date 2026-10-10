@@ -4737,6 +4737,64 @@ mod tests {
         }
     }
 
+    #[test]
+    fn a_nested_treemap_frames_the_parts_of_an_item() {
+        let spec = r#"{"schemaVersion": 1, "type": "treemap", "title": "Budget", "width": 640, "height": 400,
+            "treemap": {"items": [
+                {"label": "Society", "children": [{"label": "Schools", "value": 60}, {"label": "Parks", "value": 10}]},
+                {"label": "Roads", "children": [{"label": "Rail", "value": 30}]}
+            ]}}"#;
+        let output = render_ok(spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(
+            svg.matches("class=\"chartlet-tm-frame chartlet-tm-1\"")
+                .count(),
+            1
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-tm-cell chartlet-tm-1\"")
+                .count(),
+            2 + 1
+        );
+        assert!(svg.contains("<title>Society › Schools: 60 (60.0%)</title>"));
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("Treemap of 3 items, together 100;"), "{html}");
+        assert!(html.contains(
+            "<th scope=\"row\">Society › Parks</th><td>10</td><td>10.0%</td><td>Society</td>"
+        ));
+        for (from, to, code, path) in [
+            (
+                r#"{"label": "Society", "children""#,
+                r#"{"label": "Society", "value": 5, "children""#,
+                "value_with_children",
+                "/treemap/items/0/value",
+            ),
+            (
+                r#"{"label": "Parks", "value": 10}"#,
+                r#"{"label": "Parks", "value": 10, "group": "g"}"#,
+                "group_with_children",
+                "/treemap/items/0/children/1/group",
+            ),
+            (
+                r#"{"label": "Rail", "value": 30}"#,
+                r#"{"label": "Rail", "children": [{"label": "A", "children": [{"label": "B", "children": [{"label": "C", "value": 1}]}]}]}"#,
+                "too_deep",
+                "/treemap/items/1/children/0/children/0/children",
+            ),
+        ] {
+            let error = render_json(
+                &spec.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+    }
+
     const TREEMAP: &str = r#"{"schemaVersion": 1, "type": "treemap", "title": "Budget", "width": 640, "height": 400,
         "treemap": {"items": [
             {"label": "Schools", "value": 60, "group": "Society"},

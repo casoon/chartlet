@@ -61,6 +61,7 @@ pub use timeline::{MarkerSpec, TimelineItemSpec, TimelineSpec};
 pub(crate) use timeline::{Span, zone as timeline_zone};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
 pub use tree::{TreeNodeKind, TreeNodeSpec, TreeSpec};
+pub(crate) use treemap::{TmNode, TmTree};
 pub use treemap::{TreemapItemSpec, TreemapSpec};
 pub use waffle::{WafflePartSpec, WaffleSpec};
 pub(crate) use waterfall::WaterfallBar;

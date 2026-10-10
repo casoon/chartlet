@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Treemaps: an item may have `children` instead of a value, nested up to three levels, drawn as frames around their parts and colored by the item at the top; `value_with_children`, `group_with_children` and `too_deep` refuse the mixed forms. Example `budget-by-sector`, with a phone variant.
 - Sankey diagrams: `nodes` pins a node to a `column` and a palette `color`, and `"order": "listed"` keeps the nodes of a column in the listed order instead of sorting them; `column_too_early` refuses a column that links lead past. Example `voter-movement`, with a phone variant.
 - Kaplan-Meier curves: `"logRank": true` runs the log-rank (Mantel-Cox) test of two to four groups and writes its p value in the plot and the statistic in the description. Added to the example `overall-survival`.
 - Scatter plots: `"regression": true` draws the least-squares line for each group (slope, intercept and r² in the description), and `xScale`/`yScale` set logarithmic axes; a regression on a log axis is fitted to the logarithms. Example `allometry`, with a phone variant.

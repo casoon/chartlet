@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 52] = [
+const EXAMPLES: [(&str, &str, &str); 53] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -253,6 +253,11 @@ const EXAMPLES: [(&str, &str, &str); 52] = [
         include_str!("../examples/voter-movement.svg"),
     ),
     (
+        "budget-by-sector",
+        include_str!("../examples/budget-by-sector.json"),
+        include_str!("../examples/budget-by-sector.svg"),
+    ),
+    (
         "study-selection",
         include_str!("../examples/study-selection.json"),
         include_str!("../examples/study-selection.svg"),
@@ -265,7 +270,7 @@ const EXAMPLES: [(&str, &str, &str); 52] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 21] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 22] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -360,6 +365,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 21] = [
         "voter-movement",
         include_str!("../examples/voter-movement.json"),
         include_str!("../examples/voter-movement.mobile.svg"),
+    ),
+    (
+        "budget-by-sector",
+        include_str!("../examples/budget-by-sector.json"),
+        include_str!("../examples/budget-by-sector.mobile.svg"),
     ),
     (
         "study-selection",

@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "type": "treemap",
+  "title": "The budget by sector and department",
+  "source": "Illustrative budget in millions",
+  "width": 760,
+  "height": 480,
+  "treemap": {
+    "items": [
+      {
+        "label": "Society",
+        "children": [
+          { "label": "Schools", "value": 310 },
+          { "label": "Hospitals", "value": 280 },
+          { "label": "Pensions", "value": 220 },
+          { "label": "Universities", "value": 140 }
+        ]
+      },
+      {
+        "label": "Security",
+        "children": [
+          { "label": "Defence", "value": 150 },
+          { "label": "Police", "value": 85 },
+          { "label": "Fire", "value": 50 }
+        ]
+      },
+      {
+        "label": "Infrastructure",
+        "children": [
+          { "label": "Roads", "value": 120 },
+          { "label": "Rail", "value": 95 },
+          { "label": "Net", "value": 55 }
+        ]
+      },
+      {
+        "label": "Nature",
+        "children": [
+          { "label": "Water", "value": 75 },
+          { "label": "Waste", "value": 60 },
+          { "label": "Parks", "value": 45 }
+        ]
+      }
+    ]
+  },
+  "mobile": { "width": 380, "height": 640 }
+}

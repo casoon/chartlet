@@ -386,6 +386,12 @@ many items, where a bar chart would run out of room.
   are packed by the squarified method, the largest first, so they stay close to squares.
 - **Groups.** `group` goes on every item or on none (`missing_group`): up to four groups, one
   palette color each, with a legend. Without groups all rectangles take the accent color.
+- **Nested items.** An item with `children` has no value of its own (`value_with_children`): it is
+  as big as its parts together, drawn as a frame with its name above the parts. Items nest up to
+  three levels (`too_deep`), labels stay unique across all levels, and the 100-item limit counts
+  every level. A nested treemap takes its colors from the item at the top an item belongs to and
+  has no `group` (`group_with_children`); the legend names the items at the top when there are
+  four or fewer. The table lists every item with its path (`Society › Schools`).
 - **Labels.** The name and the value stand inside a rectangle that has room for them; chartlet
   leaves them out of the smaller ones (`value_labels_omitted`) and shortens long names
   (`text_truncated`). Every rectangle has a tooltip with value and share.

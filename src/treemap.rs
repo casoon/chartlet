@@ -10,7 +10,7 @@ use crate::{
     layout::{LABEL_SIZE, fit_text, format_value, push_title, title_extra, warn_if_labels_omitted},
     metrics::TextMetrics,
     scene::{Element, Rect, Scene, Text, TextAnchor},
-    spec::{ChartSpec, NumberStyle, TreemapSpec, ValueFormat},
+    spec::{ChartSpec, NumberStyle, TmNode, TmTree, TreemapSpec, ValueFormat},
     text,
 };
 
@@ -26,22 +26,23 @@ fn treemap(spec: &ChartSpec) -> &TreemapSpec {
         .expect("validated treemaps carry a treemap block")
 }
 
-fn class(spec: &ChartSpec, index: usize) -> &'static str {
-    const GROUPED: [&str; 4] = [
-        "chartlet-tm-cell chartlet-tm-1",
-        "chartlet-tm-cell chartlet-tm-2",
-        "chartlet-tm-cell chartlet-tm-3",
-        "chartlet-tm-cell chartlet-tm-4",
-    ];
-    let treemap = treemap(spec);
-    treemap.items[index]
-        .group
-        .as_deref()
-        .and_then(|group| treemap.groups().iter().position(|known| *known == group))
-        .map_or("chartlet-tm-cell chartlet-tm-0", |position| {
-            GROUPED[position]
-        })
-}
+const CELLS: [&str; 5] = [
+    "chartlet-tm-cell chartlet-tm-0",
+    "chartlet-tm-cell chartlet-tm-1",
+    "chartlet-tm-cell chartlet-tm-2",
+    "chartlet-tm-cell chartlet-tm-3",
+    "chartlet-tm-cell chartlet-tm-4",
+];
+const FRAMES: [&str; 5] = [
+    "chartlet-tm-frame chartlet-tm-0",
+    "chartlet-tm-frame chartlet-tm-1",
+    "chartlet-tm-frame chartlet-tm-2",
+    "chartlet-tm-frame chartlet-tm-3",
+    "chartlet-tm-frame chartlet-tm-4",
+];
+/// The room inside a frame on every side, and the height of its name above its parts.
+const PAD: f64 = 3.0;
+const HEADER: f64 = 18.0;
 
 fn share(spec: &ChartSpec, value: f64, total: f64) -> String {
     format_value(
@@ -117,28 +118,50 @@ fn squarify(
 }
 
 /// The items from the largest to the smallest, equal ones in their order.
-fn by_size(treemap: &TreemapSpec) -> Vec<usize> {
-    let mut order: Vec<usize> = (0..treemap.items.len()).collect();
+/// The items of `nodes` from the largest to the smallest, equal ones in their order.
+fn by_size(tree: &TmTree, nodes: &[usize]) -> Vec<usize> {
+    let mut order = nodes.to_vec();
     crate::sort::by(&mut order, |a, b| {
-        treemap.items[*b].value.total_cmp(&treemap.items[*a].value)
+        tree.nodes[*b].value.total_cmp(&tree.nodes[*a].value)
     });
     order
 }
 
-/// The rectangle of every item, by its index in the specification.
-fn rectangles(treemap: &TreemapSpec, bounds: (f64, f64, f64, f64)) -> Vec<(f64, f64, f64, f64)> {
-    let order = by_size(treemap);
-    let scale = bounds.2 * bounds.3 / treemap.total();
+type Bounds = (f64, f64, f64, f64);
+
+/// Where an item stands and whether it has a header for its name above its parts.
+struct Placed {
+    node: usize,
+    rect: Bounds,
+    header: f64,
+}
+
+/// Packs `nodes` into `bounds`, and the parts of each inside its rectangle, in pre-order.
+fn place(tree: &TmTree, nodes: &[usize], bounds: Bounds, out: &mut Vec<Placed>) {
+    let order = by_size(tree, nodes);
+    let sum: f64 = order.iter().map(|node| tree.nodes[*node].value).sum();
+    let scale = bounds.2 * bounds.3 / sum;
     let areas: Vec<f64> = order
         .iter()
-        .map(|index| treemap.items[*index].value * scale)
+        .map(|node| tree.nodes[*node].value * scale)
         .collect();
-    let placed = squarify(&areas, bounds);
-    let mut out = vec![(0.0, 0.0, 0.0, 0.0); order.len()];
-    for (rectangle, index) in placed.into_iter().zip(order) {
-        out[index] = rectangle;
+    for (node, rect) in order.into_iter().zip(squarify(&areas, bounds)) {
+        let header = if !tree.nodes[node].children.is_empty() && rect.2 >= 60.0 && rect.3 >= 44.0 {
+            HEADER
+        } else {
+            0.0
+        };
+        out.push(Placed { node, rect, header });
+        if !tree.nodes[node].children.is_empty() {
+            let inner = (
+                rect.0 + PAD + GAP / 2.0,
+                rect.1 + PAD + GAP / 2.0 + header,
+                (rect.2 - 2.0 * PAD - GAP).max(1.0),
+                (rect.3 - 2.0 * PAD - GAP - header).max(1.0),
+            );
+            place(tree, &tree.nodes[node].children, inner, out);
+        }
     }
-    out
 }
 
 pub(crate) fn layout(
@@ -147,6 +170,7 @@ pub(crate) fn layout(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let treemap = treemap(spec);
+    let tree = treemap.tree();
     let compact = spec.width < crate::layout::NARROW;
     let (width, height) = (f64::from(spec.width), f64::from(spec.height));
     let margin = if compact { 12.0 } else { 24.0 };
@@ -168,59 +192,64 @@ pub(crate) fn layout(
         (height - top - 16.0).max(60.0),
     );
     let total = treemap.total();
+    let mut placed = Vec::new();
+    place(&tree, &tree.roots, bounds, &mut placed);
     let mut omitted = false;
-    for (index, (x, y, w, h)) in rectangles(treemap, bounds).into_iter().enumerate() {
-        let item = &treemap.items[index];
+    for Placed {
+        node,
+        rect: (x, y, w, h),
+        header,
+    } in placed
+    {
+        let item = &tree.nodes[node];
         let (rx, ry, rw, rh) = (x + GAP / 2.0, y + GAP / 2.0, w - GAP, h - GAP);
+        let parent = !item.children.is_empty();
         elements.push(Element::Rect(Rect {
             x: rx,
             y: ry,
             width: rw,
             height: rh,
-            class: class(spec, index),
+            class: if parent {
+                FRAMES[item.color]
+            } else {
+                CELLS[item.color]
+            },
             series_index: None,
             style_index: None,
             tooltip: Some(format!(
                 "{}: {} ({})",
-                item.label,
+                item.path,
                 format_value(item.value, spec.number_style()),
                 share(spec, item.value, total)
             )),
         }));
-        if rw >= NAME_WIDTH && rh >= NAME_HEIGHT {
-            elements.push(Element::Text(Text {
-                x: rx + 6.0,
-                y: ry + 16.0,
-                class: "chartlet-tm-label",
-                anchor: TextAnchor::Start,
-                content: fit_text(
-                    &item.label,
-                    rw - 12.0,
-                    LABEL_SIZE,
-                    metrics,
-                    warnings,
-                    &format!("/treemap/items/{index}/label"),
-                ),
-            }));
-            if rh >= VALUE_HEIGHT {
+        if parent {
+            if header > 0.0 {
                 elements.push(Element::Text(Text {
                     x: rx + 6.0,
-                    y: ry + 31.0,
-                    class: "chartlet-tm-value",
+                    y: ry + 15.0,
+                    class: "chartlet-tm-head",
                     anchor: TextAnchor::Start,
                     content: fit_text(
-                        &format_value(item.value, spec.number_style()),
+                        &item.label,
                         rw - 12.0,
                         LABEL_SIZE,
                         metrics,
                         warnings,
-                        &format!("/treemap/items/{index}/value"),
+                        "/treemap/items",
                     ),
                 }));
             }
-        } else {
-            omitted = true;
+            continue;
         }
+        omitted |= !push_names(
+            &mut elements,
+            spec,
+            item,
+            (rx, ry, rw, rh),
+            metrics,
+            warnings,
+        );
     }
     warn_if_labels_omitted(omitted, warnings);
     Scene {
@@ -230,7 +259,24 @@ pub(crate) fn layout(
     }
 }
 
-/// The legend of the groups in a row under the title; returns where it ends.
+/// What the colors stand for, in order of their palette color: the groups of a flat treemap, or
+/// up to four items at the top of a nested one.
+fn legend_entries(spec: &ChartSpec) -> Vec<String> {
+    let treemap = treemap(spec);
+    if treemap.nested() {
+        if treemap.items.len() <= 4 {
+            return treemap
+                .items
+                .iter()
+                .map(|item| item.label.clone())
+                .collect();
+        }
+        return Vec::new();
+    }
+    treemap.groups().into_iter().map(str::to_owned).collect()
+}
+
+/// The legend in a row under the title; returns where it ends.
 fn push_legend(
     elements: &mut Vec<Element>,
     warnings: &mut Vec<ChartWarning>,
@@ -238,7 +284,7 @@ fn push_legend(
     (left, top): (f64, f64),
     metrics: &impl TextMetrics,
 ) -> f64 {
-    let groups = treemap(spec).groups();
+    let groups = legend_entries(spec);
     if groups.is_empty() {
         return top;
     }
@@ -255,12 +301,7 @@ fn push_legend(
             y,
             width: 10.0,
             height: 10.0,
-            class: [
-                "chartlet-tm-cell chartlet-tm-1",
-                "chartlet-tm-cell chartlet-tm-2",
-                "chartlet-tm-cell chartlet-tm-3",
-                "chartlet-tm-cell chartlet-tm-4",
-            ][index],
+            class: CELLS[index + 1],
             series_index: None,
             style_index: None,
             tooltip: None,
@@ -287,46 +328,52 @@ fn push_legend(
 /// The treemap in sentences: its items and total, its biggest items and its groups.
 pub(crate) fn description(spec: &ChartSpec) -> String {
     let treemap = treemap(spec);
+    let tree = treemap.tree();
     let total = treemap.total();
-    let order = by_size(treemap);
-    let largest: Vec<String> = order
+    let leaves: Vec<usize> = (0..tree.nodes.len())
+        .filter(|node| tree.nodes[*node].children.is_empty())
+        .collect();
+    let largest: Vec<String> = by_size(&tree, &leaves)
         .iter()
         .take(3)
-        .map(|index| {
-            let item = &treemap.items[*index];
-            format!("{} ({})", item.label, share(spec, item.value, total))
+        .map(|node| {
+            let item = &tree.nodes[*node];
+            format!("{} ({})", item.path, share(spec, item.value, total))
         })
         .collect();
-    let groups: Vec<String> = treemap
-        .groups()
-        .into_iter()
-        .map(|group| {
-            let sum: f64 = treemap
-                .items
+    let mut groups: Vec<String> = Vec::new();
+    let mut named: Vec<&str> = Vec::new();
+    for node in tree.roots.iter().map(|root| &tree.nodes[*root]) {
+        if let Some(group) = node.group.as_deref()
+            && !named.contains(&group)
+        {
+            named.push(group);
+            let sum: f64 = tree
+                .roots
                 .iter()
-                .filter(|item| item.group.as_deref() == Some(group))
-                .map(|item| item.value)
+                .map(|root| &tree.nodes[*root])
+                .filter(|other| other.group.as_deref() == Some(group))
+                .map(|other| other.value)
                 .sum();
-            format!("{group} {}", share(spec, sum, total))
-        })
-        .collect();
+            groups.push(format!("{group} {}", share(spec, sum, total)));
+        }
+    }
     text::treemap_summary(
         spec.locale,
-        (
-            treemap.items.len(),
-            &format_value(total, spec.number_style()),
-        ),
+        (leaves.len(), &format_value(total, spec.number_style())),
         &largest.join(", "),
         &groups.join(", "),
     )
 }
 
-/// One row per item from the largest to the smallest: its value, share and group.
+/// One row per item, the parts of an item right after it, each level from the largest to the
+/// smallest: its path, value, share and group (the top-level item of a nested treemap).
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let treemap = treemap(spec);
+    let tree = treemap.tree();
     let words = spec.locale.words();
     let total = treemap.total();
-    let grouped = !treemap.groups().is_empty();
+    let grouped = tree.nodes.iter().any(|node| node.group.is_some());
     let mut columns = vec![
         words.item.to_owned(),
         words.value.to_owned(),
@@ -335,12 +382,14 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     if grouped {
         columns.push(words.group.to_owned());
     }
-    let rows = by_size(treemap)
+    let mut order = Vec::new();
+    list(&tree, &tree.roots, &mut order);
+    let rows = order
         .into_iter()
         .map(|index| {
-            let item = &treemap.items[index];
+            let item = &tree.nodes[index];
             let mut row = vec![
-                item.label.clone(),
+                item.path.clone(),
                 format_value(item.value, spec.number_style()),
                 share(spec, item.value, total),
             ];
@@ -355,4 +404,57 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         columns,
         rows,
     }
+}
+
+/// `nodes` and what is below them in pre-order, each level by size.
+fn list(tree: &TmTree, nodes: &[usize], out: &mut Vec<usize>) {
+    for node in by_size(tree, nodes) {
+        out.push(node);
+        list(tree, &tree.nodes[node].children, out);
+    }
+}
+
+/// The name and the value of a leaf inside its rectangle; returns whether there was room.
+fn push_names(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    item: &TmNode,
+    (rx, ry, rw, rh): Bounds,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) -> bool {
+    if rw < NAME_WIDTH || rh < NAME_HEIGHT {
+        return false;
+    }
+    elements.push(Element::Text(Text {
+        x: rx + 6.0,
+        y: ry + 16.0,
+        class: "chartlet-tm-label",
+        anchor: TextAnchor::Start,
+        content: fit_text(
+            &item.label,
+            rw - 12.0,
+            LABEL_SIZE,
+            metrics,
+            warnings,
+            "/treemap/items",
+        ),
+    }));
+    if rh >= VALUE_HEIGHT {
+        elements.push(Element::Text(Text {
+            x: rx + 6.0,
+            y: ry + 31.0,
+            class: "chartlet-tm-value",
+            anchor: TextAnchor::Start,
+            content: fit_text(
+                &format_value(item.value, spec.number_style()),
+                rw - 12.0,
+                LABEL_SIZE,
+                metrics,
+                warnings,
+                "/treemap/items",
+            ),
+        }));
+    }
+    true
 }

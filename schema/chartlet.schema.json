@@ -1012,7 +1012,7 @@
       }
     },
     "treemap": {
-      "description": "A treemap: rectangles whose areas follow the values of the items, packed by the squarified method; the names and values stand inside the rectangles that have room. Up to 100 items with positive values; an optional group (up to 4, on every item or on none) colors the rectangles and shows a legend.",
+      "description": "A treemap: rectangles whose areas follow the values of the items, packed by the squarified method; the names and values stand inside the rectangles that have room. Up to 100 items (parts included) with positive values; an optional group (up to 4, on every item or on none) colors the rectangles and shows a legend; or items with children, nested up to three levels, colored by the item at the top.",
       "type": "object",
       "additionalProperties": false,
       "required": ["items"],
@@ -1021,17 +1021,19 @@
           "type": "array",
           "minItems": 1,
           "maxItems": 100,
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": ["label", "value"],
-            "properties": {
-              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
-              "value": { "type": "number", "exclusiveMinimum": 0 },
-              "group": { "type": "string", "minLength": 1, "maxLength": 100 }
-            }
-          }
+          "items": { "$ref": "#/$defs/treemapItem" }
         }
+      }
+    },
+    "treemapItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "value": { "type": "number", "exclusiveMinimum": 0, "description": "The value of a leaf; an item with children has none." },
+        "group": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "children": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/treemapItem" }, "description": "The parts of this item, drawn inside its rectangle; up to three levels deep. A nested treemap takes its colors from the items at the top and has no groups." }
       }
     },
     "parliament": {

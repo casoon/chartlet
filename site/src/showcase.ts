@@ -434,6 +434,13 @@ const catalogue = [
       'The path of a civil case through the German courts, from Amtsgericht and Landgericht by appeal to the Oberlandesgericht and by Revision to the Bundesgerichtshof, in German with the conditions on the edges. A preset on the flow chart, not a type of its own. Simplified, with a phone variant.',
   },
   {
+    slug: 'budget-by-sector',
+    chart: 'Treemap (nested)',
+    useCase: 'Show parts inside parts',
+    blurb:
+      'The same kind of budget, one level deeper: four sectors drawn as frames, and the departments inside them as rectangles by their amount. Every sector keeps one color, the legend names the sectors, and the table lists every department with its path. Illustrative amounts, with a phone variant.',
+  },
+  {
     slug: 'voter-movement',
     chart: 'Sankey diagram (fixed columns)',
     useCase: 'Follow voters between two elections',
