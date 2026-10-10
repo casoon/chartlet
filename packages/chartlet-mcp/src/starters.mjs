@@ -394,16 +394,18 @@ const NOTES = {
   survival: [
     "Every observation has a time (zero or more) and event (default true); event false is censored and marked on the curve.",
     "Up to four groups, 2–2000 observations each. confidence draws the 95% band, atRisk (default true) the number at risk under the axis.",
-    "logRank true tests whether the groups differ (Mantel-Cox, two or more groups) and writes p in the plot and the statistic in the description.",
+    "logRank true tests whether the groups differ (Mantel-Cox, two or more groups) and writes p in the plot and the statistic in the description; with exactly two groups it adds the hazard ratio of the second against the first with its 95% interval.",
   ],
   scatter: [
     "Up to 5000 points; group on every point or none (up to four, the first point of each fixes its color). lines are thresholds at a value of x or y.",
     "Above 300 points the dots are small without tooltips; above 100 the table lists only labeled points, or the 20 highest. Label the points that matter.",
     'regression true draws the least-squares line for each group (slope, intercept and r² in the description); xScale and yScale "log" need values above zero and fit the regression to the logarithms.',
+    "xTicks puts named labels at chosen places on the x axis (chromosomes of a Manhattan plot, two groups alternating); xRange and yRange fix the ends of an axis and everything drawn must lie within.",
   ],
   timeline: [
     "An item is a phase (start and end) or a milestone (at); after names ids it follows; markers are dashed days such as today.",
     "Dates are ISO days; the canvas grows with the number of items.",
+    'progress (0 to 1) on a phase draws that share of its bar darker; "groupRows": true puts the rows of a group together (needs groups).',
   ],
   forest: [
     "A rangebar with a weight on a span draws a square on mid sized by the weight (needs mid); summary true draws a diamond for the overall result.",
@@ -411,7 +413,7 @@ const NOTES = {
   ],
   violin: [
     'boxDisplay "violin" draws the density with the box inside; "strip" draws every observation as a point. Both need values on every box (values_required).',
-    "Every violin is as wide as the others at its widest, so compare shapes, not areas.",
+    "By default every violin is as wide as the others at its widest, so compare shapes; \"violinScale\": \"area\" gives them the same area and \"count\" an area that follows the number of observations. showMean marks each mean with a diamond.",
   ],
   prisma: [
     "A flow chart used as a PRISMA 2020 / CONSORT flow: counts go in the sublabels, every exclusion is an external (dashed) step beside the main path, the phases are groups, mainPath names the steps that lead to the included studies.",
