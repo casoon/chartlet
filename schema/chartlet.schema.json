@@ -1139,7 +1139,8 @@
               "end": { "$ref": "#/$defs/timeValue" },
               "at": { "$ref": "#/$defs/timeValue" },
               "group": { "type": "string", "minLength": 1, "maxLength": 60 },
-              "after": { "type": "array", "items": { "$ref": "#/$defs/identifier" } }
+              "after": { "type": "array", "items": { "$ref": "#/$defs/identifier" } },
+              "progress": { "type": "number", "minimum": 0, "maximum": 1, "description": "How much of a phase is done: that share of its bar is drawn darker." }
             }
           }
         },
@@ -1155,7 +1156,8 @@
               "at": { "$ref": "#/$defs/timeValue" }
             }
           }
-        }
+        },
+        "groupRows": { "type": "boolean", "default": false, "description": "Put the rows of one group together, in the order the groups first appear. Needs groups." }
       }
     },
     "tree": {

@@ -3,6 +3,8 @@
 //! runs from an item to the ones that follow it. The description and the data table list every
 //! item with its days, so that the picture is never the only place they are said.
 
+use std::fmt::Write as _;
+
 use crate::{
     DataTable,
     diagram::{self, arrowhead, pixels, rounded, warn_growth},
@@ -105,6 +107,8 @@ struct Frame<'a> {
     last: i64,
     /// Whether the dates stand beside the items.
     dates: bool,
+    /// The row of every item.
+    rows: Vec<usize>,
 }
 
 /// Seconds as a number to place things by; a timeline spans far less than 2^52 of them.
@@ -121,7 +125,7 @@ impl Frame<'_> {
 
     /// The middle of the row of item `index`.
     fn center(&self, index: usize) -> f64 {
-        self.top + ROW * (count(index) + 0.5)
+        self.top + ROW * (count(self.rows[index]) + 0.5)
     }
 
     fn plot_height(&self) -> f64 {
@@ -200,6 +204,7 @@ pub(crate) fn layout(
         first,
         last,
         dates,
+        rows: timeline.rows(),
     };
     let height = f64::from(spec.height).max(top + frame.plot_height() + 46.0);
     warn_growth(spec, width, height, warnings);
@@ -352,10 +357,15 @@ impl Frame<'_> {
         for (index, item) in self.timeline.items.iter().enumerate() {
             let y = self.center(index);
             let span = item.span();
+            let done = item
+                .progress
+                .map(|progress| text::percent_done(self.spec.locale, progress));
             let tooltip = Some(format!(
-                "{}: {}",
+                "{}: {}{}",
                 item.label,
-                days(self.spec, span, self.with_time)
+                days(self.spec, span, self.with_time),
+                done.as_ref()
+                    .map_or(String::new(), |done| format!(" ({done})")),
             ));
             let label_end = match span {
                 Span::Phase { start, end } => {
@@ -370,6 +380,18 @@ impl Frame<'_> {
                         style_index: None,
                         tooltip,
                     }));
+                    if let Some(progress) = item.progress.filter(|progress| *progress > 0.0) {
+                        elements.push(Element::Rect(Rect {
+                            x: x1,
+                            y: y - BAR / 2.0,
+                            width: ((x2 - x1).max(MIN_PHASE) * progress).max(1.0),
+                            height: BAR,
+                            class: "chartlet-timeline-done",
+                            series_index: None,
+                            style_index: None,
+                            tooltip: None,
+                        }));
+                    }
                     x2.max(x1 + MIN_PHASE)
                 }
                 Span::Milestone { at } => {
@@ -583,6 +605,15 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             &days(spec, item.span(), with_time),
             &follows,
         ));
+        if let Some(progress) = item.progress {
+            write!(
+                description,
+                " {}: {}.",
+                item.label,
+                text::percent_done(spec.locale, progress)
+            )
+            .expect("writing to String cannot fail");
+        }
     }
     if !timeline.markers.is_empty() {
         let utc = crate::spec::timeline_zone();
@@ -621,6 +652,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     if followed {
         columns.push(words.follows.to_owned());
     }
+    let progressed = timeline.items.iter().any(|item| item.progress.is_some());
+    if progressed {
+        columns.push(words.progress.to_owned());
+    }
     let rows = timeline
         .items
         .iter()
@@ -654,6 +689,11 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                         .collect::<Vec<_>>()
                         .join(", "),
                 );
+            }
+            if progressed {
+                row.push(item.progress.map_or(String::new(), |progress| {
+                    text::percent_done(spec.locale, progress)
+                }));
             }
             row
         })

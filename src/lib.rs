@@ -4712,6 +4712,58 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_timeline_shows_progress_and_can_bundle_rows_by_group() {
+        let spec = r#"{"schemaVersion": 1, "type": "timeline", "title": "Plan", "width": 800, "height": 300,
+            "timeline": {"groupRows": true, "items": [
+                {"label": "One", "start": "2027-01-04", "end": "2027-02-01", "group": "A", "progress": 0.5},
+                {"label": "Two", "start": "2027-01-11", "end": "2027-02-08", "group": "B"},
+                {"label": "Three", "start": "2027-02-01", "end": "2027-03-01", "group": "A"}
+            ]}}"#;
+        let output = render_ok(spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert_eq!(
+            output
+                .content
+                .matches("class=\"chartlet-timeline-done\"")
+                .count(),
+            1
+        );
+        assert!(output.content.contains("(50% done)"));
+        // Rows: One, Three (group A), then Two (group B): Two's bar sits below Three's.
+        let y = |label: &str| {
+            let at = output.content.find(&format!("<title>{label}:")).unwrap();
+            let rect = &output.content[output.content[..at].rfind("<rect").unwrap()..at];
+            let y = rect
+                .split("y=\"")
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap();
+            y.parse::<f64>().unwrap()
+        };
+        assert!(y("One") < y("Three") && y("Three") < y("Two"));
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("<th scope=\"col\">Progress</th>"));
+        let milestone = spec.replace(
+            r#""start": "2027-01-11", "end": "2027-02-08", "group": "B""#,
+            r#""at": "2027-01-11", "group": "B", "progress": 0.2"#,
+        );
+        let error =
+            render_json(&milestone, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("progress_on_milestone", "/timeline/items/1/progress")
+        );
+        let ungrouped = r#"{"schemaVersion": 1, "type": "timeline", "title": "Plan", "timeline": {"groupRows": true, "items": [{"label": "One", "start": "2027-01-04", "end": "2027-02-01"}]}}"#;
+        let error =
+            render_json(ungrouped, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(error.path, "/timeline/groupRows");
+    }
+
     const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,
         "sankey": {"links": [
             {"from": "A", "to": "Mid", "value": 30},

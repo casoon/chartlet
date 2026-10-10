@@ -98,6 +98,7 @@ pub(crate) struct Words {
     /// The columns of a timeline's table.
     pub item: &'static str,
     pub phase: &'static str,
+    pub progress: &'static str,
     pub milestone: &'static str,
     pub begin: &'static str,
     pub finish: &'static str,
@@ -207,6 +208,7 @@ const EN: Words = Words {
     summary: "summary",
     item: "Item",
     phase: "Phase",
+    progress: "Progress",
     milestone: "Milestone",
     begin: "Start",
     finish: "End",
@@ -316,6 +318,7 @@ const DE: Words = Words {
     summary: "Gesamt",
     item: "Eintrag",
     phase: "Phase",
+    progress: "Fortschritt",
     milestone: "Meilenstein",
     begin: "Beginn",
     finish: "Ende",
@@ -1662,6 +1665,15 @@ pub(crate) fn survival_test(locale: Locale, (chi, degrees): (&str, usize), p: &s
             "Log-Rank-Test: χ² = {chi}, {degrees} Freiheitsgrad{}, p {p}.",
             plural(degrees, "", "e")
         ),
+    }
+}
+
+/// How much of a phase is done, as a percentage.
+pub(crate) fn percent_done(locale: Locale, progress: f64) -> String {
+    let percent = (progress * 100.0).round();
+    match locale {
+        Locale::En => format!("{percent}% done"),
+        Locale::De => format!("{percent} % erledigt"),
     }
 }
 

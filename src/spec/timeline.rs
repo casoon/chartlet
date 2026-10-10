@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ChartSpec, MAX_SERIES, sequence::is_identifier, validate_text};
+use super::{ChartSpec, MAX_SERIES, sequence::is_identifier, validate_number, validate_text};
 use crate::{
     error::{ChartError, ChartWarning},
     time::{TimeValue, TimeZone},
@@ -19,6 +19,10 @@ pub struct TimelineSpec {
     /// Days drawn as a line across the whole timeline, such as today or a deadline.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub markers: Vec<MarkerSpec>,
+    /// Puts the rows of one group together, in the order the groups first appear, instead of in
+    /// the order of `items`. Needs groups.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub group_rows: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +46,9 @@ pub struct TimelineItemSpec {
     /// The `id`s of the items this one follows: an arrow runs from each of them to it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub after: Vec<String>,
+    /// How much of a phase is done, from 0 to 1: that share of its bar is drawn darker.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub progress: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,6 +114,29 @@ impl TimelineSpec {
             .position(|item| item.id.as_deref() == Some(id))
     }
 
+    /// The row of every item: the order of `items`, or with `group_rows` the items of one group
+    /// together, in the order the groups first appear.
+    pub(crate) fn rows(&self) -> Vec<usize> {
+        let mut order: Vec<usize> = (0..self.items.len()).collect();
+        if self.group_rows {
+            let groups = self.groups();
+            let rank = |item: &TimelineItemSpec| {
+                item.group
+                    .as_deref()
+                    .and_then(|group| groups.iter().position(|known| *known == group))
+                    .unwrap_or(0)
+            };
+            crate::sort::by(&mut order, |a, b| {
+                rank(&self.items[*a]).cmp(&rank(&self.items[*b]))
+            });
+        }
+        let mut rows = vec![0; order.len()];
+        for (row, item) in order.into_iter().enumerate() {
+            rows[item] = row;
+        }
+        rows
+    }
+
     /// The groups in the order they first appear.
     pub(crate) fn groups(&self) -> Vec<&str> {
         let mut groups: Vec<&str> = Vec::new();
@@ -163,6 +193,13 @@ impl ChartSpec {
 impl TimelineSpec {
     fn validate_items(&self, warnings: &mut Vec<ChartWarning>) -> Result<(), ChartError> {
         let grouped = self.items.iter().any(|item| item.group.is_some());
+        if self.group_rows && !grouped {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/timeline/groupRows",
+                "groupRows puts the rows of a group together; give the items groups",
+            ));
+        }
         let mut groups: Vec<&str> = Vec::new();
         for (index, item) in self.items.iter().enumerate() {
             let path = format!("/timeline/items/{index}");
@@ -220,6 +257,7 @@ impl TimelineSpec {
                     ));
                 }
             }
+            validate_progress(item, &path, at.is_some())?;
             match (&item.group, grouped) {
                 (Some(group), _) => {
                     validate_text(group, &format!("{path}/group"), 60)?;
@@ -326,4 +364,31 @@ impl TimelineSpec {
         }
         Ok(())
     }
+}
+
+/// Progress from 0 to 1, on a phase only.
+fn validate_progress(
+    item: &TimelineItemSpec,
+    path: &str,
+    milestone: bool,
+) -> Result<(), ChartError> {
+    let Some(progress) = item.progress else {
+        return Ok(());
+    };
+    validate_number(progress, &format!("{path}/progress"))?;
+    if !(0.0..=1.0).contains(&progress) {
+        return Err(ChartError::new(
+            "invalid_value",
+            format!("{path}/progress"),
+            "progress runs from 0 to 1",
+        ));
+    }
+    if milestone {
+        return Err(ChartError::new(
+            "progress_on_milestone",
+            format!("{path}/progress"),
+            "only a phase has progress",
+        ));
+    }
+    Ok(())
 }

@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Timelines: `progress` (0 to 1) on a phase draws that share of its bar darker and adds it to tooltip, description and table; `groupRows` puts the rows of one group together. Progress added to the example `product-roadmap`.
 - Kaplan-Meier curves with `logRank` and two groups: the description adds the hazard ratio of the second group against the first with its 95 % interval, checked against an independent implementation.
 - Violins: `"violinScale": "area"` gives every violin the same area and `"count"` an area that follows its number of observations, so widths compare between violins (the default `width` keeps comparing shapes).
 - Box plots: `"showMean": true` marks the mean of each box's observations with a diamond and adds a Mean column to the table; added to the example `response-distribution`.

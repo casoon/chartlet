@@ -259,6 +259,12 @@ a Gantt chart, a roadmap, the course of a procedure with its deadlines.
   time, or Unix seconds, read in UTC. The axis runs over all items and markers with a little room
   at both ends, and its ticks are chosen like those of a time chart.
 - **Groups** give items a color and a legend entry: on every item or none, at most four.
+- **Group rows.** `"groupRows": true` puts the rows of one group together, in the order the groups
+  first appear, instead of in the order of `items` (it needs groups); the description and the
+  table keep the listed order.
+- **Progress.** `progress` (0 to 1) on a phase draws that share of its bar darker, adds it to the
+  tooltip, the description and a Progress column of the table (`progress_on_milestone` for a
+  milestone, `invalid_value` outside 0 to 1).
 - **Markers** are dashed lines across all rows with their label on top: today, a deadline.
 - **Arrows.** `after` names the `id`s of the items an item follows; an arrow runs from the end of
   each to the start of the item, below the bars. Following in a circle is an error
