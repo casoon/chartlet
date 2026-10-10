@@ -936,6 +936,22 @@
             }
           }
         },
+        "xRange": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" }, "description": "The ends of the x axis, [min, max], instead of ends rounded outward to a tick; everything drawn along x must lie within." },
+        "yRange": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" } },
+        "xTicks": {
+          "type": "array",
+          "maxItems": 40,
+          "description": "Labels for the x axis at chosen positions instead of numbered ticks, such as chromosomes; a label that would run into the one before it is left out.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["at", "label"],
+            "properties": {
+              "at": { "type": "number" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 40 }
+            }
+          }
+        },
         "xTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
         "yTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
         "regression": { "type": "boolean", "default": false, "description": "Draw the least-squares line through the points, one for each group; on a logarithmic axis it is fitted to the logarithms." },

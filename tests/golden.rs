@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 54] = [
+const EXAMPLES: [(&str, &str, &str); 55] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -248,6 +248,11 @@ const EXAMPLES: [(&str, &str, &str); 54] = [
         include_str!("../examples/allometry.svg"),
     ),
     (
+        "genome-scan",
+        include_str!("../examples/genome-scan.json"),
+        include_str!("../examples/genome-scan.svg"),
+    ),
+    (
         "voter-movement",
         include_str!("../examples/voter-movement.json"),
         include_str!("../examples/voter-movement.svg"),
@@ -275,7 +280,7 @@ const EXAMPLES: [(&str, &str, &str); 54] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 23] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 24] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -365,6 +370,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 23] = [
         "allometry",
         include_str!("../examples/allometry.json"),
         include_str!("../examples/allometry.mobile.svg"),
+    ),
+    (
+        "genome-scan",
+        include_str!("../examples/genome-scan.json"),
+        include_str!("../examples/genome-scan.mobile.svg"),
     ),
     (
         "voter-movement",

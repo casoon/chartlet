@@ -39,6 +39,46 @@ const SWATCHES: [&str; 4] = [
     "chartlet-sc-swatch chartlet-sc-4",
 ];
 
+/// The scale of one axis: over the points, the lines and the named ticks along it, or exactly
+/// over its range.
+fn axis_scale(scatter: &ScatterSpec, axis: ScatterAxis) -> NumericScale {
+    let along_x = axis == ScatterAxis::X;
+    let values = scatter
+        .points
+        .iter()
+        .map(|point| if along_x { point.x } else { point.y })
+        .chain(
+            scatter
+                .lines
+                .iter()
+                .filter(|line| line.axis == axis)
+                .map(|line| line.value),
+        )
+        .chain(
+            scatter
+                .x_ticks
+                .iter()
+                .filter(|_| along_x)
+                .map(|tick| tick.at),
+        );
+    let (scale, range) = if along_x {
+        (scatter.x_scale, scatter.x_range)
+    } else {
+        (scatter.y_scale, scatter.y_range)
+    };
+    NumericScale::for_axis(
+        values,
+        false,
+        &ValueAxisSpec {
+            min: range.map(|range| range[0]),
+            max: range.map(|range| range[1]),
+            exact: range.is_some(),
+            scale,
+            ..ValueAxisSpec::default()
+        },
+    )
+}
+
 /// Up to this many points get a radius and a tooltip each; more are drawn small and plain.
 const FEW: usize = 300;
 /// The points a big plot lists in its table when none is named, and the most any plot lists.
@@ -98,39 +138,10 @@ pub(crate) fn layout(
         width - left - right,
         plot_height(height - top - 8.0 - bottom, warnings),
     );
-    let along = |axis: ScatterAxis| {
-        let values = scatter
-            .points
-            .iter()
-            .map(|point| {
-                if axis == ScatterAxis::X {
-                    point.x
-                } else {
-                    point.y
-                }
-            })
-            .chain(
-                scatter
-                    .lines
-                    .iter()
-                    .filter(|line| line.axis == axis)
-                    .map(|line| line.value),
-            );
-        let scale = if axis == ScatterAxis::X {
-            scatter.x_scale
-        } else {
-            scatter.y_scale
-        };
-        NumericScale::for_axis(
-            values,
-            false,
-            &ValueAxisSpec {
-                scale,
-                ..ValueAxisSpec::default()
-            },
-        )
-    };
-    let (xs, ys) = (along(ScatterAxis::X), along(ScatterAxis::Y));
+    let (xs, ys) = (
+        axis_scale(scatter, ScatterAxis::X),
+        axis_scale(scatter, ScatterAxis::Y),
+    );
     let x = |value: f64| xs.map(value, plot.0, plot.0 + plot.2);
     let y = |value: f64| ys.map(value, plot.1 + plot.3, plot.1);
     push_axes(&mut elements, spec, (plot, &xs, &ys), metrics, warnings);
@@ -362,7 +373,10 @@ fn push_axes(
             content: ys.tick_label(tick, spec.axis_style()),
         }));
     }
-    for tick in xs.ticks() {
+    if !scatter(spec).x_ticks.is_empty() {
+        push_named_ticks(elements, spec, ((left, top, width, height), xs), metrics);
+    }
+    for tick in xs.ticks().filter(|_| scatter(spec).x_ticks.is_empty()) {
         let x = xs.map(tick, left, left + width);
         elements.push(Element::Line(Line {
             x1: x,
@@ -414,6 +428,44 @@ fn push_axes(
                 warnings,
                 "/scatter/yTitle",
             ),
+        }));
+    }
+}
+
+/// The named labels of the x axis, each at its place, leaving out one that would run into the one
+/// before it.
+fn push_named_ticks(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    ((left, top, width, height), xs): ((f64, f64, f64, f64), &NumericScale),
+    metrics: &impl TextMetrics,
+) {
+    let mut ticks: Vec<(f64, &str)> = scatter(spec)
+        .x_ticks
+        .iter()
+        .map(|tick| (xs.map(tick.at, left, left + width), tick.label.as_str()))
+        .collect();
+    crate::sort::by(&mut ticks, |a, b| a.0.total_cmp(&b.0));
+    let mut end = f64::MIN;
+    for (x, label) in ticks {
+        let reach = metrics.width(label, LABEL_SIZE);
+        if x - reach / 2.0 < end + 4.0 {
+            continue;
+        }
+        end = x + reach / 2.0;
+        elements.push(Element::Line(Line {
+            x1: x,
+            y1: top + height,
+            x2: x,
+            y2: top + height + 5.0,
+            class: "chartlet-zero",
+        }));
+        elements.push(Element::Text(Text {
+            x,
+            y: top + height + 22.0,
+            class: "chartlet-tick",
+            anchor: TextAnchor::Middle,
+            content: label.to_owned(),
         }));
     }
 }

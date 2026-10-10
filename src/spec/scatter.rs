@@ -8,6 +8,7 @@ use crate::error::{ChartError, ChartWarning};
 /// The most points one scatter plot draws, and the most lines.
 pub(crate) const MAX_POINTS: usize = 5000;
 const MAX_LINES: usize = 8;
+const MAX_TICKS: usize = 40;
 
 /// A scatter plot: points on two numeric axes, in up to four groups, with threshold lines and
 /// names on the points that matter: a volcano plot, a Manhattan plot, a regression residual.
@@ -22,6 +23,16 @@ pub struct ScatterSpec {
     pub x_title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub y_title: Option<String>,
+    /// The ends of an axis, `[min, max]`, instead of ends rounded outward to a tick; every point,
+    /// line and tick label must lie within them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub x_range: Option<[f64; 2]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub y_range: Option<[f64; 2]>,
+    /// Labels for the x axis at chosen positions instead of numbered ticks, such as chromosomes
+    /// along the positions of a genome. A label that would run into the one before it is left out.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub x_ticks: Vec<ScatterTickSpec>,
     /// Draws the least-squares line through the points, one for each group. On a logarithmic
     /// axis the line is fitted to the logarithms, so it stays straight on the page.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -58,6 +69,13 @@ pub struct ScatterPointSpec {
     /// Writes a name beside the point, and lists the point in the data table of a big plot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ScatterTickSpec {
+    pub at: f64,
+    pub label: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -193,6 +211,8 @@ impl ChartSpec {
         }
         validate_points(scatter)?;
         validate_log_axes(scatter)?;
+        validate_ticks(scatter)?;
+        validate_ranges(scatter)?;
         if scatter.lines.len() > MAX_LINES {
             return Err(ChartError::new(
                 "too_many_references",
@@ -308,6 +328,92 @@ fn validate_log_axes(scatter: &ScatterSpec) -> Result<(), ChartError> {
             if line.axis == axis && line.value <= 0.0 {
                 return refuse(format!("/scatter/lines/{index}/value"));
             }
+        }
+    }
+    Ok(())
+}
+
+/// Tick labels at finite positions, each with a name, on an axis that can place them.
+fn validate_ticks(scatter: &ScatterSpec) -> Result<(), ChartError> {
+    if scatter.x_ticks.len() > MAX_TICKS {
+        return Err(ChartError::new(
+            "too_many_references",
+            "/scatter/xTicks",
+            format!("at most {MAX_TICKS} tick labels are supported"),
+        ));
+    }
+    for (index, tick) in scatter.x_ticks.iter().enumerate() {
+        let path = format!("/scatter/xTicks/{index}");
+        validate_number(tick.at, &format!("{path}/at"))?;
+        validate_text(&tick.label, &format!("{path}/label"), 40)?;
+        if scatter.x_scale == AxisScale::Log && tick.at <= 0.0 {
+            return Err(ChartError::new(
+                "invalid_value",
+                format!("{path}/at"),
+                "a logarithmic x axis needs positions above zero",
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// An axis range runs upward, suits its scale, and holds everything drawn along that axis.
+fn validate_ranges(scatter: &ScatterSpec) -> Result<(), ChartError> {
+    for (name, range, scale, axis) in [
+        ("xRange", scatter.x_range, scatter.x_scale, ScatterAxis::X),
+        ("yRange", scatter.y_range, scatter.y_scale, ScatterAxis::Y),
+    ] {
+        let Some([min, max]) = range else { continue };
+        let path = format!("/scatter/{name}");
+        validate_number(min, &path)?;
+        validate_number(max, &path)?;
+        if min >= max || (scale == AxisScale::Log && min <= 0.0) {
+            return Err(ChartError::new(
+                "invalid_range",
+                path,
+                "a range runs from a smaller to a larger value, above zero on a logarithmic axis",
+            ));
+        }
+        let outside = |value: f64| value < min || value > max;
+        let found = scatter
+            .points
+            .iter()
+            .enumerate()
+            .find(|(_, point)| {
+                outside(if axis == ScatterAxis::X {
+                    point.x
+                } else {
+                    point.y
+                })
+            })
+            .map(|(index, _)| {
+                format!(
+                    "/scatter/points/{index}/{}",
+                    if axis == ScatterAxis::X { "x" } else { "y" }
+                )
+            })
+            .or_else(|| {
+                scatter
+                    .lines
+                    .iter()
+                    .enumerate()
+                    .find(|(_, line)| line.axis == axis && outside(line.value))
+                    .map(|(index, _)| format!("/scatter/lines/{index}/value"))
+            })
+            .or_else(|| {
+                scatter
+                    .x_ticks
+                    .iter()
+                    .enumerate()
+                    .find(|(_, tick)| axis == ScatterAxis::X && outside(tick.at))
+                    .map(|(index, _)| format!("/scatter/xTicks/{index}/at"))
+            });
+        if let Some(found) = found {
+            return Err(ChartError::new(
+                "out_of_range",
+                found,
+                format!("this lies outside {name}"),
+            ));
         }
     }
     Ok(())

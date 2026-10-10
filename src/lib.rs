@@ -52,12 +52,12 @@ pub use spec::{
     MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec, ParliamentSpec, ParticipantKind,
     ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeyNodeSpec,
     SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterSpec,
-    SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind,
-    StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme,
-    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
-    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale, WafflePartSpec,
-    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec,
+    StepKind, StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec,
+    SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
+    TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind,
+    TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale,
+    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4570,6 +4570,33 @@ mod tests {
             let spec = SCATTER.replace(from, to);
             assert!(render_json(&spec, RenderFormat::Svg, &RenderOptions::default()).is_err());
         }
+    }
+
+    #[test]
+    fn a_scatter_plot_can_name_its_x_ticks_and_fix_its_ranges() {
+        let spec = r#"{"schemaVersion": 1, "type": "scatter", "title": "Genome", "width": 640, "height": 400,
+            "scatter": {"xRange": [0, 100], "yRange": [0, 10],
+                "xTicks": [{"at": 25, "label": "1"}, {"at": 75, "label": "2"}],
+                "points": [{"x": 10, "y": 1}, {"x": 60, "y": 9}, {"x": 90, "y": 4}]}}"#;
+        let output = render_ok(spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(output.content.contains(">1</text>") && output.content.contains(">2</text>"));
+        // The ends are exactly the range: no tick label 120 or the like.
+        assert!(!output.content.contains(">20</text>") || output.content.contains(">10</text>"));
+        let outside = spec.replace(r#""x": 90, "y": 4"#, r#""x": 190, "y": 4"#);
+        let error =
+            render_json(&outside, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("out_of_range", "/scatter/points/2/x")
+        );
+        let backwards = spec.replace(r#""xRange": [0, 100]"#, r#""xRange": [100, 0]"#);
+        let error =
+            render_json(&backwards, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("invalid_range", "/scatter/xRange")
+        );
     }
 
     const SURVIVAL: &str = r#"{"schemaVersion": 1, "type": "survival", "title": "Survival", "width": 640, "height": 440,

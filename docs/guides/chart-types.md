@@ -531,6 +531,12 @@ any cloud of observations — with groups, threshold lines and names on the poin
 - **Log axes.** `"xScale": "log"` and `"yScale": "log"` space powers of ten evenly and need values
   above zero, on points and lines alike (`invalid_value`). A regression on a log axis is fitted to
   the logarithms (`ln y = a + b ln x`, a power law), so it is straight on the page.
+- **Ranges and named ticks.** `xRange` and `yRange` (`[min, max]`) fix the ends of an axis
+  instead of rounding them outward to a tick; everything drawn along it must lie within
+  (`out_of_range`, `invalid_range`). `xTicks` (`[{ "at": 1180, "label": "6" }]`) replaces the
+  numbered ticks of the x axis by labels at chosen places: a Manhattan plot labels its
+  chromosomes this way, and colors them alternately with two groups. A label that would run into
+  the one before it is left out.
 - **Names.** A point with a `label` gets its name beside it, in the order of the list; a name that
   would run over one already written is left out (`value_labels_omitted`).
 - **Many points.** Up to 300 points have a tooltip each; beyond that the dots are small and plain.

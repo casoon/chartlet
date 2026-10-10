@@ -434,6 +434,13 @@ const catalogue = [
       'The path of a civil case through the German courts, from Amtsgericht and Landgericht by appeal to the Oberlandesgericht and by Revision to the Bundesgerichtshof, in German with the conditions on the edges. A preset on the flow chart, not a type of its own. Simplified, with a phone variant.',
   },
   {
+    slug: 'genome-scan',
+    chart: 'Manhattan plot',
+    useCase: 'Find the hits along a genome',
+    blurb:
+      'Significance along twenty-two chromosomes: the points alternate between two colors by chromosome, the chromosome numbers stand at the middle of their stretch, the dashed line marks the genome-wide threshold, and the axes end exactly at the genome and at 10. The table lists only the labeled points, so it stays short. Illustrative data, with a phone variant.',
+  },
+  {
     slug: 'monthly-satisfaction',
     chart: 'Line chart (error bars)',
     useCase: 'Show a trend with its uncertainty',
