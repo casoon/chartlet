@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 51] = [
+const EXAMPLES: [(&str, &str, &str); 52] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -248,6 +248,11 @@ const EXAMPLES: [(&str, &str, &str); 51] = [
         include_str!("../examples/allometry.svg"),
     ),
     (
+        "voter-movement",
+        include_str!("../examples/voter-movement.json"),
+        include_str!("../examples/voter-movement.svg"),
+    ),
+    (
         "study-selection",
         include_str!("../examples/study-selection.json"),
         include_str!("../examples/study-selection.svg"),
@@ -260,7 +265,7 @@ const EXAMPLES: [(&str, &str, &str); 51] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 20] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 21] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -350,6 +355,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 20] = [
         "allometry",
         include_str!("../examples/allometry.json"),
         include_str!("../examples/allometry.mobile.svg"),
+    ),
+    (
+        "voter-movement",
+        include_str!("../examples/voter-movement.json"),
+        include_str!("../examples/voter-movement.mobile.svg"),
     ),
     (
         "study-selection",

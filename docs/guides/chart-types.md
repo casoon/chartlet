@@ -424,6 +424,12 @@ columns, joined by bands as thick as the flow.
   neighbours differ (the four colors repeat beyond four nodes); a band takes the color of the node
   it leaves. After the barycenter sweeps, chartlet swaps neighbouring nodes while that lets fewer
   bands cross.
+- **Fixed columns, order and colors.** `nodes` lists nodes you want to pin: a `column` (from 0;
+  a node cannot stand left of the column its incoming links lead to, `column_too_early`), a
+  `color` (1–4, so that the same party has the same color on both sides) and, through their
+  position, the order — with `"order": "listed"` the nodes of a column keep the listed order
+  (then the order of the links) instead of being sorted to cross few bands. A listed node must be
+  named by a link (`unknown_node`).
 - **Text alternative.** The description gives the total and the biggest links; the table lists
   every link with value and share of the total.
 

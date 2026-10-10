@@ -15,7 +15,48 @@ const MAX_NODES: usize = 40;
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SankeySpec {
     pub links: Vec<SankeyLinkSpec>,
+    /// Nodes whose order or column the specification fixes; the others follow from the links.
+    /// The listed nodes come first, in this order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub nodes: Vec<SankeyNodeSpec>,
+    /// `auto` (default) orders the nodes of a column to cross as few bands as possible; `listed`
+    /// keeps them in the order of `nodes`, then of the links.
+    #[serde(default, skip_serializing_if = "SankeyOrder::is_auto")]
+    pub order: SankeyOrder,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct SankeyNodeSpec {
+    pub label: String,
+    /// The column, counted from 0 at the left. A node cannot stand left of the column its
+    /// incoming links lead to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub column: Option<usize>,
+    /// The palette color of the node and the bands that leave it, 1 to 4; without it the nodes
+    /// take the colors in turn.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<u8>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SankeyOrder {
+    #[default]
+    Auto,
+    Listed,
+}
+
+impl SankeyOrder {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_auto(&self) -> bool {
+        matches!(self, Self::Auto)
+    }
+}
+
+/// The most columns a Sankey diagram takes.
+const MAX_COLUMNS: usize = 8;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -32,11 +73,15 @@ pub(crate) struct SankeyGraph {
     pub links: Vec<(usize, usize, f64)>,
     /// The longest path from a node without incoming links: its column. `None` for a cycle.
     pub ranks: Option<Vec<usize>>,
+    /// Keep the nodes of a column in the listed order instead of ordering them by their links.
+    pub listed: bool,
+    /// The palette color a node names for itself, from 1.
+    pub colors: Vec<Option<usize>>,
 }
 
 impl SankeySpec {
     pub(crate) fn graph(&self) -> SankeyGraph {
-        let mut labels: Vec<String> = Vec::new();
+        let mut labels: Vec<String> = self.nodes.iter().map(|node| node.label.clone()).collect();
         let mut index = |label: &str| {
             labels
                 .iter()
@@ -51,7 +96,10 @@ impl SankeySpec {
             .iter()
             .map(|link| (index(&link.from), index(&link.to), link.value))
             .collect();
-        let mut ranks = vec![0; labels.len()];
+        let count = labels.len();
+        let mut ranks: Vec<usize> = (0..labels.len())
+            .map(|node| self.nodes.get(node).and_then(|n| n.column).unwrap_or(0))
+            .collect();
         let mut settled = false;
         // Without a cycle the ranks settle within one pass for every node on the longest path.
         for _ in 0..=labels.len() {
@@ -70,6 +118,10 @@ impl SankeySpec {
             labels,
             links,
             ranks: settled.then_some(ranks),
+            listed: self.order == SankeyOrder::Listed,
+            colors: (0..count)
+                .map(|node| self.nodes.get(node).and_then(|n| n.color).map(usize::from))
+                .collect(),
         }
     }
 }
@@ -176,6 +228,7 @@ impl ChartSpec {
                 ));
             }
         }
+        validate_nodes(sankey)?;
         let graph = sankey.graph();
         if graph.labels.len() > MAX_NODES {
             return Err(ChartError::new(
@@ -191,6 +244,60 @@ impl ChartSpec {
                 "the links run in a circle; a Sankey diagram flows from left to right",
             ));
         }
+        for (index, node) in sankey.nodes.iter().enumerate() {
+            let rank = graph.ranks.as_ref().map_or(0, |ranks| ranks[index]);
+            if node.column.is_some_and(|column| rank > column) {
+                return Err(ChartError::new(
+                    "column_too_early",
+                    format!("/sankey/nodes/{index}/column"),
+                    format!(
+                        "links lead into this node from the left of column {rank}; give it column {rank} or later"
+                    ),
+                ));
+            }
+        }
         Ok(Vec::new())
     }
+}
+
+/// Listed nodes: unique labels that the links name, in columns that exist.
+fn validate_nodes(sankey: &SankeySpec) -> Result<(), ChartError> {
+    let mut seen = BTreeSet::new();
+    for (index, node) in sankey.nodes.iter().enumerate() {
+        let path = format!("/sankey/nodes/{index}");
+        validate_text(&node.label, &format!("{path}/label"), 100)?;
+        if !seen.insert(node.label.as_str()) {
+            return Err(ChartError::new(
+                "duplicate_label",
+                format!("{path}/label"),
+                "node labels must be unique",
+            ));
+        }
+        if !sankey
+            .links
+            .iter()
+            .any(|link| link.from == node.label || link.to == node.label)
+        {
+            return Err(ChartError::new(
+                "unknown_node",
+                format!("{path}/label"),
+                "no link names this node",
+            ));
+        }
+        if node.color.is_some_and(|color| !(1..=4).contains(&color)) {
+            return Err(ChartError::new(
+                "invalid_value",
+                format!("{path}/color"),
+                "a node color is 1 to 4, one of the palette colors",
+            ));
+        }
+        if node.column.is_some_and(|column| column >= MAX_COLUMNS) {
+            return Err(ChartError::new(
+                "invalid_value",
+                format!("{path}/column"),
+                format!("columns run from 0 to {}", MAX_COLUMNS - 1),
+            ));
+        }
+    }
+    Ok(())
 }

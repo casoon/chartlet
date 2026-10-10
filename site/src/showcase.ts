@@ -434,6 +434,13 @@ const catalogue = [
       'The path of a civil case through the German courts, from Amtsgericht and Landgericht by appeal to the Oberlandesgericht and by Revision to the Bundesgerichtshof, in German with the conditions on the edges. A preset on the flow chart, not a type of its own. Simplified, with a phone variant.',
   },
   {
+    slug: 'voter-movement',
+    chart: 'Sankey diagram (fixed columns)',
+    useCase: 'Follow voters between two elections',
+    blurb:
+      'Where the voters of three parties went between two elections: the nodes are pinned to two columns in a listed order, and each party keeps its color on both sides, so a band that changes color is a voter who changed party. Illustrative survey, with a phone variant.',
+  },
+  {
     slug: 'allometry',
     chart: 'Scatter plot (regression, log axes)',
     useCase: 'Fit a power law',

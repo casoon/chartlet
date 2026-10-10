@@ -50,14 +50,14 @@ pub use spec::{
     DiagramOrientation, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps,
     GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Mark, MarkerSpec, MessageKind, MessageSpec,
     MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec, ParliamentSpec, ParticipantKind,
-    ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeySpec, ScatterAxis,
-    ScatterLineSpec, ScatterPointSpec, ScatterSpec, SequenceSpec, SeriesSpec, Shape, Stack,
-    StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke,
-    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
-    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec,
-    TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
-    ZoomStep,
+    ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeyNodeSpec,
+    SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterSpec,
+    SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind,
+    StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme,
+    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
+    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec,
+    WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4665,6 +4665,38 @@ mod tests {
             .content;
         assert!(html.contains("Sankey diagram of 5 nodes and 4 links; 40 enter it. Biggest links: A → Mid (30), Mid → X (25), Mid → Y (15)."));
         assert!(html.contains("<th scope=\"row\">A</th><td>Mid</td><td>30</td><td>75.0%</td>"));
+    }
+
+    #[test]
+    fn a_sankey_diagram_can_pin_columns_order_and_colors() {
+        let spec = SANKEY.replace(
+            r#""sankey": {"#,
+            r#""sankey": {"order": "listed", "nodes": [{"label": "Y", "column": 3, "color": 2}, {"label": "X", "column": 2}],"#,
+        );
+        let output = render_ok(&spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        // Y is listed first, so it takes the first place of its column and its own color.
+        assert!(svg.contains("class=\"chartlet-sk-node chartlet-sk-2\""));
+        let early = SANKEY.replace(
+            r#""sankey": {"#,
+            r#""sankey": {"nodes": [{"label": "X", "column": 1}],"#,
+        );
+        let error = render_json(&early, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("column_too_early", "/sankey/nodes/0/column")
+        );
+        let unknown = SANKEY.replace(
+            r#""sankey": {"#,
+            r#""sankey": {"nodes": [{"label": "Nowhere"}],"#,
+        );
+        let error =
+            render_json(&unknown, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("unknown_node", "/sankey/nodes/0/label")
+        );
     }
 
     #[test]

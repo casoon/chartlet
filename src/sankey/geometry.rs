@@ -41,10 +41,12 @@ impl<'a> Plan<'a> {
             .expect("validated Sankey diagrams have no cycle");
         let columns = rank.iter().max().map_or(1, |most| most + 1);
         let mut order = initial_order(&rank, columns);
-        for sweep in 0..SWEEPS {
-            sweep_columns(graph, &mut order, sweep % 2 == 0);
+        if !graph.listed {
+            for sweep in 0..SWEEPS {
+                sweep_columns(graph, &mut order, sweep % 2 == 0);
+            }
+            uncross(graph, &rank, &mut order);
         }
-        uncross(graph, &rank, &mut order);
         let spacing = if columns > 1 {
             (bounds.2 - node_width) / (columns - 1) as f64
         } else {
@@ -55,7 +57,7 @@ impl<'a> Plan<'a> {
             node_width,
             columns,
             spacing,
-            color: colors(&order, rank.len()),
+            color: colors(graph, &order),
             x: rank
                 .iter()
                 .map(|r| bounds.0 + spacing * *r as f64)
@@ -228,12 +230,16 @@ fn sweep_columns(graph: &SankeyGraph, order: &mut [Vec<usize>], forward: bool) {
     }
 }
 
-/// Every node takes the next palette color, column by column from the top, so that neighbours
-/// differ; a band takes the color of the node it leaves.
-fn colors(order: &[Vec<usize>], nodes: usize) -> Vec<usize> {
-    let mut color = vec![0; nodes];
-    for (turn, node) in order.iter().flatten().enumerate() {
-        color[*node] = turn % 4 + 1;
+/// A node that names its color has it; every other node takes the next palette color, column by
+/// column from the top, so that neighbours differ. A band takes the color of the node it leaves.
+fn colors(graph: &SankeyGraph, order: &[Vec<usize>]) -> Vec<usize> {
+    let mut color = vec![0; graph.labels.len()];
+    let mut turn = 0;
+    for node in order.iter().flatten() {
+        color[*node] = graph.colors[*node].unwrap_or_else(|| {
+            turn += 1;
+            (turn - 1) % 4 + 1
+        });
     }
     color
 }
