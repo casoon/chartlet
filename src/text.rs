@@ -1398,11 +1398,13 @@ pub(crate) fn boxplot_summary(
     }
 }
 
-/// The sentence that says what the error bars of a bar chart show.
-pub(crate) fn error_bars(locale: Locale) -> String {
-    match locale {
-        Locale::En => " Error bars show the interval from lower to upper; the table gives it for every bar.".to_owned(),
-        Locale::De => " Fehlerbalken zeigen das Intervall von unten bis oben; die Tabelle nennt es für jeden Balken.".to_owned(),
+/// The sentence that says what the error bars of a bar or line chart show.
+pub(crate) fn error_bars(locale: Locale, line: bool) -> String {
+    match (locale, line) {
+        (Locale::En, false) => " Error bars show the interval from lower to upper; the table gives it for every bar.".to_owned(),
+        (Locale::En, true) => " Error bars show the interval from lower to upper; the table gives it for every point.".to_owned(),
+        (Locale::De, false) => " Fehlerbalken zeigen das Intervall von unten bis oben; die Tabelle nennt es für jeden Balken.".to_owned(),
+        (Locale::De, true) => " Fehlerbalken zeigen das Intervall von unten bis oben; die Tabelle nennt es für jeden Punkt.".to_owned(),
     }
 }
 

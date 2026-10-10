@@ -3,11 +3,12 @@ use super::{
     axis::{
         NumericScale, add_bottom_category_title, format_value, label_step, warn_if_labels_thinned,
     },
-    axis_gutter, base_elements, count, fit_text,
+    axis_gutter,
+    bar::{bar_tooltip, error_reach, push_error_bar},
+    base_elements, count, fit_text,
     legend::{add_line_legend, line_legend_space},
     plot_margin,
     title::title_extra,
-    tooltip,
 };
 use crate::{
     error::ChartWarning,
@@ -63,7 +64,15 @@ pub(super) fn layout_line(
         height: super::plot_height(height - top - bottom, warnings),
         vertical_bars: true,
     };
-    let scale = NumericScale::for_axis(dataset.values(), false, &spec.value_axis);
+    let scale = NumericScale::for_axis(
+        dataset.values().chain(
+            spec.data
+                .iter()
+                .flat_map(|point| [point.lower, point.upper].into_iter().flatten()),
+        ),
+        false,
+        &spec.value_axis,
+    );
     let mut elements = base_elements(spec, &scale, plot, warnings, metrics);
     elements.push(plot_hook(dataset.categories.len(), plot, &scale));
     if several {
@@ -178,6 +187,14 @@ fn add_line_data(
             };
             let y = scale.map(value, plot.top + plot.height, plot.top);
             segment.push((x, y));
+            push_error_bar(
+                elements,
+                spec,
+                index,
+                true,
+                |bound| scale.map(bound, plot.top + plot.height, plot.top),
+                (x, 12.0),
+            );
             elements.push(Element::Circle(Circle {
                 cx: x,
                 cy: y,
@@ -186,17 +203,22 @@ fn add_line_data(
                 topic: None,
                 series_index: series_mark,
                 style_index: None,
-                tooltip: Some(tooltip(
+                tooltip: Some(bar_tooltip(
+                    spec,
+                    index,
                     &dataset.categories[index],
                     value,
-                    spec.number_style(),
                     series.name.as_deref(),
                 )),
             }));
             if spec.show_values && !several {
                 elements.push(Element::Text(Text {
                     x,
-                    y: y - 10.0,
+                    y: scale.map(
+                        error_reach(spec, index, value),
+                        plot.top + plot.height,
+                        plot.top,
+                    ) - 10.0,
                     class: "chartlet-value",
                     anchor: TextAnchor::Middle,
                     content: format_value(value, spec.number_style()),

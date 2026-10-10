@@ -4011,12 +4011,6 @@ mod tests {
                 "invalid_bounds",
                 "/data/1/lower",
             ),
-            (
-                r#""type": "bar""#,
-                r#""type": "line""#,
-                "option_not_supported",
-                "/data/0/lower",
-            ),
         ] {
             let error = render_json(
                 &base.replace(from, to),
@@ -4793,6 +4787,25 @@ mod tests {
             .unwrap_err();
             assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
         }
+    }
+
+    #[test]
+    fn a_line_chart_draws_error_bars_through_its_points() {
+        let spec = r#"{"schemaVersion": 1, "type": "line", "title": "T", "width": 640, "height": 360,
+            "data": [{"label": "a", "value": 2, "lower": 1, "upper": 3}, {"label": "b", "value": 3, "lower": 2, "upper": 5}]}"#;
+        let output = render_ok(spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert_eq!(
+            output.content.matches("class=\"chartlet-error\"").count(),
+            6
+        );
+        assert!(output.content.contains("<title>b: 3 (2 to 5)</title>"));
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("the table gives it for every point."));
+        let area = spec.replace(r#""type": "line""#, r#""type": "rangebar""#);
+        assert!(render_json(&area, RenderFormat::Svg, &RenderOptions::default()).is_err());
     }
 
     const TREEMAP: &str = r#"{"schemaVersion": 1, "type": "treemap", "title": "Budget", "width": 640, "height": 400,

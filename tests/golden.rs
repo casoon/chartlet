@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 53] = [
+const EXAMPLES: [(&str, &str, &str); 54] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -258,6 +258,11 @@ const EXAMPLES: [(&str, &str, &str); 53] = [
         include_str!("../examples/budget-by-sector.svg"),
     ),
     (
+        "monthly-satisfaction",
+        include_str!("../examples/monthly-satisfaction.json"),
+        include_str!("../examples/monthly-satisfaction.svg"),
+    ),
+    (
         "study-selection",
         include_str!("../examples/study-selection.json"),
         include_str!("../examples/study-selection.svg"),
@@ -270,7 +275,7 @@ const EXAMPLES: [(&str, &str, &str); 53] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 22] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 23] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -370,6 +375,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 22] = [
         "budget-by-sector",
         include_str!("../examples/budget-by-sector.json"),
         include_str!("../examples/budget-by-sector.mobile.svg"),
+    ),
+    (
+        "monthly-satisfaction",
+        include_str!("../examples/monthly-satisfaction.json"),
+        include_str!("../examples/monthly-satisfaction.mobile.svg"),
     ),
     (
         "study-selection",

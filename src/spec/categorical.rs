@@ -96,11 +96,11 @@ impl ChartSpec {
         }
         for (index, point) in self.data.iter().enumerate() {
             let path = format!("/data/{index}");
-            if self.chart_type != ChartType::Bar {
+            if !matches!(self.chart_type, ChartType::Bar | ChartType::Line) {
                 return Err(ChartError::new(
                     "option_not_supported",
                     format!("{path}/lower"),
-                    "error bars belong to a bar chart",
+                    "error bars belong to a bar chart or a line chart",
                 ));
             }
             if point.group.is_some() {

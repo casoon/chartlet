@@ -434,6 +434,13 @@ const catalogue = [
       'The path of a civil case through the German courts, from Amtsgericht and Landgericht by appeal to the Oberlandesgericht and by Revision to the Bundesgerichtshof, in German with the conditions on the edges. A preset on the flow chart, not a type of its own. Simplified, with a phone variant.',
   },
   {
+    slug: 'monthly-satisfaction',
+    chart: 'Line chart (error bars)',
+    useCase: 'Show a trend with its uncertainty',
+    blurb:
+      'Mean satisfaction by month as a line with a 95% confidence interval through every point: the scale reaches every limit, the value label sits above the bar, and the tooltip and the table give the interval. Illustrative survey, with a phone variant.',
+  },
+  {
     slug: 'budget-by-sector',
     chart: 'Treemap (nested)',
     useCase: 'Show parts inside parts',

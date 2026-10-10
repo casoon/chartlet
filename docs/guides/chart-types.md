@@ -11,6 +11,7 @@ order: 1
 | Bar with a reference line, thousands separated | `references` with `value` and `label`; `valueAxis.thousandsSeparator` | [Open support tickets](../../../showcase/ticket-backlog/) |
 | Stacked bar, by value or as 100 % | `"stack": "normal"` or `"percent"` with `series` | [Electricity generation](../../../showcase/energy-mix/), [Accessibility checks](../../../showcase/audit-outcomes/) |
 | Grouped bar, series told apart by form as well as color | `"patterns": true` | [Population and emissions](../../../showcase/population-and-emissions/) |
+| Line chart with error bars | `lower` and `upper` on every `data` point of a `line` chart | [Monthly satisfaction](../../../showcase/monthly-satisfaction/) |
 | Bar chart with error bars | `lower` and `upper` on every `data` point | [Satisfaction scores](../../../showcase/satisfaction-scores/) |
 | Forest plot: squares by weight, a diamond, the line of no effect | `"type": "rangebar"` with `weight`, `summary` and `references` | [Effect of an intervention](../../../showcase/trial-effects/) |
 | Timeline: phases, milestones, markers and arrows | `"type": "timeline"` with `items` and `markers` | [Product roadmap](../../../showcase/product-roadmap/) |
@@ -152,7 +153,8 @@ A bar chart of one series draws an error bar through the end of each bar when ev
 has a `lower` and an `upper`: a stroke between them with a cap at either end, such as the
 confidence interval of an estimate. The value lies between them (`invalid_bounds`). The value
 label moves beyond the error bar, the tooltip reads `Team: 4.1 (3.9 to 4.3)`, and the data
-table gains an Interval column. A chart takes error bars or groups, not both.
+table gains an Interval column. A chart takes error bars or groups, not both. A single-series
+`line` chart takes them the same way: a stroke through each point, the scale reaching every limit.
 
 ```json
 { "data": [

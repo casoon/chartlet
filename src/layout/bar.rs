@@ -332,7 +332,7 @@ fn push_bar(
 }
 
 /// The tooltip of a bar, with the interval of its error bar when it has one.
-fn bar_tooltip(
+pub(super) fn bar_tooltip(
     spec: &ChartSpec,
     index: usize,
     category: &str,
@@ -355,7 +355,7 @@ fn bar_tooltip(
 }
 
 /// The furthest a bar of a single series reaches, with its error bar: where its value label goes.
-fn error_reach(spec: &ChartSpec, index: usize, value: f64) -> f64 {
+pub(super) fn error_reach(spec: &ChartSpec, index: usize, value: f64) -> f64 {
     match spec.data.get(index) {
         Some(point) if spec.series.is_empty() => {
             let bound = if value >= 0.0 {
@@ -372,7 +372,7 @@ fn error_reach(spec: &ChartSpec, index: usize, value: f64) -> f64 {
 /// The error bar of a bar: a stroke from `lower` to `upper` along the value axis through the
 /// middle of the bar, with a cap at either end. `along` maps a value onto the axis, `middle` is
 /// the middle of the bar across it.
-fn push_error_bar(
+pub(super) fn push_error_bar(
     elements: &mut Vec<Element>,
     spec: &ChartSpec,
     index: usize,

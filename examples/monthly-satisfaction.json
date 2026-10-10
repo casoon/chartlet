@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "type": "line",
+  "title": "Mean satisfaction by month, with 95 % confidence interval",
+  "source": "Illustrative survey",
+  "width": 720,
+  "height": 380,
+  "showValues": true,
+  "valueAxis": {
+    "title": "Score from 1 to 5",
+    "max": 5
+  },
+  "data": [
+    {
+      "label": "Jan",
+      "value": 3.1,
+      "lower": 2.7,
+      "upper": 3.5
+    },
+    {
+      "label": "Feb",
+      "value": 3.4,
+      "lower": 3,
+      "upper": 3.9
+    },
+    {
+      "label": "Mar",
+      "value": 3.9,
+      "lower": 3.5,
+      "upper": 4.2
+    },
+    {
+      "label": "Apr",
+      "value": 3.7,
+      "lower": 3.2,
+      "upper": 4.1
+    },
+    {
+      "label": "May",
+      "value": 4,
+      "lower": 3.7,
+      "upper": 4.3
+    },
+    {
+      "label": "Jun",
+      "value": 4.2,
+      "lower": 3.8,
+      "upper": 4.6
+    }
+  ],
+  "mobile": {
+    "width": 400,
+    "height": 380
+  }
+}

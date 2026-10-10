@@ -6,6 +6,7 @@ use crate::{
     state, stripes, text, time, tree,
 };
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
     match spec.chart_type {
         ChartType::Multiples if spec.is_bar_multiples() => return panel_bars_description(spec),
@@ -91,7 +92,10 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
     description.push_str(&describe_stack(spec, &dataset, &show));
     description.push_str(&describe_groups(spec));
     if spec.has_error_bars() {
-        description.push_str(&text::error_bars(locale));
+        description.push_str(&text::error_bars(
+            locale,
+            spec.chart_type == ChartType::Line,
+        ));
     }
     if !spec.references.is_empty() {
         let references = spec
