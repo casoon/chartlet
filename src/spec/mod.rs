@@ -33,7 +33,7 @@ pub use architecture::{
 };
 pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
 pub(crate) use boxplot::BoxSummary;
-pub use boxplot::{BoxDisplay, BoxSpec};
+pub use boxplot::{BoxDisplay, BoxSpec, ViolinScale};
 pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
@@ -93,6 +93,11 @@ pub struct ChartSpec {
     /// How a `type: "boxplot"` chart draws its observations: boxes (the default), violins or strips.
     #[serde(default, skip_serializing_if = "BoxDisplay::is_box")]
     pub box_display: BoxDisplay,
+    /// With `"boxDisplay": "violin"`: `width` (default) makes every violin as wide as the others at
+    /// its widest, `area` gives them the same area, `count` an area that follows their number of
+    /// observations.
+    #[serde(default, skip_serializing_if = "ViolinScale::is_width")]
+    pub violin_scale: ViolinScale,
     /// Marks the mean of the observations of every box of a `type: "boxplot"` chart with a
     /// diamond and adds a column to the table. Needs `values` on every box.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -1305,6 +1310,11 @@ impl ChartSpec {
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/boxes", !self.boxes.is_empty(), ChartType::Boxplot),
             ("/showMean", self.show_mean, ChartType::Boxplot),
+            (
+                "/violinScale",
+                !self.violin_scale.is_width(),
+                ChartType::Boxplot,
+            ),
             (
                 "/boxDisplay",
                 self.box_display != BoxDisplay::Box,

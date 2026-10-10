@@ -56,8 +56,8 @@ pub use spec::{
     StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme,
     TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
     TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, WafflePartSpec, WaffleSpec,
-    WaterfallSpec, ZoomBound, ZoomStep,
+    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale, WafflePartSpec,
+    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4376,6 +4376,42 @@ mod tests {
             .unwrap_err();
             assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
         }
+    }
+
+    #[test]
+    fn violins_can_share_an_area_scale() {
+        let spec = |scale: &str| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "boxplot", "boxDisplay": "violin", "violinScale": "{scale}", "title": "T",
+                "boxes": [{{"label": "Tight", "values": [5, 5.1, 5.2, 5.3, 5.4, 5.5]}}, {{"label": "Wide", "values": [1, 3, 5, 7, 9, 11]}}]}}"#
+            )
+        };
+        let width = render_ok(&spec("width")).content;
+        let area = render_ok(&spec("area")).content;
+        let count = render_ok(&spec("count")).content;
+        assert_ne!(width, area);
+        // The same number of observations: count and area agree on the shapes.
+        let polylines = |svg: &str| {
+            svg.split("<polyline")
+                .skip(1)
+                .map(|p| {
+                    p.split("points=\"")
+                        .nth(1)
+                        .unwrap()
+                        .split('"')
+                        .next()
+                        .unwrap()
+                        .to_owned()
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(polylines(&area), polylines(&count));
+        let plain = spec("area").replace(r#""boxDisplay": "violin""#, r#""boxDisplay": "strip""#);
+        let error = render_json(&plain, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("option_not_supported", "/violinScale")
+        );
     }
 
     #[test]

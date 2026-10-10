@@ -14,7 +14,7 @@ use crate::{
     },
     metrics::TextMetrics,
     scene::{Circle, Element, Line, Polyline, Rect, Scene, Text, TextAnchor},
-    spec::{BoxDisplay, BoxSummary, ChartSpec, Orientation},
+    spec::{BoxDisplay, BoxSummary, ChartSpec, Orientation, ViolinScale},
     text,
 };
 
@@ -78,9 +78,14 @@ pub(crate) fn layout(
         })
         .collect();
     let scale = NumericScale::for_axis(values.into_iter(), false, &spec.value_axis);
+    let peak = violin_peak(spec, &summaries);
     let elements = match spec.orientation {
-        Orientation::Horizontal => layout_horizontal(spec, &summaries, &scale, warnings, metrics),
-        Orientation::Vertical => layout_vertical(spec, &summaries, &scale, warnings, metrics),
+        Orientation::Horizontal => {
+            layout_horizontal(spec, (&summaries, peak), &scale, warnings, metrics)
+        }
+        Orientation::Vertical => {
+            layout_vertical(spec, (&summaries, peak), &scale, warnings, metrics)
+        }
     };
     Scene {
         width: spec.width,
@@ -97,12 +102,15 @@ fn push_mark(
     orientation: Orientation,
     along: impl Fn(f64) -> f64,
     across: (f64, f64),
+    peak: f64,
 ) {
     let (lead, thick) = across;
     let mean = entry.1.mean.filter(|_| spec.show_mean).map(&along);
     match spec.box_display {
         BoxDisplay::Box => push_box(elements, spec, entry, orientation, &along, across),
-        BoxDisplay::Violin => push_violin(elements, spec, entry, orientation, &along, across),
+        BoxDisplay::Violin => {
+            push_violin(elements, spec, entry, orientation, &along, (across, peak));
+        }
         BoxDisplay::Strip => push_strip(elements, spec, entry, orientation, &along, across),
     }
     if let Some(at) = mean {
@@ -174,11 +182,14 @@ fn density(values: &[f64], summary: &BoxSummary) -> Vec<(f64, f64)> {
     (0..=VIOLIN_STEPS)
         .map(|step| {
             let at = low + (high - low) * count(step) / count(VIOLIN_STEPS);
-            let sum = values
+            let sum: f64 = values
                 .iter()
                 .map(|value| (-0.5 * ((at - value) / bandwidth).powi(2)).exp())
                 .sum();
-            (at, sum)
+            (
+                at,
+                sum / (n * bandwidth * (2.0 * std::f64::consts::PI).sqrt()),
+            )
         })
         .collect()
 }
@@ -191,12 +202,17 @@ fn push_violin(
     (index, summary): (usize, &BoxSummary),
     orientation: Orientation,
     along: impl Fn(f64) -> f64,
-    (lead, thick): (f64, f64),
+    ((lead, thick), peak): ((f64, f64), f64),
 ) {
     let middle = lead + thick / 2.0;
     let curve = density(&spec.boxes[index].values, summary);
     let most = curve.iter().map(|point| point.1).fold(0.0, f64::max);
-    let half = |density: f64| thick / 2.0 * density / most;
+    let observations = count(spec.boxes[index].values.len());
+    let half = |density: f64| match spec.violin_scale {
+        ViolinScale::Width => thick / 2.0 * density / most,
+        ViolinScale::Area => thick / 2.0 * density / peak,
+        ViolinScale::Count => thick / 2.0 * density * observations / peak,
+    };
     let mut points: Vec<(f64, f64)> = curve
         .iter()
         .map(|(at, d)| page(orientation, along(*at), middle - half(*d)))
@@ -292,6 +308,29 @@ fn push_strip(
         y2,
         class: "chartlet-box-median",
     }));
+}
+
+/// The densest point of any violin in the scale of the violins: the widest violin of the chart
+/// is as wide as a box. Zero unless the violins share an area scale.
+fn violin_peak(spec: &ChartSpec, summaries: &[BoxSummary]) -> f64 {
+    if spec.box_display != BoxDisplay::Violin || spec.violin_scale == ViolinScale::Width {
+        return 0.0;
+    }
+    spec.boxes
+        .iter()
+        .zip(summaries)
+        .map(|(boxed, summary)| {
+            let most = density(&boxed.values, summary)
+                .iter()
+                .map(|point| point.1)
+                .fold(0.0, f64::max);
+            if spec.violin_scale == ViolinScale::Count {
+                most * count(boxed.values.len())
+            } else {
+                most
+            }
+        })
+        .fold(0.0, f64::max)
 }
 
 /// The box, whiskers, median and outliers of one category. `along` maps a value onto the value
@@ -398,7 +437,7 @@ fn reach(spec: &ChartSpec, index: usize, summary: &BoxSummary) -> (f64, f64) {
 
 fn layout_horizontal(
     spec: &ChartSpec,
-    summaries: &[BoxSummary],
+    (summaries, peak): (&[BoxSummary], f64),
     scale: &NumericScale,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
@@ -461,6 +500,7 @@ fn layout_horizontal(
             Orientation::Horizontal,
             along,
             (center - thickness / 2.0, thickness),
+            peak,
         );
         if spec.show_values {
             elements.push(Element::Text(Text {
@@ -486,7 +526,7 @@ fn layout_horizontal(
 
 fn layout_vertical(
     spec: &ChartSpec,
-    summaries: &[BoxSummary],
+    (summaries, peak): (&[BoxSummary], f64),
     scale: &NumericScale,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
@@ -526,6 +566,7 @@ fn layout_vertical(
             Orientation::Vertical,
             along,
             (center - thickness / 2.0, thickness),
+            peak,
         );
         if spec.show_values {
             let content = format_value(summary.median, spec.number_style());

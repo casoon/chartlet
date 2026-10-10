@@ -196,7 +196,9 @@ extreme values within reach and a point for every value beyond.
   `values` on every box (`values_required`).
 - **Violins and strips.** `"boxDisplay": "violin"` draws the estimated density of the
   observations (a Gaussian kernel, Silverman's bandwidth, from the lowest to the highest value) as
-  an outline mirrored about the middle, every violin as wide as the others at its widest, with
+  an outline mirrored about the middle, every violin as wide as the others at its widest (compare
+  shapes; `"violinScale": "area"` gives them the same area, so widths compare, and `"count"` an area
+  that follows the number of observations), with
   the quartile box and the median inside. `"boxDisplay": "strip"` draws every observation as a
   point, spread across the width by a fixed sequence so the same data always gives the same
   picture, with the median across. Both need `values` on every box (`values_required`); the

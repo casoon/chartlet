@@ -23,6 +23,27 @@ pub enum BoxDisplay {
     Strip,
 }
 
+/// How the widths of violins relate to each other.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ViolinScale {
+    /// Every violin is as wide as the others at its widest: compare shapes.
+    #[default]
+    Width,
+    /// Every violin has the same area: widths are comparable between violins.
+    Area,
+    /// The area of a violin follows the number of its observations.
+    Count,
+}
+
+impl ViolinScale {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub(super) const fn is_width(&self) -> bool {
+        matches!(self, Self::Width)
+    }
+}
+
 impl BoxDisplay {
     // serde hands this function a reference, so the signature follows serde's shape.
     #[allow(clippy::trivially_copy_pass_by_ref)]
@@ -177,6 +198,13 @@ impl ChartSpec {
                     "values_required",
                     format!("{path}/values"),
                     "the mean is computed from observations; give values instead of the five numbers",
+                ));
+            }
+            if !self.violin_scale.is_width() && self.box_display != BoxDisplay::Violin {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    "/violinScale",
+                    "violinScale applies to \"boxDisplay\": \"violin\"",
                 ));
             }
             if self.box_display != BoxDisplay::Box && boxed.values.is_empty() {

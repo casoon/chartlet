@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Violins: `"violinScale": "area"` gives every violin the same area and `"count"` an area that follows its number of observations, so widths compare between violins (the default `width` keeps comparing shapes).
 - Box plots: `"showMean": true` marks the mean of each box's observations with a diamond and adds a Mean column to the table; added to the example `response-distribution`.
 
 ## [0.13.0] - 2026-10-10
