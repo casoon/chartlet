@@ -209,5 +209,6 @@
   "mobile": {
     "width": 380,
     "height": 480
-  }
+  },
+  "showMean": true
 }

@@ -70,6 +70,8 @@ pub(crate) struct BoxSummary {
     pub max: f64,
     pub outliers: Vec<f64>,
     pub count: Option<usize>,
+    /// The mean of the observations; `None` for a box given by its five numbers.
+    pub mean: Option<f64>,
 }
 
 /// The value `quarters` quarters into the sorted observations, by linear interpolation between
@@ -99,6 +101,7 @@ impl BoxSpec {
                 max: self.max.expect("validated"),
                 outliers: self.outliers.clone(),
                 count: None,
+                mean: None,
             };
         }
         let mut sorted = self.values.clone();
@@ -123,6 +126,7 @@ impl BoxSpec {
                 .filter(|value| !(low..=high).contains(value))
                 .collect(),
             count: Some(sorted.len()),
+            mean: Some(sorted.iter().sum::<f64>() / count_as_f64(sorted.len())),
         }
     }
 }
@@ -168,6 +172,13 @@ impl ChartSpec {
         let mut labels = BTreeSet::new();
         for (index, boxed) in self.boxes.iter().enumerate() {
             let path = format!("/boxes/{index}");
+            if self.show_mean && boxed.values.is_empty() {
+                return Err(ChartError::new(
+                    "values_required",
+                    format!("{path}/values"),
+                    "the mean is computed from observations; give values instead of the five numbers",
+                ));
+            }
             if self.box_display != BoxDisplay::Box && boxed.values.is_empty() {
                 return Err(ChartError::new(
                     "values_required",

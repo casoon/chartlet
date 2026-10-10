@@ -4379,6 +4379,34 @@ mod tests {
     }
 
     #[test]
+    fn box_plots_can_mark_the_mean() {
+        let spec = r#"{"schemaVersion": 1, "type": "boxplot", "showMean": true, "title": "T",
+            "boxes": [{"label": "A", "values": [1, 2, 3, 4, 10]}]}"#;
+        let output = render_ok(spec);
+        assert_eq!(
+            output
+                .content
+                .matches("class=\"chartlet-box-mean\"")
+                .count(),
+            1
+        );
+        assert!(output.content.contains("Mean: 4"));
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("<th scope=\"col\">Mean</th>"));
+        let five = spec.replace(
+            r#""values": [1, 2, 3, 4, 10]"#,
+            r#""min": 1, "q1": 2, "median": 3, "q3": 4, "max": 5"#,
+        );
+        let error = render_json(&five, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("values_required", "/boxes/0/values")
+        );
+    }
+
+    #[test]
     fn violins_and_strips_draw_the_observations_and_need_them() {
         let boxes = r#""boxes": [{"label": "A", "values": [1, 2, 3, 4, 5, 6, 7, 8]}, {"label": "B", "values": [2, 3, 3, 4, 4, 4, 5, 9]}]"#;
         let spec = |display: &str| {

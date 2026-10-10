@@ -69,6 +69,11 @@
       "enum": ["box", "violin", "strip"],
       "default": "box"
     },
+    "showMean": {
+      "description": "type: \"boxplot\": mark the mean of the observations of every box with a diamond and add a Mean column to the table. Needs `values` on every box.",
+      "type": "boolean",
+      "default": false
+    },
     "patterns": {
       "description": "type: \"bar\" with series: draw every other series as an outline, so that series differ in form as well as in color.",
       "type": "boolean",

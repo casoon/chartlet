@@ -114,15 +114,22 @@ impl ChartSpec {
                 .collect(),
             style: None,
         };
+        let mut series = vec![
+            column(words.minimum, |summary| summary.min),
+            column(words.quartile_1, |summary| summary.q1),
+            column(words.median, |summary| summary.median),
+            column(words.quartile_3, |summary| summary.q3),
+            column(words.maximum, |summary| summary.max),
+        ];
+        if self.show_mean {
+            series.insert(
+                3,
+                column(words.mean, |summary| summary.mean.expect("validated")),
+            );
+        }
         Dataset {
             categories: self.boxes.iter().map(|boxed| boxed.label.clone()).collect(),
-            series: vec![
-                column(words.minimum, |summary| summary.min),
-                column(words.quartile_1, |summary| summary.q1),
-                column(words.median, |summary| summary.median),
-                column(words.quartile_3, |summary| summary.q3),
-                column(words.maximum, |summary| summary.max),
-            ],
+            series,
         }
     }
 

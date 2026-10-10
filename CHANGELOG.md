@@ -6,6 +6,10 @@ does.
 
 ## [Unreleased]
 
+### Added
+
+- Box plots: `"showMean": true` marks the mean of each box's observations with a diamond and adds a Mean column to the table; added to the example `response-distribution`.
+
 ## [0.13.0] - 2026-10-10
 
 ### Added

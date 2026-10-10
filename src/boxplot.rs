@@ -42,6 +42,9 @@ fn summary_label(spec: &ChartSpec, summary: &BoxSummary) -> String {
         words.maximum,
         show(summary.max),
     );
+    if let Some(mean) = summary.mean.filter(|_| spec.show_mean) {
+        write!(label, ", {}: {}", words.mean, show(mean)).expect("writing to String cannot fail");
+    }
     if !summary.outliers.is_empty() {
         let outliers: Vec<String> = summary.outliers.iter().map(|value| show(*value)).collect();
         write!(label, ", {}: {}", words.outliers, outliers.join(", "))
@@ -95,11 +98,39 @@ fn push_mark(
     along: impl Fn(f64) -> f64,
     across: (f64, f64),
 ) {
+    let (lead, thick) = across;
+    let mean = entry.1.mean.filter(|_| spec.show_mean).map(&along);
     match spec.box_display {
-        BoxDisplay::Box => push_box(elements, spec, entry, orientation, along, across),
-        BoxDisplay::Violin => push_violin(elements, spec, entry, orientation, along, across),
-        BoxDisplay::Strip => push_strip(elements, spec, entry, orientation, along, across),
+        BoxDisplay::Box => push_box(elements, spec, entry, orientation, &along, across),
+        BoxDisplay::Violin => push_violin(elements, spec, entry, orientation, &along, across),
+        BoxDisplay::Strip => push_strip(elements, spec, entry, orientation, &along, across),
     }
+    if let Some(at) = mean {
+        push_mean(elements, orientation, at, lead + thick / 2.0, thick);
+    }
+}
+
+/// The mean as a diamond on the middle of the box.
+fn push_mean(
+    elements: &mut Vec<Element>,
+    orientation: Orientation,
+    at: f64,
+    middle: f64,
+    thick: f64,
+) {
+    let half = (thick * 0.18).clamp(4.0, 7.0);
+    let points = [(-half, 0.0), (0.0, -half), (half, 0.0), (0.0, half)]
+        .into_iter()
+        .map(|(a, b)| page(orientation, at + a, middle + b))
+        .collect();
+    elements.push(Element::Polyline(Polyline {
+        points,
+        class: "chartlet-box-mean",
+        topic: None,
+        series_index: None,
+        style_index: None,
+        tooltip: None,
+    }));
 }
 
 /// A point of the page from its place along the value axis and across it.

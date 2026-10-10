@@ -93,6 +93,10 @@ pub struct ChartSpec {
     /// How a `type: "boxplot"` chart draws its observations: boxes (the default), violins or strips.
     #[serde(default, skip_serializing_if = "BoxDisplay::is_box")]
     pub box_display: BoxDisplay,
+    /// Marks the mean of the observations of every box of a `type: "boxplot"` chart with a
+    /// diamond and adds a column to the table. Needs `values` on every box.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub show_mean: bool,
     /// Draws every other series of a `type: "bar"` chart as an outline, so that series differ
     /// in form as well as in color.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -1300,6 +1304,7 @@ impl ChartSpec {
             ("/calendar", self.calendar.is_some(), ChartType::Calendar),
             ("/ranges", !self.ranges.is_empty(), ChartType::Rangebar),
             ("/boxes", !self.boxes.is_empty(), ChartType::Boxplot),
+            ("/showMean", self.show_mean, ChartType::Boxplot),
             (
                 "/boxDisplay",
                 self.box_display != BoxDisplay::Box,
