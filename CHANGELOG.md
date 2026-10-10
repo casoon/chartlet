@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Scatter plots: `"regression": true` draws the least-squares line for each group (slope, intercept and r² in the description), and `xScale`/`yScale` set logarithmic axes; a regression on a log axis is fitted to the logarithms. Example `allometry`, with a phone variant.
 - Two flow chart presets as examples, with a phone variant each: `study-selection` (PRISMA 2020 flow with exclusion boxes and the phases as groups) and `court-instances` (an Instanzenzug in German). Neither is a type of its own.
 
 ## [0.12.2] - 2026-10-06

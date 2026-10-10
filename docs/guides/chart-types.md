@@ -494,6 +494,12 @@ any cloud of observations — with groups, threshold lines and names on the poin
   with two groups.
 - **Lines** run across the plot at a value of `x` (vertical) or `y` (horizontal), up to eight, with
   an optional label; the axes reach them.
+- **Regression.** `"regression": true` draws the least-squares line through the points, one for
+  each group with at least three points (and some spread in x). The description gives the slope,
+  the intercept and r².
+- **Log axes.** `"xScale": "log"` and `"yScale": "log"` space powers of ten evenly and need values
+  above zero, on points and lines alike (`invalid_value`). A regression on a log axis is fitted to
+  the logarithms (`ln y = a + b ln x`, a power law), so it is straight on the page.
 - **Names.** A point with a `label` gets its name beside it, in the order of the list; a name that
   would run over one already written is left out (`value_labels_omitted`).
 - **Many points.** Up to 300 points have a tooltip each; beyond that the dots are small and plain.

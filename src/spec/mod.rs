@@ -512,7 +512,7 @@ pub enum AxisScale {
 impl AxisScale {
     // serde hands this function a reference, so the signature follows serde's shape.
     #[allow(clippy::trivially_copy_pass_by_ref)]
-    const fn is_linear(&self) -> bool {
+    pub(crate) const fn is_linear(&self) -> bool {
         matches!(self, Self::Linear)
     }
 }

@@ -927,7 +927,10 @@
           }
         },
         "xTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "yTitle": { "type": "string", "minLength": 1, "maxLength": 100 }
+        "yTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "regression": { "type": "boolean", "default": false, "description": "Draw the least-squares line through the points, one for each group; on a logarithmic axis it is fitted to the logarithms." },
+        "xScale": { "enum": ["linear", "log"], "default": "linear" },
+        "yScale": { "enum": ["linear", "log"], "default": "linear" }
       }
     },
     "survival": {

@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 50] = [
+const EXAMPLES: [(&str, &str, &str); 51] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -243,6 +243,11 @@ const EXAMPLES: [(&str, &str, &str); 50] = [
         include_str!("../examples/gene-expression.svg"),
     ),
     (
+        "allometry",
+        include_str!("../examples/allometry.json"),
+        include_str!("../examples/allometry.svg"),
+    ),
+    (
         "study-selection",
         include_str!("../examples/study-selection.json"),
         include_str!("../examples/study-selection.svg"),
@@ -255,7 +260,7 @@ const EXAMPLES: [(&str, &str, &str); 50] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 19] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 20] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -340,6 +345,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 19] = [
         "gene-expression",
         include_str!("../examples/gene-expression.json"),
         include_str!("../examples/gene-expression.mobile.svg"),
+    ),
+    (
+        "allometry",
+        include_str!("../examples/allometry.json"),
+        include_str!("../examples/allometry.mobile.svg"),
     ),
     (
         "study-selection",

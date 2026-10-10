@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
-use super::{ChartSpec, MAX_SERIES, validate_number, validate_text};
+use super::{AxisScale, ChartSpec, MAX_SERIES, validate_number, validate_text};
 use crate::error::{ChartError, ChartWarning};
 
 /// The most points one scatter plot draws, and the most lines.
@@ -22,6 +22,28 @@ pub struct ScatterSpec {
     pub x_title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub y_title: Option<String>,
+    /// Draws the least-squares line through the points, one for each group. On a logarithmic
+    /// axis the line is fitted to the logarithms, so it stays straight on the page.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub regression: bool,
+    /// Linear by default; `log` spaces powers of ten evenly and needs values above zero.
+    #[serde(default, skip_serializing_if = "AxisScale::is_linear")]
+    pub x_scale: AxisScale,
+    #[serde(default, skip_serializing_if = "AxisScale::is_linear")]
+    pub y_scale: AxisScale,
+}
+
+/// A least-squares line through some points.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct Fit {
+    pub slope: f64,
+    pub intercept: f64,
+    /// The share of the variance of y that the line explains.
+    pub r_squared: f64,
+    pub count: usize,
+    /// The ends of the line along x.
+    pub from: f64,
+    pub to: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,6 +91,43 @@ impl ScatterSpec {
             }
         }
         groups
+    }
+
+    /// A value as the fit sees it: its logarithm on a logarithmic axis.
+    pub(crate) fn scaled(scale: AxisScale, value: f64) -> f64 {
+        if scale == AxisScale::Log {
+            value.ln()
+        } else {
+            value
+        }
+    }
+
+    /// The least-squares line of the points of a group, or of all points without groups, for
+    /// every group with at least three points that do not all share one x. Values are in the
+    /// scale of their axis: the line of a logarithmic axis is `ln y = intercept + slope · ln x`.
+    pub(crate) fn fits(&self) -> Vec<(Option<&str>, Fit)> {
+        let groups = self.groups();
+        let sets: Vec<Option<&str>> = if groups.is_empty() {
+            vec![None]
+        } else {
+            groups.into_iter().map(Some).collect()
+        };
+        sets.into_iter()
+            .filter_map(|group| {
+                let points: Vec<(f64, f64)> = self
+                    .points
+                    .iter()
+                    .filter(|point| group.is_none() || point.group.as_deref() == group)
+                    .map(|point| {
+                        (
+                            Self::scaled(self.x_scale, point.x),
+                            Self::scaled(self.y_scale, point.y),
+                        )
+                    })
+                    .collect();
+                fit(&points).map(|fit| (group, fit))
+            })
+            .collect()
     }
 
     /// The palette color, from 1, of a point.
@@ -133,6 +192,7 @@ impl ChartSpec {
             }
         }
         validate_points(scatter)?;
+        validate_log_axes(scatter)?;
         if scatter.lines.len() > MAX_LINES {
             return Err(ChartError::new(
                 "too_many_references",
@@ -181,6 +241,73 @@ fn validate_points(scatter: &ScatterSpec) -> Result<(), ChartError> {
                 ));
             }
             (None, false) => {}
+        }
+    }
+    Ok(())
+}
+
+/// Ordinary least squares of y on x; `None` for fewer than three points or no spread in x.
+fn fit(points: &[(f64, f64)]) -> Option<Fit> {
+    if points.len() < 3 {
+        return None;
+    }
+    #[allow(clippy::cast_precision_loss)]
+    let n = points.len() as f64;
+    let (mean_x, mean_y) = (
+        points.iter().map(|p| p.0).sum::<f64>() / n,
+        points.iter().map(|p| p.1).sum::<f64>() / n,
+    );
+    let sxx: f64 = points.iter().map(|p| (p.0 - mean_x).powi(2)).sum();
+    let syy: f64 = points.iter().map(|p| (p.1 - mean_y).powi(2)).sum();
+    let sxy: f64 = points.iter().map(|p| (p.0 - mean_x) * (p.1 - mean_y)).sum();
+    if sxx <= f64::EPSILON {
+        return None;
+    }
+    let slope = sxy / sxx;
+    Some(Fit {
+        slope,
+        intercept: mean_y - slope * mean_x,
+        r_squared: if syy <= f64::EPSILON {
+            1.0
+        } else {
+            sxy * sxy / (sxx * syy)
+        },
+        count: points.len(),
+        from: points.iter().map(|p| p.0).fold(f64::MAX, f64::min),
+        to: points.iter().map(|p| p.0).fold(f64::MIN, f64::max),
+    })
+}
+
+/// A logarithmic axis takes values above zero only, on its points and its lines.
+fn validate_log_axes(scatter: &ScatterSpec) -> Result<(), ChartError> {
+    for (axis, scale, name) in [
+        (ScatterAxis::X, scatter.x_scale, "x"),
+        (ScatterAxis::Y, scatter.y_scale, "y"),
+    ] {
+        if scale != AxisScale::Log {
+            continue;
+        }
+        let refuse = |path: String| {
+            Err(ChartError::new(
+                "invalid_value",
+                path,
+                format!("a logarithmic {name} axis needs values above zero"),
+            ))
+        };
+        for (index, point) in scatter.points.iter().enumerate() {
+            let value = if axis == ScatterAxis::X {
+                point.x
+            } else {
+                point.y
+            };
+            if value <= 0.0 {
+                return refuse(format!("/scatter/points/{index}/{name}"));
+            }
+        }
+        for (index, line) in scatter.lines.iter().enumerate() {
+            if line.axis == axis && line.value <= 0.0 {
+                return refuse(format!("/scatter/lines/{index}/value"));
+            }
         }
     }
     Ok(())

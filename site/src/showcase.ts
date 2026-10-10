@@ -434,6 +434,13 @@ const catalogue = [
       'The path of a civil case through the German courts, from Amtsgericht and Landgericht by appeal to the Oberlandesgericht and by Revision to the Bundesgerichtshof, in German with the conditions on the edges. A preset on the flow chart, not a type of its own. Simplified, with a phone variant.',
   },
   {
+    slug: 'allometry',
+    chart: 'Scatter plot (regression, log axes)',
+    useCase: 'Fit a power law',
+    blurb:
+      'Metabolic rate against body mass for two groups of animals on logarithmic axes, with a least-squares line for each group: fitted to the logarithms, so a power law is a straight line. The description gives each line\'s slope, intercept and r². Illustrative data, with a phone variant.',
+  },
+  {
     slug: 'gene-expression',
     chart: 'Volcano plot',
     useCase: 'Find what stands out among many points',

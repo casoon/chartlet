@@ -4577,6 +4577,41 @@ mod tests {
         }
     }
 
+    #[test]
+    fn a_scatter_plot_fits_a_line_and_takes_log_axes() {
+        let line = r#"{"schemaVersion": 1, "type": "scatter", "title": "Fit", "width": 640, "height": 420,
+            "scatter": {"regression": true, "points": [{"x": 1, "y": 3}, {"x": 2, "y": 5}, {"x": 3, "y": 7}, {"x": 4, "y": 9}]}}"#;
+        let output = render_ok(line);
+        assert_eq!(
+            output
+                .content
+                .matches("class=\"chartlet-sc-fit chartlet-sc-1\"")
+                .count(),
+            1
+        );
+        let html = render_json(line, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(
+            html.contains("Line through 4 points: y = 1.000 + 2.000 x, r² = 1.000."),
+            "{html}"
+        );
+        let log = line.replace(
+            r#""regression": true"#,
+            r#""regression": true, "xScale": "log", "yScale": "log""#,
+        );
+        let html = render_json(&log, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("fitted to the logarithms"));
+        let bad = log.replace(r#""x": 1,"#, r#""x": 0,"#);
+        let error = render_json(&bad, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("invalid_value", "/scatter/points/0/x")
+        );
+    }
+
     const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,
         "sankey": {"links": [
             {"from": "A", "to": "Mid", "value": 30},

@@ -1540,6 +1540,7 @@ pub(crate) fn scatter_summary(
     points: usize,
     (x_span, y_span): (&str, &str),
     (groups, lines): (&str, &str),
+    fits: &str,
 ) -> String {
     let mut text = match locale {
         Locale::En => format!(
@@ -1565,7 +1566,39 @@ pub(crate) fn scatter_summary(
         };
         write!(text, " {word}: {lines}.").expect("writing to String cannot fail");
     }
+    if !fits.is_empty() {
+        write!(text, " {fits}").expect("writing to String cannot fail");
+    }
     text
+}
+
+/// A least-squares line of a scatter plot: its slope, intercept and r², for a group or all points.
+pub(crate) fn scatter_fit(
+    locale: Locale,
+    group: Option<&str>,
+    (slope, intercept, r_squared): (String, String, String),
+    (log, points): (bool, usize),
+) -> String {
+    let of = match (locale, group) {
+        (Locale::En, Some(group)) => format!("Line for {group}"),
+        (Locale::En, None) => "Line".to_owned(),
+        (Locale::De, Some(group)) => format!("Gerade für {group}"),
+        (Locale::De, None) => "Gerade".to_owned(),
+    };
+    match (locale, log) {
+        (Locale::En, false) => {
+            format!("{of} through {points} points: y = {intercept} + {slope} x, r² = {r_squared}.")
+        }
+        (Locale::En, true) => format!(
+            "{of} through {points} points, fitted to the logarithms: ln y = {intercept} + {slope} ln x, r² = {r_squared}."
+        ),
+        (Locale::De, false) => {
+            format!("{of} durch {points} Punkte: y = {intercept} + {slope} x, r² = {r_squared}.")
+        }
+        (Locale::De, true) => format!(
+            "{of} durch {points} Punkte, an die Logarithmen angepasst: ln y = {intercept} + {slope} ln x, r² = {r_squared}."
+        ),
+    }
 }
 
 /// The caption of a table that lists only some of the points of a big plot.

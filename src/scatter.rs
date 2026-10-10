@@ -13,7 +13,10 @@ use crate::{
     },
     metrics::TextMetrics,
     scene::{Circle, Element, Line, Rect, Scene, Text, TextAnchor},
-    spec::{ChartSpec, ScatterAxis, ScatterPointSpec, ScatterSpec, ValueAxisSpec},
+    spec::{
+        AxisScale, ChartSpec, NumberStyle, ScatterAxis, ScatterPointSpec, ScatterSpec,
+        ValueAxisSpec,
+    },
     text,
 };
 
@@ -113,7 +116,19 @@ pub(crate) fn layout(
                     .filter(|line| line.axis == axis)
                     .map(|line| line.value),
             );
-        NumericScale::for_axis(values, false, &ValueAxisSpec::default())
+        let scale = if axis == ScatterAxis::X {
+            scatter.x_scale
+        } else {
+            scatter.y_scale
+        };
+        NumericScale::for_axis(
+            values,
+            false,
+            &ValueAxisSpec {
+                scale,
+                ..ValueAxisSpec::default()
+            },
+        )
     };
     let (xs, ys) = (along(ScatterAxis::X), along(ScatterAxis::Y));
     let x = |value: f64| xs.map(value, plot.0, plot.0 + plot.2);
@@ -122,6 +137,7 @@ pub(crate) fn layout(
     for line in &scatter.lines {
         push_line(&mut elements, line, plot, (&x, &y), metrics, warnings);
     }
+    push_fits(&mut elements, scatter, (&x, &y));
     let few = scatter.points.len() <= FEW;
     for point in &scatter.points {
         elements.push(Element::Circle(Circle {
@@ -142,6 +158,82 @@ pub(crate) fn layout(
         height: pixels(height),
         elements,
     }
+}
+
+/// The least-squares lines, under the points, in the color of their group.
+fn push_fits(
+    elements: &mut Vec<Element>,
+    scatter: &ScatterSpec,
+    (x, y): (&impl Fn(f64) -> f64, &impl Fn(f64) -> f64),
+) {
+    if !scatter.regression {
+        return;
+    }
+    let groups = scatter.groups();
+    let back = |scale: AxisScale, value: f64| {
+        if scale == AxisScale::Log {
+            value.exp()
+        } else {
+            value
+        }
+    };
+    for (group, fit) in scatter.fits() {
+        let at = |along: f64| fit.intercept + fit.slope * along;
+        let color = group.map_or(1, |name| {
+            groups
+                .iter()
+                .position(|known| *known == name)
+                .map_or(1, |p| p + 1)
+        });
+        elements.push(Element::Line(Line {
+            x1: x(back(scatter.x_scale, fit.from)),
+            y1: y(back(scatter.y_scale, at(fit.from))),
+            x2: x(back(scatter.x_scale, fit.to)),
+            y2: y(back(scatter.y_scale, at(fit.to))),
+            class: FITS[color - 1],
+        }));
+    }
+}
+
+const FITS: [&str; 4] = [
+    "chartlet-sc-fit chartlet-sc-1",
+    "chartlet-sc-fit chartlet-sc-2",
+    "chartlet-sc-fit chartlet-sc-3",
+    "chartlet-sc-fit chartlet-sc-4",
+];
+
+/// The fitted lines in words: slope, intercept and the share of variance they explain.
+fn fit_sentences(spec: &ChartSpec) -> String {
+    let scatter = scatter(spec);
+    let number = |value: f64| {
+        format_value(
+            value,
+            NumberStyle {
+                decimals: Some(3),
+                ..spec.number_style()
+            },
+        )
+    };
+    scatter
+        .fits()
+        .into_iter()
+        .map(|(group, fit)| {
+            text::scatter_fit(
+                spec.locale,
+                group,
+                (
+                    number(fit.slope),
+                    number(fit.intercept),
+                    number(fit.r_squared),
+                ),
+                (
+                    scatter.x_scale == AxisScale::Log || scatter.y_scale == AxisScale::Log,
+                    fit.count,
+                ),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn tooltip(spec: &ChartSpec, point: &ScatterPointSpec) -> String {
@@ -437,6 +529,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         scatter.points.len(),
         (&span(|point| point.x), &span(|point| point.y)),
         (&groups.join(", "), &lines.join("; ")),
+        &fit_sentences(spec),
     )
 }
 
