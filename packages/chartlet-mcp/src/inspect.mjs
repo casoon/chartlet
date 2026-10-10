@@ -345,5 +345,125 @@ function suggest(rowCount, columns) {
       });
     }
   }
+  suggestions.push(...suggestFromBlocks(rowCount, { numbers: plain, times, strings, columns }));
   return suggestions;
+}
+
+const TIME_LIKE = /^(time|duration|days?|months?|weeks?|years?|follow|survival)/i;
+const EVENT_LIKE = /event|status|censor|death|dead|relapse/i;
+
+/**
+ * Chart types drawn from a block of their own: scatter, box plot (and violin or strip), treemap,
+ * waterfall, sankey, survival curves and timeline. Each rule reads column types, names and ranges
+ * only, and says what the table needs before it fits.
+ *
+ * @param {number} rowCount
+ * @param {{ numbers: ColumnSummary[], times: ColumnSummary[], strings: ColumnSummary[], columns: ColumnSummary[] }} parts
+ * @returns {Suggestion[]}
+ */
+function suggestFromBlocks(rowCount, { numbers, times, strings, columns }) {
+  /** @type {Suggestion[]} */
+  const found = [];
+  const list = (/** @type {ColumnSummary[]} */ columns) => columns.map(({ name }) => name).join(", ");
+  const few = (/** @type {ColumnSummary} */ column) =>
+    !column.distinctCapped && (column.distinct ?? 0) >= 2 && (column.distinct ?? 0) <= 4;
+  const unique = (/** @type {ColumnSummary} */ column) =>
+    column.missing === 0 && column.distinct === rowCount;
+
+  const eventColumn = columns.find(
+    (column) =>
+      EVENT_LIKE.test(column.name) &&
+      (column.type === "boolean" || (column.type === "integer" && column.min === 0 && column.max === 1)),
+  );
+  const timeColumn = numbers.find(
+    (column) => TIME_LIKE.test(column.name) && (column.min ?? -1) >= 0 && column !== eventColumn,
+  );
+  if (eventColumn && timeColumn) {
+    const group = strings.find(few);
+    found.push({
+      type: "survival",
+      columns: {
+        time: timeColumn.name,
+        event: eventColumn.name,
+        ...(group ? { group: group.name } : {}),
+      },
+      reason: `Time column ${timeColumn.name} and event column ${eventColumn.name}${group ? ` with group column ${group.name} (${group.distinct} groups)` : ""}: Kaplan-Meier curves. Every row becomes an observation { time, event }; an event of 0 or false is censored. At most 4 groups and 2000 observations each.`,
+    });
+  }
+
+  const plain = numbers.filter((column) => column !== timeColumn && column !== eventColumn);
+  if (times.length === 0 && plain.length >= 2 && rowCount >= 5) {
+    const [x, y] = [
+      plain.find(({ name }) => name.toLowerCase() === "x") ?? plain[0],
+      plain.find(({ name }) => name.toLowerCase() === "y") ?? plain[1],
+    ];
+    const group = strings.find(few);
+    const label = strings.find((column) => column !== group && unique(column));
+    found.push({
+      type: "scatter",
+      columns: {
+        x: x.name,
+        y: y.name,
+        ...(group ? { group: group.name } : {}),
+        ...(label ? { label: label.name } : {}),
+      },
+      reason: `Numeric columns ${x.name} and ${y.name}: one point per row${group ? `, colored by ${group.name}` : ""}${label ? `, named by ${label.name} where you set a label` : ""}.${rowCount > 5000 ? " More than 5000 rows: a scatter plot holds at most 5000 points." : ""}${rowCount > 300 ? " Above 300 points the dots are small without tooltips; label only the points that matter." : ""}`,
+    });
+  }
+
+  if (times.length === 0 && plain.length >= 1) {
+    for (const label of strings) {
+      const count = label.distinct ?? 0;
+      if (!label.distinctCapped && count >= 2 && count <= 100 && rowCount >= 5 * count) {
+        found.push({
+          type: "boxplot",
+          columns: { label: label.name, values: plain[0].name },
+          reason: `Category column ${label.name} repeats (${count} categories, about ${Math.round(rowCount / count)} rows each) with numeric column ${plain[0].name}: collect the values of each category into one box with "values" for a box plot, or set "boxDisplay": "violin" or "strip" to show their distribution. Each category needs at least 5 values.`,
+        });
+      }
+    }
+    for (const label of strings.filter(unique)) {
+      const value = plain[0];
+      if (rowCount >= 6 && rowCount <= 100 && (value.min ?? 0) > 0) {
+        found.push({
+          type: "treemap",
+          columns: { label: label.name, value: value.name },
+          reason: `Unique labels in ${label.name} and positive values in ${value.name}: rectangles by value, with an optional "group" (up to 4) per item for color. Fewer than 6 items read better as bars, waffle squares or parliament seats.`,
+        });
+      }
+      if (rowCount >= 4 && rowCount <= 40 && (value.min ?? 0) < 0 && (value.max ?? 0) > 0) {
+        found.push({
+          type: "waterfall",
+          columns: { label: label.name, value: value.name },
+          reason: `Unique labels in ${label.name} and values of both signs in ${value.name}: a running total as a waterfall. Make the first row a "start", the rows that are changes deltas, and add a "total" step wherever the running total should show.`,
+        });
+      }
+    }
+  }
+
+  const from = strings.find(({ name }) => /^(from|source|origin|src)/i.test(name));
+  const to = strings.find(({ name }) => /^(to|target|dest)/i.test(name));
+  const flow = numbers.find((column) => (column.min ?? 0) > 0);
+  if (from && to && flow && from !== to) {
+    found.push({
+      type: "sankey",
+      columns: { from: from.name, to: to.name, value: flow.name },
+      reason: `Columns ${from.name} and ${to.name} name the ends of a flow and ${flow.name} its size: one link per row. A pair may appear once (add the values up first), a link must join two different nodes and the links must not run in a circle. At most 100 links and 40 nodes.${rowCount > 100 ? " More than 100 rows: too many links." : ""}`,
+    });
+  }
+
+  const dates = times.filter(({ timeFormat }) => timeFormat === "date");
+  const label = strings.find(unique);
+  if (dates.length >= 2 && label) {
+    const start = dates.find(({ name }) => /start|begin|from/i.test(name)) ?? dates[0];
+    const end = dates.find(({ name }) => /end|finish|due|until/i.test(name) && name !== start.name) ?? dates.find((column) => column !== start);
+    if (end) {
+      found.push({
+        type: "timeline",
+        columns: { label: label.name, start: start.name, end: end.name },
+        reason: `Unique labels in ${label.name} with date columns ${start.name} and ${end.name}: one phase per row on a timeline (a milestone takes a single "at" date instead). Name the ids that a row follows with "after" to draw dependencies, and group rows with "group".`,
+      });
+    }
+  }
+  return found;
 }

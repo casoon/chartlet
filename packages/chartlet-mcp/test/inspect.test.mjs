@@ -134,3 +134,52 @@ test("rejects input that is neither CSV nor rows", () => {
   assert.throws(() => inspectData({}), /exactly one of/);
   assert.throws(() => inspectData({ csv: "a", rows: [] }), /exactly one of/);
 });
+
+test("suggests the block types by the shape of the table", () => {
+  const rows = (n, make) => Array.from({ length: n }, (_, i) => make(i));
+  const csv = (header, lines) => [header, ...lines].join("\n") + "\n";
+  const has = (summary, type) => summary.suggestions.some((suggestion) => suggestion.type === type);
+
+  const points = inspectData({ csv: csv("x,y,class", rows(8, (i) => `${i},${i * 2},${i % 2 ? "up" : "down"}`)) });
+  const scatter = points.suggestions.find(({ type }) => type === "scatter");
+  assert.deepEqual(scatter.columns, { x: "x", y: "y", group: "class" });
+
+  const times = inspectData({
+    csv: csv("endpoint,ms", rows(20, (i) => `${i % 2 ? "search" : "checkout"},${40 + i}`)),
+  });
+  const box = times.suggestions.find(({ type }) => type === "boxplot");
+  assert.deepEqual(box.columns, { label: "endpoint", values: "ms" });
+  assert.match(box.reason, /violin/);
+
+  const budget = inspectData({ csv: csv("item,amount", rows(8, (i) => `part${i},${10 + i}`)) });
+  assert.ok(has(budget, "treemap"));
+  assert.ok(!has(budget, "waterfall"));
+
+  const bridge = inspectData({ csv: csv("step,change", ["Revenue,100", "Costs,-40", "Gain,10", "Tax,-5"]) });
+  assert.ok(has(bridge, "waterfall"));
+
+  const flows = inspectData({ csv: csv("source,target,amount", ["a,b,3", "a,c,2", "b,c,1"]) });
+  assert.deepEqual(flows.suggestions.find(({ type }) => type === "sankey").columns, {
+    from: "source",
+    to: "target",
+    value: "amount",
+  });
+
+  const trial = inspectData({
+    csv: csv("months,event,arm", rows(8, (i) => `${i + 1},${i % 3 === 0 ? 0 : 1},${i % 2 ? "A" : "B"}`)),
+  });
+  assert.deepEqual(trial.suggestions.find(({ type }) => type === "survival").columns, {
+    time: "months",
+    event: "event",
+    group: "arm",
+  });
+
+  const plan = inspectData({
+    csv: csv("task,start,end", ["Research,2027-01-11,2027-02-19", "Build,2027-02-22,2027-05-28"]),
+  });
+  assert.deepEqual(plan.suggestions.find(({ type }) => type === "timeline").columns, {
+    label: "task",
+    start: "start",
+    end: "end",
+  });
+});
