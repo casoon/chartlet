@@ -6,6 +6,8 @@ does.
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-10
+
 ### Added
 
 - Scatter plots: `xTicks` puts named labels at chosen places on the x axis (chromosomes of a Manhattan plot), and `xRange`/`yRange` fix the ends of an axis. Example `genome-scan`, with a phone variant.
