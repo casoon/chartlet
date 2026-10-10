@@ -1638,6 +1638,28 @@ pub(crate) fn survival_group(
     }
 }
 
+/// The log-rank test in the plot: the p value, as `< 0.001` or `= 0.013`.
+pub(crate) fn survival_test_short(locale: Locale, p: &str) -> String {
+    match locale {
+        Locale::En => format!("Log-rank p {p}"),
+        Locale::De => format!("Log-Rank-Test p {p}"),
+    }
+}
+
+/// The log-rank test in the description: statistic, degrees of freedom and p.
+pub(crate) fn survival_test(locale: Locale, (chi, degrees): (&str, usize), p: &str) -> String {
+    match locale {
+        Locale::En => format!(
+            "Log-rank test: χ² = {chi}, {degrees} degree{} of freedom, p {p}.",
+            plural(degrees, "", "s")
+        ),
+        Locale::De => format!(
+            "Log-Rank-Test: χ² = {chi}, {degrees} Freiheitsgrad{}, p {p}.",
+            plural(degrees, "", "e")
+        ),
+    }
+}
+
 /// What Kaplan-Meier curves show: how many groups, whether bands are drawn, and each group.
 pub(crate) fn survival_summary(
     locale: Locale,

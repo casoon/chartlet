@@ -296,7 +296,8 @@
       }
     ],
     "confidence": true,
-    "timeTitle": "Months since randomization"
+    "timeTitle": "Months since randomization",
+    "logRank": true
   },
   "mobile": {
     "width": 380,

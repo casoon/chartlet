@@ -66,6 +66,24 @@ fn percent(spec: &ChartSpec, value: f64, decimals: u8) -> String {
     )
 }
 
+/// A p value as written: `< 0.001` below that, else three decimals.
+fn p_text(spec: &ChartSpec, p: f64) -> String {
+    if p < 0.001 {
+        "< 0.001".to_owned()
+    } else {
+        format!(
+            "= {}",
+            format_value(
+                p,
+                NumberStyle {
+                    decimals: Some(3),
+                    ..spec.number_style()
+                },
+            )
+        )
+    }
+}
+
 /// The scale of the time axis, from zero over the longest observation, and its ticks.
 fn time_scale(spec: &ChartSpec) -> (NumericScale, Vec<f64>) {
     let longest = survival(spec)
@@ -184,6 +202,15 @@ pub(crate) fn layout(
                 class: MARKS[index],
             }));
         }
+    }
+    if let Some(test) = survival.log_rank_test() {
+        elements.push(Element::Text(Text {
+            x: plot.0 + plot.2 - 6.0,
+            y: plot.1 + 18.0,
+            class: "chartlet-legend",
+            anchor: TextAnchor::End,
+            content: text::survival_test_short(spec.locale, &p_text(spec, test.p)),
+        }));
     }
     if survival.at_risk {
         push_at_risk(&mut elements, spec, (plot, &ticks), &x, metrics, warnings);
@@ -377,6 +404,21 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let mut groups = String::new();
     for (index, group) in survival.groups.iter().enumerate() {
         write!(groups, " {}", group_sentence(spec, index, &group.curve())).expect("write");
+    }
+    if let Some(test) = survival.log_rank_test() {
+        let chi = format_value(
+            test.chi_squared,
+            NumberStyle {
+                decimals: Some(2),
+                ..spec.number_style()
+            },
+        );
+        groups.push(' ');
+        groups.push_str(&text::survival_test(
+            spec.locale,
+            (&chi, test.degrees),
+            &p_text(spec, test.p),
+        ));
     }
     text::survival_summary(
         spec.locale,

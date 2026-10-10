@@ -18,6 +18,10 @@ pub struct SurvivalSpec {
     /// variance).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub confidence: bool,
+    /// Tests whether the curves differ (log-rank, Mantel-Cox) and writes the result in the plot
+    /// and the description. Needs two or more groups.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub log_rank: bool,
     /// Writes the number still at risk under the time axis, for every group. On by default.
     #[serde(default = "yes", skip_serializing_if = "is_yes")]
     pub at_risk: bool,
@@ -182,6 +186,178 @@ const fn to_f64(count: usize) -> f64 {
     count as f64
 }
 
+/// The log-rank test of two or more groups: the statistic, its degrees of freedom and p.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct LogRank {
+    pub chi_squared: f64,
+    pub degrees: usize,
+    pub p: f64,
+}
+
+impl SurvivalSpec {
+    /// The log-rank (Mantel-Cox) test of the groups; `None` for one group, no events or a
+    /// covariance that cannot be inverted.
+    pub(crate) fn log_rank_test(&self) -> Option<LogRank> {
+        let k = self.groups.len();
+        if k < 2 {
+            return None;
+        }
+        let mut times: Vec<f64> = self
+            .groups
+            .iter()
+            .flat_map(|group| {
+                group
+                    .observations
+                    .iter()
+                    .filter(|o| o.event)
+                    .map(|o| o.time)
+            })
+            .collect();
+        times.sort_by(f64::total_cmp);
+        times.dedup_by(|a, b| a.total_cmp(b).is_eq());
+        let mut gap = vec![0.0; k];
+        let mut variance = vec![vec![0.0; k]; k];
+        for time in times {
+            let at_risk: Vec<f64> = self
+                .groups
+                .iter()
+                .map(|group| to_f64(group.observations.iter().filter(|o| o.time >= time).count()))
+                .collect();
+            let died: Vec<f64> = self
+                .groups
+                .iter()
+                .map(|group| {
+                    to_f64(
+                        group
+                            .observations
+                            .iter()
+                            .filter(|o| o.event && o.time.total_cmp(&time).is_eq())
+                            .count(),
+                    )
+                })
+                .collect();
+            let (n, d) = (at_risk.iter().sum::<f64>(), died.iter().sum::<f64>());
+            for j in 0..k {
+                gap[j] += died[j] - d * at_risk[j] / n;
+                if n > 1.0 {
+                    for l in 0..k {
+                        let kronecker = if j == l { 1.0 } else { 0.0 };
+                        variance[j][l] +=
+                            d * (at_risk[j] / n) * (kronecker - at_risk[l] / n) * (n - d)
+                                / (n - 1.0);
+                    }
+                }
+            }
+        }
+        let degrees = k - 1;
+        let chi_squared = quadratic(&variance, &gap, degrees)?;
+        Some(LogRank {
+            chi_squared,
+            degrees,
+            p: chi_squared_tail(chi_squared, degrees),
+        })
+    }
+}
+
+/// `gapᵀ · variance⁻¹ · gap` over the first `size` groups, by Gaussian elimination; `None` if
+/// the matrix is singular.
+fn quadratic(variance: &[Vec<f64>], gap: &[f64], size: usize) -> Option<f64> {
+    let mut rows: Vec<Vec<f64>> = (0..size)
+        .map(|i| {
+            let mut row: Vec<f64> = variance[i][..size].to_vec();
+            row.push(gap[i]);
+            row
+        })
+        .collect();
+    for column in 0..size {
+        let pivot = (column..size)
+            .max_by(|a, b| rows[*a][column].abs().total_cmp(&rows[*b][column].abs()))?;
+        if rows[pivot][column].abs() < 1e-12 {
+            return None;
+        }
+        rows.swap(column, pivot);
+        for row in column + 1..size {
+            let factor = rows[row][column] / rows[column][column];
+            let above = rows[column].clone();
+            for (cell, top) in rows[row].iter_mut().zip(above).skip(column) {
+                *cell -= factor * top;
+            }
+        }
+    }
+    let mut solution = vec![0.0; size];
+    for row in (0..size).rev() {
+        let known: f64 = (row + 1..size).map(|at| rows[row][at] * solution[at]).sum();
+        solution[row] = (rows[row][size] - known) / rows[row][row];
+    }
+    Some((0..size).map(|i| gap[i] * solution[i]).sum())
+}
+
+/// The chance of a chi-squared value at least this large: the regularized upper incomplete gamma
+/// function of `degrees / 2` and `value / 2`.
+fn chi_squared_tail(value: f64, degrees: usize) -> f64 {
+    let (shape, half) = (to_f64(degrees) / 2.0, value / 2.0);
+    if half <= 0.0 {
+        return 1.0;
+    }
+    let log_gamma = ln_gamma(shape);
+    if half < shape + 1.0 {
+        // The series of the lower function.
+        let (mut term, mut sum) = (1.0 / shape, 1.0 / shape);
+        for n in 1..500 {
+            term *= half / (shape + f64::from(n));
+            sum += term;
+            if term.abs() < sum.abs() * 1e-15 {
+                break;
+            }
+        }
+        (1.0 - sum * (-half + shape * half.ln() - log_gamma).exp()).clamp(0.0, 1.0)
+    } else {
+        // The continued fraction of the upper function (modified Lentz).
+        let tiny = 1e-300;
+        let mut offset = half + 1.0 - shape;
+        let mut c = 1.0 / tiny;
+        let mut d = 1.0 / offset;
+        let mut h = d;
+        for n in 1..500 {
+            let an = -f64::from(n) * (f64::from(n) - shape);
+            offset += 2.0;
+            d = an * d + offset;
+            if d.abs() < tiny {
+                d = tiny;
+            }
+            c = offset + an / c;
+            if c.abs() < tiny {
+                c = tiny;
+            }
+            d = 1.0 / d;
+            let delta = d * c;
+            h *= delta;
+            if (delta - 1.0).abs() < 1e-15 {
+                break;
+            }
+        }
+        ((-half + shape * half.ln() - log_gamma).exp() * h).clamp(0.0, 1.0)
+    }
+}
+
+/// The logarithm of the gamma function, by the Lanczos approximation.
+fn ln_gamma(x: f64) -> f64 {
+    const COEFFICIENTS: [f64; 6] = [
+        76.180_091_729_471_46,
+        -86.505_320_329_416_77,
+        24.014_098_240_830_91,
+        -1.231_739_572_450_155,
+        0.001_208_650_973_866_179,
+        -0.000_005_395_239_384_953,
+    ];
+    let mut series = 1.000_000_000_190_015;
+    for (offset, coefficient) in COEFFICIENTS.iter().enumerate() {
+        series += coefficient / (x + 1.0 + to_f64(offset));
+    }
+    let shifted = x + 5.5;
+    (x + 0.5) * shifted.ln() - shifted + (2.506_628_274_631_000_5 * series / x).ln()
+}
+
 impl ChartSpec {
     /// One to four groups with unique labels, each with observed times of at least zero.
     pub(super) fn validate_survival(&self) -> Result<Vec<ChartWarning>, ChartError> {
@@ -225,6 +401,13 @@ impl ChartSpec {
                 "too_many_series",
                 "/survival/groups",
                 format!("at most {MAX_SERIES} groups are supported, one per palette color"),
+            ));
+        }
+        if survival.log_rank && survival.groups.len() < 2 {
+            return Err(ChartError::new(
+                "log_rank_needs_groups",
+                "/survival/logRank",
+                "the log-rank test compares two or more groups",
             ));
         }
         if let Some(title) = &survival.time_title {

@@ -4612,6 +4612,38 @@ mod tests {
         );
     }
 
+    #[test]
+    fn survival_curves_test_whether_the_groups_differ() {
+        let two = SURVIVAL.replace(
+            r#""confidence": true"#,
+            r#""confidence": true, "logRank": true"#,
+        );
+        let html = render_json(&two, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        // Reference values from an independent implementation of the Mantel-Cox test.
+        assert!(
+            html.contains("Log-rank test: χ² = 0.01, 1 degree of freedom, p = 0.908."),
+            "{html}"
+        );
+        assert!(html.contains("Log-rank p = 0.908"));
+        let three = two.replace(
+            r#"{"label": "B","#,
+            r#"{"label": "C", "observations": [{"time": 1}, {"time": 5}, {"time": 5, "event": false}, {"time": 11}, {"time": 12}]},
+            {"label": "B","#,
+        );
+        let html = render_json(&three, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("2 degrees of freedom, p = 0.575"), "{html}");
+        let one = r#"{"schemaVersion": 1, "type": "survival", "title": "T", "survival": {"logRank": true, "groups": [{"label": "A", "observations": [{"time": 1}, {"time": 2}]}]}}"#;
+        let error = render_json(one, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("log_rank_needs_groups", "/survival/logRank")
+        );
+    }
+
     const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,
         "sankey": {"links": [
             {"from": "A", "to": "Mid", "value": 30},

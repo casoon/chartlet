@@ -967,6 +967,7 @@
           }
         },
         "confidence": { "type": "boolean", "default": false },
+        "logRank": { "type": "boolean", "default": false, "description": "Test whether the curves differ (log-rank, Mantel-Cox; needs two or more groups) and write the statistic and p in the plot and the description." },
         "atRisk": { "type": "boolean", "default": true },
         "timeTitle": { "type": "string", "minLength": 1, "maxLength": 100 }
       }
