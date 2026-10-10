@@ -43,6 +43,8 @@ order: 1
 | Sequence diagram, portrait | `"type": "sequence"` with `participants`, `messages` and `fragments` | [Reading an item through the cache](../../../showcase/cache-lookup/) |
 | Sequence diagram, landscape | `"orientation": "landscape"` in `sequence` | [Exporting a report in the background](../../../showcase/async-export/) |
 | Flow chart in lanes, with a loop back and a group (experimental) | `"type": "flow"` with `nodes`, `edges`, `lanes`, `groups`, `mainPath` | [From commit to release](../../../showcase/release-flow/) |
+| PRISMA study selection as a flow chart (preset, experimental) | `"type": "flow"` with `io`, `external` and `end` steps and `groups` | [Study selection](../../../showcase/study-selection/) |
+| Chain of courts as a flow chart (preset, experimental) | `"type": "flow"`, `"locale": "de"` | [Instanzenzug](../../../showcase/court-instances/) |
 | Flow chart, turned landscape by a wide canvas (experimental) | `"type": "flow"`, `"orientation": "auto"` | [Handling an order](../../../showcase/order-flow/) |
 | State diagram with a choice, a loop and two final states (experimental) | `"type": "state"` with `states`, `transitions`, `initial` | [Life of a support ticket](../../../showcase/ticket-states/) |
 | Architecture diagram with nested boundaries | `"type": "architecture"` with `components`, `connections`, `boundaries` | [Web shop on one cloud region](../../../showcase/shop-architecture/) |

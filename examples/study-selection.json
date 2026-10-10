@@ -1,0 +1,146 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Study selection (PRISMA 2020)",
+  "source": "Illustrative counts. Reports excluded: wrong population 61, wrong outcome 48, other 33",
+  "width": 720,
+  "height": 980,
+  "flow": {
+    "nodes": [
+      {
+        "id": "databases",
+        "label": "Records from databases",
+        "sublabel": "n = 1,482",
+        "kind": "io"
+      },
+      {
+        "id": "registers",
+        "label": "Records from registers",
+        "sublabel": "n = 214",
+        "kind": "io"
+      },
+      {
+        "id": "duplicates",
+        "label": "Duplicates removed",
+        "sublabel": "n = 389",
+        "kind": "external"
+      },
+      {
+        "id": "screened",
+        "label": "Records screened",
+        "sublabel": "n = 1,307"
+      },
+      {
+        "id": "excluded",
+        "label": "Records excluded",
+        "sublabel": "n = 1,121",
+        "kind": "external"
+      },
+      {
+        "id": "sought",
+        "label": "Reports sought",
+        "sublabel": "n = 186"
+      },
+      {
+        "id": "missing",
+        "label": "Reports not retrieved",
+        "sublabel": "n = 9",
+        "kind": "external"
+      },
+      {
+        "id": "assessed",
+        "label": "Reports assessed",
+        "sublabel": "n = 177"
+      },
+      {
+        "id": "reasons",
+        "label": "Reports excluded",
+        "sublabel": "n = 142",
+        "kind": "external"
+      },
+      {
+        "id": "studies",
+        "label": "Studies included",
+        "sublabel": "n = 35",
+        "kind": "end"
+      }
+    ],
+    "edges": [
+      {
+        "from": "databases",
+        "to": "duplicates"
+      },
+      {
+        "from": "registers",
+        "to": "duplicates"
+      },
+      {
+        "from": "duplicates",
+        "to": "screened"
+      },
+      {
+        "from": "screened",
+        "to": "excluded"
+      },
+      {
+        "from": "screened",
+        "to": "sought"
+      },
+      {
+        "from": "sought",
+        "to": "missing"
+      },
+      {
+        "from": "sought",
+        "to": "assessed"
+      },
+      {
+        "from": "assessed",
+        "to": "reasons"
+      },
+      {
+        "from": "assessed",
+        "to": "studies"
+      }
+    ],
+    "mainPath": [
+      "databases",
+      "duplicates",
+      "screened",
+      "sought",
+      "assessed",
+      "studies"
+    ],
+    "groups": [
+      {
+        "label": "Identification",
+        "nodes": [
+          "databases",
+          "registers",
+          "duplicates"
+        ]
+      },
+      {
+        "label": "Screening",
+        "nodes": [
+          "screened",
+          "excluded",
+          "sought",
+          "missing",
+          "assessed",
+          "reasons"
+        ]
+      },
+      {
+        "label": "Included",
+        "nodes": [
+          "studies"
+        ]
+      }
+    ]
+  },
+  "mobile": {
+    "width": 440,
+    "height": 960
+  }
+}

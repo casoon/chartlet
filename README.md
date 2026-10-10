@@ -96,6 +96,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Scatter plot: points in groups with threshold lines and names (volcano, Manhattan) | `"type": "scatter"` with `scatter.points`, `lines` | [gene-expression](examples/gene-expression.json) |
 | Kaplan-Meier curves: survival by group, censoring marks, confidence band, number at risk | `"type": "survival"` with `survival.groups` | [overall-survival](examples/overall-survival.json) |
 | Sankey diagram: flows between stages as bands | `"type": "sankey"` with `sankey.links` | [energy-flow](examples/energy-flow.json) |
+| Study selection (PRISMA) and chains of courts as flow charts (presets) | `"type": "flow"` | [study-selection](examples/study-selection.json), [court-instances](examples/court-instances.json) |
 | Treemap: many parts of a whole as rectangles by value, in groups | `"type": "treemap"` with `treemap.items` | [budget-by-department](examples/budget-by-department.json) |
 | Box plot from observations, with a box given by its five numbers | `"type": "boxplot"` with `boxes` | [response-times](examples/response-times.json) |
 | Violins and strips from the same observations | `"boxDisplay": "violin"` on a `boxplot` | [response-distribution](examples/response-distribution.json) |

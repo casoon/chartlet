@@ -303,7 +303,7 @@ chartlet lays a diagram out itself; the specification only says what is connecte
     "chartlet_chart_starter",
     {
       title: "Start a chart from a block",
-      description: `Return a valid starting specification and notes for a chartlet chart that is drawn from a block of its own rather than from table rows: waterfall (a running total of deltas, starts and totals), waffle (shares as squares), parliament (seats by party with majority and coalition), treemap (rectangles by value, in groups), sankey (flows between nodes), survival (Kaplan-Meier curves from times with censoring), scatter (points with groups, threshold lines and names: volcano and Manhattan plots), timeline (phases, milestones and dependencies), forest (a range bar chart as a forest plot) and violin (a box plot drawn as violins).
+      description: `Return a valid starting specification and notes for a chartlet chart that is drawn from a block of its own rather than from table rows: waterfall (a running total of deltas, starts and totals), waffle (shares as squares), parliament (seats by party with majority and coalition), treemap (rectangles by value, in groups), sankey (flows between nodes), survival (Kaplan-Meier curves from times with censoring), scatter (points with groups, threshold lines and names: volcano and Manhattan plots), timeline (phases, milestones and dependencies), forest (a range bar chart as a forest plot) violin (a box plot drawn as violins), prisma (a PRISMA/CONSORT study-selection flow) and instances (a chain of courts or authorities); the last two are presets on the flow chart.
 
 Adapt the starter, then check it with chartlet_validate_spec and render it with chartlet_render.`,
       inputSchema: z.object({

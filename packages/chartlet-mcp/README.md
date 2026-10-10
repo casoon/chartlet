@@ -66,7 +66,7 @@ Without `CHARTLET_MCP_ROOT` the server refuses `outputPath` and returns the char
 | `chartlet_render` | Renders SVG or HTML (`format`, `variant`: `desktop`, `mobile` or `print`, `idPrefix`, `table`). Returns the content, warnings, CSP `styleHashes` and the provenance `manifest`; with `outputPath`, writes the file and returns its path and byte size instead. In a client that shows MCP Apps, the chart also appears in the chat ([below](#in-the-chat)). | Writes `outputPath` |
 | `chartlet_explain` | Returns the accessible description chartlet generates, the chart type, and per series or layer the count, missing values, min, max, first and last value with their labels or times — computed, not interpreted. For a diagram, `structure` gives the counts of its elements and every row of its data table in reading order. | No |
 | `chartlet_diagram_starter` | For `sequence`, `flow`, `state` or `architecture`: a valid starting specification, the kinds every element can take with the shape each is drawn in, and notes on ids, layout and orientation. | No |
-| `chartlet_chart_starter` | For `waterfall`, `waffle`, `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `timeline`, `forest` or `violin`: a valid starting specification and notes on what the type takes and refuses. | No |
+| `chartlet_chart_starter` | For `waterfall`, `waffle`, `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `timeline`, `forest`, `violin`, `prisma` or `instances`: a valid starting specification and notes on what the type takes and refuses. | No |
 
 Resources: `chartlet://schema` is the JSON Schema of the specification; `ui://chartlet/figure`
 is the view of `chartlet_render` for MCP Apps.

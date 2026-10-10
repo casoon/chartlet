@@ -14,9 +14,32 @@ export function spec(slug: string): Spec {
   return found;
 }
 
-/** The colors of chartlet's dark palette, for a light chart shown on a dark page. */
-const DARK_VARS =
-  '--chartlet-text:#e8edf6;--chartlet-muted:#a9b4c7;--chartlet-grid:#2a3342;--chartlet-zero:#7b8697;--chartlet-accent:#7ea6ff;--chartlet-background:#0e131c;--chartlet-color-1:#7ea6ff;--chartlet-color-2:#ff9c72;--chartlet-color-3:#9aa7bd;--chartlet-color-4:#e2e8f4';
+/**
+ * Every variable of chartlet's dark theme, for a light chart shown on a dark page — read from
+ * chartlet's own dark output rather than copied, so new variables arrive with the renderer.
+ * Each chart family declares its own: the base palette, the node and role colors of diagrams,
+ * and the sea and quiet areas of topic maps. Copying only the base palette left diagram labels
+ * light on light nodes.
+ */
+const DARK_VARS = darkVariables(['monthly-revenue', 'order-flow', 'topicmap-sample']);
+
+function darkVariables(references: string[]): string {
+  const variables = new Map<string, string>();
+  for (const slug of references) {
+    const { content } = renderChart({ ...spec(slug), theme: 'dark' }, { format: 'svg' });
+    for (const rule of content.matchAll(/\.chartlet-theme-dark\{([^}]*)\}/g)) {
+      for (const declaration of rule[1].split(';')) {
+        const colon = declaration.indexOf(':');
+        const name = declaration.slice(0, colon).trim();
+        if (name.startsWith('--chartlet-')) variables.set(name, declaration.slice(colon + 1).trim());
+      }
+    }
+  }
+  for (const required of ['--chartlet-text', '--chartlet-node', '--chartlet-role-blue-fill', '--chartlet-sea']) {
+    if (!variables.has(required)) throw new Error(`chartlet's dark theme no longer declares ${required}`);
+  }
+  return [...variables].map(([name, value]) => `${name}:${value}`).join(';');
+}
 
 /**
  * The surface a light chart sits on: light by default, and dark with the dark palette where the
@@ -395,6 +418,20 @@ const catalogue = [
     useCase: 'Show who holds the seats',
     blurb:
       'Two hundred seats in six parties, in blocks from left to right, with a dashed line at the 101st seat and a ring round the seats of a four-party coalition. The legend, the description and the table give each party with its seats and share and say whether the coalition has a majority. Illustrative result, with a phone variant.',
+  },
+  {
+    slug: 'study-selection',
+    chart: 'Flow chart (PRISMA)',
+    useCase: 'Report how studies were selected',
+    blurb:
+      'The PRISMA 2020 flow of a systematic review as a flow chart: records from databases and registers, duplicates removed, screening, reports sought and assessed, and the studies included, with every exclusion in a dashed box beside the main path and the three phases as groups. Counts in the sublabels; the description and the table list every step and edge. Illustrative counts, with a phone variant.',
+  },
+  {
+    slug: 'court-instances',
+    chart: 'Flow chart (Instanzenzug)',
+    useCase: 'Show a chain of appeals',
+    blurb:
+      'The path of a civil case through the German courts, from Amtsgericht and Landgericht by appeal to the Oberlandesgericht and by Revision to the Bundesgerichtshof, in German with the conditions on the edges. A preset on the flow chart, not a type of its own. Simplified, with a phone variant.',
   },
   {
     slug: 'gene-expression',

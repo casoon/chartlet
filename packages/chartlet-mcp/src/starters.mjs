@@ -14,6 +14,8 @@ export const CHART_STARTER_TYPES = /** @type {const} */ ([
   "timeline",
   "forest",
   "violin",
+  "prisma",
+  "instances",
 ]);
 
 /** @type {Record<string, Record<string, unknown>>} */
@@ -160,6 +162,208 @@ const STARTERS = {
       { label: "Search", values: [42, 45, 47, 48, 50, 52, 53, 55, 58, 61, 64, 140] },
       { label: "Checkout", values: [88, 92, 95, 101, 104, 108, 112, 118, 125, 131] },
     ],
+  },  prisma: {
+    "schemaVersion": 1,
+    "type": "flow",
+    "title": "Study selection (PRISMA 2020)",
+    "width": 720,
+    "height": 980,
+    "flow": {
+      "nodes": [
+        {
+          "id": "databases",
+          "label": "Records from databases",
+          "sublabel": "n = 1,482",
+          "kind": "io"
+        },
+        {
+          "id": "registers",
+          "label": "Records from registers",
+          "sublabel": "n = 214",
+          "kind": "io"
+        },
+        {
+          "id": "duplicates",
+          "label": "Duplicates removed",
+          "sublabel": "n = 389",
+          "kind": "external"
+        },
+        {
+          "id": "screened",
+          "label": "Records screened",
+          "sublabel": "n = 1,307"
+        },
+        {
+          "id": "excluded",
+          "label": "Records excluded",
+          "sublabel": "n = 1,121",
+          "kind": "external"
+        },
+        {
+          "id": "sought",
+          "label": "Reports sought",
+          "sublabel": "n = 186"
+        },
+        {
+          "id": "missing",
+          "label": "Reports not retrieved",
+          "sublabel": "n = 9",
+          "kind": "external"
+        },
+        {
+          "id": "assessed",
+          "label": "Reports assessed",
+          "sublabel": "n = 177"
+        },
+        {
+          "id": "reasons",
+          "label": "Reports excluded",
+          "sublabel": "n = 142",
+          "kind": "external"
+        },
+        {
+          "id": "studies",
+          "label": "Studies included",
+          "sublabel": "n = 35",
+          "kind": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "databases",
+          "to": "duplicates"
+        },
+        {
+          "from": "registers",
+          "to": "duplicates"
+        },
+        {
+          "from": "duplicates",
+          "to": "screened"
+        },
+        {
+          "from": "screened",
+          "to": "excluded"
+        },
+        {
+          "from": "screened",
+          "to": "sought"
+        },
+        {
+          "from": "sought",
+          "to": "missing"
+        },
+        {
+          "from": "sought",
+          "to": "assessed"
+        },
+        {
+          "from": "assessed",
+          "to": "reasons"
+        },
+        {
+          "from": "assessed",
+          "to": "studies"
+        }
+      ],
+      "mainPath": [
+        "databases",
+        "duplicates",
+        "screened",
+        "sought",
+        "assessed",
+        "studies"
+      ],
+      "groups": [
+        {
+          "label": "Identification",
+          "nodes": [
+            "databases",
+            "registers",
+            "duplicates"
+          ]
+        },
+        {
+          "label": "Screening",
+          "nodes": [
+            "screened",
+            "excluded",
+            "sought",
+            "missing",
+            "assessed",
+            "reasons"
+          ]
+        },
+        {
+          "label": "Included",
+          "nodes": [
+            "studies"
+          ]
+        }
+      ]
+    }
+  },
+  instances: {
+    "schemaVersion": 1,
+    "type": "flow",
+    "title": "Instanzenzug in Zivilsachen",
+    "width": 760,
+    "height": 640,
+    "locale": "de",
+    "flow": {
+      "nodes": [
+        {
+          "id": "ag",
+          "label": "Amtsgericht",
+          "sublabel": "Streitwert bis 5.000 €",
+          "kind": "start"
+        },
+        {
+          "id": "lg1",
+          "label": "Landgericht",
+          "sublabel": "Streitwert über 5.000 €",
+          "kind": "start"
+        },
+        {
+          "id": "lg2",
+          "label": "Landgericht",
+          "sublabel": "Berufung"
+        },
+        {
+          "id": "olg1",
+          "label": "Oberlandesgericht",
+          "sublabel": "Berufung"
+        },
+        {
+          "id": "bgh",
+          "label": "Bundesgerichtshof",
+          "sublabel": "Revision",
+          "kind": "end"
+        }
+      ],
+      "edges": [
+        {
+          "from": "ag",
+          "to": "lg2",
+          "label": "Berufung"
+        },
+        {
+          "from": "lg1",
+          "to": "olg1",
+          "label": "Berufung"
+        },
+        {
+          "from": "lg2",
+          "to": "bgh",
+          "label": "Revision, wenn zugelassen"
+        },
+        {
+          "from": "olg1",
+          "to": "bgh",
+          "label": "Revision, wenn zugelassen"
+        }
+      ]
+    }
   },
 };
 
@@ -204,6 +408,14 @@ const NOTES = {
   violin: [
     'boxDisplay "violin" draws the density with the box inside; "strip" draws every observation as a point. Both need values on every box (values_required).',
     "Every violin is as wide as the others at its widest, so compare shapes, not areas.",
+  ],
+  prisma: [
+    "A flow chart used as a PRISMA 2020 / CONSORT flow: counts go in the sublabels, every exclusion is an external (dashed) step beside the main path, the phases are groups, mainPath names the steps that lead to the included studies.",
+    "Give the edges no label unless a condition needs one; reasons for exclusion fit best in the external step's sublabel or in the source line.",
+  ],
+  instances: [
+    'A flow chart used as a chain of courts or authorities: start steps are the courts of first instance, edges name the remedy (appeal, revision) and its condition. "locale": "de" writes the generated texts in German.',
+    "Keep sublabels short: they are shortened to the width of the step.",
   ],
 };
 

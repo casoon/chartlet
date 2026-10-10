@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Instanzenzug in Zivilsachen",
+  "source": "Vereinfacht, Deutschland",
+  "locale": "de",
+  "width": 760,
+  "height": 640,
+  "flow": {
+    "nodes": [
+      {
+        "id": "ag",
+        "label": "Amtsgericht",
+        "sublabel": "Streitwert bis 5.000 €",
+        "kind": "start"
+      },
+      {
+        "id": "lg1",
+        "label": "Landgericht",
+        "sublabel": "Streitwert über 5.000 €",
+        "kind": "start"
+      },
+      {
+        "id": "lg2",
+        "label": "Landgericht",
+        "sublabel": "Berufung"
+      },
+      {
+        "id": "olg1",
+        "label": "Oberlandesgericht",
+        "sublabel": "Berufung"
+      },
+      {
+        "id": "bgh",
+        "label": "Bundesgerichtshof",
+        "sublabel": "Revision",
+        "kind": "end"
+      }
+    ],
+    "edges": [
+      {
+        "from": "ag",
+        "to": "lg2",
+        "label": "Berufung"
+      },
+      {
+        "from": "lg1",
+        "to": "olg1",
+        "label": "Berufung"
+      },
+      {
+        "from": "lg2",
+        "to": "bgh",
+        "label": "Revision, wenn zugelassen"
+      },
+      {
+        "from": "olg1",
+        "to": "bgh",
+        "label": "Revision, wenn zugelassen"
+      }
+    ]
+  },
+  "mobile": {
+    "width": 440,
+    "height": 720
+  }
+}

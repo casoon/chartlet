@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 48] = [
+const EXAMPLES: [(&str, &str, &str); 50] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -242,10 +242,20 @@ const EXAMPLES: [(&str, &str, &str); 48] = [
         include_str!("../examples/gene-expression.json"),
         include_str!("../examples/gene-expression.svg"),
     ),
+    (
+        "study-selection",
+        include_str!("../examples/study-selection.json"),
+        include_str!("../examples/study-selection.svg"),
+    ),
+    (
+        "court-instances",
+        include_str!("../examples/court-instances.json"),
+        include_str!("../examples/court-instances.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 17] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 19] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -330,6 +340,16 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 17] = [
         "gene-expression",
         include_str!("../examples/gene-expression.json"),
         include_str!("../examples/gene-expression.mobile.svg"),
+    ),
+    (
+        "study-selection",
+        include_str!("../examples/study-selection.json"),
+        include_str!("../examples/study-selection.mobile.svg"),
+    ),
+    (
+        "court-instances",
+        include_str!("../examples/court-instances.json"),
+        include_str!("../examples/court-instances.mobile.svg"),
     ),
 ];
 
