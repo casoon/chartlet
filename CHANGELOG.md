@@ -6,6 +6,8 @@ does.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-10
+
 ### Added
 
 - Line charts of one series take error bars: `lower` and `upper` on every `data` point draw a stroke through each point; tooltip, description and table give the interval as on a bar chart. Example `monthly-satisfaction`, with a phone variant.

@@ -183,3 +183,10 @@ test("suggests the block types by the shape of the table", () => {
     end: "end",
   });
 });
+
+test("suggests error bars for a category with a value and its interval", () => {
+  const summary = inspectData({ csv: "month,mean,lower,upper\nJan,3,2.5,3.5\nFeb,4,3.5,4.5\n" });
+  const bars = summary.suggestions.find(({ columns }) => columns.lower);
+  assert.deepEqual(bars.columns, { label: "month", value: "mean", lower: "lower", upper: "upper" });
+  assert.match(bars.reason, /error bar/);
+});

@@ -336,6 +336,13 @@ function suggest(rowCount, columns) {
         reason: `Category column ${label.name} with low and high columns${mid ? " and mid" : ""}: one span per category.${rowCount > 100 ? " More than 100 rows: a rangebar holds at most 100 spans." : ""}${repeat}`,
       });
     }
+    if (lower && upper && plain.length > 0 && times.length === 0) {
+      suggestions.push({
+        type: "bar",
+        columns: { label: label.name, value: plain[0].name, lower: lower.name, upper: upper.name },
+        reason: `Category column ${label.name}, value column ${plain[0].name} and lower/upper columns: bars with an error bar through each end, or a line chart with error bars through each point ("type": "line"). Every row needs a lower and an upper around its value.${repeat}`,
+      });
+    }
     if (plain.length > 0 && times.length === 0) {
       const series = plain.slice(0, 4);
       suggestions.push({

@@ -8,11 +8,11 @@ chartlet compiles a small JSON specification into a finished, accessible chart o
 diagram at build time: plain SVG, or an HTML figure with caption, source and data table. Nothing runs in the
 browser – no chart JavaScript, no hydration, no layout shift.
 
-**Status:** 0.12. Bar charts (single, grouped and colored by group, vertical and horizontal), categorical
+**Status:** 0.13. Bar charts (single, grouped and colored by group, vertical and horizontal), categorical
 line charts, time series with uncertainty bands and reference lines, small multiples (of time series and of bars), warming
 stripes, calendar heatmaps, range bars, box plots, waterfalls, waffle and parliament charts, treemaps, Sankey diagrams, Kaplan-Meier curves, scatter plots and timelines are supported, plus two map-like types
 (topic map and knowledge landscape, both experimental), and sequence, flow, state, architecture and
-tree diagrams that chartlet lays out itself (flow and state are experimental). Until 1.0, a minor release (0.12, 0.13, …) may still change
+tree diagrams that chartlet lays out itself (flow and state are experimental). Until 1.0, a minor release (0.13, 0.14, …) may still change
 the specification; a patch release never does.
 
 ## Principles

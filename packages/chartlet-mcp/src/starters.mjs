@@ -384,18 +384,22 @@ const NOTES = {
   treemap: [
     "Up to 100 items with unique labels and values above zero; group goes on every item or on none, up to four groups.",
     "Rectangles too small for a name leave it out (value_labels_omitted); the table lists every item.",
+    "An item may have children instead of a value, nested up to three levels: it is drawn as a frame around its parts and colors come from the item at the top (no group then; value_with_children, group_with_children, too_deep).",
   ],
   sankey: [
     "Nodes are the labels the links name. A link joins two different nodes, once per pair, with a value above zero; links must not run in a circle.",
     "Columns follow the longest path; flows need not balance, a node is as tall as the larger of in and out.",
+    'To pin nodes, list them in nodes with a column (from 0) and a palette color (1-4); "order": "listed" keeps the nodes of a column in the listed order instead of sorting them to cross few bands (column_too_early if links lead past the column).',
   ],
   survival: [
     "Every observation has a time (zero or more) and event (default true); event false is censored and marked on the curve.",
     "Up to four groups, 2–2000 observations each. confidence draws the 95% band, atRisk (default true) the number at risk under the axis.",
+    "logRank true tests whether the groups differ (Mantel-Cox, two or more groups) and writes p in the plot and the statistic in the description.",
   ],
   scatter: [
     "Up to 5000 points; group on every point or none (up to four, the first point of each fixes its color). lines are thresholds at a value of x or y.",
     "Above 300 points the dots are small without tooltips; above 100 the table lists only labeled points, or the 20 highest. Label the points that matter.",
+    'regression true draws the least-squares line for each group (slope, intercept and r² in the description); xScale and yScale "log" need values above zero and fit the regression to the logarithms.',
   ],
   timeline: [
     "An item is a phase (start and end) or a milestone (at); after names ids it follows; markers are dashed days such as today.",

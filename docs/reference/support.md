@@ -4,7 +4,7 @@ description: What has been verified, what is designed but not yet tested, and wh
 order: 4
 ---
 
-chartlet is at 0.12; screen reader and user testing are still pending. Statuses: **Verified**, **Experimental** (works, but may change between minor releases), **Designed, not yet verified**, **Planned**,
+chartlet is at 0.13; screen reader and user testing are still pending. Statuses: **Verified**, **Experimental** (works, but may change between minor releases), **Designed, not yet verified**, **Planned**,
 **Not supported**.
 
 ## Embedding
@@ -80,6 +80,8 @@ chartlet is at 0.12; screen reader and user testing are still pending. Statuses:
 | Waffle charts | Verified | Since 0.12: apportioning of the squares (largest remainder, one square at least), the rest of a total, legend beside or below; unit tests of the squares, text and validation, and golden-file tests including the phone variant. |
 | Scatter plots | Verified | Since 0.12: groups, threshold lines, collision-free names, small dots and a limited table for many points; unit tests of the text, the table limit and validation, and golden-file tests including the phone variant. |
 | Survival curves | Verified | Since 0.12: Kaplan-Meier estimate with Greenwood confidence limits, censoring marks, number at risk; unit tests of the estimate, text and validation, and golden-file tests including the phone variant. |
+| Regression, log axes, log-rank test, pinned Sankey nodes, nested treemaps, error bars on lines | Verified | Since 0.13: least squares on the logarithms for log axes, the Mantel-Cox test checked against an independent implementation, `column_too_early`, nested frames, line error bars; unit tests of each and golden-file tests including the phone variants. |
+| Flow presets (PRISMA, Instanzenzug) | Experimental | Since 0.13: examples on the flow chart, which is itself experimental. |
 | Violins and strips | Verified | Since 0.12: kernel density with Silverman's bandwidth, fixed jitter; unit tests of both displays and validation, and golden-file tests including the phone variant. |
 | Sankey diagrams | Verified | Since 0.12: columns by the longest path, barycenter ordering, bands with eased edges; unit tests of the text and validation, and golden-file tests including the phone variant. |
 | Treemaps | Verified | Since 0.12: squarified rectangles with groups, labels where they fit, legend; unit tests of the layout text and validation, and golden-file tests including the phone variant. |
