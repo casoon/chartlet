@@ -1665,6 +1665,22 @@ pub(crate) fn survival_test(locale: Locale, (chi, degrees): (&str, usize), p: &s
     }
 }
 
+/// The hazard ratio of two groups with its 95 % limits.
+pub(crate) fn survival_hazard(
+    locale: Locale,
+    (group, reference): (&str, &str),
+    (ratio, lower, upper): (&str, &str, &str),
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "Hazard ratio of {group} against {reference}: {ratio} (95% confidence interval {lower} to {upper})."
+        ),
+        Locale::De => format!(
+            "Hazard Ratio von {group} gegenüber {reference}: {ratio} (95-%-Konfidenzintervall {lower} bis {upper})."
+        ),
+    }
+}
+
 /// What Kaplan-Meier curves show: how many groups, whether bands are drawn, and each group.
 pub(crate) fn survival_summary(
     locale: Locale,

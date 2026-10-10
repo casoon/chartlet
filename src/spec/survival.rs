@@ -192,6 +192,9 @@ pub(crate) struct LogRank {
     pub chi_squared: f64,
     pub degrees: usize,
     pub p: f64,
+    /// For two groups: the hazard ratio of the second against the first, with its 95 % limits
+    /// (the Peto one-step estimate from the observed minus expected events).
+    pub hazard: Option<[f64; 3]>,
 }
 
 impl SurvivalSpec {
@@ -251,10 +254,21 @@ impl SurvivalSpec {
         }
         let degrees = k - 1;
         let chi_squared = quadratic(&variance, &gap, degrees)?;
+        // The second group's observed minus expected events is the negative of the first's.
+        let hazard = (k == 2 && variance[0][0] > 0.0).then(|| {
+            let log_ratio = -gap[0] / variance[0][0];
+            let error = 1.0 / variance[0][0].sqrt();
+            [
+                log_ratio.exp(),
+                (log_ratio - Z * error).exp(),
+                (log_ratio + Z * error).exp(),
+            ]
+        });
         Some(LogRank {
             chi_squared,
             degrees,
             p: chi_squared_tail(chi_squared, degrees),
+            hazard,
         })
     }
 }

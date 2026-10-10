@@ -476,7 +476,9 @@ without the event, from the observed times.
   on the log-log scale, so that it stays between 0 % and 100 %.
 - **Log-rank test.** `"logRank": true` tests whether the groups' curves differ (Mantel-Cox, with
   the chi-squared distribution of groups − 1 degrees of freedom) and writes `Log-rank p = 0.013`
-  in the plot and the statistic in the description. It needs two or more groups
+  in the plot and the statistic in the description. With exactly two groups the description adds
+  the hazard ratio of the second group against the first with its 95 % interval (the one-step
+  estimate from observed and expected events). It needs two or more groups
   (`log_rank_needs_groups`).
 - **Number at risk.** Under the time axis, on by default (`"atRisk": false` leaves it out): how
   many observations reach each tick of the axis or beyond, for every group.

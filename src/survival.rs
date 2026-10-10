@@ -419,6 +419,23 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             (&chi, test.degrees),
             &p_text(spec, test.p),
         ));
+        if let Some([ratio, lower, upper]) = test.hazard {
+            let number = |value: f64| {
+                format_value(
+                    value,
+                    NumberStyle {
+                        decimals: Some(2),
+                        ..spec.number_style()
+                    },
+                )
+            };
+            groups.push(' ');
+            groups.push_str(&text::survival_hazard(
+                spec.locale,
+                (&survival.groups[1].label, &survival.groups[0].label),
+                (&number(ratio), &number(lower), &number(upper)),
+            ));
+        }
     }
     text::survival_summary(
         spec.locale,

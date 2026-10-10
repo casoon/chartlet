@@ -4685,6 +4685,12 @@ mod tests {
             "{html}"
         );
         assert!(html.contains("Log-rank p = 0.908"));
+        assert!(
+            html.contains(
+                "Hazard ratio of B against A: 0.91 (95% confidence interval 0.18 to 4.62)."
+            ),
+            "{html}"
+        );
         let three = two.replace(
             r#"{"label": "B","#,
             r#"{"label": "C", "observations": [{"time": 1}, {"time": 5}, {"time": 5, "event": false}, {"time": 11}, {"time": 12}]},
@@ -4694,6 +4700,10 @@ mod tests {
             .unwrap()
             .content;
         assert!(html.contains("2 degrees of freedom, p = 0.575"), "{html}");
+        assert!(
+            !html.contains("Hazard ratio"),
+            "three groups have no single ratio"
+        );
         let one = r#"{"schemaVersion": 1, "type": "survival", "title": "T", "survival": {"logRank": true, "groups": [{"label": "A", "observations": [{"time": 1}, {"time": 2}]}]}}"#;
         let error = render_json(one, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
         assert_eq!(
