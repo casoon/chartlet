@@ -83,6 +83,7 @@ for (const figure of document.querySelectorAll('figure.chartlet-figure')) {
 </Base>
 
 <script>
+  // The page's own script: the site check allows it with `--allow-script interactive/`.
   import { crosshair, enhance, play, steps, toggle } from '@casoon/chartlet/interactive';
 
   const features = { crosshair, toggle, steps, play };
