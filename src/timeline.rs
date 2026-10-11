@@ -369,6 +369,43 @@ impl Frame<'_> {
         }
     }
 
+    /// Where the arrow from item `before` to item `after` runs across the rows between them: just
+    /// after the item it leaves if no bar or diamond of those rows stands there, else the nearest
+    /// place before the item it reaches or beside a bar, else, with no free place, just after the
+    /// item it leaves.
+    fn free_turn(&self, before: usize, after: usize, (out, into): (f64, f64)) -> f64 {
+        let first_choice = out + TURN;
+        let (low, high) = (out + TURN, into - TURN);
+        let (top, bottom) = (
+            self.rows[before].min(self.rows[after]),
+            self.rows[before].max(self.rows[after]),
+        );
+        let zone = self.timeline.zone();
+        let blocked: Vec<(f64, f64)> = self
+            .timeline
+            .items
+            .iter()
+            .enumerate()
+            .filter(|(item, _)| (top + 1..bottom).contains(&self.rows[*item]))
+            .map(|(_, item)| match item.span(zone) {
+                Span::Phase { start, end } => (self.x(start) - 3.0, self.x(end) + 3.0),
+                Span::Milestone { at } => (self.x(at) - DIAMOND - 3.0, self.x(at) + DIAMOND + 3.0),
+            })
+            .collect();
+        let free = |x: f64| blocked.iter().all(|(from, to)| x < *from || x > *to);
+        if high < low || free(first_choice) {
+            return first_choice;
+        }
+        let mut candidates: Vec<f64> = blocked
+            .iter()
+            .flat_map(|(from, to)| [*from - 3.0, *to + 3.0])
+            .chain(std::iter::once(high))
+            .filter(|x| (low..=high).contains(x) && free(*x))
+            .collect();
+        candidates.sort_by(f64::total_cmp);
+        candidates.first().copied().unwrap_or(first_choice)
+    }
+
     /// An arrow from every item to each item that follows it.
     fn push_arrows(&self, elements: &mut Vec<Element>) {
         for (index, item) in self.timeline.items.iter().enumerate() {
@@ -383,10 +420,12 @@ impl Frame<'_> {
                     Span::Milestone { at } => self.x(at) - DIAMOND,
                     Span::Phase { start, .. } => self.x(start),
                 };
+                let turn = self.free_turn(before, index, (out, into));
                 push_arrow(
                     elements,
                     (out, self.center(before)),
                     (into, self.center(index)),
+                    turn,
                 );
             }
         }
@@ -415,9 +454,8 @@ impl Frame<'_> {
         for (index, item) in self.timeline.items.iter().enumerate() {
             let y = self.center(index);
             let span = item.span(self.timeline.zone());
-            let done = item
-                .progress
-                .map(|progress| text::percent_done(self.spec.locale, progress));
+            let progress = self.timeline.progress(index);
+            let done = progress.map(|progress| text::percent_done(self.spec.locale, progress));
             let tooltip = Some(format!(
                 "{}: {}{}",
                 item.label,
@@ -438,7 +476,7 @@ impl Frame<'_> {
                         style_index: None,
                         tooltip,
                     }));
-                    if let Some(progress) = item.progress.filter(|progress| *progress > 0.0) {
+                    if let Some(progress) = progress.filter(|progress| *progress > 0.0) {
                         elements.push(Element::Rect(Rect {
                             x: x1,
                             y: y - BAR / 2.0,
@@ -532,12 +570,12 @@ const fn whole(value: f64) -> u64 {
 
 /// The arrow from where an item ends to where the next one starts: out to the right, across to
 /// the row of the next item and in to its start.
-fn push_arrow(elements: &mut Vec<Element>, from: (f64, f64), to: (f64, f64)) {
+fn push_arrow(elements: &mut Vec<Element>, from: (f64, f64), to: (f64, f64), turn: f64) {
     let points = if to.0 >= from.0 + 2.0 * TURN {
         vec![
             from,
-            (from.0 + TURN, from.1),
-            (from.0 + TURN, to.1),
+            (turn, from.1),
+            (turn, to.1),
             (to.0 - diagram::HEAD, to.1),
         ]
     } else {
@@ -649,7 +687,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             &write_day(spec, last, with_time),
         ),
     );
-    for item in &timeline.items {
+    for (index, item) in timeline.items.iter().enumerate() {
         let follows: Vec<&str> = item
             .after
             .iter()
@@ -666,7 +704,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             &days(spec, item.span(timeline.zone()), with_time),
             &follows,
         ));
-        if let Some(progress) = item.progress {
+        if let Some(progress) = timeline.progress(index) {
             write!(
                 description,
                 " {}: {}.",
@@ -713,14 +751,15 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     if followed {
         columns.push(words.follows.to_owned());
     }
-    let progressed = timeline.items.iter().any(|item| item.progress.is_some());
+    let progressed = (0..timeline.items.len()).any(|index| timeline.progress(index).is_some());
     if progressed {
         columns.push(words.progress.to_owned());
     }
     let rows = timeline
         .items
         .iter()
-        .map(|item| {
+        .enumerate()
+        .map(|(index, item)| {
             let span = item.span(timeline.zone());
             let (kind, begin, finish) = match span {
                 Span::Phase { start, end } => (
@@ -752,7 +791,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 );
             }
             if progressed {
-                row.push(item.progress.map_or(String::new(), |progress| {
+                row.push(timeline.progress(index).map_or(String::new(), |progress| {
                     text::percent_done(spec.locale, progress)
                 }));
             }

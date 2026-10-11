@@ -4417,6 +4417,103 @@ mod tests {
     }
 
     #[test]
+    fn a_summary_phase_shows_the_progress_of_the_phases_it_sums_up() {
+        // Two weeks done, two weeks half done: (14 * 1 + 14 * 0.5) / 28 = 75 %.
+        let spec = r#"{"schemaVersion": 1, "type": "timeline", "title": "Plan", "width": 800, "height": 300,
+            "timeline": {"items": [
+                {"id": "all", "label": "All", "start": "2027-01-04", "end": "2027-02-01", "rollup": ["a", "b"]},
+                {"id": "a", "label": "A", "start": "2027-01-04", "end": "2027-01-18", "progress": 1},
+                {"id": "b", "label": "B", "start": "2027-01-18", "end": "2027-02-01", "progress": 0.5}
+            ]}}"#;
+        let output = render_ok(spec);
+        assert!(
+            output.content.contains("All: 75% done."),
+            "{}",
+            output.content
+        );
+        for (from, to, code, path) in [
+            (
+                r#""rollup": ["a", "b"]"#,
+                r#""rollup": ["a", "x"]"#,
+                "unknown_node",
+                "/timeline/items/0/rollup/1",
+            ),
+            (
+                r#""rollup": ["a", "b"]"#,
+                r#""rollup": ["a", "all"]"#,
+                "invalid_rollup",
+                "/timeline/items/0/rollup/1",
+            ),
+            (
+                r#""rollup": ["a", "b"]"#,
+                r#""rollup": ["a"], "progress": 0.2"#,
+                "conflicting_progress",
+                "/timeline/items/0/rollup",
+            ),
+        ] {
+            let error = render_json(
+                &spec.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+    }
+
+    #[test]
+    fn an_arrow_turns_where_no_bar_of_the_rows_between_stands_in_the_way() {
+        // A ends where B (the row between) begins, so the usual turn just after A would run
+        // through B's first days; the arrow from A to C must turn elsewhere.
+        let spec = r#"{"schemaVersion": 1, "type": "timeline", "title": "Plan", "width": 800, "height": 300,
+            "timeline": {"items": [
+                {"id": "a", "label": "A", "start": "2027-01-04", "end": "2027-01-11"},
+                {"id": "b", "label": "B", "start": "2027-01-09", "end": "2027-01-25"},
+                {"id": "c", "label": "C", "start": "2027-02-01", "end": "2027-02-08", "after": ["a"]}
+            ]}}"#;
+        let svg = render_ok(spec).content;
+        let number = |text: &str, key: &str| -> f64 {
+            text.split(key)
+                .nth(1)
+                .unwrap()
+                .split('"')
+                .next()
+                .unwrap()
+                .parse()
+                .unwrap()
+        };
+        let bar = svg.split("<title>B:").next().unwrap();
+        let rect = &bar[bar.rfind("<rect").unwrap()..];
+        let (left, width) = (number(rect, " x=\""), number(rect, "width=\""));
+        let link = svg
+            .split("\" class=\"chartlet-timeline-link\"")
+            .next()
+            .unwrap();
+        let points = &link[link.rfind("points=\"").unwrap() + 8..];
+        let points: Vec<(f64, f64)> = points
+            .split('"')
+            .next()
+            .unwrap()
+            .split(' ')
+            .map(|pair| {
+                let (x, y) = pair.split_once(',').unwrap();
+                (x.parse().unwrap(), y.parse().unwrap())
+            })
+            .collect();
+        // Every part of the arrow that runs up or down stays clear of B's bar.
+        for pair in points.windows(2) {
+            if (pair[0].0 - pair[1].0).abs() < 0.01 && (pair[0].1 - pair[1].1).abs() > 1.0 {
+                assert!(
+                    pair[0].0 < left || pair[0].0 > left + width,
+                    "vertical at {} inside {left}..{}",
+                    pair[0].0,
+                    left + width
+                );
+            }
+        }
+    }
+
+    #[test]
     fn a_timeline_reads_and_writes_its_days_in_a_zone() {
         // 1798761600 is 2027-01-01 00:00 UTC, which is 02:00 at +02:00.
         let spec = r#"{"schemaVersion": 1, "type": "timeline", "title": "Plan", "width": 800, "height": 300,

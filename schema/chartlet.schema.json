@@ -1222,7 +1222,8 @@
               "at": { "$ref": "#/$defs/timeValue" },
               "group": { "type": "string", "minLength": 1, "maxLength": 60 },
               "after": { "type": "array", "items": { "$ref": "#/$defs/identifier" } },
-              "progress": { "type": "number", "minimum": 0, "maximum": 1, "description": "How much of a phase is done: that share of its bar is drawn darker." }
+              "progress": { "type": "number", "minimum": 0, "maximum": 1, "description": "How much of a phase is done: that share of its bar is drawn darker." },
+              "rollup": { "type": "array", "items": { "$ref": "#/$defs/identifier" }, "description": "The ids of the phases this phase sums up: its progress is theirs, each weighted by its length. Instead of progress." }
             }
           }
         },

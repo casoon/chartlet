@@ -282,9 +282,14 @@ a Gantt chart, a roadmap, the course of a procedure with its deadlines.
 - **Progress.** `progress` (0 to 1) on a phase draws that share of its bar darker, adds it to the
   tooltip, the description and a Progress column of the table (`progress_on_milestone` for a
   milestone, `invalid_value` outside 0 to 1).
+- **Summary phases.** `rollup` on a phase names the ids of the phases it sums up (`unknown_node`,
+  `invalid_rollup` for a milestone, itself or another summary): its progress is theirs, each
+  weighted by its length, a phase without progress counting as not begun. It replaces `progress`
+  (`conflicting_progress`).
 - **Markers** are dashed lines across all rows with their label on top: today, a deadline.
 - **Arrows.** `after` names the `id`s of the items an item follows; an arrow runs from the end of
-  each to the start of the item, below the bars. Following in a circle is an error
+  each to the start of the item, below the bars, and turns where no bar or diamond of the rows
+  between them stands: just after the item it leaves, else beside the bars in the way. Following in a circle is an error
   (`circular_dependency`); an item that starts before the one it follows ends is a warning,
   `follows_overlap`, and its arrow runs round the long way.
 - **Size.** Every item takes a row of 30 pixels; a canvas that is too low grows and says so with

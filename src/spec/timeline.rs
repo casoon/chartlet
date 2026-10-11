@@ -56,6 +56,10 @@ pub struct TimelineItemSpec {
     /// How much of a phase is done, from 0 to 1: that share of its bar is drawn darker.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub progress: Option<f64>,
+    /// The `id`s of the phases this one sums up: its progress is that of those phases, each
+    /// weighted by its length. Instead of `progress`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rollup: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,6 +156,29 @@ impl TimelineSpec {
             rows[item] = row;
         }
         rows
+    }
+
+    /// How much of item `index` is done: its own `progress`, or for a summary phase the progress
+    /// of the phases it sums up, weighted by their lengths (a phase without progress counts as
+    /// not begun); `None` for an item that has neither.
+    pub(crate) fn progress(&self, index: usize) -> Option<f64> {
+        let item = &self.items[index];
+        if item.rollup.is_empty() {
+            return item.progress;
+        }
+        let zone = self.zone();
+        let (mut done, mut length) = (0.0, 0.0);
+        for id in &item.rollup {
+            let part = &self.items[self.item(id)?];
+            let Span::Phase { start, end } = part.span(zone) else {
+                continue;
+            };
+            #[allow(clippy::cast_precision_loss)]
+            let seconds = (end - start).max(1) as f64;
+            done += seconds * part.progress.unwrap_or(0.0);
+            length += seconds;
+        }
+        (length > 0.0).then(|| done / length)
     }
 
     /// The groups in the order they first appear.
@@ -285,7 +312,7 @@ impl TimelineSpec {
                     ));
                 }
             }
-            validate_progress(item, &path, at.is_some())?;
+            self.validate_progress_of(index, &path, at.is_some())?;
             match (&item.group, grouped) {
                 (Some(group), _) => {
                     validate_text(group, &format!("{path}/group"), 60)?;
@@ -419,4 +446,58 @@ fn validate_progress(
         ));
     }
     Ok(())
+}
+
+impl TimelineSpec {
+    /// The progress of item `index`, or what it sums up, on a phase only.
+    fn validate_progress_of(
+        &self,
+        index: usize,
+        path: &str,
+        milestone: bool,
+    ) -> Result<(), ChartError> {
+        validate_progress(&self.items[index], path, milestone)?;
+        self.validate_rollup(index, path)
+    }
+
+    /// A summary phase names phases, not milestones or other summaries, and has no progress of
+    /// its own.
+    fn validate_rollup(&self, index: usize, path: &str) -> Result<(), ChartError> {
+        let item = &self.items[index];
+        if item.rollup.is_empty() {
+            return Ok(());
+        }
+        if item.progress.is_some() {
+            return Err(ChartError::new(
+                "conflicting_progress",
+                format!("{path}/rollup"),
+                "give a phase either progress or rollup, not both",
+            ));
+        }
+        if item.at.is_some() {
+            return Err(ChartError::new(
+                "progress_on_milestone",
+                format!("{path}/rollup"),
+                "only a phase can sum up phases",
+            ));
+        }
+        for (at, id) in item.rollup.iter().enumerate() {
+            let Some(part) = self.item(id) else {
+                return Err(ChartError::new(
+                    "unknown_node",
+                    format!("{path}/rollup/{at}"),
+                    format!("no item has the id \"{id}\""),
+                ));
+            };
+            if part == index || self.items[part].at.is_some() || !self.items[part].rollup.is_empty()
+            {
+                return Err(ChartError::new(
+                    "invalid_rollup",
+                    format!("{path}/rollup/{at}"),
+                    "a summary names phases that do not sum up others, not itself or a milestone",
+                ));
+            }
+        }
+        Ok(())
+    }
 }

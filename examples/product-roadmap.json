@@ -8,6 +8,7 @@
   "showValues": true,
   "timeline": {
     "items": [
+      { "id": "discovery", "label": "Discovery", "start": "2027-01-11", "end": "2027-04-02", "group": "Discovery", "rollup": ["research", "design"] },
       { "id": "research", "label": "User research", "start": "2027-01-11", "end": "2027-02-19", "group": "Discovery", "progress": 1 },
       { "id": "design", "label": "Design", "start": "2027-02-22", "end": "2027-04-02", "group": "Discovery", "after": ["research"], "progress": 0.35 },
       { "id": "alpha", "label": "Alpha build", "start": "2027-04-05", "end": "2027-06-11", "group": "Build", "after": ["design"] },
