@@ -4415,6 +4415,35 @@ mod tests {
     }
 
     #[test]
+    fn a_timeline_can_shade_its_weekends() {
+        // 2027-01-04 is a Monday: the days to 2027-01-18 hold two weekends.
+        let spec = r#"{"schemaVersion": 1, "type": "timeline", "title": "Plan", "width": 800, "height": 300,
+            "timeline": {"weekends": true, "items": [{"label": "One", "start": "2027-01-04", "end": "2027-01-18"}]}}"#;
+        let output = render_ok(spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let shaded = output
+            .content
+            .matches("class=\"chartlet-timeline-weekend\"")
+            .count();
+        assert!((4..=6).contains(&shaded), "{shaded} weekend days");
+        let long = spec.replace("2027-01-18", "2027-09-18");
+        let output = render_ok(&long);
+        assert_eq!(
+            output
+                .content
+                .matches("chartlet-timeline-weekend\"")
+                .count(),
+            0
+        );
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "weekends_hidden")
+        );
+    }
+
+    #[test]
     fn box_plots_color_their_boxes_by_group() {
         let spec = r#"{"schemaVersion": 1, "type": "boxplot", "title": "T",
             "boxes": [

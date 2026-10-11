@@ -23,6 +23,9 @@ pub struct TimelineSpec {
     /// the order of `items`. Needs groups.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub group_rows: bool,
+    /// Shades Saturdays and Sundays behind the rows, while the axis spans at most 120 days.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub weekends: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

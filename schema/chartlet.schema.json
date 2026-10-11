@@ -1174,7 +1174,8 @@
             }
           }
         },
-        "groupRows": { "type": "boolean", "default": false, "description": "Put the rows of one group together, in the order the groups first appear. Needs groups." }
+        "groupRows": { "type": "boolean", "default": false, "description": "Put the rows of one group together, in the order the groups first appear. Needs groups." },
+        "weekends": { "type": "boolean", "default": false, "description": "Shade Saturdays and Sundays behind the rows while the axis spans at most 120 days; a longer axis warns (weekends_hidden)." }
       }
     },
     "tree": {

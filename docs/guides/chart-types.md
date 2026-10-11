@@ -265,6 +265,9 @@ a Gantt chart, a roadmap, the course of a procedure with its deadlines.
 - **Group rows.** `"groupRows": true` puts the rows of one group together, in the order the groups
   first appear, instead of in the order of `items` (it needs groups); the description and the
   table keep the listed order.
+- **Weekends.** `"weekends": true` shades Saturdays and Sundays (UTC) as pale columns behind the
+  rows while the axis spans at most 120 days; on a longer axis they would be slivers, so they are
+  left out and `weekends_hidden` says so.
 - **Progress.** `progress` (0 to 1) on a phase draws that share of its bar darker, adds it to the
   tooltip, the description and a Progress column of the table (`progress_on_milestone` for a
   milestone, `invalid_value` outside 0 to 1).

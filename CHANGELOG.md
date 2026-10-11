@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Timelines: `"weekends": true` shades Saturdays and Sundays behind the rows while the axis spans at most 120 days; a longer axis warns with `weekends_hidden`.
 - Box plots: `group` on every box colors the boxes of a group alike (up to four) with a legend and adds a Group column to the table; it works for boxes, violins and strips. Example `latency-by-region`, with a phone variant.
 
 ## [0.14.0] - 2026-10-10

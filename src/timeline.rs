@@ -111,6 +111,10 @@ struct Frame<'a> {
     rows: Vec<usize>,
 }
 
+/// The longest axis, in seconds, whose weekends are shaded: 120 days.
+const MAX_WEEKEND_SPAN: i64 = 120 * DAY;
+const DAY: i64 = 86_400;
+
 /// Seconds as a number to place things by; a timeline spans far less than 2^52 of them.
 #[allow(clippy::cast_precision_loss)]
 const fn seconds(value: i64) -> f64 {
@@ -208,6 +212,7 @@ pub(crate) fn layout(
     };
     let height = f64::from(spec.height).max(top + frame.plot_height() + 46.0);
     warn_growth(spec, width, height, warnings);
+    frame.push_weekends(&mut elements, warnings);
     frame.push_axis(&mut elements, metrics);
     frame.push_markers(&mut elements, warnings, metrics);
     // Arrows go below the items, so that a bar stays whole where an arrow reaches it.
@@ -247,6 +252,42 @@ fn axis_span(timeline: &TimelineSpec) -> (i64, i64) {
 
 impl Frame<'_> {
     /// Gridlines and the labels of the axis.
+    /// Saturdays and Sundays as pale columns behind everything else; with a longer axis they
+    /// would be slivers, so they are left out and a warning says so.
+    fn push_weekends(&self, elements: &mut Vec<Element>, warnings: &mut Vec<ChartWarning>) {
+        if !self.timeline.weekends {
+            return;
+        }
+        if self.last - self.first > MAX_WEEKEND_SPAN {
+            warnings.push(ChartWarning::new(
+                "weekends_hidden",
+                "/timeline/weekends",
+                "the axis spans more than 120 days, so weekends are not shaded",
+            ));
+            return;
+        }
+        let first_day = self.first.div_euclid(DAY);
+        let last_day = self.last.div_euclid(DAY);
+        for day in first_day..=last_day {
+            // 1970-01-01 was a Thursday: 0 is Sunday, 6 Saturday.
+            if !matches!((day + 4).rem_euclid(7), 0 | 6) {
+                continue;
+            }
+            let from = self.x((day * DAY).max(self.first));
+            let to = self.x(((day + 1) * DAY).min(self.last));
+            elements.push(Element::Rect(Rect {
+                x: from,
+                y: self.top,
+                width: (to - from).max(0.0),
+                height: self.plot_height(),
+                class: "chartlet-timeline-weekend",
+                series_index: None,
+                style_index: None,
+                tooltip: None,
+            }));
+        }
+    }
+
     fn push_axis(&self, elements: &mut Vec<Element>, _metrics: &impl TextMetrics) {
         let ticks = (self.plot_width / 64.0).max(2.0).floor();
         let max_ticks = usize::try_from(whole(ticks)).expect("small");
