@@ -5112,6 +5112,42 @@ mod tests {
     }
 
     #[test]
+    fn a_sankey_diagram_draws_a_flow_back_as_a_loop() {
+        let spec = SANKEY.replace(
+            r#"{"from": "Mid", "to": "Y", "value": 15}"#,
+            r#"{"from": "Mid", "to": "Y", "value": 15}, {"from": "Y", "to": "A", "value": 5, "back": true}"#,
+        );
+        let output = render_ok(&spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        // Five links now: a band for each, the flow back with a 12-point outline.
+        assert_eq!(
+            output.content.matches("class=\"chartlet-sk-link ").count(),
+            5
+        );
+        assert!(output.content.contains("<title>Y → A: 5</title>"));
+        // The total counts what enters, not what returns.
+        let html = render_json(&spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("40 enter it"), "{html}");
+        // Not a flow back: B leads forward.
+        let forward = spec.replace(
+            r#""from": "Y", "to": "A", "value": 5, "back": true"#,
+            r#""from": "A", "to": "X", "value": 5, "back": true"#,
+        );
+        let error =
+            render_json(&forward, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("link_not_back", "/sankey/links/4/back")
+        );
+        // Without the mark the same link is a cycle.
+        let cycle = spec.replace(r#", "back": true"#, "");
+        let error = render_json(&cycle, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(error.code, "link_cycle");
+    }
+
+    #[test]
     fn sankey_diagrams_are_validated_by_name() {
         for (from, to, code, path) in [
             (

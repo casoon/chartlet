@@ -465,6 +465,12 @@ columns, joined by bands as thick as the flow.
   neighbours differ (the four colors repeat beyond four nodes); a band takes the color of the node
   it leaves. After the barycenter sweeps, chartlet swaps neighbouring nodes while that lets fewer
   bands cross.
+- **Flows back.** `"back": true` on a link marks a flow that returns to an earlier column, such
+  as recycled water. A Sankey diagram has no cycles (`link_cycle`): the columns and their order
+  follow the other links, and a flow back is drawn as a loop of its own thickness under the
+  nodes, out of the right of its source and into the left of its target. It must lead to a
+  column left of the one it leaves (`link_not_back`). Nodes count it in their height, the total
+  does not.
 - **Fixed columns, order and colors.** `nodes` lists nodes you want to pin: a `column` (from 0;
   a node cannot stand left of the column its incoming links lead to, `column_too_early`), a
   `color` (1–4, so that the same party has the same color on both sides) and, through their

@@ -9,6 +9,8 @@ use crate::spec::SankeyGraph;
 const SAMPLES: usize = 16;
 /// The room between two nodes of a column at most.
 const GAP: f64 = 10.0;
+/// The room between two loops of flows back.
+const LOOP_GAP: f64 = 6.0;
 /// The sweeps that move nodes towards the average place of their neighbours.
 const SWEEPS: usize = 6;
 
@@ -26,6 +28,10 @@ pub(super) struct Plan<'a> {
     /// Where each link leaves its source and enters its target: the top edge.
     slots: Vec<(f64, f64)>,
     scale: f64,
+    /// The loops of the flows back, below the nodes: for each link, its outline.
+    loops: Vec<Option<Vec<(f64, f64)>>>,
+    /// The height the loops of the flows back take below the nodes.
+    pub loop_room: f64,
 }
 
 impl<'a> Plan<'a> {
@@ -66,11 +72,75 @@ impl<'a> Plan<'a> {
             height: vec![0.0; rank.len()],
             slots: vec![(0.0, 0.0); graph.links.len()],
             scale: 0.0,
+            loops: vec![None; graph.links.len()],
+            loop_room: 0.0,
             rank,
         };
         plan.place_nodes(&order, bounds.1, bounds.3);
+        // The flows back run below the nodes: make room for them, then place the nodes again.
+        let room = plan.room_for_loops();
+        if room > 0.0 {
+            plan.place_nodes(&order, bounds.1, bounds.3 - room);
+            plan.loop_room = room;
+        }
         plan.place_slots();
+        plan.place_loops();
         plan
+    }
+
+    /// How much room the loops of the flows back need below the nodes, at the scale the nodes
+    /// were first placed by.
+    fn room_for_loops(&self) -> f64 {
+        let thicknesses: Vec<f64> = (0..self.graph.links.len())
+            .filter(|link| self.graph.back[*link])
+            .map(|link| self.graph.links[link].2 * self.scale)
+            .collect();
+        if thicknesses.is_empty() {
+            0.0
+        } else {
+            16.0 + thicknesses.iter().map(|t| t + LOOP_GAP).sum::<f64>()
+        }
+    }
+
+    /// The outline of every flow back: out of its source to the right, down below the nodes,
+    /// back to the left under them, up and into its target from the left.
+    fn place_loops(&mut self) {
+        let bottom = (0..self.graph.labels.len())
+            .map(|node| self.y[node] + self.height[node])
+            .fold(0.0, f64::max);
+        let mut below = bottom + 12.0;
+        let mut leaving: Vec<usize> = vec![0; self.graph.labels.len()];
+        let mut entering: Vec<usize> = vec![0; self.graph.labels.len()];
+        for link in 0..self.graph.links.len() {
+            if !self.graph.back[link] {
+                continue;
+            }
+            let (from, to, value) = self.graph.links[link];
+            let thickness = value * self.scale;
+            let (start, end) = self.slots[link];
+            let reach_out = self.x[from] + self.node_width;
+            let reach_in = self.x[to];
+            let outer_right = reach_out + 8.0 + 8.0 * count_f(leaving[from]) + thickness;
+            let outer_left = reach_in - 8.0 - 8.0 * count_f(entering[to]) - thickness;
+            leaving[from] += 1;
+            entering[to] += 1;
+            let floor = below + thickness;
+            below = floor + LOOP_GAP;
+            self.loops[link] = Some(vec![
+                (reach_out, start),
+                (outer_right, start),
+                (outer_right, floor),
+                (outer_left, floor),
+                (outer_left, end),
+                (reach_in, end),
+                (reach_in, end + thickness),
+                (outer_left + thickness, end + thickness),
+                (outer_left + thickness, floor - thickness),
+                (outer_right - thickness, floor - thickness),
+                (outer_right - thickness, start + thickness),
+                (reach_out, start + thickness),
+            ]);
+        }
     }
 
     fn place_nodes(&mut self, order: &[Vec<usize>], top: f64, available: f64) {
@@ -117,7 +187,12 @@ impl<'a> Plan<'a> {
                     let end = if outgoing { to } else { from };
                     self.y[end] + self.height[end] / 2.0
                 };
-                crate::sort::by(&mut mine, |a, b| other(a).total_cmp(&other(b)));
+                // The flows back take the places at the bottom of the node.
+                crate::sort::by(&mut mine, |a, b| {
+                    self.graph.back[*a]
+                        .cmp(&self.graph.back[*b])
+                        .then_with(|| other(a).total_cmp(&other(b)))
+                });
                 let mut at = self.y[node];
                 for link in mine {
                     let slot = &mut self.slots[link];
@@ -140,6 +215,9 @@ impl<'a> Plan<'a> {
     /// The outline of a link: along the top edge from its source to its target, back along the
     /// bottom edge, the edges easing from one level to the other.
     pub(super) fn band(&self, link: usize) -> Vec<(f64, f64)> {
+        if let Some(outline) = &self.loops[link] {
+            return outline.clone();
+        }
         let (from, to, value) = self.graph.links[link];
         let (start, end) = self.slots[link];
         let thickness = value * self.scale;
@@ -200,20 +278,22 @@ fn sweep_columns(graph: &SankeyGraph, order: &mut [Vec<usize>], forward: bool) {
             places
         };
         let key = |node: usize| {
-            let (sum, weight) =
-                graph
-                    .links
-                    .iter()
-                    .fold((0.0, 0.0), |(sum, weight), &(from, to, value)| {
-                        let other = if forward {
-                            (to == node).then_some(from)
-                        } else {
-                            (from == node).then_some(to)
-                        };
-                        other.map_or((sum, weight), |other| {
-                            (sum + places[other] * value, weight + value)
-                        })
-                    });
+            let (sum, weight) = graph
+                .links
+                .iter()
+                .zip(&graph.back)
+                .filter(|(_, back)| !**back)
+                .map(|(link, _)| link)
+                .fold((0.0, 0.0), |(sum, weight), &(from, to, value)| {
+                    let other = if forward {
+                        (to == node).then_some(from)
+                    } else {
+                        (from == node).then_some(to)
+                    };
+                    other.map_or((sum, weight), |other| {
+                        (sum + places[other] * value, weight + value)
+                    })
+                });
             if weight > 0.0 {
                 sum / weight
             } else {
@@ -260,8 +340,15 @@ fn crossings(graph: &SankeyGraph, rank: &[usize], order: &[Vec<usize>]) -> usize
         place[link.0] + (place[link.1] - place[link.0]) * t
     };
     let mut count = 0;
-    for (index, first) in graph.links.iter().enumerate() {
-        for second in &graph.links[index + 1..] {
+    let forward: Vec<&(usize, usize, f64)> = graph
+        .links
+        .iter()
+        .zip(&graph.back)
+        .filter(|(_, back)| !**back)
+        .map(|(link, _)| link)
+        .collect();
+    for (index, first) in forward.iter().enumerate() {
+        for second in &forward[index + 1..] {
             let start = rank[first.0].max(rank[second.0]);
             let end = rank[first.1].min(rank[second.1]);
             if start > end {
@@ -300,4 +387,8 @@ fn uncross(graph: &SankeyGraph, rank: &[usize], order: &mut [Vec<usize>]) {
             break;
         }
     }
+}
+
+fn count_f(count: usize) -> f64 {
+    count as f64
 }

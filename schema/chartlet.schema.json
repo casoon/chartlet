@@ -1097,7 +1097,8 @@
             "properties": {
               "from": { "type": "string", "minLength": 1, "maxLength": 100 },
               "to": { "type": "string", "minLength": 1, "maxLength": 100 },
-              "value": { "type": "number", "exclusiveMinimum": 0 }
+              "value": { "type": "number", "exclusiveMinimum": 0 },
+              "back": { "type": "boolean", "default": false, "description": "A flow back to an earlier column: drawn as a loop below the diagram; the columns and their order do not follow it." }
             }
           }
         }

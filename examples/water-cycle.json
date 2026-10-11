@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "type": "sankey",
+  "title": "Water in a town, with recycling",
+  "source": "Illustrative flows in million cubic metres",
+  "width": 880,
+  "height": 520,
+  "sankey": {
+    "links": [
+      { "from": "Intake", "to": "Treatment", "value": 100 },
+      { "from": "Recycling", "to": "Treatment", "value": 40, "back": true },
+      { "from": "Treatment", "to": "Households", "value": 60 },
+      { "from": "Treatment", "to": "Industry", "value": 80 },
+      { "from": "Households", "to": "Wastewater", "value": 50 },
+      { "from": "Industry", "to": "Wastewater", "value": 60 },
+      { "from": "Wastewater", "to": "Recycling", "value": 40 },
+      { "from": "Wastewater", "to": "River", "value": 70 }
+    ]
+  }
+}

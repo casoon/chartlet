@@ -483,6 +483,13 @@ const catalogue = [
       'The same kind of budget, one level deeper: four sectors drawn as frames, and the departments inside them as rectangles by their amount. Every sector keeps one color, the legend names the sectors, and the table lists every department with its path. Illustrative amounts, with a phone variant.',
   },
   {
+    slug: 'water-cycle',
+    chart: 'Sankey diagram (flow back)',
+    useCase: 'Show a cycle in a flow',
+    blurb:
+      'Water from intake through treatment to households and industry, and on to wastewater, with part of it recycled back to treatment: the flow back is marked on its link and drawn as a loop under the diagram, as thick as its flow. Illustrative flows.',
+  },
+  {
     slug: 'voter-movement',
     chart: 'Sankey diagram (fixed columns)',
     useCase: 'Follow voters between two elections',

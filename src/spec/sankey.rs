@@ -64,6 +64,10 @@ pub struct SankeyLinkSpec {
     pub from: String,
     pub to: String,
     pub value: f64,
+    /// A flow that returns to an earlier column: it is drawn as a loop below the diagram instead
+    /// of a band across it, and the columns and their order do not follow it.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub back: bool,
 }
 
 /// The nodes and links of a Sankey diagram as indexes, with the column of every node.
@@ -77,6 +81,8 @@ pub(crate) struct SankeyGraph {
     pub listed: bool,
     /// The palette color a node names for itself, from 1.
     pub colors: Vec<Option<usize>>,
+    /// Whether each link is a flow back to an earlier column.
+    pub back: Vec<bool>,
 }
 
 impl SankeySpec {
@@ -97,6 +103,7 @@ impl SankeySpec {
             .map(|link| (index(&link.from), index(&link.to), link.value))
             .collect();
         let count = labels.len();
+        let back: Vec<bool> = self.links.iter().map(|link| link.back).collect();
         let mut ranks: Vec<usize> = (0..labels.len())
             .map(|node| self.nodes.get(node).and_then(|n| n.column).unwrap_or(0))
             .collect();
@@ -104,8 +111,8 @@ impl SankeySpec {
         // Without a cycle the ranks settle within one pass for every node on the longest path.
         for _ in 0..=labels.len() {
             settled = true;
-            for &(from, to, _) in &links {
-                if ranks[to] < ranks[from] + 1 {
+            for (&(from, to, _), back) in links.iter().zip(&back) {
+                if !back && ranks[to] < ranks[from] + 1 {
                     ranks[to] = ranks[from] + 1;
                     settled = false;
                 }
@@ -122,6 +129,7 @@ impl SankeySpec {
             colors: (0..count)
                 .map(|node| self.nodes.get(node).and_then(|n| n.color).map(usize::from))
                 .collect(),
+            back,
         }
     }
 }
@@ -145,11 +153,23 @@ impl SankeyGraph {
         into.max(out)
     }
 
-    /// What enters the diagram: the outflow of the nodes without incoming links.
+    /// What enters the diagram: the forward outflow of the nodes without forward incoming links.
     pub(crate) fn total(&self) -> f64 {
+        let forward = || {
+            self.links
+                .iter()
+                .zip(&self.back)
+                .filter(|(_, back)| !**back)
+                .map(|(link, _)| link)
+        };
         (0..self.labels.len())
-            .filter(|node| self.links.iter().all(|link| link.1 != *node))
-            .map(|node| self.flows(node).1)
+            .filter(|node| forward().all(|link| link.1 != *node))
+            .map(|node| {
+                forward()
+                    .filter(|link| link.0 == node)
+                    .map(|link| link.2)
+                    .sum::<f64>()
+            })
             .sum()
     }
 }
@@ -244,20 +264,37 @@ impl ChartSpec {
                 "the links run in a circle; a Sankey diagram flows from left to right",
             ));
         }
-        for (index, node) in sankey.nodes.iter().enumerate() {
-            let rank = graph.ranks.as_ref().map_or(0, |ranks| ranks[index]);
-            if node.column.is_some_and(|column| rank > column) {
-                return Err(ChartError::new(
-                    "column_too_early",
-                    format!("/sankey/nodes/{index}/column"),
-                    format!(
-                        "links lead into this node from the left of column {rank}; give it column {rank} or later"
-                    ),
-                ));
-            }
-        }
+        validate_placement(sankey, &graph)?;
         Ok(Vec::new())
     }
+}
+
+/// Flows back that lead to an earlier column, and listed nodes that stand no earlier than the
+/// links into them lead.
+fn validate_placement(sankey: &SankeySpec, graph: &SankeyGraph) -> Result<(), ChartError> {
+    for (index, link) in graph.links.iter().enumerate() {
+        let ranks = graph.ranks.as_ref().expect("checked above");
+        if graph.back[index] && ranks[link.1] >= ranks[link.0] {
+            return Err(ChartError::new(
+                "link_not_back",
+                format!("/sankey/links/{index}/back"),
+                "a flow marked back must lead to an earlier column than it leaves",
+            ));
+        }
+    }
+    for (index, node) in sankey.nodes.iter().enumerate() {
+        let rank = graph.ranks.as_ref().map_or(0, |ranks| ranks[index]);
+        if node.column.is_some_and(|column| rank > column) {
+            return Err(ChartError::new(
+                "column_too_early",
+                format!("/sankey/nodes/{index}/column"),
+                format!(
+                    "links lead into this node from the left of column {rank}; give it column {rank} or later"
+                ),
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Listed nodes: unique labels that the links name, in columns that exist.

@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Sankey diagrams: `"back": true` on a link marks a flow back to an earlier column, drawn as a loop under the diagram; `link_not_back` refuses one that does not lead back. Example `water-cycle`.
 - Timelines: a summary phase takes `rollup`, the ids of the phases it sums up, and shows their progress weighted by length; arrows between rows turn where no bar or diamond of the rows between them stands instead of running through it.
 - Class and entity-relationship diagrams (`"type": "classes"`): classes with a name, a stereotype, and attribute and method compartments, joined by relations of six kinds with the marks of UML (hollow triangle, filled and hollow diamond, open arrowhead, dashed lines) and cardinalities at the ends, laid out by the layered layout of flow charts. Examples `order-model` and `shop-schema`.
 ## [0.16.0] - 2026-10-11

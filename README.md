@@ -100,6 +100,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Kaplan-Meier curves: survival by group, censoring marks, confidence band, number at risk | `"type": "survival"` with `survival.groups` | [overall-survival](examples/overall-survival.json) |
 | Sankey diagram: flows between stages as bands | `"type": "sankey"` with `sankey.links` | [energy-flow](examples/energy-flow.json) |
 | Study selection (PRISMA) and chains of courts as flow charts (presets) | `"type": "flow"` | [study-selection](examples/study-selection.json), [court-instances](examples/court-instances.json) |
+| Sankey diagram with a flow back (recycling) as a loop | `"back": true` on a Sankey link | [water-cycle](examples/water-cycle.json) |
 | Sankey diagram with fixed columns, order and colors (voter movement) | `sankey.nodes` with `column`, `color`, `"order": "listed"` | [voter-movement](examples/voter-movement.json) |
 | Nested treemap: sectors and departments | `children` on `treemap.items` | [budget-by-sector](examples/budget-by-sector.json) |
 | Treemap: many parts of a whole as rectangles by value, in groups | `"type": "treemap"` with `treemap.items` | [budget-by-department](examples/budget-by-department.json) |
