@@ -4415,6 +4415,41 @@ mod tests {
     }
 
     #[test]
+    fn box_plots_color_their_boxes_by_group() {
+        let spec = r#"{"schemaVersion": 1, "type": "boxplot", "title": "T",
+            "boxes": [
+                {"label": "A EU", "group": "EU", "values": [1, 2, 3, 4, 5]},
+                {"label": "A Asia", "group": "Asia", "values": [2, 3, 4, 5, 9]},
+                {"label": "B EU", "group": "EU", "values": [3, 4, 5, 6, 7]}
+            ]}"#;
+        let output = render_ok(spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        // Two EU boxes and the legend swatch; one Asia box and its swatch.
+        assert_eq!(
+            svg.matches("class=\"chartlet-box chartlet-box-g1\"")
+                .count(),
+            3
+        );
+        assert_eq!(
+            svg.matches("class=\"chartlet-box chartlet-box-g2\"")
+                .count(),
+            2
+        );
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("<th scope=\"col\">Group</th>"));
+        let missing = spec.replace(r#""group": "Asia", "#, "");
+        let error =
+            render_json(&missing, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("missing_group", "/boxes/1/group")
+        );
+    }
+
+    #[test]
     fn box_plots_can_mark_the_mean() {
         let spec = r#"{"schemaVersion": 1, "type": "boxplot", "showMean": true, "title": "T",
             "boxes": [{"label": "A", "values": [1, 2, 3, 4, 10]}]}"#;

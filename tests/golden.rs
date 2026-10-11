@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 55] = [
+const EXAMPLES: [(&str, &str, &str); 56] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -253,6 +253,11 @@ const EXAMPLES: [(&str, &str, &str); 55] = [
         include_str!("../examples/genome-scan.svg"),
     ),
     (
+        "latency-by-region",
+        include_str!("../examples/latency-by-region.json"),
+        include_str!("../examples/latency-by-region.svg"),
+    ),
+    (
         "voter-movement",
         include_str!("../examples/voter-movement.json"),
         include_str!("../examples/voter-movement.svg"),
@@ -280,7 +285,7 @@ const EXAMPLES: [(&str, &str, &str); 55] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 24] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 25] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -375,6 +380,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 24] = [
         "genome-scan",
         include_str!("../examples/genome-scan.json"),
         include_str!("../examples/genome-scan.mobile.svg"),
+    ),
+    (
+        "latency-by-region",
+        include_str!("../examples/latency-by-region.json"),
+        include_str!("../examples/latency-by-region.mobile.svg"),
     ),
     (
         "voter-movement",

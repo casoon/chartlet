@@ -75,6 +75,10 @@ pub struct BoxSpec {
     pub q3: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max: Option<f64>,
+    /// Boxes of one group share a palette color and an entry in the legend: on every box or
+    /// none, at most four groups.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
     /// Points beyond the whiskers of a box given by its five numbers.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub outliers: Vec<f64>,
@@ -153,6 +157,27 @@ impl BoxSpec {
 }
 
 impl ChartSpec {
+    /// The groups of the boxes in the order they first appear.
+    pub(crate) fn box_groups(&self) -> Vec<&str> {
+        let mut groups: Vec<&str> = Vec::new();
+        for group in self.boxes.iter().filter_map(|boxed| boxed.group.as_deref()) {
+            if !groups.contains(&group) {
+                groups.push(group);
+            }
+        }
+        groups
+    }
+
+    /// The palette color, from 1, of the box at `index`, or 0 without groups.
+    pub(crate) fn box_tone(&self, index: usize) -> usize {
+        self.boxes[index].group.as_deref().map_or(0, |group| {
+            self.box_groups()
+                .iter()
+                .position(|known| *known == group)
+                .map_or(0, |position| position + 1)
+        })
+    }
+
     /// The summary of every box, in order.
     pub(crate) fn box_summaries(&self) -> Vec<BoxSummary> {
         self.boxes.iter().map(BoxSpec::summary).collect()
@@ -191,8 +216,11 @@ impl ChartSpec {
             ));
         }
         let mut labels = BTreeSet::new();
+        let grouped = self.boxes.iter().any(|boxed| boxed.group.is_some());
+        let mut groups: Vec<&str> = Vec::new();
         for (index, boxed) in self.boxes.iter().enumerate() {
             let path = format!("/boxes/{index}");
+            validate_box_group(boxed, &path, grouped, &mut groups)?;
             if self.show_mean && boxed.values.is_empty() {
                 return Err(ChartError::new(
                     "values_required",
@@ -290,6 +318,42 @@ impl BoxSpec {
     }
 }
 
+/// A group on every box or on none, at most one palette color each.
+fn validate_box_group<'a>(
+    boxed: &'a BoxSpec,
+    path: &str,
+    grouped: bool,
+    groups: &mut Vec<&'a str>,
+) -> Result<(), ChartError> {
+    match (&boxed.group, grouped) {
+        (Some(group), _) => {
+            validate_text(group, &format!("{path}/group"), 60)?;
+            if !groups.contains(&group.as_str()) {
+                groups.push(group);
+            }
+            if groups.len() > super::MAX_SERIES {
+                return Err(ChartError::new(
+                    "too_many_series",
+                    format!("{path}/group"),
+                    format!(
+                        "at most {} groups are supported, one per palette color",
+                        super::MAX_SERIES
+                    ),
+                ));
+            }
+        }
+        (None, true) => {
+            return Err(ChartError::new(
+                "missing_group",
+                format!("{path}/group"),
+                "give every box a group, or none",
+            ));
+        }
+        (None, false) => {}
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{BoxSpec, quantile};
@@ -313,6 +377,7 @@ mod tests {
             median: None,
             q3: None,
             max: None,
+            group: None,
             outliers: Vec::new(),
         };
         let summary = boxed.summary();

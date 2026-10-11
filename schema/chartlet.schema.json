@@ -152,6 +152,7 @@
         "required": ["label"],
         "properties": {
           "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "group": { "type": "string", "minLength": 1, "maxLength": 60, "description": "Boxes of one group share a palette color and a legend entry: on every box or none, at most four groups." },
           "values": { "description": "5 to 1000 observations. The box runs from the first to the third quartile (linear interpolation), the whiskers to the most extreme observations within 1.5 times that distance, every other observation is a point.", "type": "array", "minItems": 5, "maxItems": 1000, "items": { "type": "number" } },
           "min": { "type": "number" },
           "q1": { "type": "number" },

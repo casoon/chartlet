@@ -94,6 +94,95 @@ pub(crate) fn layout(
     }
 }
 
+const BOX: [&str; 5] = [
+    "chartlet-box",
+    "chartlet-box chartlet-box-g1",
+    "chartlet-box chartlet-box-g2",
+    "chartlet-box chartlet-box-g3",
+    "chartlet-box chartlet-box-g4",
+];
+const WHISKER: [&str; 5] = [
+    "chartlet-box-whisker",
+    "chartlet-box-whisker chartlet-box-g1",
+    "chartlet-box-whisker chartlet-box-g2",
+    "chartlet-box-whisker chartlet-box-g3",
+    "chartlet-box-whisker chartlet-box-g4",
+];
+const OUTLIER: [&str; 5] = [
+    "chartlet-box-outlier",
+    "chartlet-box-outlier chartlet-box-g1",
+    "chartlet-box-outlier chartlet-box-g2",
+    "chartlet-box-outlier chartlet-box-g3",
+    "chartlet-box-outlier chartlet-box-g4",
+];
+const VIOLIN: [&str; 5] = [
+    "chartlet-violin",
+    "chartlet-violin chartlet-box-g1",
+    "chartlet-violin chartlet-box-g2",
+    "chartlet-violin chartlet-box-g3",
+    "chartlet-violin chartlet-box-g4",
+];
+const POINT: [&str; 5] = [
+    "chartlet-box-point",
+    "chartlet-box-point chartlet-box-g1",
+    "chartlet-box-point chartlet-box-g2",
+    "chartlet-box-point chartlet-box-g3",
+    "chartlet-box-point chartlet-box-g4",
+];
+
+/// The room the legend of the groups takes above the plot.
+fn legend_space(spec: &ChartSpec) -> f64 {
+    if spec.box_groups().is_empty() {
+        0.0
+    } else {
+        22.0
+    }
+}
+
+/// The legend of the groups in a row under the title.
+fn push_legend(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    (left, top): (f64, f64),
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) {
+    let right = f64::from(spec.width) - 12.0;
+    let (mut x, mut y) = (left, top);
+    for (index, group) in spec.box_groups().iter().enumerate() {
+        let reach = 16.0 + metrics.width(group, LABEL_SIZE);
+        if x > left && x + reach > right {
+            x = left;
+            y += 18.0;
+        }
+        elements.push(Element::Rect(Rect {
+            x,
+            y,
+            width: 10.0,
+            height: 10.0,
+            class: BOX[index + 1],
+            series_index: None,
+            style_index: None,
+            tooltip: None,
+        }));
+        elements.push(Element::Text(Text {
+            x: x + 16.0,
+            y: y + 9.0,
+            class: "chartlet-legend",
+            anchor: TextAnchor::Start,
+            content: crate::layout::fit_text(
+                group,
+                (right - x - 16.0).max(0.0),
+                LABEL_SIZE,
+                metrics,
+                warnings,
+                "/boxes",
+            ),
+        }));
+        x += reach + 16.0;
+    }
+}
+
 /// Draws one category as a box, a violin or a strip, as the specification says.
 fn push_mark(
     elements: &mut Vec<Element>,
@@ -225,7 +314,7 @@ fn push_violin(
     );
     elements.push(Element::Polyline(Polyline {
         points,
-        class: "chartlet-violin",
+        class: VIOLIN[spec.box_tone(index)],
         topic: None,
         series_index: None,
         style_index: None,
@@ -288,7 +377,7 @@ fn push_strip(
             cx,
             cy,
             radius: 2.5,
-            class: "chartlet-box-point",
+            class: POINT[spec.box_tone(index)],
             topic: None,
             series_index: None,
             style_index: None,
@@ -344,6 +433,7 @@ fn push_box(
     across: (f64, f64),
 ) {
     let (lead, thick) = across;
+    let tone = spec.box_tone(index);
     let middle = lead + thick / 2.0;
     let line = |from: (f64, f64), to: (f64, f64), class| {
         // `(along, across)` pairs, turned into page coordinates.
@@ -371,12 +461,12 @@ fn push_box(
         elements.push(line(
             (along(edge), middle),
             (along(end), middle),
-            "chartlet-box-whisker",
+            WHISKER[tone],
         ));
         elements.push(line(
             (along(end), middle - cap),
             (along(end), middle + cap),
-            "chartlet-box-whisker",
+            WHISKER[tone],
         ));
     }
     elements.push(Element::Rect(Rect {
@@ -384,7 +474,7 @@ fn push_box(
         y,
         width,
         height,
-        class: "chartlet-box",
+        class: BOX[tone],
         series_index: None,
         style_index: None,
         tooltip: Some(tooltip(spec, index, summary)),
@@ -403,7 +493,7 @@ fn push_box(
             cx,
             cy,
             radius: OUTLIER_RADIUS,
-            class: "chartlet-box-outlier",
+            class: OUTLIER[tone],
             topic: None,
             series_index: None,
             style_index: None,
@@ -475,7 +565,7 @@ fn layout_horizontal(
         36.0
     };
     let title = horizontal_title(spec, (left, width - left - right), metrics);
-    let top = 78.0 + title_extra(spec, title.1, metrics);
+    let top = 78.0 + title_extra(spec, title.1, metrics) + legend_space(spec);
     let plot = PlotArea {
         left,
         top,
@@ -484,6 +574,13 @@ fn layout_horizontal(
         vertical_bars: false,
     };
     let mut elements = base_elements_with_title(spec, scale, plot, title, warnings, metrics);
+    push_legend(
+        &mut elements,
+        spec,
+        (plot.left, plot.top - 56.0),
+        metrics,
+        warnings,
+    );
     let band = plot.height / count(spec.boxes.len());
     let thickness = if spec.box_display == BoxDisplay::Box {
         (band * 0.5).clamp(4.0, 32.0)
@@ -540,7 +637,7 @@ fn layout_vertical(
     } else {
         62.0
     };
-    let top = 78.0 + title_extra(spec, width - left - right, metrics);
+    let top = 78.0 + title_extra(spec, width - left - right, metrics) + legend_space(spec);
     let plot = PlotArea {
         left,
         top,
@@ -549,6 +646,13 @@ fn layout_vertical(
         vertical_bars: true,
     };
     let mut elements = base_elements(spec, scale, plot, warnings, metrics);
+    push_legend(
+        &mut elements,
+        spec,
+        (plot.left, plot.top - 56.0),
+        metrics,
+        warnings,
+    );
     let band = plot.width / count(spec.boxes.len());
     let thickness = if spec.box_display == BoxDisplay::Box {
         (band * 0.5).clamp(6.0, 48.0)

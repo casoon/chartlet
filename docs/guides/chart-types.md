@@ -191,6 +191,9 @@ extreme values within reach and a point for every value beyond.
 - **Text alternative.** The description names the highest and the lowest median and the boxes with
   outliers; the data table has the five numbers of every box and its outliers; a tooltip adds the
   number of observations. 1–100 boxes with unique labels.
+- **Groups.** `group` on every box (or none) gives the boxes of one group a palette color and a
+  legend entry, up to four (`too_many_series`, `missing_group`); it colors boxes, violins and strips
+  alike and adds a Group column to the table.
 - **Mean.** `"showMean": true` marks the mean of each box's observations with a diamond (on boxes,
   violins and strips alike), adds it to the tooltip and a Mean column to the table. It needs
   `values` on every box (`values_required`).

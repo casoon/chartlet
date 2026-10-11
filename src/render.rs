@@ -88,7 +88,7 @@ const SCATTER_STYLE: &str = ".chartlet-sc-1{fill:var(--chartlet-color-1)}.chartl
 const ERROR_STYLE: &str =
     ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
 /// Box plots: the box, its median, whiskers and the points beyond them.
-const BOXPLOT_STYLE: &str = ".chartlet-box{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-box-median{stroke:var(--chartlet-text);stroke-width:3}.chartlet-box-whisker{stroke:var(--chartlet-accent);stroke-width:1.5;fill:none}.chartlet-box-outlier{fill:none;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-violin{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1.5;stroke-linejoin:round}.chartlet-violin-box{fill:var(--chartlet-text);stroke:none}.chartlet-violin-median{fill:var(--chartlet-background);stroke:none}.chartlet-box-mean{fill:var(--chartlet-background);stroke:var(--chartlet-text);stroke-width:1.5}.chartlet-box-point{fill:var(--chartlet-accent);fill-opacity:.55;stroke:none}";
+const BOXPLOT_STYLE: &str = ".chartlet-box{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-box-median{stroke:var(--chartlet-text);stroke-width:3}.chartlet-box-whisker{stroke:var(--chartlet-accent);stroke-width:1.5;fill:none}.chartlet-box-outlier{fill:none;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-violin{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1.5;stroke-linejoin:round}.chartlet-violin-box{fill:var(--chartlet-text);stroke:none}.chartlet-violin-median{fill:var(--chartlet-background);stroke:none}.chartlet-box-mean{fill:var(--chartlet-background);stroke:var(--chartlet-text);stroke-width:1.5}.chartlet-box-g1.chartlet-box,.chartlet-box-g1.chartlet-violin{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-box-g1.chartlet-box-whisker,.chartlet-box-g1.chartlet-box-outlier{stroke:var(--chartlet-color-1)}.chartlet-box-g1.chartlet-box-point{fill:var(--chartlet-color-1)}.chartlet-box-g2.chartlet-box,.chartlet-box-g2.chartlet-violin{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-box-g2.chartlet-box-whisker,.chartlet-box-g2.chartlet-box-outlier{stroke:var(--chartlet-color-2)}.chartlet-box-g2.chartlet-box-point{fill:var(--chartlet-color-2)}.chartlet-box-g3.chartlet-box,.chartlet-box-g3.chartlet-violin{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-box-g3.chartlet-box-whisker,.chartlet-box-g3.chartlet-box-outlier{stroke:var(--chartlet-color-3)}.chartlet-box-g3.chartlet-box-point{fill:var(--chartlet-color-3)}.chartlet-box-g4.chartlet-box,.chartlet-box-g4.chartlet-violin{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}.chartlet-box-g4.chartlet-box-whisker,.chartlet-box-g4.chartlet-box-outlier{stroke:var(--chartlet-color-4)}.chartlet-box-g4.chartlet-box-point{fill:var(--chartlet-color-4)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}.chartlet-box-point{fill:var(--chartlet-accent);fill-opacity:.55;stroke:none}";
 const RANGEBAR_STYLE: &str = ".chartlet-range{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1}.chartlet-range-hatch{stroke:none}.chartlet-hatch-line{stroke:var(--chartlet-accent);stroke-width:1.2;opacity:.75}.chartlet-range-mid{stroke:var(--chartlet-text);stroke-width:3}.chartlet-range-weight{fill:var(--chartlet-text);stroke:none}.chartlet-range-summary{fill:var(--chartlet-text);fill-opacity:.85;stroke:var(--chartlet-text);stroke-width:1}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Range bars in groups: each group's spans in its palette color.
 const RANGE_GROUP_STYLE: &str = ".chartlet-range-series-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-range-series-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-range-series-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-range-series-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}";
@@ -956,7 +956,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
     let dataset = spec.table_dataset();
     let rows = dataset.categories.len();
     // The text column after the values has no value.
-    let grouped = table_extra(spec).is_some();
+    let grouped = !table_extra(spec).is_empty();
     let values = (0..rows)
         .map(|row| {
             dataset
@@ -1582,7 +1582,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 .iter()
                 .map(|series| series.name.as_deref().unwrap_or(words.value).to_owned()),
         )
-        .chain(extra.as_ref().map(|(head, _)| (*head).to_owned()))
+        .chain(extra.iter().map(|(head, _)| (*head).to_owned()))
         .collect();
     let rows = dataset
         .categories
@@ -1598,7 +1598,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                         },
                     )
                 }))
-                .chain(extra.as_ref().map(|(_, cells)| cells[index].clone()))
+                .chain(extra.iter().map(|(_, cells)| cells[index].clone()))
                 .collect()
         })
         .collect();
@@ -1609,16 +1609,28 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     }
 }
 
-/// The text column that follows the values of a table, if the chart has one: its head and one
-/// cell per row. A grouped bar chart names the group of every bar, a box plot its outliers.
-fn table_extra(spec: &ChartSpec) -> Option<(&'static str, Vec<String>)> {
+/// The text columns that follow the values of a table, if the chart has any: each with its head
+/// and one cell per row. A grouped bar chart names the group of every bar, a box plot its group
+/// and its outliers.
+fn table_extra(spec: &ChartSpec) -> Vec<(&'static str, Vec<String>)> {
     let words = spec.locale.words();
     if spec.chart_type == ChartType::Boxplot {
-        return Some((words.outliers, crate::boxplot::outlier_cells(spec)));
+        let mut columns = Vec::new();
+        if !spec.box_groups().is_empty() {
+            columns.push((
+                words.group,
+                spec.boxes
+                    .iter()
+                    .map(|boxed| boxed.group.clone().unwrap_or_default())
+                    .collect(),
+            ));
+        }
+        columns.push((words.outliers, crate::boxplot::outlier_cells(spec)));
+        return columns;
     }
     if spec.has_error_bars() {
         let show = |value| format_value(value, spec.number_style());
-        return Some((
+        return vec![(
             words.interval,
             spec.data
                 .iter()
@@ -1627,18 +1639,18 @@ fn table_extra(spec: &ChartSpec) -> Option<(&'static str, Vec<String>)> {
                     None => String::new(),
                 })
                 .collect(),
-        ));
+        )];
     }
     if spec.data_groups().is_empty() {
-        return None;
+        return Vec::new();
     }
-    Some((
+    vec![(
         words.group,
         spec.data
             .iter()
             .map(|point| point.group.clone().unwrap_or_default())
             .collect(),
-    ))
+    )]
 }
 
 pub(crate) fn escape(value: &str) -> String {

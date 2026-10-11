@@ -6,6 +6,10 @@ does.
 
 ## [Unreleased]
 
+### Added
+
+- Box plots: `group` on every box colors the boxes of a group alike (up to four) with a legend and adds a Group column to the table; it works for boxes, violins and strips. Example `latency-by-region`, with a phone variant.
+
 ## [0.14.0] - 2026-10-10
 
 ### Added

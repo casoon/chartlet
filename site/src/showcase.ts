@@ -434,6 +434,13 @@ const catalogue = [
       'The path of a civil case through the German courts, from Amtsgericht and Landgericht by appeal to the Oberlandesgericht and by Revision to the Bundesgerichtshof, in German with the conditions on the edges. A preset on the flow chart, not a type of its own. Simplified, with a phone variant.',
   },
   {
+    slug: 'latency-by-region',
+    chart: 'Box plot (groups)',
+    useCase: 'Compare groups across categories',
+    blurb:
+      'Response times of three endpoints measured in two regions: the boxes of a region share a color and a legend entry, so the two regions read side by side, and a diamond marks each mean. The table gains a Group column. Illustrative measurements, with a phone variant.',
+  },
+  {
     slug: 'genome-scan',
     chart: 'Manhattan plot',
     useCase: 'Find the hits along a genome',
