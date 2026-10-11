@@ -393,7 +393,8 @@ Astro, Cloudflare Workers and Vite, see [JavaScript runtimes](docs/guides/javasc
 [`@casoon/chartlet-mcp`](packages/chartlet-mcp/README.md) is an MCP server for AI assistants:
 the assistant inspects the data and drafts a specification, chartlet validates and compiles it.
 No model runs in the server and the data is never changed. For software diagrams,
-`chartlet_diagram_starter` hands the assistant a valid starting specification per type. See [AI agents](docs/guides/ai-agents.md).
+`chartlet_diagram_starter` and `chartlet_chart_starter` hand the assistant a valid starting
+specification per type, and `chartlet_inspect_data` suggests the types that fit a table. See [AI agents](docs/guides/ai-agents.md).
 
 ## Rust
 

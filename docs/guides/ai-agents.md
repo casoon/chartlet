@@ -27,7 +27,11 @@ For Claude Desktop and project configuration, see the
   type, missing values and range, and which chart types fit, each with the columns to use and a
   reason. The rules are fixed: a category and numbers suggest a bar chart, a time column and
   numbers a time chart, open/high/low/close an `ohlc` layer, low/high a range bar, years and one
-  value warming stripes, dates of one year and one value a calendar.
+  value warming stripes, dates of one year and one value a calendar. Tables of other shapes
+  get the types with a block of their own: two numbers a scatter plot, a repeating category and
+  numbers a box plot (or violin), unique labels with positive numbers a treemap, with values of
+  both signs a waterfall, `from`/`to` columns a Sankey diagram, a time column and a 0/1 event
+  column survival curves, unique labels with two dates a timeline.
 - `chartlet_validate_spec` renders the specification and discards the output. It returns `ok`, the error
   with `code`, JSON Pointer `path` and `message`, and every warning, for the desktop and the
   `mobile` layout. An invalid specification is a regular result, so the assistant can fix the
@@ -40,10 +44,14 @@ For Claude Desktop and project configuration, see the
   times. The result says that it is computed, not interpreted; conclusions about causes or
   trends stay with the reader.
 
-- `chartlet_diagram_starter` returns, for `sequence`, `flow`, `state` or `architecture`, a valid
+- `chartlet_diagram_starter` returns, for `sequence`, `flow`, `state`, `architecture` or `tree`, a valid
   starting specification, the kinds every element can take with the shape each is drawn in, and
   notes on ids, layout and orientation. For a diagram, `chartlet_explain` adds its structure:
   the counts of its elements and every row of its data table.
+- `chartlet_chart_starter` returns a valid starting specification and notes for the charts that
+  are drawn from a block of their own: `waterfall`, `waffle`, `parliament`, `treemap`, `sankey`,
+  `survival`, `scatter`, `timeline`, `forest` (a range bar chart), `violin` (a box plot) and the
+  flow presets `prisma` and `instances`.
 
 The resource `chartlet://schema` holds the [specification](../reference/specification.md)
 schema.
