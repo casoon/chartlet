@@ -6,6 +6,8 @@ does.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-11
+
 ### Added
 
 - Timelines: `"weekends": true` shades Saturdays and Sundays behind the rows while the axis spans at most 120 days; a longer axis warns with `weekends_hidden`.
