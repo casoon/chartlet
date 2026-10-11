@@ -17,7 +17,8 @@
         "label": "Northwind Retail",
         "sublabel": "operating company",
         "parent": "holding",
-        "link": "100 %"
+        "link": "100 %",
+        "collapsed": true
       },
       {
         "id": "logistics",

@@ -4527,7 +4527,21 @@ mod tests {
             .unwrap()
             .content;
         assert!(!html.contains("02:00"));
-        let bad = spec.replace("+02:00", "Europe/Berlin");
+        // A named zone follows its daylight saving time: 1814400000 is 2027-07-01 00:00 UTC, 02:00
+        // in Berlin (summer time), where the same hour of January is 01:00.
+        let berlin = spec
+            .replace("+02:00", "Europe/Berlin")
+            .replace("1798761600", "1814400000");
+        let html = render_json(&berlin, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("2027-07-01 02:00"), "{html}");
+        let winter = berlin.replace("1814400000", "1798761600");
+        let html = render_json(&winter, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("2027-01-01 01:00"), "{html}");
+        let bad = spec.replace("+02:00", "Europe/Atlantis");
         let error = render_json(&bad, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
         assert_eq!(
             (error.code, error.path.as_str()),
@@ -4985,6 +4999,51 @@ mod tests {
             {"from": "dog", "to": "animal", "kind": "inheritance"},
             {"from": "owner", "to": "dog", "kind": "aggregation", "fromCardinality": "1", "toCardinality": "0..*", "label": "keeps"}
         ]}}"#;
+
+    #[test]
+    fn a_tree_can_collapse_a_node_and_everything_below_it() {
+        let spec = r#"{"schemaVersion": 1, "type": "tree", "title": "T", "width": 800, "height": 400,
+            "tree": {"nodes": [
+                {"id": "root", "label": "Root"},
+                {"id": "a", "label": "Alpha", "parent": "root", "collapsed": true},
+                {"id": "b", "label": "Beta", "parent": "root"},
+                {"id": "a1", "label": "Alpha one", "parent": "a"},
+                {"id": "a2", "label": "Alpha two", "parent": "a1"},
+                {"id": "b1", "label": "Beta one", "parent": "b"}
+            ]}}"#;
+        let output = render_ok(spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert!(svg.contains(">+2</text>"));
+        assert!(!svg.contains(">Alpha one</text>"));
+        assert!(svg.contains(">Beta one</text>"));
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(
+            html.contains(
+                "Collapsed in the drawing, with everything below them listed here: Alpha."
+            ),
+            "{html}"
+        );
+        assert!(
+            html.contains("<th scope=\"row\">Alpha two</th>"),
+            "the table keeps every node"
+        );
+        assert!(html.contains("<td>+2</td>"));
+        let leaf = spec.replace(
+            r#""id": "b1", "label": "Beta one", "parent": "b""#,
+            r#""id": "b1", "label": "Beta one", "parent": "b", "collapsed": true"#,
+        );
+        let output = render_ok(&leaf);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "nothing_to_collapse"
+                    && warning.path == "/tree/nodes/5/collapsed")
+        );
+    }
 
     #[test]
     fn a_class_diagram_draws_boxes_members_and_the_marks_of_its_relations() {

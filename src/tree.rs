@@ -52,6 +52,31 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
+    let Some((view, kept)) = tree(spec).collapsed_view() else {
+        return layout_all(spec, warnings, metrics);
+    };
+    // The drawing leaves out what hangs below a collapsed node: it is laid out as a smaller
+    // tree, and its warnings are renamed to the nodes of the specification.
+    let mut drawn = spec.clone();
+    drawn.tree = Some(view);
+    let before = warnings.len();
+    let scene = layout_all(&drawn, warnings, metrics);
+    for warning in &mut warnings[before..] {
+        if let Some(rest) = warning.path.strip_prefix("/tree/nodes/")
+            && let Some((index, tail)) = rest.split_once('/')
+            && let Ok(index) = index.parse::<usize>()
+        {
+            warning.path = format!("/tree/nodes/{}/{tail}", kept[index]);
+        }
+    }
+    scene
+}
+
+fn layout_all(
+    spec: &ChartSpec,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Scene {
     let tree = tree(spec);
     let compact = spec.width < NARROW;
     let margin = if compact { COMPACT_MARGIN } else { MARGIN };
@@ -663,6 +688,14 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
                 .expect("writing to String cannot fail");
         }
     }
+    let collapsed: Vec<&str> = (0..tree.nodes.len())
+        .filter(|node| tree.hidden_below(*node) > 0)
+        .map(|node| tree.nodes[node].label.as_str())
+        .collect();
+    if !collapsed.is_empty() {
+        description.push(' ');
+        description.push_str(&text::tree_collapsed(locale, &collapsed));
+    }
     description
 }
 
@@ -684,6 +717,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         columns.push(words.link.to_owned());
     }
     columns.push(words.children.to_owned());
+    let folded = tree.nodes.iter().any(|node| node.collapsed);
+    if folded {
+        columns.push(words.collapsed.to_owned());
+    }
     let rows = tree
         .reading_order()
         .into_iter()
@@ -711,6 +748,14 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                     .collect::<Vec<_>>()
                     .join(", "),
             );
+            if folded {
+                let hidden = tree.hidden_below(node);
+                row.push(if hidden > 0 {
+                    format!("+{hidden}")
+                } else {
+                    String::new()
+                });
+            }
             row
         })
         .collect();

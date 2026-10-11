@@ -1242,7 +1242,7 @@
           }
         },
         "groupRows": { "type": "boolean", "default": false, "description": "Put the rows of one group together, in the order the groups first appear. Needs groups." },
-        "timezone": { "type": "string", "default": "UTC", "description": "The zone the days are read and written in: UTC or a fixed offset such as +02:00. A bare date is midnight there; Unix seconds are not shifted." },
+        "timezone": { "type": "string", "default": "UTC", "description": "The zone the days are read and written in: UTC, a fixed offset such as +02:00, or one of about 55 common IANA names such as Europe/Berlin, with the daylight saving rules in force today. A bare date or local time is the time on the wall there; an instant (Unix seconds, or a time with its own offset) is shifted by the offset in force then." },
         "weekends": { "type": "boolean", "default": false, "description": "Shade Saturdays and Sundays behind the rows while the axis spans at most 120 days; a longer axis warns (weekends_hidden)." }
       }
     },
@@ -1267,7 +1267,8 @@
               "parent": { "$ref": "#/$defs/identifier" },
               "link": { "description": "What joins the node to its parent, such as a share; not on the root.", "type": "string", "minLength": 1, "maxLength": 40 },
               "kind": { "enum": ["unit", "person", "external"], "default": "unit" },
-              "partner": { "description": "The id of the node this one is joined to as a couple: they stand side by side and the children of either hang from the middle of the line between them. A partner has no parent, and is not itself named as a partner.", "$ref": "#/$defs/identifier" }
+              "partner": { "description": "The id of the node this one is joined to as a couple: they stand side by side and the children of either hang from the middle of the line between them. A partner has no parent, and is not itself named as a partner.", "$ref": "#/$defs/identifier" },
+              "collapsed": { "type": "boolean", "default": false, "description": "Draw the node without what hangs below it and below its partner; a small +n says how many nodes are left out. The description and the data table still list them." }
             }
           }
         },

@@ -82,6 +82,7 @@ pub(crate) struct Words {
     pub parent: &'static str,
     pub link: &'static str,
     pub children: &'static str,
+    pub collapsed: &'static str,
     pub partner: &'static str,
     /// The columns of a boxplot's table.
     pub minimum: &'static str,
@@ -197,6 +198,7 @@ const EN: Words = Words {
     parent: "Parent",
     link: "Link",
     children: "Children",
+    collapsed: "Collapsed",
     partner: "Partner",
     minimum: "Minimum",
     quartile_1: "Q1",
@@ -310,6 +312,7 @@ const DE: Words = Words {
     parent: "Übergeordnet",
     link: "Verknüpfung",
     children: "Untergeordnet",
+    collapsed: "Eingeklappt",
     partner: "Partner",
     minimum: "Minimum",
     quartile_1: "Q1",
@@ -1587,6 +1590,17 @@ pub(crate) fn scatter_summary(
         write!(text, " {fits}").expect("writing to String cannot fail");
     }
     text
+}
+
+/// The nodes of a tree that are drawn collapsed.
+pub(crate) fn tree_collapsed(locale: Locale, labels: &[&str]) -> String {
+    let labels = labels.join(", ");
+    match locale {
+        Locale::En => {
+            format!("Collapsed in the drawing, with everything below them listed here: {labels}.")
+        }
+        Locale::De => format!("In der Grafik eingeklappt, alles darunter steht hier: {labels}."),
+    }
 }
 
 /// What a class diagram shows: how many classes and relations.

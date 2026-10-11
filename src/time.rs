@@ -81,6 +81,26 @@ pub(crate) struct TimeZone {
     offset: i64,
     numeric: bool,
     locale: Locale,
+    /// The rule of daylight saving time that adds an hour to `offset`, for a named zone.
+    saving: Saving,
+}
+
+/// When a zone moves its clocks an hour ahead, by the rules in force today.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum Saving {
+    #[default]
+    None,
+    /// From the last Sunday of March, 01:00 UTC, to the last Sunday of October, 01:00 UTC.
+    Europe,
+    /// From the second Sunday of March, 02:00 local time, to the first Sunday of November,
+    /// 02:00 local daylight time.
+    America,
+    /// From the first Sunday of October, 02:00 local standard time, to the first Sunday of April,
+    /// 03:00 local daylight time (southern Australia).
+    Australia,
+    /// From the last Sunday of September, 02:00 local standard time, to the first Sunday of April,
+    /// 03:00 local daylight time (New Zealand).
+    NewZealand,
 }
 
 impl TimeZone {
@@ -89,6 +109,7 @@ impl TimeZone {
             offset: 0,
             numeric: false,
             locale: Locale::En,
+            saving: Saving::None,
         }
     }
 
@@ -98,6 +119,7 @@ impl TimeZone {
             offset: 0,
             numeric: true,
             locale,
+            saving: Saving::None,
         }
     }
 
@@ -112,6 +134,52 @@ impl TimeZone {
 
     pub(crate) const fn offset(self) -> i64 {
         self.offset
+    }
+
+    /// The offset from UTC at the instant `epoch`: the standard offset, and an hour more while
+    /// daylight saving time is in force.
+    pub(crate) fn offset_at(self, epoch: i64) -> i64 {
+        let year = civil_from_days(epoch.div_euclid(SECONDS_PER_DAY)).0;
+        let day = |month: u32, nth: i64, last: bool| nth_sunday(year, month, nth, last);
+        let at = |days: i64, seconds: i64| days * SECONDS_PER_DAY + seconds;
+        let (start, end, southern) = match self.saving {
+            Saving::None => return self.offset,
+            Saving::Europe => (
+                at(day(3, 1, true), SECONDS_PER_HOUR),
+                at(day(10, 1, true), SECONDS_PER_HOUR),
+                false,
+            ),
+            Saving::America => (
+                at(day(3, 2, false), 2 * SECONDS_PER_HOUR - self.offset),
+                at(
+                    day(11, 1, false),
+                    2 * SECONDS_PER_HOUR - self.offset - SECONDS_PER_HOUR,
+                ),
+                false,
+            ),
+            Saving::Australia => (
+                at(day(10, 1, false), 2 * SECONDS_PER_HOUR - self.offset),
+                at(day(4, 1, false), 2 * SECONDS_PER_HOUR - self.offset),
+                true,
+            ),
+            Saving::NewZealand => (
+                at(day(9, 1, true), 2 * SECONDS_PER_HOUR - self.offset),
+                at(day(4, 1, false), 2 * SECONDS_PER_HOUR - self.offset),
+                true,
+            ),
+        };
+        let saving = if southern {
+            epoch >= start || epoch < end
+        } else {
+            (start..end).contains(&epoch)
+        };
+        self.offset + if saving { SECONDS_PER_HOUR } else { 0 }
+    }
+
+    /// Parses a zone for a timeline: `UTC`, a fixed offset, or an IANA name from the table of
+    /// common zones, such as `Europe/Berlin`.
+    pub(crate) fn parse_named(text: &str) -> Option<Self> {
+        Self::parse(text).or_else(|| named(text.trim()))
     }
 
     /// Parses `UTC`, `Z` or a fixed offset such as `+02:00`, `+0200`, `-05:00`.
@@ -140,6 +208,125 @@ impl TimeZone {
             ..Self::utc()
         })
     }
+}
+
+/// The day number (days since 1970-01-01) of a Sunday of `month`: the `nth` counted from the
+/// first, or the last one.
+fn nth_sunday(year: i64, month: u32, nth: i64, last: bool) -> i64 {
+    // 1970-01-01 was a Thursday: day + 4, modulo 7, is 0 on a Sunday.
+    let sunday_on_or_after = |day: i64| day + (7 - (day + 4).rem_euclid(7)) % 7;
+    if last {
+        let end = days_from_civil(year, month, days_in_month(year, month));
+        end - (end + 4).rem_euclid(7)
+    } else {
+        sunday_on_or_after(days_from_civil(year, month, 1)) + 7 * (nth - 1)
+    }
+}
+
+/// The zones the table knows: name, standard offset in minutes, and rule of daylight saving
+/// time. The rules are those in force today; earlier years may differ.
+const ZONES: &[(&str, i32, Saving)] = &[
+    ("GMT", 0, Saving::None),
+    ("Europe/London", 0, Saving::Europe),
+    ("Europe/Dublin", 0, Saving::Europe),
+    ("Europe/Lisbon", 0, Saving::Europe),
+    ("Atlantic/Reykjavik", 0, Saving::None),
+    ("Europe/Berlin", 60, Saving::Europe),
+    ("Europe/Paris", 60, Saving::Europe),
+    ("Europe/Madrid", 60, Saving::Europe),
+    ("Europe/Rome", 60, Saving::Europe),
+    ("Europe/Amsterdam", 60, Saving::Europe),
+    ("Europe/Brussels", 60, Saving::Europe),
+    ("Europe/Vienna", 60, Saving::Europe),
+    ("Europe/Zurich", 60, Saving::Europe),
+    ("Europe/Stockholm", 60, Saving::Europe),
+    ("Europe/Oslo", 60, Saving::Europe),
+    ("Europe/Copenhagen", 60, Saving::Europe),
+    ("Europe/Prague", 60, Saving::Europe),
+    ("Europe/Warsaw", 60, Saving::Europe),
+    ("Europe/Budapest", 60, Saving::Europe),
+    ("Europe/Athens", 120, Saving::Europe),
+    ("Europe/Helsinki", 120, Saving::Europe),
+    ("Europe/Kyiv", 120, Saving::Europe),
+    ("Europe/Bucharest", 120, Saving::Europe),
+    ("Europe/Sofia", 120, Saving::Europe),
+    ("Europe/Istanbul", 180, Saving::None),
+    ("Europe/Moscow", 180, Saving::None),
+    ("Africa/Lagos", 60, Saving::None),
+    ("Africa/Johannesburg", 120, Saving::None),
+    ("Africa/Nairobi", 180, Saving::None),
+    ("America/New_York", -300, Saving::America),
+    ("America/Toronto", -300, Saving::America),
+    ("America/Chicago", -360, Saving::America),
+    ("America/Denver", -420, Saving::America),
+    ("America/Phoenix", -420, Saving::None),
+    ("America/Los_Angeles", -480, Saving::America),
+    ("America/Vancouver", -480, Saving::America),
+    ("America/Anchorage", -540, Saving::America),
+    ("Pacific/Honolulu", -600, Saving::None),
+    ("America/Mexico_City", -360, Saving::None),
+    ("America/Sao_Paulo", -180, Saving::None),
+    ("America/Argentina/Buenos_Aires", -180, Saving::None),
+    ("Asia/Dubai", 240, Saving::None),
+    ("Asia/Tehran", 210, Saving::None),
+    ("Asia/Karachi", 300, Saving::None),
+    ("Asia/Kolkata", 330, Saving::None),
+    ("Asia/Bangkok", 420, Saving::None),
+    ("Asia/Jakarta", 420, Saving::None),
+    ("Asia/Shanghai", 480, Saving::None),
+    ("Asia/Hong_Kong", 480, Saving::None),
+    ("Asia/Singapore", 480, Saving::None),
+    ("Asia/Manila", 480, Saving::None),
+    ("Asia/Tokyo", 540, Saving::None),
+    ("Asia/Seoul", 540, Saving::None),
+    ("Australia/Perth", 480, Saving::None),
+    ("Australia/Adelaide", 570, Saving::Australia),
+    ("Australia/Brisbane", 600, Saving::None),
+    ("Australia/Sydney", 600, Saving::Australia),
+    ("Australia/Melbourne", 600, Saving::Australia),
+    ("Pacific/Auckland", 720, Saving::NewZealand),
+];
+
+/// The zone of an IANA name from the table, matched without regard to case.
+fn named(name: &str) -> Option<TimeZone> {
+    ZONES
+        .iter()
+        .find(|(known, _, _)| known.eq_ignore_ascii_case(name))
+        .map(|(_, minutes, saving)| TimeZone {
+            offset: i64::from(*minutes) * 60,
+            saving: *saving,
+            ..TimeZone::utc()
+        })
+}
+
+impl TimeValue {
+    /// Resolves the timestamp to wall-clock seconds in `zone`: a date or time without an offset
+    /// is the time on the wall there, as written; an instant (Unix seconds, or a time with its own
+    /// offset) is shifted by the offset in force in `zone` at that instant. The result is meant
+    /// to be placed and written as if it were UTC.
+    pub(crate) fn resolve_wall(&self, zone: TimeZone) -> Result<i64, &'static str> {
+        let written = |text: &str| {
+            let text = text.trim();
+            text.len() > 10 && starts_offset_somewhere(text)
+        };
+        let naive = self.resolve(TimeZone::utc().with_locale(zone.locale))?;
+        let instant = match self {
+            Self::Number(_) => true,
+            Self::Text(text) => written(text),
+        };
+        Ok(if instant {
+            naive + zone.offset_at(naive)
+        } else {
+            naive
+        })
+    }
+}
+
+/// Whether a date-time text ends in an offset or `Z`: a time of day, then `Z`, `+hh:mm` or
+/// `-hh:mm`.
+fn starts_offset_somewhere(text: &str) -> bool {
+    let time = text.get(10..).unwrap_or("");
+    time.rfind(['Z', 'z', '+']).is_some() || time.get(1..).is_some_and(|rest| rest.contains('-'))
 }
 
 /// Splits a timestamp into the local calendar fields of `zone`.
@@ -767,6 +954,74 @@ mod tests {
         assert!(TimeZone::parse("Europe/Berlin").is_none());
         assert!(TimeZone::parse("+15:00").is_none());
         assert!(TimeZone::parse("+02:70").is_none());
+    }
+
+    #[test]
+    fn named_zones_follow_their_daylight_saving_rules() {
+        let instant = |year: i64, month: u32, day: u32, hour: i64, minute: i64, second: i64| {
+            days_from_civil(year, month, day) * SECONDS_PER_DAY
+                + hour * 3_600
+                + minute * 60
+                + second
+        };
+        let hours =
+            |zone: &str, epoch: i64| TimeZone::parse_named(zone).unwrap().offset_at(epoch) / 3_600;
+        // Europe: the clocks move at 01:00 UTC on the last Sunday of March (28th in 2027) and
+        // of October (31st).
+        assert_eq!(hours("Europe/Berlin", instant(2027, 3, 28, 0, 59, 59)), 1);
+        assert_eq!(hours("Europe/Berlin", instant(2027, 3, 28, 1, 0, 0)), 2);
+        assert_eq!(hours("Europe/Berlin", instant(2027, 10, 31, 0, 59, 59)), 2);
+        assert_eq!(hours("Europe/Berlin", instant(2027, 10, 31, 1, 0, 0)), 1);
+        assert_eq!(hours("Europe/London", instant(2027, 7, 1, 12, 0, 0)), 1);
+        assert_eq!(hours("Europe/London", instant(2027, 1, 1, 12, 0, 0)), 0);
+        // America: 02:00 local on the second Sunday of March (14th) and the first of November (7th).
+        assert_eq!(
+            hours("America/New_York", instant(2027, 3, 14, 6, 59, 59)),
+            -5
+        );
+        assert_eq!(hours("America/New_York", instant(2027, 3, 14, 7, 0, 0)), -4);
+        assert_eq!(
+            hours("America/New_York", instant(2027, 11, 7, 5, 59, 59)),
+            -4
+        );
+        assert_eq!(hours("America/New_York", instant(2027, 11, 7, 6, 0, 0)), -5);
+        assert_eq!(hours("America/Phoenix", instant(2027, 7, 1, 12, 0, 0)), -7);
+        // The south: summer time in January, standard time in July.
+        assert_eq!(hours("Australia/Sydney", instant(2027, 1, 15, 0, 0, 0)), 11);
+        assert_eq!(hours("Australia/Sydney", instant(2027, 7, 15, 0, 0, 0)), 10);
+        assert_eq!(hours("Pacific/Auckland", instant(2027, 1, 15, 0, 0, 0)), 13);
+        assert_eq!(hours("Pacific/Auckland", instant(2027, 7, 15, 0, 0, 0)), 12);
+        // Names are matched without regard to case; unknown ones are refused.
+        assert!(TimeZone::parse_named("europe/berlin").is_some());
+        assert!(TimeZone::parse_named("Europe/Atlantis").is_none());
+    }
+
+    #[test]
+    fn a_wall_clock_time_is_kept_and_an_instant_is_shifted() {
+        let berlin = TimeZone::parse_named("Europe/Berlin").unwrap();
+        // 2027-07-01 00:00 UTC is 02:00 in Berlin; a bare date is midnight there already.
+        let midnight = days_from_civil(2027, 7, 1) * SECONDS_PER_DAY;
+        assert_eq!(midnight, 1_814_400_000);
+        assert_eq!(
+            TimeValue::Number(1_814_400_000.0).resolve_wall(berlin),
+            Ok(midnight + 7_200)
+        );
+        assert_eq!(
+            TimeValue::Text("2027-07-01".to_owned()).resolve_wall(berlin),
+            Ok(midnight)
+        );
+        assert_eq!(
+            TimeValue::Text("2027-07-01T10:00".to_owned()).resolve_wall(berlin),
+            Ok(midnight + 36_000)
+        );
+        assert_eq!(
+            TimeValue::Text("2027-07-01T10:00:00Z".to_owned()).resolve_wall(berlin),
+            Ok(midnight + 36_000 + 7_200)
+        );
+        assert_eq!(
+            TimeValue::Text("2027-07-01T10:00:00+05:00".to_owned()).resolve_wall(berlin),
+            Ok(midnight + 5 * 3_600 + 7_200)
+        );
     }
 
     #[test]

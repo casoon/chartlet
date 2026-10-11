@@ -6,6 +6,11 @@ does.
 
 ## [Unreleased]
 
+### Added
+
+- Timelines: `timezone` also takes about 55 common IANA names such as `Europe/Berlin`, `America/New_York` or `Australia/Sydney`, with the daylight saving rules in force today (Europe, the USA, southern Australia, New Zealand); the axis is laid out in wall-clock time and an instant is shifted by the offset in force then.
+- Trees: `collapsed` on a node draws it without what hangs below it, with a `+n` for the nodes left out; the description and the data table still list every node (`nothing_to_collapse` warns when nothing hangs below).
+
 ## [0.17.0] - 2026-10-11
 
 ### Added

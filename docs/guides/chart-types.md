@@ -272,11 +272,16 @@ a Gantt chart, a roadmap, the course of a procedure with its deadlines.
 - **Group rows.** `"groupRows": true` puts the rows of one group together, in the order the groups
   first appear, instead of in the order of `items` (it needs groups); the description and the
   table keep the listed order.
-- **Time zone.** `"timezone": "+02:00"` (UTC or a fixed offset, `invalid_timezone` otherwise)
-  reads bare dates as midnight in that zone and writes every day, the axis ticks and the
-  weekends in it; Unix seconds stay the instants they are. There are no named zones with daylight
-  saving, as in the time chart.
-- **Weekends.** `"weekends": true` shades Saturdays and Sundays (UTC) as pale columns behind the
+- **Time zone.** `"timezone"` names the zone the days are read and written in: `UTC`, a fixed
+  offset such as `"+02:00"`, or one of about 55 common IANA names such as `"Europe/Berlin"`,
+  `"America/New_York"`, `"Asia/Tokyo"` or `"Australia/Sydney"` (`invalid_timezone` otherwise).
+  A bare date or a time without an offset is the time on the wall there, as written; an instant —
+  Unix seconds, or a time with its own offset — is shifted by the offset in force then, an hour
+  more in summer. The axis is laid out in wall-clock time, so every day is equally wide, and the
+  ticks, the dates and the weekends are in the zone. The daylight saving rules are those in force
+  today (Europe since 1996, the USA since 2007): earlier dates may be an hour off. Names outside
+  the table are refused; a fixed offset always works.
+- **Weekends.** `"weekends": true` shades Saturdays and Sundays (in the timeline's zone) as pale columns behind the
   rows while the axis spans at most 120 days; on a longer axis they would be slivers, so they are
   left out and `weekends_hidden` says so.
 - **Progress.** `progress` (0 to 1) on a phase draws that share of its bar darker, adds it to the
@@ -993,6 +998,13 @@ they are a gap apart at every level, so that a narrow subtree tucks in under a b
   below the root (`tree_too_deep`).
 - **Kinds.** `kind` gives a node its shape: `unit` (a box, the default), `person` (a box with a
   head) and `external` (a dashed box).
+- **Collapsed nodes.** `"collapsed": true` draws a node without what hangs below it (and below
+  its partner): the node says how many nodes it leaves out, `+2` after its sublabel, and the
+  tree is laid out without them, so a big tree can be shown at a glance and unfolded by turning
+  the flag off. The output is static, so this is a choice made in the specification. The
+  description names the collapsed nodes and the data table keeps every node, with a Collapsed
+  column giving the count. Collapsing a node with nothing below it warns
+  (`nothing_to_collapse`).
 - **Couples.** `"partner": "id"` joins a node to another as a couple: the two stand side by side
   (one above the other in landscape) with a short line between them, and the children of either
   hang from the middle of that line, as in a family tree. A partner has no `parent` of its own

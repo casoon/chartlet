@@ -49,13 +49,14 @@ fn timeline(spec: &ChartSpec) -> &TimelineSpec {
         .expect("validated timelines carry a timeline block")
 }
 
+/// The zone days are written in: UTC, since they are placed as wall-clock time already.
 fn zone(spec: &ChartSpec) -> TimeZone {
-    timeline(spec).zone().with_locale(spec.locale)
+    TimeZone::utc().with_locale(spec.locale)
 }
 
 /// Whether any day of the timeline carries a time of day, so that its dates are written with it.
 fn has_time_of_day(timeline: &TimelineSpec) -> bool {
-    let utc = timeline.zone();
+    let utc = TimeZone::utc();
     time::any_has_time_of_day(
         timeline
             .items
@@ -70,7 +71,7 @@ fn has_time_of_day(timeline: &TimelineSpec) -> bool {
                 timeline
                     .markers
                     .iter()
-                    .map(|marker| marker.at.resolve(utc).expect("validated")),
+                    .map(|marker| marker.at.resolve_wall(timeline.zone()).expect("validated")),
             ),
         utc,
     )
@@ -238,7 +239,6 @@ pub(crate) fn layout(
 /// The days the axis runs from and to: the first and last of any item or marker, a day wider on
 /// either side for a single day, and a little room at both ends.
 fn axis_span(timeline: &TimelineSpec) -> (i64, i64) {
-    let utc = timeline.zone();
     let (first, last) = timeline
         .items
         .iter()
@@ -252,7 +252,7 @@ fn axis_span(timeline: &TimelineSpec) -> (i64, i64) {
             timeline
                 .markers
                 .iter()
-                .map(|marker| marker.at.resolve(utc).expect("validated")),
+                .map(|marker| marker.at.resolve_wall(timeline.zone()).expect("validated")),
         )
         .fold((i64::MAX, i64::MIN), |(first, last), day| {
             (first.min(day), last.max(day))
@@ -282,7 +282,7 @@ impl Frame<'_> {
             return;
         }
         // Days begin at midnight of the timeline's zone.
-        let offset = self.timeline.zone().offset();
+        let offset = 0;
         let first_day = (self.first + offset).div_euclid(DAY);
         let last_day = (self.last + offset).div_euclid(DAY);
         for day in first_day..=last_day {
@@ -342,9 +342,11 @@ impl Frame<'_> {
         warnings: &mut Vec<ChartWarning>,
         metrics: &impl TextMetrics,
     ) {
-        let utc = self.timeline.zone();
         for (index, marker) in self.timeline.markers.iter().enumerate() {
-            let x = self.x(marker.at.resolve(utc).expect("validated"));
+            let x = self.x(marker
+                .at
+                .resolve_wall(self.timeline.zone())
+                .expect("validated"));
             elements.push(Element::Line(Line {
                 x1: x,
                 y1: self.top - 6.0,
@@ -715,7 +717,6 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         }
     }
     if !timeline.markers.is_empty() {
-        let utc = timeline.zone();
         let markers: Vec<String> = timeline
             .markers
             .iter()
@@ -723,7 +724,11 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
                 format!(
                     "{} ({})",
                     marker.label,
-                    write_day(spec, marker.at.resolve(utc).expect("validated"), with_time)
+                    write_day(
+                        spec,
+                        marker.at.resolve_wall(timeline.zone()).expect("validated"),
+                        with_time
+                    )
                 )
             })
             .collect();

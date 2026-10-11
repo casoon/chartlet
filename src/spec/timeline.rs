@@ -104,7 +104,7 @@ impl TimelineItemSpec {
             value
                 .as_ref()
                 .expect("validated")
-                .resolve(zone)
+                .resolve_wall(zone)
                 .expect("validated")
         };
         match (&self.start, &self.end) {
@@ -125,7 +125,7 @@ impl TimelineSpec {
     pub(crate) fn zone(&self) -> TimeZone {
         self.timezone
             .as_deref()
-            .and_then(TimeZone::parse)
+            .and_then(TimeZone::parse_named)
             .unwrap_or_else(zone)
     }
 
@@ -208,12 +208,12 @@ impl ChartSpec {
         if timeline
             .timezone
             .as_deref()
-            .is_some_and(|zone| TimeZone::parse(zone).is_none())
+            .is_some_and(|zone| TimeZone::parse_named(zone).is_none())
         {
             return Err(ChartError::new(
                 "invalid_timezone",
                 "/timeline/timezone",
-                "expected UTC or a fixed offset such as +02:00",
+                "expected UTC, a fixed offset such as +02:00, or a zone name such as Europe/Berlin",
             ));
         }
         if !self.time_axis.is_default() {
@@ -282,7 +282,7 @@ impl TimelineSpec {
                 value
                     .as_ref()
                     .map(|value| {
-                        value.resolve(self.zone()).map_err(|message| {
+                        value.resolve_wall(self.zone()).map_err(|message| {
                             ChartError::new("invalid_time", format!("{path}/{name}"), message)
                         })
                     })
@@ -360,7 +360,7 @@ impl TimelineSpec {
         for (index, marker) in self.markers.iter().enumerate() {
             let path = format!("/timeline/markers/{index}");
             validate_text(&marker.label, &format!("{path}/label"), 60)?;
-            marker.at.resolve(self.zone()).map_err(|message| {
+            marker.at.resolve_wall(self.zone()).map_err(|message| {
                 ChartError::new("invalid_time", format!("{path}/at"), message)
             })?;
         }

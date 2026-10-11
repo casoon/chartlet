@@ -42,6 +42,10 @@ pub struct TreeNodeSpec {
     /// partner has no `parent` of its own.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub partner: Option<String>,
+    /// Draws the node without what hangs below it (and below its partner): a small `+n` says how
+    /// many nodes are left out. The description and the data table still list all of them.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub collapsed: bool,
 }
 
 /// What a node is.
@@ -116,6 +120,74 @@ impl TreeSpec {
         depth
     }
 
+    /// The nodes below `node` and its partner, partners included.
+    fn below(&self, node: usize) -> Vec<usize> {
+        let head = self.head_of(node).unwrap_or(node);
+        let mut found = Vec::new();
+        let mut stack = self.children(head);
+        while let Some(next) = stack.pop() {
+            if found.contains(&next) {
+                continue;
+            }
+            found.push(next);
+            if let Some(partner) = self.partner_of(next) {
+                found.push(partner);
+            }
+            stack.extend(self.children(next));
+        }
+        found
+    }
+
+    /// How many nodes a collapsed `node` leaves out of the drawing.
+    pub(crate) fn hidden_below(&self, node: usize) -> usize {
+        if self.nodes[node].collapsed {
+            self.below(node).len()
+        } else {
+            0
+        }
+    }
+
+    /// The tree as drawn when nodes are collapsed: without the nodes below them, each collapsed
+    /// node saying how many it leaves out, and the index in this tree of every node that
+    /// remains. `None` when nothing is collapsed.
+    pub(crate) fn collapsed_view(&self) -> Option<(TreeSpec, Vec<usize>)> {
+        if !self.nodes.iter().any(|node| node.collapsed) {
+            return None;
+        }
+        let mut hidden = vec![false; self.nodes.len()];
+        for node in 0..self.nodes.len() {
+            if self.nodes[node].collapsed && !hidden[node] {
+                for below in self.below(node) {
+                    hidden[below] = true;
+                }
+            }
+        }
+        let kept: Vec<usize> = (0..self.nodes.len())
+            .filter(|node| !hidden[*node])
+            .collect();
+        let nodes = kept
+            .iter()
+            .map(|&node| {
+                let mut copy = self.nodes[node].clone();
+                let count = self.hidden_below(node);
+                if count > 0 {
+                    copy.sublabel = Some(match &copy.sublabel {
+                        Some(sublabel) => format!("{sublabel} · +{count}"),
+                        None => format!("+{count}"),
+                    });
+                }
+                copy
+            })
+            .collect();
+        Some((
+            TreeSpec {
+                nodes,
+                orientation: self.orientation,
+            },
+            kept,
+        ))
+    }
+
     /// The nodes in reading order: each before its partner and its children, children in list
     /// order.
     pub(crate) fn reading_order(&self) -> Vec<usize> {
@@ -158,7 +230,17 @@ impl ChartSpec {
         }
         tree.validate_nodes()?;
         tree.validate_structure()?;
-        Ok(Vec::new())
+        let mut warnings = Vec::new();
+        for (index, node) in tree.nodes.iter().enumerate() {
+            if node.collapsed && tree.below(index).is_empty() {
+                warnings.push(ChartWarning::new(
+                    "nothing_to_collapse",
+                    format!("/tree/nodes/{index}/collapsed"),
+                    "nothing hangs below this node, so collapsing it changes nothing",
+                ));
+            }
+        }
+        Ok(warnings)
     }
 }
 
