@@ -4,7 +4,7 @@ description: What has been verified, what is designed but not yet tested, and wh
 order: 4
 ---
 
-chartlet is at 0.15; screen reader and user testing are still pending. Statuses: **Verified**, **Experimental** (works, but may change between minor releases), **Designed, not yet verified**, **Planned**,
+chartlet is at 0.16; screen reader and user testing are still pending. Statuses: **Verified**, **Experimental** (works, but may change between minor releases), **Designed, not yet verified**, **Planned**,
 **Not supported**.
 
 ## Embedding
@@ -81,6 +81,7 @@ chartlet is at 0.15; screen reader and user testing are still pending. Statuses:
 | Scatter plots | Verified | Since 0.12: groups, threshold lines, collision-free names, small dots and a limited table for many points; unit tests of the text, the table limit and validation, and golden-file tests including the phone variant. |
 | Survival curves | Verified | Since 0.12: Kaplan-Meier estimate with Greenwood confidence limits, censoring marks, number at risk; unit tests of the estimate, text and validation, and golden-file tests including the phone variant. |
 | Regression, log axes, log-rank test, pinned Sankey nodes, nested treemaps, error bars on lines | Verified | Since 0.13: least squares on the logarithms for log axes, the Mantel-Cox test checked against an independent implementation, `column_too_early`, nested frames, line error bars; unit tests of each and golden-file tests including the phone variants. |
+| Error bars on several series, timeline time zones | Verified | Since 0.16: `lower`/`upper` on each series of grouped bars and lines with an interval column per series; a fixed-offset zone for timeline days, ticks and weekends; unit tests of both and golden-file tests including the phone variant. |
 | Grouped box plots, shaded timeline weekends | Verified | Since 0.15: palette colors and a legend by group on boxes, violins and strips; Saturdays and Sundays as columns on axes of up to 120 days; unit tests of both and golden-file tests including the phone variant. |
 | Mean marker, violin scales, hazard ratio, timeline progress and grouped rows, named scatter ticks and ranges | Verified | Since 0.14: the hazard ratio checked against an independent implementation, shared densities for violin areas, row order by group; unit tests of each and golden-file tests including the phone variants. |
 | Flow presets (PRISMA, Instanzenzug) | Experimental | Since 0.13: examples on the flow chart, which is itself experimental. |

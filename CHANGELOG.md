@@ -6,6 +6,8 @@ does.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-11
+
 ### Added
 
 - Timelines: `timezone` (UTC or a fixed offset such as `+02:00`) sets the zone the days are read and written in, and the zone of the shaded weekends.
