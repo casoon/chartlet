@@ -50,17 +50,22 @@ fn timeline(spec: &ChartSpec) -> &TimelineSpec {
 }
 
 fn zone(spec: &ChartSpec) -> TimeZone {
-    crate::spec::timeline_zone().with_locale(spec.locale)
+    timeline(spec).zone().with_locale(spec.locale)
 }
 
 /// Whether any day of the timeline carries a time of day, so that its dates are written with it.
 fn has_time_of_day(timeline: &TimelineSpec) -> bool {
-    let utc = crate::spec::timeline_zone();
+    let utc = timeline.zone();
     time::any_has_time_of_day(
         timeline
             .items
             .iter()
-            .flat_map(|item| [item.span().begin(), item.span().finish()])
+            .flat_map(|item| {
+                [
+                    item.span(timeline.zone()).begin(),
+                    item.span(timeline.zone()).finish(),
+                ]
+            })
             .chain(
                 timeline
                     .markers
@@ -188,7 +193,12 @@ pub(crate) fn layout(
         timeline
             .items
             .iter()
-            .map(|item| metrics.width(&days(spec, item.span(), with_time), LABEL_SIZE))
+            .map(|item| {
+                metrics.width(
+                    &days(spec, item.span(timeline.zone()), with_time),
+                    LABEL_SIZE,
+                )
+            })
             .fold(0.0, f64::max)
             .min(width * 0.35)
             + 24.0
@@ -228,11 +238,16 @@ pub(crate) fn layout(
 /// The days the axis runs from and to: the first and last of any item or marker, a day wider on
 /// either side for a single day, and a little room at both ends.
 fn axis_span(timeline: &TimelineSpec) -> (i64, i64) {
-    let utc = crate::spec::timeline_zone();
+    let utc = timeline.zone();
     let (first, last) = timeline
         .items
         .iter()
-        .flat_map(|item| [item.span().begin(), item.span().finish()])
+        .flat_map(|item| {
+            [
+                item.span(timeline.zone()).begin(),
+                item.span(timeline.zone()).finish(),
+            ]
+        })
         .chain(
             timeline
                 .markers
@@ -266,15 +281,17 @@ impl Frame<'_> {
             ));
             return;
         }
-        let first_day = self.first.div_euclid(DAY);
-        let last_day = self.last.div_euclid(DAY);
+        // Days begin at midnight of the timeline's zone.
+        let offset = self.timeline.zone().offset();
+        let first_day = (self.first + offset).div_euclid(DAY);
+        let last_day = (self.last + offset).div_euclid(DAY);
         for day in first_day..=last_day {
             // 1970-01-01 was a Thursday: 0 is Sunday, 6 Saturday.
             if !matches!((day + 4).rem_euclid(7), 0 | 6) {
                 continue;
             }
-            let from = self.x((day * DAY).max(self.first));
-            let to = self.x(((day + 1) * DAY).min(self.last));
+            let from = self.x((day * DAY - offset).max(self.first));
+            let to = self.x(((day + 1) * DAY - offset).min(self.last));
             elements.push(Element::Rect(Rect {
                 x: from,
                 y: self.top,
@@ -325,7 +342,7 @@ impl Frame<'_> {
         warnings: &mut Vec<ChartWarning>,
         metrics: &impl TextMetrics,
     ) {
-        let utc = crate::spec::timeline_zone();
+        let utc = self.timeline.zone();
         for (index, marker) in self.timeline.markers.iter().enumerate() {
             let x = self.x(marker.at.resolve(utc).expect("validated"));
             elements.push(Element::Line(Line {
@@ -358,11 +375,11 @@ impl Frame<'_> {
             for id in &item.after {
                 let before = self.timeline.item(id).expect("validated");
                 // An arrow leaves a diamond at its right tip and reaches one at its left tip.
-                let out = match self.timeline.items[before].span() {
+                let out = match self.timeline.items[before].span(self.timeline.zone()) {
                     Span::Milestone { at } => self.x(at) + DIAMOND,
                     Span::Phase { end, .. } => self.x(end),
                 };
-                let into = match item.span() {
+                let into = match item.span(self.timeline.zone()) {
                     Span::Milestone { at } => self.x(at) - DIAMOND,
                     Span::Phase { start, .. } => self.x(start),
                 };
@@ -397,7 +414,7 @@ impl Frame<'_> {
         };
         for (index, item) in self.timeline.items.iter().enumerate() {
             let y = self.center(index);
-            let span = item.span();
+            let span = item.span(self.timeline.zone());
             let done = item
                 .progress
                 .map(|progress| text::percent_done(self.spec.locale, progress));
@@ -480,7 +497,7 @@ impl Frame<'_> {
         metrics: &impl TextMetrics,
     ) {
         let item = &self.timeline.items[index];
-        let content = days(self.spec, item.span(), self.with_time);
+        let content = days(self.spec, item.span(self.timeline.zone()), self.with_time);
         let reach = metrics.width(&content, LABEL_SIZE);
         let followed = self.timeline.items.iter().any(|other| {
             other
@@ -492,7 +509,10 @@ impl Frame<'_> {
         let (x, anchor) = if start + reach <= self.width() - self.margin {
             (start, TextAnchor::Start)
         } else {
-            (self.x(item.span().begin()) - DIAMOND - 4.0, TextAnchor::End)
+            (
+                self.x(item.span(self.timeline.zone()).begin()) - DIAMOND - 4.0,
+                TextAnchor::End,
+            )
         };
         elements.push(Element::Text(Text {
             x,
@@ -610,15 +630,15 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let phases = timeline
         .items
         .iter()
-        .filter(|item| matches!(item.span(), Span::Phase { .. }))
+        .filter(|item| matches!(item.span(timeline.zone()), Span::Phase { .. }))
         .count();
     let (first, last) = timeline
         .items
         .iter()
         .fold((i64::MAX, i64::MIN), |(first, last), item| {
             (
-                first.min(item.span().begin()),
-                last.max(item.span().finish()),
+                first.min(item.span(timeline.zone()).begin()),
+                last.max(item.span(timeline.zone()).finish()),
             )
         });
     let mut description = text::timeline_opening(
@@ -643,7 +663,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push_str(&text::timeline_item(
             spec.locale,
             &item.label,
-            &days(spec, item.span(), with_time),
+            &days(spec, item.span(timeline.zone()), with_time),
             &follows,
         ));
         if let Some(progress) = item.progress {
@@ -657,7 +677,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         }
     }
     if !timeline.markers.is_empty() {
-        let utc = crate::spec::timeline_zone();
+        let utc = timeline.zone();
         let markers: Vec<String> = timeline
             .markers
             .iter()
@@ -701,7 +721,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         .items
         .iter()
         .map(|item| {
-            let span = item.span();
+            let span = item.span(timeline.zone());
             let (kind, begin, finish) = match span {
                 Span::Phase { start, end } => (
                     words.phase,

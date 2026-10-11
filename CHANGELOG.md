@@ -8,6 +8,7 @@ does.
 
 ### Added
 
+- Timelines: `timezone` (UTC or a fixed offset such as `+02:00`) sets the zone the days are read and written in, and the zone of the shaded weekends.
 - Error bars on several series: a series of a grouped bar chart or a line chart (no stack) takes `lower` and `upper` arrays next to its `values`; every bar or point gets its own error bar, tooltips and an interval column per series in the table. Example `satisfaction-by-quarter`, with a phone variant.
 
 ## [0.15.0] - 2026-10-11

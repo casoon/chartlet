@@ -4415,6 +4415,28 @@ mod tests {
     }
 
     #[test]
+    fn a_timeline_reads_and_writes_its_days_in_a_zone() {
+        // 1798761600 is 2027-01-01 00:00 UTC, which is 02:00 at +02:00.
+        let spec = r#"{"schemaVersion": 1, "type": "timeline", "title": "Plan", "width": 800, "height": 300,
+            "timeline": {"timezone": "+02:00", "items": [{"label": "Launch", "at": 1798761600}]}}"#;
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("2027-01-01 02:00"), "{html}");
+        let utc = spec.replace(r#""timezone": "+02:00", "#, "");
+        let html = render_json(&utc, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(!html.contains("02:00"));
+        let bad = spec.replace("+02:00", "Europe/Berlin");
+        let error = render_json(&bad, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("invalid_timezone", "/timeline/timezone")
+        );
+    }
+
+    #[test]
     fn a_timeline_can_shade_its_weekends() {
         // 2027-01-04 is a Monday: the days to 2027-01-18 hold two weekends.
         let spec = r#"{"schemaVersion": 1, "type": "timeline", "title": "Plan", "width": 800, "height": 300,

@@ -23,6 +23,10 @@ pub struct TimelineSpec {
     /// the order of `items`. Needs groups.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub group_rows: bool,
+    /// The zone the days are read in: UTC or a fixed offset such as `+02:00`. Days given as a bare
+    /// date are midnight there; Unix seconds are not shifted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
     /// Shades Saturdays and Sundays behind the rows, while the axis spans at most 120 days.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub weekends: bool,
@@ -84,18 +88,19 @@ impl Span {
     }
 }
 
+/// The zone of a timeline that names none.
 pub(crate) const fn zone() -> TimeZone {
     TimeZone::utc()
 }
 
 impl TimelineItemSpec {
     /// The days of the item; only on a validated timeline.
-    pub(crate) fn span(&self) -> Span {
+    pub(crate) fn span(&self, zone: TimeZone) -> Span {
         let resolve = |value: &Option<TimeValue>| {
             value
                 .as_ref()
                 .expect("validated")
-                .resolve(zone())
+                .resolve(zone)
                 .expect("validated")
         };
         match (&self.start, &self.end) {
@@ -111,6 +116,15 @@ impl TimelineItemSpec {
 }
 
 impl TimelineSpec {
+    /// The zone the days are read in; UTC unless `timezone` names another, which validation
+    /// has checked.
+    pub(crate) fn zone(&self) -> TimeZone {
+        self.timezone
+            .as_deref()
+            .and_then(TimeZone::parse)
+            .unwrap_or_else(zone)
+    }
+
     pub(crate) fn item(&self, id: &str) -> Option<usize> {
         self.items
             .iter()
@@ -164,6 +178,17 @@ impl ChartSpec {
                 "a timeline requires a timeline block",
             ));
         };
+        if timeline
+            .timezone
+            .as_deref()
+            .is_some_and(|zone| TimeZone::parse(zone).is_none())
+        {
+            return Err(ChartError::new(
+                "invalid_timezone",
+                "/timeline/timezone",
+                "expected UTC or a fixed offset such as +02:00",
+            ));
+        }
         if !self.time_axis.is_default() {
             return Err(ChartError::new(
                 "option_not_supported",
@@ -230,7 +255,7 @@ impl TimelineSpec {
                 value
                     .as_ref()
                     .map(|value| {
-                        value.resolve(zone()).map_err(|message| {
+                        value.resolve(self.zone()).map_err(|message| {
                             ChartError::new("invalid_time", format!("{path}/{name}"), message)
                         })
                     })
@@ -308,7 +333,7 @@ impl TimelineSpec {
         for (index, marker) in self.markers.iter().enumerate() {
             let path = format!("/timeline/markers/{index}");
             validate_text(&marker.label, &format!("{path}/label"), 60)?;
-            marker.at.resolve(zone()).map_err(|message| {
+            marker.at.resolve(self.zone()).map_err(|message| {
                 ChartError::new("invalid_time", format!("{path}/at"), message)
             })?;
         }
@@ -335,7 +360,7 @@ impl TimelineSpec {
                         "an item cannot follow itself",
                     ));
                 }
-                if item.span().begin() < self.items[before].span().finish() {
+                if item.span(self.zone()).begin() < self.items[before].span(self.zone()).finish() {
                     warnings.push(ChartWarning::new(
                         "follows_overlap",
                         path,

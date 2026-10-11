@@ -57,8 +57,8 @@ pub use timechart::{
     TimeAxisSpec, TimePoint, TimePrecision, Tooltips,
 };
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
+pub(crate) use timeline::Span;
 pub use timeline::{MarkerSpec, TimelineItemSpec, TimelineSpec};
-pub(crate) use timeline::{Span, zone as timeline_zone};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
 pub use tree::{TreeNodeKind, TreeNodeSpec, TreeSpec};
 pub(crate) use treemap::{TmNode, TmTree};

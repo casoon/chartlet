@@ -271,6 +271,10 @@ a Gantt chart, a roadmap, the course of a procedure with its deadlines.
 - **Group rows.** `"groupRows": true` puts the rows of one group together, in the order the groups
   first appear, instead of in the order of `items` (it needs groups); the description and the
   table keep the listed order.
+- **Time zone.** `"timezone": "+02:00"` (UTC or a fixed offset, `invalid_timezone` otherwise)
+  reads bare dates as midnight in that zone and writes every day, the axis ticks and the
+  weekends in it; Unix seconds stay the instants they are. There are no named zones with daylight
+  saving, as in the time chart.
 - **Weekends.** `"weekends": true` shades Saturdays and Sundays (UTC) as pale columns behind the
   rows while the axis spans at most 120 days; on a longer axis they would be slivers, so they are
   left out and `weekends_hidden` says so.

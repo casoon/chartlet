@@ -1177,6 +1177,7 @@
           }
         },
         "groupRows": { "type": "boolean", "default": false, "description": "Put the rows of one group together, in the order the groups first appear. Needs groups." },
+        "timezone": { "type": "string", "default": "UTC", "description": "The zone the days are read and written in: UTC or a fixed offset such as +02:00. A bare date is midnight there; Unix seconds are not shifted." },
         "weekends": { "type": "boolean", "default": false, "description": "Shade Saturdays and Sundays behind the rows while the axis spans at most 120 days; a longer axis warns (weekends_hidden)." }
       }
     },
