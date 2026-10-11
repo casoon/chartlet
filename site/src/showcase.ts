@@ -434,6 +434,20 @@ const catalogue = [
       'The path of a civil case through the German courts, from Amtsgericht and Landgericht by appeal to the Oberlandesgericht and by Revision to the Bundesgerichtshof, in German with the conditions on the edges. A preset on the flow chart, not a type of its own. Simplified, with a phone variant.',
   },
   {
+    slug: 'order-model',
+    chart: 'Class diagram',
+    useCase: 'Document a domain model',
+    blurb:
+      'Seven classes of a shop: attributes and methods in their own compartments, an interface and an enumeration with their stereotypes, a composition with a filled diamond, a realization with a hollow triangle, dependencies dashed, and cardinalities at the ends. chartlet lays it out; the description and the table give every class with its members and relations.',
+  },
+  {
+    slug: 'shop-schema',
+    chart: 'Entity-relationship diagram',
+    useCase: 'Show a database schema',
+    blurb:
+      'Four tables of a shop as entities with their keys, joined by relations with cardinalities: the same diagram type as the class diagram, without methods. The table lists every entity with its columns and relations.',
+  },
+  {
     slug: 'satisfaction-by-quarter',
     chart: 'Grouped bars (error bars)',
     useCase: 'Compare groups with their uncertainty',

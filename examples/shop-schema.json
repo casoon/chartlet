@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "type": "classes",
+  "title": "Shop database",
+  "source": "Illustrative schema",
+  "width": 820,
+  "height": 520,
+  "classes": {
+    "classes": [
+      { "id": "customers", "label": "customers", "kind": "entity", "attributes": ["id (PK)", "email", "created_at"] },
+      { "id": "orders", "label": "orders", "kind": "entity", "attributes": ["id (PK)", "customer_id (FK)", "placed_at", "status"] },
+      { "id": "items", "label": "order_items", "kind": "entity", "attributes": ["order_id (PK, FK)", "product_id (PK, FK)", "quantity"] },
+      { "id": "products", "label": "products", "kind": "entity", "attributes": ["id (PK)", "sku", "name", "price"] }
+    ],
+    "relations": [
+      { "from": "customers", "to": "orders", "fromCardinality": "1", "toCardinality": "0..*" },
+      { "from": "orders", "to": "items", "fromCardinality": "1", "toCardinality": "1..*" },
+      { "from": "products", "to": "items", "fromCardinality": "1", "toCardinality": "0..*" }
+    ]
+  }
+}

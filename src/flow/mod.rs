@@ -34,6 +34,10 @@ const EDGE_SIZE: f64 = 12.0;
 /// Distance between the baselines of an edge label on two lines, and of a step's label.
 const LINE: f64 = 15.0;
 const NODE_LINE: f64 = 16.0;
+/// The size, line height and padding of a member of a class box.
+const MEMBER_SIZE: f64 = 12.0;
+const MEMBER_LINE: f64 = 15.0;
+const MEMBER_PAD: f64 = 6.0;
 /// Text inset inside a step.
 const PAD: f64 = 12.0;
 const MIN_NODE: f64 = 104.0;
@@ -199,6 +203,9 @@ pub(crate) struct Node {
     pub group: Option<usize>,
     /// Where the node stands in the specification, for warnings about its texts.
     pub path: String,
+    /// The compartments of a class box below its name, each a list of lines such as the
+    /// attributes or the methods; empty for every other shape.
+    pub compartments: Vec<Vec<String>>,
 }
 
 pub(crate) struct Edge {
@@ -212,6 +219,47 @@ pub(crate) struct Edge {
     pub main: bool,
     /// Where the edge's label stands in the specification, for warnings about it.
     pub label_path: String,
+    /// What is drawn at either end of the line.
+    pub ends: Ends,
+}
+
+/// What an edge has at one of its ends.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum End {
+    /// Nothing.
+    None,
+    /// A filled arrowhead: the default at the end of an edge.
+    #[default]
+    Arrow,
+    /// Two strokes: a dependency.
+    Open,
+    /// A hollow triangle: inheritance, realization.
+    Triangle,
+    /// A filled diamond: composition.
+    DiamondFilled,
+    /// A hollow diamond: aggregation.
+    DiamondHollow,
+}
+
+/// Both ends of an edge, with the text each carries, such as a cardinality.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct Ends {
+    pub tail: End,
+    pub head: End,
+    pub tail_text: Option<String>,
+    pub head_text: Option<String>,
+}
+
+impl Ends {
+    /// The usual edge: nothing at its start, an arrowhead at its end.
+    pub(crate) fn arrow() -> Self {
+        Self {
+            tail: End::None,
+            head: End::Arrow,
+            tail_text: None,
+            head_text: None,
+        }
+    }
 }
 
 pub(crate) struct Group {
@@ -250,6 +298,8 @@ pub(crate) enum Shape {
     Cache,
     /// A security component: a shield.
     Shield,
+    /// A class or an entity: a box with its name on top and compartments below.
+    Class,
 }
 
 impl From<NodeKind> for Shape {
@@ -282,6 +332,7 @@ impl Diagram {
                     lane: flow.lane_of(index),
                     group: flow.group_of(index),
                     path: format!("/flow/nodes/{index}"),
+                    compartments: Vec::new(),
                 })
                 .collect(),
             edges: flow
@@ -297,6 +348,7 @@ impl Diagram {
                     dash: edge.dash,
                     main: flow.on_main_path(index),
                     label_path: format!("/flow/edges/{index}/label"),
+                    ends: Ends::arrow(),
                 })
                 .collect(),
             lanes: flow.lanes.iter().map(|lane| lane.label.clone()).collect(),
@@ -476,6 +528,22 @@ fn node_boxes(
                     .map(|line| metrics.width(line, SUBLABEL_SIZE)),
             )
             .fold(0.0, f64::max);
+        if node.shape == Shape::Class {
+            // Members are never wrapped: the box is as wide as its widest line.
+            let members = node
+                .compartments
+                .iter()
+                .flatten()
+                .map(|line| metrics.width(line, MEMBER_SIZE))
+                .fold(0.0, f64::max);
+            let width = (text.max(members) + 2.0 * PAD).max(spacing.min_node);
+            let height = class_header(lines.len(), sublines.len())
+                + class_compartments(&node.compartments).iter().sum::<f64>();
+            labels.push(lines);
+            sublabels.push(sublines);
+            sizes.push((width, height));
+            continue;
+        }
         let width = (text + 2.0 * PAD)
             .clamp(spacing.min_node, spacing.max_node.max(room + 2.0 * PAD))
             + extra_width;
@@ -486,6 +554,119 @@ fn node_boxes(
         sizes.push((width, height));
     }
     (labels, sublabels, sizes)
+}
+
+/// Where an edge ends: its tip and the direction the line runs into it.
+type EndPlace = ((f64, f64), (f64, f64));
+
+/// The marks and texts at both ends of an edge: each end's tip and the direction the line runs
+/// into it.
+fn push_ends(
+    ends: &Ends,
+    ((tip, direction), (start, tail_direction)): (EndPlace, EndPlace),
+    head_class: &'static str,
+    elements: &mut Vec<Element>,
+) {
+    for (end, at, along, text) in [
+        (ends.head, tip, direction, &ends.head_text),
+        (ends.tail, start, tail_direction, &ends.tail_text),
+    ] {
+        if let Some(marker) = end_marker(end, at, along, head_class) {
+            elements.push(Element::Polyline(marker));
+        }
+        if let Some(text) = text {
+            elements.push(Element::Text(end_text(text, end, at, along)));
+        }
+    }
+}
+
+/// How far a mark at the end of an edge reaches back along the line.
+fn end_length(end: End) -> f64 {
+    match end {
+        End::None => 0.0,
+        End::Arrow | End::Open => HEAD,
+        End::Triangle => 12.0,
+        End::DiamondFilled | End::DiamondHollow => 16.0,
+    }
+}
+
+fn unit(vector: (f64, f64)) -> (f64, f64) {
+    let length = vector.0.hypot(vector.1);
+    if length > 0.0 {
+        (vector.0 / length, vector.1 / length)
+    } else {
+        (0.0, 1.0)
+    }
+}
+
+/// The mark of `end` with its tip at `tip`, pointing along the unit vector `direction`.
+fn end_marker(
+    end: End,
+    tip: (f64, f64),
+    direction: (f64, f64),
+    arrow_class: &'static str,
+) -> Option<crate::scene::Polyline> {
+    let back = |distance: f64, across: f64| {
+        let side = (-direction.1, direction.0);
+        (
+            tip.0 - direction.0 * distance + side.0 * across,
+            tip.1 - direction.1 * distance + side.1 * across,
+        )
+    };
+    let points = match end {
+        End::None => return None,
+        End::Arrow => return Some(arrowhead(tip, direction, true, arrow_class)),
+        End::Open => return Some(arrowhead(tip, direction, false, "chartlet-flow-open")),
+        End::Triangle => vec![tip, back(12.0, 6.0), back(12.0, -6.0), tip],
+        End::DiamondFilled | End::DiamondHollow => {
+            vec![tip, back(8.0, 5.0), back(16.0, 0.0), back(8.0, -5.0), tip]
+        }
+    };
+    let class = match end {
+        End::DiamondFilled => "chartlet-flow-head chartlet-flow-solid",
+        _ => "chartlet-flow-head chartlet-flow-hollow",
+    };
+    Some(diagram::polyline(points, class, None))
+}
+
+/// The text at an end of an edge, such as a cardinality, beside the line a little way from the
+/// mark.
+fn end_text(text: &str, end: End, at: (f64, f64), direction: (f64, f64)) -> Text {
+    let reach = end_length(end) + 8.0;
+    // On the left of the line, or above it, where the labels of the edges do not stand.
+    let mut side = (-direction.1, direction.0);
+    if side.0 > 1e-6 || (side.0.abs() <= 1e-6 && side.1 > 0.0) {
+        side = (-side.0, -side.1);
+    }
+    let (x, y) = (
+        at.0 - direction.0 * reach + side.0 * 12.0,
+        at.1 - direction.1 * reach + side.1 * 12.0,
+    );
+    Text {
+        x,
+        y: y + 4.0,
+        class: "chartlet-flow-card",
+        anchor: if side.0 >= 0.0 {
+            TextAnchor::Start
+        } else {
+            TextAnchor::End
+        },
+        content: text.to_owned(),
+    }
+}
+
+/// The height of the top of a class box: its stereotype lines above its name lines.
+fn class_header(name_lines: usize, stereotype_lines: usize) -> f64 {
+    16.0 + NODE_LINE * count(name_lines) + 14.0 * count(stereotype_lines)
+}
+
+/// The height of every compartment of a class box below its name; one without lines is left out.
+fn class_compartments(compartments: &[Vec<String>]) -> Vec<f64> {
+    compartments
+        .iter()
+        .filter(|lines| !lines.is_empty())
+        .map(|lines| 2.0 * MEMBER_PAD + MEMBER_LINE * count(lines.len()))
+        .collect()
 }
 
 /// Each edge's label on one or two lines with its technology in brackets below, and the widest
@@ -2136,6 +2317,7 @@ impl Plan {
         })
     }
 
+    #[allow(clippy::too_many_lines)]
     fn draw_edge(
         &self,
         model: &Model,
@@ -2160,7 +2342,17 @@ impl Plan {
             (0.0, 1.0)
         };
         let last = points.len() - 1;
-        points[last] = (tip.0 - direction.0 * HEAD, tip.1 - direction.1 * HEAD);
+        let (start, next) = (points[0], points[1]);
+        let tail_direction = unit((start.0 - next.0, start.1 - next.1));
+        let (head_length, tail_length) = (end_length(spec.ends.head), end_length(spec.ends.tail));
+        points[last] = (
+            tip.0 - direction.0 * head_length,
+            tip.1 - direction.1 * head_length,
+        );
+        points[0] = (
+            start.0 - tail_direction.0 * tail_length,
+            start.1 - tail_direction.1 * tail_length,
+        );
         let main = spec.main;
         let class = match (main, spec.dash) {
             (true, _) => "chartlet-flow-edge chartlet-flow-main",
@@ -2184,16 +2376,17 @@ impl Plan {
             class,
             Some(tooltip),
         )));
-        elements.push(Element::Polyline(arrowhead(
-            tip,
-            direction,
-            true,
-            if main {
-                "chartlet-flow-head chartlet-flow-main-head"
-            } else {
-                "chartlet-flow-head"
-            },
-        )));
+        let head_class = if main {
+            "chartlet-flow-head chartlet-flow-main-head"
+        } else {
+            "chartlet-flow-head"
+        };
+        push_ends(
+            &spec.ends,
+            ((tip, direction), (start, tail_direction)),
+            head_class,
+            elements,
+        );
         let lines = &model.edge_labels[edge];
         if lines.is_empty() {
             return;
@@ -2408,7 +2601,65 @@ impl Plan {
             None => spec.label.clone(),
         });
         shape(spec.shape, (x, y, width, height), tooltip, elements);
+        if spec.shape == Shape::Class {
+            Self::class_text(model, node, (x, y, width), elements);
+            return;
+        }
         Self::node_text(model, node, (x, y, width, height), elements);
+    }
+
+    /// A class box: the stereotype above the name, centered, then a line and the members of every
+    /// compartment, each compartment under a line of its own.
+    fn class_text(
+        model: &Model,
+        node: usize,
+        (x, y, width): (f64, f64, f64),
+        elements: &mut Vec<Element>,
+    ) {
+        let spec = &model.diagram.nodes[node];
+        let (names, stereotypes) = (&model.labels[node], &model.sublabels[node]);
+        let middle = x + width / 2.0;
+        let mut baseline = y + 12.0;
+        for line in stereotypes {
+            baseline += 14.0;
+            elements.push(Element::Text(Text {
+                x: middle,
+                y: baseline - 3.0,
+                class: "chartlet-flow-sublabel",
+                anchor: TextAnchor::Middle,
+                content: line.clone(),
+            }));
+        }
+        for line in names {
+            baseline += NODE_LINE;
+            elements.push(Element::Text(Text {
+                x: middle,
+                y: baseline - 2.0,
+                class: "chartlet-flow-label",
+                anchor: TextAnchor::Middle,
+                content: line.clone(),
+            }));
+        }
+        let mut top = y + class_header(names.len(), stereotypes.len());
+        for lines in spec.compartments.iter().filter(|lines| !lines.is_empty()) {
+            elements.push(Element::Line(Line {
+                x1: x,
+                y1: top,
+                x2: x + width,
+                y2: top,
+                class: "chartlet-flow-inner",
+            }));
+            for (index, line) in lines.iter().enumerate() {
+                elements.push(Element::Text(Text {
+                    x: x + PAD,
+                    y: top + MEMBER_PAD + MEMBER_LINE * count(index) + 11.0,
+                    class: "chartlet-class-member",
+                    anchor: TextAnchor::Start,
+                    content: line.clone(),
+                }));
+            }
+            top += 2.0 * MEMBER_PAD + MEMBER_LINE * count(lines.len());
+        }
     }
 
     /// A step's label, centered on one or two lines, and its sublabel below.
@@ -2459,6 +2710,7 @@ impl Plan {
 
 /// The shape of a step of `kind` in the box at `x`, `y`, with its shadow: every kind has its own,
 /// and its role color only repeats what the shape says.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn shape(
     kind: Shape,
     (x, y, width, height): (f64, f64, f64, f64),
@@ -2552,6 +2804,13 @@ pub(crate) fn shape(
                 "chartlet-diagram-rim",
             ),
             tooltip,
+            elements,
+        ),
+        Shape::Class => with_shadow(
+            rect(
+                "chartlet-flow-node chartlet-role-blue chartlet-class",
+                tooltip,
+            ),
             elements,
         ),
         Shape::State | Shape::Final | Shape::Initial => {

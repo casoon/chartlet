@@ -6,6 +6,9 @@ does.
 
 ## [Unreleased]
 
+### Added
+
+- Class and entity-relationship diagrams (`"type": "classes"`): classes with a name, a stereotype, and attribute and method compartments, joined by relations of six kinds with the marks of UML (hollow triangle, filled and hollow diamond, open arrowhead, dashed lines) and cardinalities at the ends, laid out by the layered layout of flow charts. Examples `order-model` and `shop-schema`.
 ## [0.16.0] - 2026-10-11
 
 ### Added

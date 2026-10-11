@@ -84,6 +84,9 @@ const SANKEY_STYLE: &str = ".chartlet-sk-1{fill:var(--chartlet-color-1)}.chartle
 const SURVIVAL_STYLE: &str = ".chartlet-km-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-km-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-km-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-km-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}.chartlet-km-line{fill:none;stroke-width:2.5;stroke-linejoin:round}.chartlet-km-band{stroke:none;fill-opacity:.15}.chartlet-km-mark{stroke-width:1.5}.chartlet-km-swatch{stroke:none}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Scatter plots: dots and swatches in the palette colors, threshold lines and names.
 const SCATTER_STYLE: &str = ".chartlet-sc-1{fill:var(--chartlet-color-1)}.chartlet-sc-2{fill:var(--chartlet-color-2)}.chartlet-sc-3{fill:var(--chartlet-color-3)}.chartlet-sc-4{fill:var(--chartlet-color-4)}.chartlet-sc-dot{fill-opacity:.65;stroke:none}.chartlet-sc-swatch{stroke:none;rx:5px}.chartlet-sc-fit{stroke-width:2;fill:none}.chartlet-sc-fit.chartlet-sc-1{stroke:var(--chartlet-color-1)}.chartlet-sc-fit.chartlet-sc-2{stroke:var(--chartlet-color-2)}.chartlet-sc-fit.chartlet-sc-3{stroke:var(--chartlet-color-3)}.chartlet-sc-fit.chartlet-sc-4{stroke:var(--chartlet-color-4)}.chartlet-sc-line{stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-sc-label{font-size:11px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Class diagrams, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: the members of a class, the
+/// hollow and solid marks at the ends of relations, and their cardinalities.
+const CLASSES_STYLE: &str = ".chartlet-class-member{font-size:12px;fill:var(--chartlet-text)}.chartlet-flow-card{font-size:11px;fill:var(--chartlet-muted)}.chartlet-flow-hollow{fill:var(--chartlet-background)}.chartlet-flow-solid{fill:var(--chartlet-zero)}.chartlet-flow-open{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}";
 /// The error bars of a bar chart.
 const ERROR_STYLE: &str =
     ".chartlet-error{stroke:var(--chartlet-text);stroke-width:1.5;stroke-linecap:round}";
@@ -321,6 +324,7 @@ fn diagram_style(chart_type: ChartType) -> String {
         ChartType::Sequence => &[DIAGRAM_STYLE, SEQUENCE_STYLE],
         ChartType::Flow => &[DIAGRAM_STYLE, FLOW_STYLE],
         ChartType::State => &[DIAGRAM_STYLE, FLOW_STYLE, STATE_STYLE],
+        ChartType::Classes => &[DIAGRAM_STYLE, FLOW_STYLE, CLASSES_STYLE],
         ChartType::Architecture | ChartType::Tree => {
             &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE]
         }
@@ -451,11 +455,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Architecture, Atlas, Bar, Boxplot, Calendar, Flow, Line, Multiples, Parliament, Rangebar,
-        Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline, Topicmap, Tree,
-        Treemap, Waffle, Waterfall,
+        Architecture, Atlas, Bar, Boxplot, Calendar, Classes, Flow, Line, Multiples, Parliament,
+        Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline, Topicmap,
+        Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 36] = [
+    let groups: [(&str, &[ChartType]); 37] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -479,10 +483,14 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (OUTLINE_STYLE, &[Bar]),
         (TOPICMAP_STYLE, &[Topicmap]),
         (ATLAS_STYLE, &[Atlas]),
-        (DIAGRAM_STYLE, &[Sequence, Flow, State, Architecture, Tree]),
+        (
+            DIAGRAM_STYLE,
+            &[Sequence, Flow, State, Architecture, Tree, Classes],
+        ),
         (SEQUENCE_STYLE, &[Sequence]),
-        (FLOW_STYLE, &[Flow, State, Architecture, Tree]),
+        (FLOW_STYLE, &[Flow, State, Architecture, Tree, Classes]),
         (STATE_STYLE, &[State]),
+        (CLASSES_STYLE, &[Classes]),
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
         (WATERFALL_STYLE, &[Waterfall]),
         (WAFFLE_STYLE, &[Waffle]),
@@ -931,6 +939,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
         ChartType::Sequence
             | ChartType::Flow
             | ChartType::State
+            | ChartType::Classes
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
@@ -1528,6 +1537,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Sequence => return crate::sequence::data_table(spec),
         ChartType::Flow => return crate::flow::data_table(spec),
         ChartType::State => return crate::state::data_table(spec),
+        ChartType::Classes => return crate::classes::data_table(spec),
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
         ChartType::Timeline => return crate::timeline::data_table(spec),
@@ -1560,6 +1570,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Sequence
         | ChartType::Flow
         | ChartType::State
+        | ChartType::Classes
         | ChartType::Architecture
         | ChartType::Tree
         | ChartType::Timeline

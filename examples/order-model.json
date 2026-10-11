@@ -1,0 +1,121 @@
+{
+  "schemaVersion": 1,
+  "type": "classes",
+  "title": "Order model",
+  "source": "Illustrative domain model",
+  "width": 900,
+  "height": 720,
+  "classes": {
+    "classes": [
+      {
+        "id": "customer",
+        "label": "Customer",
+        "attributes": [
+          "+ id: Int",
+          "+ name: String",
+          "+ email: String"
+        ],
+        "methods": [
+          "+ placeOrder(): Order"
+        ]
+      },
+      {
+        "id": "order",
+        "label": "Order",
+        "attributes": [
+          "+ id: Int",
+          "+ placedAt: Date",
+          "+ status: Status"
+        ],
+        "methods": [
+          "+ total(): Money",
+          "+ cancel()"
+        ]
+      },
+      {
+        "id": "line",
+        "label": "OrderLine",
+        "attributes": [
+          "+ quantity: Int",
+          "+ price: Money"
+        ]
+      },
+      {
+        "id": "product",
+        "label": "Product",
+        "attributes": [
+          "+ sku: String",
+          "+ name: String",
+          "+ price: Money"
+        ]
+      },
+      {
+        "id": "payment",
+        "label": "Payment",
+        "kind": "interface",
+        "methods": [
+          "+ charge(amount: Money): Receipt"
+        ]
+      },
+      {
+        "id": "card",
+        "label": "CardPayment",
+        "attributes": [
+          "- number: String"
+        ],
+        "methods": [
+          "+ charge(amount: Money): Receipt"
+        ]
+      },
+      {
+        "id": "status",
+        "label": "Status",
+        "kind": "enum",
+        "attributes": [
+          "PLACED",
+          "PAID",
+          "SHIPPED",
+          "CANCELLED"
+        ]
+      }
+    ],
+    "relations": [
+      {
+        "from": "customer",
+        "to": "order",
+        "fromCardinality": "1",
+        "toCardinality": "0..*",
+        "label": "places"
+      },
+      {
+        "from": "order",
+        "to": "line",
+        "kind": "composition",
+        "fromCardinality": "1",
+        "toCardinality": "1..*"
+      },
+      {
+        "from": "line",
+        "to": "product",
+        "fromCardinality": "*",
+        "toCardinality": "1"
+      },
+      {
+        "from": "card",
+        "to": "payment",
+        "kind": "realization"
+      },
+      {
+        "from": "order",
+        "to": "payment",
+        "kind": "dependency",
+        "label": "paid by"
+      },
+      {
+        "from": "order",
+        "to": "status",
+        "kind": "dependency"
+      }
+    ]
+  }
+}

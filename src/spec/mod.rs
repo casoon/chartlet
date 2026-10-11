@@ -3,6 +3,7 @@ mod atlas;
 mod boxplot;
 mod calendar;
 mod categorical;
+mod classes;
 mod dataset;
 mod flow;
 mod parliament;
@@ -37,6 +38,7 @@ pub use boxplot::{BoxDisplay, BoxSpec, ViolinScale};
 pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
+pub use classes::{ClassKind, ClassSpec, ClassesSpec, RelationKind, RelationSpec};
 pub use flow::{FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, NodeKind};
 pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::RangeSpec;
@@ -204,6 +206,9 @@ pub struct ChartSpec {
     /// A scatter plot: points on two numeric axes, in groups, with threshold lines and named points. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scatter: Option<ScatterSpec>,
+    /// A class or entity-relationship diagram: classes with compartments, joined by relations. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub classes: Option<ClassesSpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -372,11 +377,13 @@ pub enum ChartType {
     Survival,
     /// A scatter plot: points on two numeric axes, in groups, with threshold lines and named points.
     Scatter,
+    /// A class or entity-relationship diagram: classes with compartments, joined by relations.
+    Classes,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 24] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -400,6 +407,7 @@ impl ChartType {
         Self::Sankey,
         Self::Survival,
         Self::Scatter,
+        Self::Classes,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -704,6 +712,7 @@ impl ChartSpec {
             ChartType::Tree => return self.validate_tree(),
             ChartType::Boxplot => return self.validate_boxplot(),
             ChartType::Timeline => return self.validate_timeline(),
+            ChartType::Classes => return self.validate_classes(),
             ChartType::Scatter => return self.validate_scatter(),
             ChartType::Survival => return self.validate_survival(),
             ChartType::Sankey => return self.validate_sankey(),
@@ -1321,6 +1330,7 @@ impl ChartSpec {
                 ChartType::Boxplot,
             ),
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
+            ("/classes", self.classes.is_some(), ChartType::Classes),
             ("/scatter", self.scatter.is_some(), ChartType::Scatter),
             ("/survival", self.survival.is_some(), ChartType::Survival),
             ("/sankey", self.sankey.is_some(), ChartType::Sankey),
@@ -1397,6 +1407,7 @@ impl ChartSpec {
                 | ChartType::Rangebar
                 | ChartType::Boxplot
                 | ChartType::Timeline
+                | ChartType::Classes
                 | ChartType::Scatter
                 | ChartType::Survival
                 | ChartType::Sankey
@@ -1509,6 +1520,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Tree => "tree",
         ChartType::Boxplot => "boxplot",
         ChartType::Timeline => "timeline",
+        ChartType::Classes => "classes",
         ChartType::Scatter => "scatter",
         ChartType::Survival => "survival",
         ChartType::Sankey => "sankey",

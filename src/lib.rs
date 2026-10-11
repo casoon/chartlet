@@ -2,6 +2,7 @@ mod architecture;
 mod atlas;
 mod boxplot;
 mod calendar;
+mod classes;
 mod color;
 mod contour;
 mod describe;
@@ -45,19 +46,20 @@ pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
-    CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType,
-    ComponentKind, ComponentSpec, ConnectionSpec, Corner, Curve, Dash, DataPoint,
-    DiagramOrientation, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps,
-    GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Mark, MarkerSpec, MessageKind, MessageSpec,
-    MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec, ParliamentSpec, ParticipantKind,
-    ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec, SankeyLinkSpec, SankeyNodeSpec,
-    SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterSpec,
-    ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec,
-    StepKind, StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec,
-    SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
-    TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind,
-    TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale,
-    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ClassKind,
+    ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionSpec, Corner, Curve, Dash,
+    DataPoint, DiagramOrientation, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind,
+    FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Mark, MarkerSpec,
+    MessageKind, MessageSpec, MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec,
+    ParliamentSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec,
+    RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
+    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterSpec, ScatterTickSpec, SequenceSpec,
+    SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec,
+    Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
+    TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
+    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale, WafflePartSpec,
+    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4875,6 +4877,86 @@ mod tests {
         let error =
             render_json(ungrouped, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
         assert_eq!(error.path, "/timeline/groupRows");
+    }
+
+    const CLASSES: &str = r#"{"schemaVersion": 1, "type": "classes", "title": "Model", "width": 800, "height": 520,
+        "classes": {"classes": [
+            {"id": "animal", "label": "Animal", "kind": "abstract", "attributes": ["+ name: String"], "methods": ["+ speak()"]},
+            {"id": "dog", "label": "Dog", "methods": ["+ speak()"]},
+            {"id": "owner", "label": "Owner", "kind": "entity", "attributes": ["id (PK)"]}
+        ], "relations": [
+            {"from": "dog", "to": "animal", "kind": "inheritance"},
+            {"from": "owner", "to": "dog", "kind": "aggregation", "fromCardinality": "1", "toCardinality": "0..*", "label": "keeps"}
+        ]}}"#;
+
+    #[test]
+    fn a_class_diagram_draws_boxes_members_and_the_marks_of_its_relations() {
+        let output = render_ok(CLASSES);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(
+            svg.matches("chartlet-class\"").count() + svg.matches("chartlet-class ").count(),
+            3
+        );
+        assert!(svg.contains(">«abstract»</text>"));
+        assert!(svg.contains(">+ name: String</text>"));
+        // A hollow triangle for the inheritance, a hollow diamond for the aggregation.
+        assert_eq!(
+            svg.matches("chartlet-flow-hollow").count(),
+            2 + 1,
+            "two marks and one rule"
+        );
+        assert!(svg.contains(">0..*</text>"));
+        let html = render_json(CLASSES, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(
+            html.contains("Class diagram with 3 classes and 2 relations."),
+            "{html}"
+        );
+        assert!(html.contains("Dog inherits from Animal"));
+        assert!(html.contains("<th scope=\"col\">Attributes</th>"));
+        let german = CLASSES.replace(
+            r#""type": "classes""#,
+            r#""type": "classes", "locale": "de""#,
+        );
+        let html = render_json(&german, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("Klassendiagramm mit 3 Klassen und 2 Beziehungen."));
+        assert!(html.contains("Dog erbt von Animal"));
+    }
+
+    #[test]
+    fn class_diagrams_are_validated_by_name() {
+        for (from, to, code, path) in [
+            (
+                r#""id": "dog""#,
+                r#""id": "animal""#,
+                "duplicate_id",
+                "/classes/classes/1/id",
+            ),
+            (
+                r#""id": "owner""#,
+                r#""id": "9owner""#,
+                "invalid_id",
+                "/classes/classes/2/id",
+            ),
+            (
+                r#""to": "animal""#,
+                r#""to": "cat""#,
+                "unknown_node",
+                "/classes/relations/0/to",
+            ),
+        ] {
+            let error = render_json(
+                &CLASSES.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
     }
 
     const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,

@@ -44,6 +44,7 @@ order: 1
 | Range bars in groups, on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [Soil animals](../../../showcase/soil-animals/) |
 | Sequence diagram, portrait | `"type": "sequence"` with `participants`, `messages` and `fragments` | [Reading an item through the cache](../../../showcase/cache-lookup/) |
 | Sequence diagram, landscape | `"orientation": "landscape"` in `sequence` | [Exporting a report in the background](../../../showcase/async-export/) |
+| Class diagram or entity-relationship diagram | `"type": "classes"` with `classes` and `relations` | [Order model](../../../showcase/order-model/), [Shop database](../../../showcase/shop-schema/) |
 | Flow chart in lanes, with a loop back and a group (experimental) | `"type": "flow"` with `nodes`, `edges`, `lanes`, `groups`, `mainPath` | [From commit to release](../../../showcase/release-flow/) |
 | PRISMA study selection as a flow chart (preset, experimental) | `"type": "flow"` with `io`, `external` and `end` steps and `groups` | [Study selection](../../../showcase/study-selection/) |
 | Chain of courts as a flow chart (preset, experimental) | `"type": "flow"`, `"locale": "de"` | [Instanzenzug](../../../showcase/court-instances/) |
@@ -560,6 +561,51 @@ any cloud of observations — with groups, threshold lines and names on the poin
   if none is labeled, and its caption says how many of how many.
 - **Text alternative.** The description gives the number of points, the span of both axes, the
   points per group and how many lie above each line.
+
+## Class and entity diagrams
+
+`"type": "classes"` draws a class diagram or an entity-relationship diagram: boxes with a name and
+compartments for attributes and methods, joined by relations with the marks of their kind and
+their cardinalities. chartlet lays it out, like a flow chart; the specification only says what is
+related.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "classes",
+  "title": "Order model",
+  "classes": {
+    "classes": [
+      { "id": "order", "label": "Order", "attributes": ["+ id: Int"], "methods": ["+ total(): Money"] },
+      { "id": "line", "label": "OrderLine", "attributes": ["+ quantity: Int"] },
+      { "id": "payment", "label": "Payment", "kind": "interface", "methods": ["+ charge(amount: Money)"] },
+      { "id": "card", "label": "CardPayment" }
+    ],
+    "relations": [
+      { "from": "order", "to": "line", "kind": "composition", "fromCardinality": "1", "toCardinality": "1..*" },
+      { "from": "card", "to": "payment", "kind": "realization" }
+    ]
+  }
+}
+```
+
+- **Classes** have a unique `id` and a `label`. `kind` writes a stereotype above the name:
+  `interface`, `abstract` or `enum`; `entity` is an entity of an entity-relationship diagram and
+  has none. `attributes` and `methods` are lines of text — `+ id: Int`, `id (PK)` — each in a
+  compartment of its own; an empty compartment is left out. Up to 40 classes and 30 lines in a
+  compartment. The box is as wide as its widest line.
+- **Relations** join two classes by id (`unknown_node`): `association` is a plain line,
+  `inheritance` a hollow triangle at `to` (the parent), `realization` the same dashed,
+  `composition` a filled diamond at `from` (the whole), `aggregation` a hollow one,
+  `dependency` a dashed line with an open arrowhead at `to`. A relation may have a `label`,
+  and `fromCardinality` and `toCardinality` (such as `1` or `0..*`) stand at its ends. The parent
+  of an inheritance is laid out before its child.
+- **Layout.** The layered layout and the canvas rules of flow charts apply: `orientation`
+  (`auto`, `portrait`, `landscape`) and the warning `canvas_too_small` when the diagram needs a
+  bigger canvas.
+- **Text alternative.** The description gives every class with the number of its attributes and
+  methods and the relations it starts, in words (`Dog inherits from Animal`); the data table has
+  one row per class with its kind, attributes, methods and relations.
 
 ## Reference lines
 

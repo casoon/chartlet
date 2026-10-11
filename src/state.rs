@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, Group, Node, Shape, layout_diagram, reading_order},
+    flow::{Diagram, Edge, Ends, Group, Node, Shape, layout_diagram, reading_order},
     metrics::TextMetrics,
     scene::Scene,
     spec::{ChartSpec, StateKind, StateSpec},
@@ -78,6 +78,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             lane: None,
             group: None,
             path: "/state/initial".to_owned(),
+            compartments: Vec::new(),
         });
         edges.push(Edge {
             from: 0,
@@ -87,6 +88,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             dash: None,
             main: machine.main_path.first() == Some(initial),
             label_path: "/state/initial".to_owned(),
+            ends: Ends::arrow(),
         });
     }
     let mut groups = Vec::new();
@@ -110,6 +112,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             lane: None,
             group: frame(state),
             path: format!("/state/states/{index}"),
+            compartments: Vec::new(),
         });
     }
     for (index, transition) in machine.transitions.iter().enumerate() {
@@ -121,6 +124,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             dash: transition.dash,
             main: machine.on_main_path(index),
             label_path: format!("/state/transitions/{index}"),
+            ends: Ends::arrow(),
         });
     }
     Diagram {

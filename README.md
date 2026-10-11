@@ -23,7 +23,7 @@ Nothing runs in the browser: no chart JavaScript, no hydration, no layout shift.
 > **Status:** 0.16. Bar charts (single, grouped, colored by group and stacked, vertical and horizontal),
 > categorical line charts, time series with uncertainty bands, reference lines, points and stacked
 > areas, warming stripes, calendar heatmaps, range bars, box plots and small multiples (of time series and of
-> bars) are supported, waterfalls, waffle charts, parliament charts, treemaps, Sankey diagrams, Kaplan-Meier curves, scatter plots and timelines, and sequence, architecture and tree diagrams, plus experimental flow and state diagrams. Until 1.0, a minor release (0.16, 0.17, …) may still change the specification; a
+> bars) are supported, waterfalls, waffle charts, parliament charts, treemaps, Sankey diagrams, Kaplan-Meier curves, scatter plots and timelines, and sequence, architecture, class and tree diagrams, plus experimental flow and state diagrams. Until 1.0, a minor release (0.16, 0.17, …) may still change the specification; a
 > patch release never does.
 
 ## Quick start
@@ -96,6 +96,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Scatter plot: points in groups with threshold lines and names (volcano, Manhattan) | `"type": "scatter"` with `scatter.points`, `lines` | [gene-expression](examples/gene-expression.json) |
 | Scatter plot with a regression line and logarithmic axes | `"regression": true`, `"xScale": "log"` on a `scatter` | [allometry](examples/allometry.json) |
 | Manhattan plot: scatter with named x ticks and fixed ranges | `scatter.xTicks`, `xRange` | [genome-scan](examples/genome-scan.json) |
+| Class diagram and entity-relationship diagram: classes with compartments, relations with cardinalities | `"type": "classes"` with `classes.classes` and `relations` | [order-model](examples/order-model.json), [shop-schema](examples/shop-schema.json) |
 | Kaplan-Meier curves: survival by group, censoring marks, confidence band, number at risk | `"type": "survival"` with `survival.groups` | [overall-survival](examples/overall-survival.json) |
 | Sankey diagram: flows between stages as bands | `"type": "sankey"` with `sankey.links` | [energy-flow](examples/energy-flow.json) |
 | Study selection (PRISMA) and chains of courts as flow charts (presets) | `"type": "flow"` | [study-selection](examples/study-selection.json), [court-instances](examples/court-instances.json) |

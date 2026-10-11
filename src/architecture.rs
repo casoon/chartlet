@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, Group, Node, Shape, layout_diagram, reading_order},
+    flow::{Diagram, Edge, Ends, Group, Node, Shape, layout_diagram, reading_order},
     metrics::TextMetrics,
     scene::Scene,
     spec::{ArchitectureSpec, ChartSpec, ComponentKind, Locale},
@@ -60,6 +60,7 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
                 lane: None,
                 group: boundary(&component.boundary),
                 path: format!("/architecture/components/{index}"),
+                compartments: Vec::new(),
             })
             .collect(),
         edges: architecture
@@ -74,6 +75,7 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
                 dash: connection.dash,
                 main: architecture.on_main_path(index),
                 label_path: format!("/architecture/connections/{index}/label"),
+                ends: Ends::arrow(),
             })
             .collect(),
         lanes: Vec::new(),

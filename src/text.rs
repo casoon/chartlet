@@ -98,6 +98,9 @@ pub(crate) struct Words {
     /// The columns of a timeline's table.
     pub item: &'static str,
     pub phase: &'static str,
+    pub attributes: &'static str,
+    pub methods: &'static str,
+    pub relations: &'static str,
     pub progress: &'static str,
     pub milestone: &'static str,
     pub begin: &'static str,
@@ -208,6 +211,9 @@ const EN: Words = Words {
     summary: "summary",
     item: "Item",
     phase: "Phase",
+    attributes: "Attributes",
+    methods: "Methods",
+    relations: "Relations",
     progress: "Progress",
     milestone: "Milestone",
     begin: "Start",
@@ -318,6 +324,9 @@ const DE: Words = Words {
     summary: "Gesamt",
     item: "Eintrag",
     phase: "Phase",
+    attributes: "Attribute",
+    methods: "Methoden",
+    relations: "Beziehungen",
     progress: "Fortschritt",
     milestone: "Meilenstein",
     begin: "Beginn",
@@ -1578,6 +1587,111 @@ pub(crate) fn scatter_summary(
         write!(text, " {fits}").expect("writing to String cannot fail");
     }
     text
+}
+
+/// What a class diagram shows: how many classes and relations.
+pub(crate) fn classes_opening(locale: Locale, classes: usize, relations: usize) -> String {
+    match locale {
+        Locale::En => format!(
+            "Class diagram with {classes} class{} and {relations} relation{}.",
+            plural(classes, "", "es"),
+            plural(relations, "", "s")
+        ),
+        Locale::De => format!(
+            "Klassendiagramm mit {classes} {} und {relations} {}.",
+            plural(classes, "Klasse", "Klassen"),
+            plural(relations, "Beziehung", "Beziehungen")
+        ),
+    }
+}
+
+/// A class with the number of its members and the relations it starts.
+pub(crate) fn class_sentence(
+    locale: Locale,
+    label: &str,
+    (attributes, methods): (usize, usize),
+    relations: &[String],
+) -> String {
+    let members = match locale {
+        Locale::En => format!(
+            "{attributes} attribute{}, {methods} method{}",
+            plural(attributes, "", "s"),
+            plural(methods, "", "s")
+        ),
+        Locale::De => format!(
+            "{attributes} {}, {methods} {}",
+            plural(attributes, "Attribut", "Attribute"),
+            plural(methods, "Methode", "Methoden")
+        ),
+    };
+    let mut sentence = format!("{label}: {members}.");
+    if !relations.is_empty() {
+        let joined = relations.join("; ");
+        sentence.push(' ');
+        write!(sentence, "{label} {joined}.").expect("writing to String cannot fail");
+    }
+    sentence
+}
+
+/// The kind of a class as the table writes it.
+pub(crate) fn class_kind(locale: Locale, kind: crate::spec::ClassKind) -> &'static str {
+    use crate::spec::ClassKind;
+    match (locale, kind) {
+        (Locale::En, ClassKind::Class) => "Class",
+        (Locale::En, ClassKind::Interface) => "Interface",
+        (Locale::En, ClassKind::Abstract) => "Abstract class",
+        (Locale::En, ClassKind::Enum) => "Enumeration",
+        (Locale::En, ClassKind::Entity) => "Entity",
+        (Locale::De, ClassKind::Class) => "Klasse",
+        (Locale::De, ClassKind::Interface) => "Schnittstelle",
+        (Locale::De, ClassKind::Abstract) => "Abstrakte Klasse",
+        (Locale::De, ClassKind::Enum) => "Aufzählung",
+        (Locale::De, ClassKind::Entity) => "Entität",
+    }
+}
+
+/// One relation of a class in words: `inherits from Animal`, with its cardinalities and its
+/// label. `from_side` says whether the class starts the relation.
+pub(crate) fn relation_phrase(
+    locale: Locale,
+    (kind, from_side): (crate::spec::RelationKind, bool),
+    other: &str,
+    cardinality: Option<&str>,
+    label: Option<&str>,
+) -> String {
+    use crate::spec::RelationKind;
+    let verb = match (locale, kind, from_side) {
+        (Locale::En, RelationKind::Association, _) => "is associated with",
+        (Locale::En, RelationKind::Inheritance, true) => "inherits from",
+        (Locale::En, RelationKind::Inheritance, false) => "is the parent of",
+        (Locale::En, RelationKind::Realization, true) => "implements",
+        (Locale::En, RelationKind::Realization, false) => "is implemented by",
+        (Locale::En, RelationKind::Composition, true) => "is composed of",
+        (Locale::En, RelationKind::Composition, false) => "is part of",
+        (Locale::En, RelationKind::Aggregation, true) => "holds",
+        (Locale::En, RelationKind::Aggregation, false) => "is held by",
+        (Locale::En, RelationKind::Dependency, true) => "depends on",
+        (Locale::En, RelationKind::Dependency, false) => "is needed by",
+        (Locale::De, RelationKind::Association, _) => "ist verbunden mit",
+        (Locale::De, RelationKind::Inheritance, true) => "erbt von",
+        (Locale::De, RelationKind::Inheritance, false) => "ist Elternklasse von",
+        (Locale::De, RelationKind::Realization, true) => "implementiert",
+        (Locale::De, RelationKind::Realization, false) => "wird implementiert von",
+        (Locale::De, RelationKind::Composition, true) => "besteht aus",
+        (Locale::De, RelationKind::Composition, false) => "ist Teil von",
+        (Locale::De, RelationKind::Aggregation, true) => "enthält",
+        (Locale::De, RelationKind::Aggregation, false) => "wird enthalten von",
+        (Locale::De, RelationKind::Dependency, true) => "hängt ab von",
+        (Locale::De, RelationKind::Dependency, false) => "wird gebraucht von",
+    };
+    let mut phrase = format!("{verb} {other}");
+    if let Some(cardinality) = cardinality {
+        write!(phrase, " ({cardinality})").expect("writing to String cannot fail");
+    }
+    if let Some(label) = label {
+        write!(phrase, " [{label}]").expect("writing to String cannot fail");
+    }
+    phrase
 }
 
 /// A least-squares line of a scatter plot: its slope, intercept and r², for a group or all points.
