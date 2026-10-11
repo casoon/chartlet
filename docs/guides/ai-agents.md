@@ -37,7 +37,7 @@ For Claude Desktop and project configuration, see the
   `mobile` layout. An invalid specification is a regular result, so the assistant can fix the
   field the path points to and try again.
 - `chartlet_render` returns the SVG or HTML with warnings, CSP `styleHashes` and the provenance
-  [manifest](warnings-and-errors.md#provenance). With `outputPath` it writes the file below the
+  [manifest](../warnings-and-errors/#provenance). With `outputPath` it writes the file below the
   directory named by `CHARTLET_MCP_ROOT` instead and returns the path and size.
 - `chartlet_explain` returns the description chartlet generates for the chart and, per series or
   layer, count, missing values, minimum, maximum, first and last value with their labels or
@@ -53,7 +53,7 @@ For Claude Desktop and project configuration, see the
   `survival`, `scatter`, `timeline`, `forest` (a range bar chart), `violin` (a box plot) and the
   flow presets `prisma` and `instances`.
 
-The resource `chartlet://schema` holds the [specification](../reference/specification.md)
+The resource `chartlet://schema` holds the [specification](../../reference/specification/)
 schema.
 
 ## In the chat
@@ -85,4 +85,4 @@ the chart is static, and a click in it does not filter the grid.
 
 The tools are a thin layer over `renderChartDetailed` from `@casoon/chartlet`, which returns the
 compiler's diagnostics as data instead of throwing; see
-[JavaScript runtimes](javascript.md#structured-diagnostics).
+[JavaScript runtimes](../javascript/#structured-diagnostics).

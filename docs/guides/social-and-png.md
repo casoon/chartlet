@@ -22,7 +22,7 @@ chartlet render revenue.json --variant social -o revenue.social.svg
 - The chart is laid out without its title at the size that remains, two thirds of it, and drawn
   one and a half times as large, so that its labels stay readable where a preview shows the image
   at half its size. A label that this size has to shorten is reported with its usual code.
-- The stylesheet is resolved as in the [print variant](./print.md): literal colors, no custom
+- The stylesheet is resolved as in the [print variant](../print/): literal colors, no custom
   properties, so that renderers outside the browser draw it. A layer color declared as
   `var(--name)` is drawn in the text color and reported as `color_not_resolved`.
 - The marks carry no tooltips; the root keeps the title and description as its accessible name.

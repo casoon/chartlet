@@ -46,7 +46,7 @@ zoom steps belong to the HTML profile and are not part of it. `--variant print` 
 
 The screen SVG in the same Typst document draws every mark black.
 
-For a PNG of the print variant, see [Social images and PNG](./social-and-png.md).
+For a PNG of the print variant, see [Social images and PNG](../social-and-png/).
 
 ## Astro and the render API
 

@@ -64,7 +64,7 @@ missing WebAssembly build or CLI still throws. `createRenderer` returns `renderC
 With `manifest: true`, the result also carries `manifest`, the object the CLI writes with
 `--manifest`: chartlet version, schema version, SHA-256 of the canonical specification and of
 `content`, format, variant, ID prefix and warnings, without a timestamp. See
-[Provenance](warnings-and-errors.md#provenance) for the fields.
+[Provenance](../warnings-and-errors/#provenance) for the fields.
 
 ```js
 const { content, manifest } = renderChart(spec, { format: 'svg', manifest: true });
@@ -158,7 +158,7 @@ import { enhance, crosshair, toggle } from '@casoon/chartlet/interactive';
 enhance(document.querySelector('#power').closest('figure'), { crosshair, toggle });
 ```
 
-See [Interaction](interaction.md#optional-javascript) for the features and the hooks. The Rust
+See [Interaction](../interaction/#optional-javascript) for the features and the hooks. The Rust
 CLI writes the hooks with `--hooks` but ships no JavaScript.
 
 ## Content Security Policy

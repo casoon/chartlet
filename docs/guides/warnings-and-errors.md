@@ -36,7 +36,7 @@ Warnings are written to standard error, and the chart is still produced:
 | `unreachable_state` | A state diagram names an `initial` state, and no transition leads to this state. |
 | `label_overlap` | The label of a zone, reference line or point marker overlaps the label of another annotation, the label of a zone or reference line crosses a data line, or a label reaches outside the plot. The path names the annotation layer; the label is still drawn. A point marker first tries its other sides before this is reported. |
 
-A chart with a [mobile variant](responsive.md) is laid out twice in the HTML profile. A warning
+A chart with a [mobile variant](../responsive/) is laid out twice in the HTML profile. A warning
 that only the mobile layout raises keeps its code and path, and its message begins with
 `mobile variant: `; one that the full-size chart already reports is not repeated.
 
@@ -77,5 +77,5 @@ The canonical specification is the parsed form, serialized again: key order, whi
 number spelling of the input file do not change `specHash`, and defaults that the input leaves
 out are part of it. The manifest carries no timestamp, so the same render always produces the
 same manifest. The npm package returns the same object as `manifest` with `manifest: true`, see
-[JavaScript runtimes](javascript.md#provenance); the Rust crate as `RenderOutput::manifest` with
+[JavaScript runtimes](../javascript/#provenance); the Rust crate as `RenderOutput::manifest` with
 `RenderOptions { manifest: true, .. }`.

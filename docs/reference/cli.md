@@ -19,14 +19,14 @@ chartlet render <spec.json | -> [options]
 | `--table visible` | Shows the data table permanently. |
 | `--id-prefix <prefix>` | Stable ID of the chart root and prefix for its other IDs; needed when the same chart appears twice on one page. |
 | `--variant mobile` | Renders the mobile variant alone as SVG, for a `<picture>` source; requires `mobile` in the specification (`missing_mobile`) and the SVG format. `desktop` (default) renders the chart at `width` × `height`. |
-| `--variant print` | Renders the chart as SVG with literal colors instead of CSS custom properties, for PDF pipelines and renderers outside the browser; IDs end in `-p`. SVG format only. See [Print and PDF](../guides/print.md). |
-| `--variant social` | Renders the chart on a 1200 × 630 canvas for link previews such as Open Graph images: title drawn large, source below, literal colors, no tooltips; IDs end in `-s`. SVG format only. See [Social images and PNG](../guides/social-and-png.md). |
+| `--variant print` | Renders the chart as SVG with literal colors instead of CSS custom properties, for PDF pipelines and renderers outside the browser; IDs end in `-p`. SVG format only. See [Print and PDF](../../guides/print/). |
+| `--variant social` | Renders the chart on a 1200 × 630 canvas for link previews such as Open Graph images: title drawn large, source below, literal colors, no tooltips; IDs end in `-s`. SVG format only. See [Social images and PNG](../../guides/social-and-png/). |
 | `-o <path>` | Writes to a file instead of standard output. |
-| `--manifest <path>` | Also writes a provenance manifest of the render as JSON to `<path>`, see [Provenance](../guides/warnings-and-errors.md#provenance). |
+| `--manifest <path>` | Also writes a provenance manifest of the render as JSON to `<path>`, see [Provenance](../../guides/warnings-and-errors/#provenance). |
 | `--strict` | Fails on any warning. Useful in CI. |
 | `--allow-warning <code>` | With `--strict`, lets warnings with this code through; they are still reported. Repeatable, for example `--allow-warning dense_chart`. |
 | `--styles inline\|external` | `inline` (default): the chart carries its whole stylesheet. `external`: only its own declared colors; the page loads the output of `chartlet stylesheet` once. |
-| `--hooks` | Adds the `data-*` hooks that the optional `@casoon/chartlet/interactive` module reads; see [Interaction](../guides/interaction.md#optional-javascript). Without it the output is unchanged. |
+| `--hooks` | Adds the `data-*` hooks that the optional `@casoon/chartlet/interactive` module reads; see [Interaction](../../guides/interaction/#optional-javascript). Without it the output is unchanged. |
 | `--diagnostics json` | Writes errors and warnings to standard error as one JSON document instead of text lines. |
 
 Pass `-` instead of a file name to read the specification from standard input.
@@ -66,7 +66,7 @@ chartlet render revenue.json -o revenue.svg --manifest revenue.manifest.json
 }
 ```
 
-The fields are described under [Provenance](../guides/warnings-and-errors.md#provenance).
+The fields are described under [Provenance](../../guides/warnings-and-errors/#provenance).
 
 The SVG scales with its container, uses CSS classes for all styling and embeds no fonts, scripts or
 external resources.

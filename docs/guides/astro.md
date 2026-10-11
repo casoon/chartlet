@@ -39,7 +39,7 @@ import revenue from '../data/monthly-revenue.json';
 - The HTML table uses a native disclosure by default; set `table="visible"` to show it permanently.
 - A specification with `mobile` needs nothing extra: the component passes the HTML through, and
   the figure switches to the mobile variant by the width of its container. See
-  [Responsive charts](responsive.md).
+  [Responsive charts](../responsive/).
 
 ## The render API
 
@@ -61,4 +61,4 @@ writes. An invalid specification throws an error with the CLI's message. With
 `format: 'svg'` and `variant: 'mobile'` it returns the mobile variant alone. This site uses
 exactly that to render its showcase.
 
-Outside Astro, and in runtimes that cannot read files, see [JavaScript runtimes](javascript.md).
+Outside Astro, and in runtimes that cannot read files, see [JavaScript runtimes](../javascript/).

@@ -24,7 +24,7 @@ With `RenderOptions { manifest: true, .. }`, `output.manifest` holds the provena
 with.
 
 With the `png` feature (`cargo add chartlet --features png`), `render_png` rasterizes the print or
-the social variant, see [Social images and PNG](../guides/social-and-png.md).
+the social variant, see [Social images and PNG](../../guides/social-and-png/).
 
 `render_with_metrics` accepts your own `TextMetrics` implementation if your pages use a font whose
 widths differ noticeably from the built-in profile.

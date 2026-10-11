@@ -54,7 +54,7 @@ order: 1
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
-one with a mobile variant also has its `.mobile.svg`, and two have their [print variant](print.md)
+one with a mobile variant also has its `.mobile.svg`, and two have their [print variant](../print/)
 as `.print.svg`.
 The SVG files are also the reference output of the test suite.
 
@@ -948,5 +948,5 @@ column.
 on calendar boundaries, and the layer list lives in `panes`. Bars and grouped series do not apply
 to it, and a `time` chart refuses them by name instead of ignoring them. Its `zoomSteps` name a
 window of time instead of a range of categories.
-The [time series guide](time-series.md) covers timestamps, timezone, per-layer colors, the dark
+The [time series guide](../time-series/) covers timestamps, timezone, per-layer colors, the dark
 theme, and the limits for dense data.
