@@ -6,6 +6,8 @@ does.
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-11
+
 ### Added
 
 - Sankey diagrams: `"back": true` on a link marks a flow back to an earlier column, drawn as a loop under the diagram; `link_not_back` refuses one that does not lead back. Example `water-cycle`.
