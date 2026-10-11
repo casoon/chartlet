@@ -955,15 +955,15 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
     }
     let dataset = spec.table_dataset();
     let rows = dataset.categories.len();
-    // The text column after the values has no value.
-    let grouped = !table_extra(spec).is_empty();
+    // The text columns after the values have no value.
+    let extras = table_extra(spec).len();
     let values = (0..rows)
         .map(|row| {
             dataset
                 .series
                 .iter()
                 .map(|series| series.values[row])
-                .chain(grouped.then_some(None))
+                .chain(std::iter::repeat_n(None, extras))
                 .collect()
         })
         .collect();
@@ -972,7 +972,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
         return TableHooks {
             columns: (0..dataset.series.len())
                 .map(|index| (index, 0, "value", false))
-                .chain(grouped.then_some((dataset.series.len(), 0, "text", false)))
+                .chain((0..extras).map(|extra| (dataset.series.len() + extra, 0, "text", false)))
                 .collect(),
             x: (0..rows)
                 .map(|row| f64::from(u32::try_from(row).expect("rows are limited")))
