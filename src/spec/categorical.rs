@@ -30,6 +30,12 @@ pub struct DataPoint {
 pub struct SeriesSpec {
     pub name: String,
     pub values: Vec<Option<f64>>,
+    /// The lower and upper end of an error bar through each value, such as a confidence
+    /// interval: both or neither, one entry per category, `null` where the value is missing.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub lower: Vec<Option<f64>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub upper: Vec<Option<f64>>,
 }
 
 impl ChartSpec {
@@ -60,6 +66,8 @@ impl ChartSpec {
         view.series = groups
             .iter()
             .map(|group| SeriesSpec {
+                lower: Vec::new(),
+                upper: Vec::new(),
                 name: (*group).to_owned(),
                 values: self
                     .data
@@ -79,14 +87,100 @@ impl ChartSpec {
         Some(view)
     }
 
-    /// Whether the bars carry error bars.
+    /// Whether the bars or points carry error bars.
     pub(crate) fn has_error_bars(&self) -> bool {
         self.data.iter().any(|point| point.lower.is_some())
+            || self.series.iter().any(|series| !series.lower.is_empty())
+    }
+
+    /// The error bar of the value of series `series_index` in category `index`: the data point of
+    /// a single series, or the series' own bounds.
+    pub(crate) fn error_bounds(&self, index: usize, series_index: usize) -> Option<(f64, f64)> {
+        if self.series.is_empty() {
+            return self
+                .data
+                .get(index)
+                .and_then(|point| point.lower.zip(point.upper));
+        }
+        let series = self.series.get(series_index)?;
+        (*series.lower.get(index)?).zip(*series.upper.get(index)?)
+    }
+
+    /// Every error bar limit of the chart, for the value scale.
+    pub(crate) fn error_limits(&self) -> impl Iterator<Item = f64> + '_ {
+        let single = self
+            .data
+            .iter()
+            .flat_map(|point| [point.lower, point.upper].into_iter().flatten());
+        let several = self
+            .series
+            .iter()
+            .flat_map(|series| series.lower.iter().chain(&series.upper).flatten().copied());
+        single.chain(several)
+    }
+
+    /// Error bars of the series of a chart with several: `lower` and `upper` together, one entry
+    /// for every category, around every value, on a bar or a line chart without a stack.
+    fn validate_series_bounds(&self) -> Result<(), ChartError> {
+        for (series_index, series) in self.series.iter().enumerate() {
+            if series.lower.is_empty() && series.upper.is_empty() {
+                continue;
+            }
+            let path = format!("/series/{series_index}");
+            if !matches!(self.chart_type, ChartType::Bar | ChartType::Line) || self.stack.is_some()
+            {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    format!("{path}/lower"),
+                    "error bars belong to a bar chart or a line chart without a stack",
+                ));
+            }
+            for (name, bounds) in [("lower", &series.lower), ("upper", &series.upper)] {
+                if bounds.len() != self.categories.len() {
+                    return Err(ChartError::new(
+                        if bounds.is_empty() {
+                            "missing_bounds"
+                        } else {
+                            "series_length_mismatch"
+                        },
+                        format!("{path}/{name}"),
+                        format!(
+                            "give lower and upper together, {} entries each, one per category",
+                            self.categories.len()
+                        ),
+                    ));
+                }
+            }
+            for (index, value) in series.values.iter().enumerate() {
+                let bounds = (series.lower[index], series.upper[index]);
+                let (Some(value), (Some(lower), Some(upper))) = (value, bounds) else {
+                    if value.is_some() {
+                        return Err(ChartError::new(
+                            "missing_bounds",
+                            format!("{path}/lower/{index}"),
+                            "give every value both lower and upper, or null where the value is null",
+                        ));
+                    }
+                    continue;
+                };
+                validate_number(lower, &format!("{path}/lower/{index}"))?;
+                validate_number(upper, &format!("{path}/upper/{index}"))?;
+                if !(lower..=upper).contains(value) {
+                    return Err(ChartError::new(
+                        "invalid_bounds",
+                        format!("{path}/lower/{index}"),
+                        "the value must lie between lower and upper",
+                    ));
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Error bars: `lower` and `upper` together on every point or on none, around the value, on
     /// a bar chart without groups.
     fn validate_error_bars(&self) -> Result<(), ChartError> {
+        self.validate_series_bounds()?;
         let used = self
             .data
             .iter()
@@ -294,6 +388,7 @@ impl ChartSpec {
                 }
             }
         }
+        self.validate_series_bounds()?;
         if self
             .series
             .iter()

@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 56] = [
+const EXAMPLES: [(&str, &str, &str); 57] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -258,6 +258,11 @@ const EXAMPLES: [(&str, &str, &str); 56] = [
         include_str!("../examples/latency-by-region.svg"),
     ),
     (
+        "satisfaction-by-quarter",
+        include_str!("../examples/satisfaction-by-quarter.json"),
+        include_str!("../examples/satisfaction-by-quarter.svg"),
+    ),
+    (
         "voter-movement",
         include_str!("../examples/voter-movement.json"),
         include_str!("../examples/voter-movement.svg"),
@@ -285,7 +290,7 @@ const EXAMPLES: [(&str, &str, &str); 56] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 25] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 26] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -385,6 +390,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 25] = [
         "latency-by-region",
         include_str!("../examples/latency-by-region.json"),
         include_str!("../examples/latency-by-region.mobile.svg"),
+    ),
+    (
+        "satisfaction-by-quarter",
+        include_str!("../examples/satisfaction-by-quarter.json"),
+        include_str!("../examples/satisfaction-by-quarter.mobile.svg"),
     ),
     (
         "voter-movement",

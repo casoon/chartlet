@@ -68,7 +68,11 @@ pub(super) fn layout_vertical(
             vertical_value_label(
                 value_y <= baseline,
                 x + thickness / 2.0,
-                scale.map(error_reach(spec, index, value), top + plot_height, top),
+                scale.map(
+                    error_reach(spec, (index, series_index), value),
+                    top + plot_height,
+                    top,
+                ),
                 content,
             ),
         )
@@ -178,7 +182,11 @@ pub(super) fn layout_horizontal(
                 value,
                 (
                     value_x,
-                    scale.map(error_reach(spec, index, value), left, left + plot_width),
+                    scale.map(
+                        error_reach(spec, (index, series_index), value),
+                        left,
+                        left + plot_width,
+                    ),
                 ),
                 baseline,
                 y + thickness / 2.0,
@@ -316,7 +324,7 @@ fn push_bar(
             style_index: None,
             tooltip: Some(bar_tooltip(
                 spec,
-                index,
+                (index, series_index),
                 category,
                 value,
                 dataset.series[series_index].name.as_deref(),
@@ -328,45 +336,46 @@ fn push_bar(
     } else {
         (y + height / 2.0, height)
     };
-    push_error_bar(elements, spec, index, vertical, along, middle);
+    push_error_bar(
+        elements,
+        spec,
+        (index, series_index),
+        vertical,
+        along,
+        middle,
+    );
 }
 
 /// The tooltip of a bar, with the interval of its error bar when it has one.
 pub(super) fn bar_tooltip(
     spec: &ChartSpec,
-    index: usize,
+    (index, series_index): (usize, usize),
     category: &str,
     value: f64,
     series_name: Option<&str>,
 ) -> String {
     let text = tooltip(category, value, spec.number_style(), series_name);
-    match spec.data.get(index) {
-        Some(point) if spec.series.is_empty() => match point.lower.zip(point.upper) {
-            Some((lower, upper)) => format!(
-                "{text} ({} {} {})",
-                format_value(lower, spec.number_style()),
-                spec.locale.words().to,
-                format_value(upper, spec.number_style())
-            ),
-            None => text,
-        },
-        _ => text,
+    match spec.error_bounds(index, series_index) {
+        Some((lower, upper)) => format!(
+            "{text} ({} {} {})",
+            format_value(lower, spec.number_style()),
+            spec.locale.words().to,
+            format_value(upper, spec.number_style())
+        ),
+        None => text,
     }
 }
 
 /// The furthest a bar of a single series reaches, with its error bar: where its value label goes.
-pub(super) fn error_reach(spec: &ChartSpec, index: usize, value: f64) -> f64 {
-    match spec.data.get(index) {
-        Some(point) if spec.series.is_empty() => {
-            let bound = if value >= 0.0 {
-                point.upper
-            } else {
-                point.lower
-            };
-            bound.unwrap_or(value)
-        }
-        _ => value,
-    }
+pub(super) fn error_reach(
+    spec: &ChartSpec,
+    (index, series_index): (usize, usize),
+    value: f64,
+) -> f64 {
+    spec.error_bounds(index, series_index).map_or(
+        value,
+        |(lower, upper)| if value >= 0.0 { upper } else { lower },
+    )
 }
 
 /// The error bar of a bar: a stroke from `lower` to `upper` along the value axis through the
@@ -375,17 +384,12 @@ pub(super) fn error_reach(spec: &ChartSpec, index: usize, value: f64) -> f64 {
 pub(super) fn push_error_bar(
     elements: &mut Vec<Element>,
     spec: &ChartSpec,
-    index: usize,
+    at: (usize, usize),
     vertical: bool,
     along: impl Fn(f64) -> f64,
     (middle, thickness): (f64, f64),
 ) {
-    let Some(bounds) = spec
-        .data
-        .get(index)
-        .filter(|_| spec.series.is_empty())
-        .and_then(|point| point.lower.zip(point.upper))
-    else {
+    let Some(bounds) = spec.error_bounds(at.0, at.1) else {
         return;
     };
     let cap = (thickness * 0.25).clamp(3.0, 8.0);
@@ -582,11 +586,10 @@ pub(super) fn label_gutter(dataset: &Dataset, metrics: &impl TextMetrics) -> f64
 /// and the declared range of the value axis.
 fn value_scale(spec: &ChartSpec, dataset: &Dataset) -> NumericScale {
     NumericScale::for_axis(
-        dataset.values().chain(reference::values(spec)).chain(
-            spec.data
-                .iter()
-                .flat_map(|point| [point.lower, point.upper].into_iter().flatten()),
-        ),
+        dataset
+            .values()
+            .chain(reference::values(spec))
+            .chain(spec.error_limits()),
         true,
         &spec.value_axis,
     )

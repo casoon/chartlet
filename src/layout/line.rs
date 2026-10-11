@@ -65,11 +65,7 @@ pub(super) fn layout_line(
         vertical_bars: true,
     };
     let scale = NumericScale::for_axis(
-        dataset.values().chain(
-            spec.data
-                .iter()
-                .flat_map(|point| [point.lower, point.upper].into_iter().flatten()),
-        ),
+        dataset.values().chain(spec.error_limits()),
         false,
         &spec.value_axis,
     );
@@ -190,7 +186,7 @@ fn add_line_data(
             push_error_bar(
                 elements,
                 spec,
-                index,
+                (index, series_index),
                 true,
                 |bound| scale.map(bound, plot.top + plot.height, plot.top),
                 (x, 12.0),
@@ -205,7 +201,7 @@ fn add_line_data(
                 style_index: None,
                 tooltip: Some(bar_tooltip(
                     spec,
-                    index,
+                    (index, series_index),
                     &dataset.categories[index],
                     value,
                     series.name.as_deref(),
@@ -215,7 +211,7 @@ fn add_line_data(
                 elements.push(Element::Text(Text {
                     x,
                     y: scale.map(
-                        error_reach(spec, index, value),
+                        error_reach(spec, (index, series_index), value),
                         plot.top + plot.height,
                         plot.top,
                     ) - 10.0,

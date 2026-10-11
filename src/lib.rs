@@ -5007,6 +5007,57 @@ mod tests {
     }
 
     #[test]
+    fn series_of_a_chart_can_carry_error_bars() {
+        let spec = r#"{"schemaVersion": 1, "type": "bar", "title": "T", "width": 640, "height": 360,
+            "categories": ["a", "b"],
+            "series": [
+                {"name": "One", "values": [2, 3], "lower": [1, 2], "upper": [3, 4]},
+                {"name": "Two", "values": [4, null], "lower": [3, null], "upper": [5, null]}
+            ]}"#;
+        let output = render_ok(spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        // Three values with bounds: a stroke and two caps each.
+        assert_eq!(
+            output.content.matches("class=\"chartlet-error\"").count(),
+            9
+        );
+        assert!(output.content.contains("a – Two: 4 (3 to 5)"));
+        let html = render_json(spec, RenderFormat::Html, &RenderOptions::default())
+            .unwrap()
+            .content;
+        assert!(html.contains("<th scope=\"col\">One – Interval</th>"));
+        assert!(html.contains("<th scope=\"col\">Two – Interval</th>"));
+        for (from, to, code, path) in [
+            (
+                r#""upper": [3, 4]"#,
+                r#""upper": [3]"#,
+                "series_length_mismatch",
+                "/series/0/upper",
+            ),
+            (
+                r#""lower": [1, 2]"#,
+                r#""lower": [1, 3.5]"#,
+                "invalid_bounds",
+                "/series/0/lower/1",
+            ),
+            (
+                r#""lower": [3, null]"#,
+                r#""lower": [null, null]"#,
+                "missing_bounds",
+                "/series/1/lower/0",
+            ),
+        ] {
+            let error = render_json(
+                &spec.replace(from, to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
+        }
+    }
+
+    #[test]
     fn a_line_chart_draws_error_bars_through_its_points() {
         let spec = r#"{"schemaVersion": 1, "type": "line", "title": "T", "width": 640, "height": 360,
             "data": [{"label": "a", "value": 2, "lower": 1, "upper": 3}, {"label": "b", "value": 3, "lower": 2, "upper": 5}]}"#;

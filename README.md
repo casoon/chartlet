@@ -105,6 +105,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Box plot from observations, with a box given by its five numbers | `"type": "boxplot"` with `boxes` | [response-times](examples/response-times.json) |
 | Grouped box plots: boxes colored by group with a legend | `group` on every box | [latency-by-region](examples/latency-by-region.json) |
 | Violins and strips from the same observations | `"boxDisplay": "violin"` on a `boxplot` | [response-distribution](examples/response-distribution.json) |
+| Grouped bars with error bars | `lower` and `upper` arrays on each `series` | [satisfaction-by-quarter](examples/satisfaction-by-quarter.json) |
 | Line chart with error bars | `lower` and `upper` on every `data` point of a `line` chart | [monthly-satisfaction](examples/monthly-satisfaction.json) |
 | Bars with error bars (confidence intervals) | `lower` and `upper` on every `data` point | [satisfaction-scores](examples/satisfaction-scores.json) |
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |

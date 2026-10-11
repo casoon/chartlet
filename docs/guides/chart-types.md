@@ -11,6 +11,7 @@ order: 1
 | Bar with a reference line, thousands separated | `references` with `value` and `label`; `valueAxis.thousandsSeparator` | [Open support tickets](../../../showcase/ticket-backlog/) |
 | Stacked bar, by value or as 100 % | `"stack": "normal"` or `"percent"` with `series` | [Electricity generation](../../../showcase/energy-mix/), [Accessibility checks](../../../showcase/audit-outcomes/) |
 | Grouped bar, series told apart by form as well as color | `"patterns": true` | [Population and emissions](../../../showcase/population-and-emissions/) |
+| Grouped bars with error bars | `lower` and `upper` arrays on each `series` | [Satisfaction by quarter](../../../showcase/satisfaction-by-quarter/) |
 | Line chart with error bars | `lower` and `upper` on every `data` point of a `line` chart | [Monthly satisfaction](../../../showcase/monthly-satisfaction/) |
 | Bar chart with error bars | `lower` and `upper` on every `data` point | [Satisfaction scores](../../../showcase/satisfaction-scores/) |
 | Forest plot: squares by weight, a diamond, the line of no effect | `"type": "rangebar"` with `weight`, `summary` and `references` | [Effect of an intervention](../../../showcase/trial-effects/) |
@@ -155,6 +156,11 @@ confidence interval of an estimate. The value lies between them (`invalid_bounds
 label moves beyond the error bar, the tooltip reads `Team: 4.1 (3.9 to 4.3)`, and the data
 table gains an Interval column. A chart takes error bars or groups, not both. A single-series
 `line` chart takes them the same way: a stroke through each point, the scale reaching every limit.
+With several series, each series takes `lower` and `upper` arrays next to its `values` (one entry
+per category, `null` where the value is `null`; `missing_bounds`, `series_length_mismatch`,
+`invalid_bounds`), on grouped bars and on lines, not on a stack: the bars of a group each get
+their own error bar, tooltips give each interval, and the table gains an interval column per
+series.
 
 ```json
 { "data": [

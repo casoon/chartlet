@@ -1582,7 +1582,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 .iter()
                 .map(|series| series.name.as_deref().unwrap_or(words.value).to_owned()),
         )
-        .chain(extra.iter().map(|(head, _)| (*head).to_owned()))
+        .chain(extra.iter().map(|(head, _)| head.clone()))
         .collect();
     let rows = dataset
         .categories
@@ -1612,26 +1612,55 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
 /// The text columns that follow the values of a table, if the chart has any: each with its head
 /// and one cell per row. A grouped bar chart names the group of every bar, a box plot its group
 /// and its outliers.
-fn table_extra(spec: &ChartSpec) -> Vec<(&'static str, Vec<String>)> {
+fn table_extra(spec: &ChartSpec) -> Vec<(String, Vec<String>)> {
     let words = spec.locale.words();
     if spec.chart_type == ChartType::Boxplot {
         let mut columns = Vec::new();
         if !spec.box_groups().is_empty() {
             columns.push((
-                words.group,
+                words.group.to_owned(),
                 spec.boxes
                     .iter()
                     .map(|boxed| boxed.group.clone().unwrap_or_default())
                     .collect(),
             ));
         }
-        columns.push((words.outliers, crate::boxplot::outlier_cells(spec)));
+        columns.push((
+            words.outliers.to_owned(),
+            crate::boxplot::outlier_cells(spec),
+        ));
         return columns;
+    }
+    if spec.has_error_bars() && !spec.series.is_empty() {
+        let show = |value| format_value(value, spec.number_style());
+        let several = spec.series.len() > 1;
+        return spec
+            .series
+            .iter()
+            .enumerate()
+            .filter(|(_, series)| !series.lower.is_empty())
+            .map(|(series_index, series)| {
+                let head = if several {
+                    format!("{} – {}", series.name, words.interval)
+                } else {
+                    words.interval.to_owned()
+                };
+                let cells = (0..spec.categories.len())
+                    .map(|index| match spec.error_bounds(index, series_index) {
+                        Some((lower, upper)) => {
+                            format!("{} {} {}", show(lower), words.to, show(upper))
+                        }
+                        None => String::new(),
+                    })
+                    .collect();
+                (head, cells)
+            })
+            .collect();
     }
     if spec.has_error_bars() {
         let show = |value| format_value(value, spec.number_style());
         return vec![(
-            words.interval,
+            words.interval.to_owned(),
             spec.data
                 .iter()
                 .map(|point| match point.lower.zip(point.upper) {
@@ -1645,7 +1674,7 @@ fn table_extra(spec: &ChartSpec) -> Vec<(&'static str, Vec<String>)> {
         return Vec::new();
     }
     vec![(
-        words.group,
+        words.group.to_owned(),
         spec.data
             .iter()
             .map(|point| point.group.clone().unwrap_or_default())

@@ -259,7 +259,9 @@
         "required": ["name", "values"],
         "properties": {
           "name": { "type": "string", "minLength": 1, "maxLength": 100 },
-          "values": { "type": "array", "items": { "$ref": "#/$defs/value" } }
+          "values": { "type": "array", "items": { "$ref": "#/$defs/value" } },
+          "lower": { "type": "array", "items": { "$ref": "#/$defs/value" }, "description": "The lower end of an error bar through each value (bar and line charts, no stack): with upper, one entry per category, null where the value is null." },
+          "upper": { "type": "array", "items": { "$ref": "#/$defs/value" } }
         }
       }
     },

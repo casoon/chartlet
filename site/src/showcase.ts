@@ -434,6 +434,13 @@ const catalogue = [
       'The path of a civil case through the German courts, from Amtsgericht and Landgericht by appeal to the Oberlandesgericht and by Revision to the Bundesgerichtshof, in German with the conditions on the edges. A preset on the flow chart, not a type of its own. Simplified, with a phone variant.',
   },
   {
+    slug: 'satisfaction-by-quarter',
+    chart: 'Grouped bars (error bars)',
+    useCase: 'Compare groups with their uncertainty',
+    blurb:
+      'Satisfaction in four quarters for two plans: each bar of a group has its own 95% confidence interval, the scale reaches every limit, and the table gains an interval column for each plan. Illustrative survey, with a phone variant.',
+  },
+  {
     slug: 'latency-by-region',
     chart: 'Box plot (groups)',
     useCase: 'Compare groups across categories',
