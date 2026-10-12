@@ -3,7 +3,7 @@
 // they need neither chartlet_inspect_data nor the series facts of chartlet_explain.
 
 /** The diagram types chartlet draws. */
-export const DIAGRAM_TYPES = /** @type {const} */ (["sequence", "flow", "state", "architecture", "tree"]);
+export const DIAGRAM_TYPES = /** @type {const} */ (["sequence", "flow", "state", "architecture", "tree", "classes"]);
 
 /** @type {Record<string, Record<string, unknown>>} */
 const STARTERS = {
@@ -104,6 +104,95 @@ const STARTERS = {
       ],
     },
   },
+  classes: {
+    "schemaVersion": 1,
+    "type": "classes",
+    "title": "Order model",
+    "width": 900,
+    "height": 720,
+    "classes": {
+      "classes": [
+        {
+          "id": "customer",
+          "label": "Customer",
+          "attributes": [
+            "+ id: Int",
+            "+ name: String",
+            "+ email: String"
+          ],
+          "methods": [
+            "+ placeOrder(): Order"
+          ]
+        },
+        {
+          "id": "order",
+          "label": "Order",
+          "attributes": [
+            "+ id: Int",
+            "+ placedAt: Date",
+            "+ status: Status"
+          ],
+          "methods": [
+            "+ total(): Money",
+            "+ cancel()"
+          ]
+        },
+        {
+          "id": "line",
+          "label": "OrderLine",
+          "attributes": [
+            "+ quantity: Int",
+            "+ price: Money"
+          ]
+        },
+        {
+          "id": "payment",
+          "label": "Payment",
+          "kind": "interface",
+          "methods": [
+            "+ charge(amount: Money): Receipt"
+          ]
+        },
+        {
+          "id": "card",
+          "label": "CardPayment",
+          "attributes": [
+            "- number: String"
+          ],
+          "methods": [
+            "+ charge(amount: Money): Receipt"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "from": "customer",
+          "to": "order",
+          "fromCardinality": "1",
+          "toCardinality": "0..*",
+          "label": "places"
+        },
+        {
+          "from": "order",
+          "to": "line",
+          "kind": "composition",
+          "fromCardinality": "1",
+          "toCardinality": "1..*"
+        },
+        {
+          "from": "card",
+          "to": "payment",
+          "kind": "realization"
+        },
+        {
+          "from": "order",
+          "to": "payment",
+          "kind": "dependency",
+          "label": "paid by"
+        }
+      ]
+    }
+  },
 };
 
 /** The kinds of each element per diagram type, with the shape that draws them. */
@@ -163,9 +252,15 @@ const KINDS = {
       cache: "hexagon",
       security: "shield",
       external: "dashed box",
+      node: "box seen from a corner: a machine or cluster node that runs other components (deployment)",
+      artifact: "box with a folded corner: something deployed, such as an image or a package",
     },
     boundary: { boundary: "frame; boundaries nest with in, up to four deep" },
-    connection: { label: "what it does", technology: "how, in brackets below the label" },
+    connection: {
+      label: "what it does",
+      technology: "how, in brackets below the label",
+      step: "1-99, each once: numbers the connection in a sequence of calls, written before the label",
+    },
   },
   tree: {
     node: {
@@ -176,6 +271,23 @@ const KINDS = {
     link: { link: "on a node: written on the line to its parent, such as a share; not on the root" },
     partner: { partner: "on a node: joins it to another as a couple, side by side; children of either hang from the middle of the line between them" },
   },
+  classes: {
+    class: {
+      class: "box with the name on top, attributes and methods in compartments below (default)",
+      interface: "box with «interface» above the name",
+      abstract: "box with «abstract» above the name",
+      enum: "box with «enumeration» above the name; its attributes are the values",
+      entity: "box of an entity-relationship diagram: no stereotype",
+    },
+    relation: {
+      association: "plain line",
+      inheritance: "hollow triangle at to, the parent",
+      realization: "dashed line with a hollow triangle at to",
+      composition: "filled diamond at from, the whole",
+      aggregation: "hollow diamond at from",
+      dependency: "dashed line with an open arrowhead at to",
+    },
+  },
 };
 
 const NOTES = [
@@ -185,6 +297,8 @@ const NOTES = [
   'orientation "auto" (default) takes portrait — time or flow running down — where that fits the canvas, landscape — running right — where only that fits, and otherwise the one that grows the canvas less (warning canvas_too_small names the size needed). "portrait" and "landscape" force one.',
   "Every kind has its own shape and a role color; say what an edge means in its label, the line pattern only repeats it.",
   "The description and the data table list every element in reading order; check a spec with chartlet_validate_spec.",
+  '"theme": "blueprint" draws a diagram in pale lines on a deep blue ground (diagrams only; charts keep light and dark). A deployment is an architecture diagram: boundaries are the hosts, components of kind node and artifact sit in them.',
+  'A tree takes "layout": "radial" for a mind map (root in the middle, subtrees in sectors); it refuses orientation, partner and link. "collapsed": true on a node hides what hangs below it.',
 ];
 
 /**
@@ -241,6 +355,11 @@ export function diagramCounts(spec) {
       };
     case "tree":
       return { nodes: length(spec.tree?.nodes) };
+    case "classes":
+      return {
+        classes: length(spec.classes?.classes),
+        relations: length(spec.classes?.relations),
+      };
     default:
       return null;
   }

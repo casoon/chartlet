@@ -281,7 +281,7 @@ For ohlc layers min is the lowest low, max the highest high, first the first ope
     "chartlet_diagram_starter",
     {
       title: "Start a software diagram",
-      description: `Return a valid starting specification for a chartlet software diagram, the kinds its elements can take with the shape each is drawn in, and notes on ids, layout and orientation. Diagrams are drawn from structure, not data: sequence (participants exchanging messages, with fragments), flow (steps and edges, with lanes, groups and a main path), state (states and transitions event [guard] / action, with choices, composite and final states) and architecture (components and connections inside nested boundaries).
+      description: `Return a valid starting specification for a chartlet software diagram, the kinds its elements can take with the shape each is drawn in, and notes on ids, layout and orientation. Diagrams are drawn from structure, not data: sequence (participants exchanging messages, with fragments), flow (steps and edges, with lanes, groups and a main path), state (states and transitions event [guard] / action, with choices, composite and final states), architecture (components and connections inside nested boundaries), tree (an organization or ownership structure, or a radial mind map) and classes (class and entity-relationship diagrams: classes with attribute and method compartments, joined by relations with cardinalities).
 
 chartlet lays a diagram out itself; the specification only says what is connected. Adapt the starter, then check it with chartlet_validate_spec and render it with chartlet_render.`,
       inputSchema: z.object({

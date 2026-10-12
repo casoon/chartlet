@@ -400,6 +400,7 @@ const NOTES = {
     "Up to 5000 points; group on every point or none (up to four, the first point of each fixes its color). lines are thresholds at a value of x or y.",
     "Above 300 points the dots are small without tooltips; above 100 the table lists only labeled points, or the 20 highest. Label the points that matter.",
     'regression true draws the least-squares line for each group (slope, intercept and r² in the description); xScale and yScale "log" need values above zero and fit the regression to the logarithms.',
+    "quadrants {x, y, labels: {topLeft, topRight, bottomLeft, bottomRight}} divides the plot by a line at an x and a y value into four named areas (an impact and effort matrix); the description lists the points of each area.",
     "xTicks puts named labels at chosen places on the x axis (chromosomes of a Manhattan plot, two groups alternating); xRange and yRange fix the ends of an axis and everything drawn must lie within.",
   ],
   timeline: [
