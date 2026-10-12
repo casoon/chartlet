@@ -44,13 +44,19 @@ if (optimized.error?.code === "ENOENT") {
   process.exit(optimized.status ?? 1);
 }
 
-// The size of the module as shipped, to watch it grow (plan 38); no limit is enforced yet.
+// The size of the module as shipped. The budget is what a Worker or a page would have to load;
+// when a feature pushes the module over it, raise it on purpose in the same commit.
+const budgetGzip = 600_000;
 const shipped = readFileSync(output);
+const gzipped = gzipSync(shipped, { level: 9 }).length;
 const kilobytes = (bytes) => `${(bytes / 1000).toFixed(1)} KB`;
 console.log(
-  `chartlet.wasm: ${kilobytes(shipped.length)} (${shipped.length} B), ` +
-    `gzip -9 ${kilobytes(gzipSync(shipped, { level: 9 }).length)}`,
+  `chartlet.wasm: ${kilobytes(shipped.length)} (${shipped.length} B), gzip -9 ${kilobytes(gzipped)}`,
 );
+if (gzipped > budgetGzip) {
+  console.error(`chartlet.wasm is over its budget of ${kilobytes(budgetGzip)} gzipped.`);
+  process.exit(1);
+}
 
 // The shared stylesheet for `styles: "external"`, from the renderer just built.
 const renderer = createRenderer(new WebAssembly.Module(readFileSync(output)));

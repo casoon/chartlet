@@ -26,8 +26,8 @@ chartlet is at 0.18; screen reader and user testing are still pending. Statuses:
 | Context | Status | Notes |
 | --- | --- | --- |
 | Chromium (Chrome, Edge) | Verified | Automated accessibility scan (axe) and manual review during development. |
-| Firefox | Planned | Standard SVG is expected to work; the accessibility tree is not yet tested. |
-| Safari | Planned | Standard SVG is expected to work; the accessibility tree is not yet tested. |
+| Firefox | Planned | Standard SVG is expected to work. The Firefox build of Playwright did not start on the development machine, so the accessibility tree is not yet tested. |
+| Safari (WebKit) | Verified for rendering | Checked 2026-10-12 with the WebKit build of Playwright (the engine of Safari, without Safari itself): all 76 example HTML profiles draw, every chart is a `role="img"` with a name and a description, the data table is present, the series filter hides series and the container query switches to the phone variant, with the same results as in Chromium. Not checked with VoiceOver. |
 
 ## Screen readers
 
