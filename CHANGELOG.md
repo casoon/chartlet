@@ -11,6 +11,12 @@ does.
 - Timelines: `timezone` also takes about 55 common IANA names such as `Europe/Berlin`, `America/New_York` or `Australia/Sydney`, with the daylight saving rules in force today (Europe, the USA, southern Australia, New Zealand); the axis is laid out in wall-clock time and an instant is shifted by the offset in force then.
 - Trees: `collapsed` on a node draws it without what hangs below it, with a `+n` for the nodes left out; the description and the data table still list every node (`nothing_to_collapse` warns when nothing hangs below).
 
+### Changed
+
+- Descriptions in plainer words: small multiples open with “Time chart in 3 panels …” / „Zeitreihe in 3 Feldern …“ and “Bar chart in 2 panels …” / „Balkendiagramm in 2 Feldern …“ instead of “Small multiples of …” / „Kleine Vielfache aus …“, with singular for one panel or category; several bands read “Lines have a shaded band from their lower to their upper bound”.
+- English output spells “modelled” (legend, tooltips, description, table, “Hatched: modelled”); the specification field stays `modeled`, and so does the CSS class `chartlet-line-modeled`.
+- Equal ends are named once: a scatter axis whose values are all equal says “x at 3”, warming stripes of one year “for 2020”, a timeline on a single day “on 3 Mar 2026”. A German scatter description now says „von … bis …“ instead of an English “to”, and Kaplan-Meier groups say “1 event” / „1 Ereignis“.
+
 ## [0.17.0] - 2026-10-11
 
 ### Added

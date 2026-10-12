@@ -2908,10 +2908,10 @@ mod tests {
         assert!(svg.contains("fill=\"url(#chartlet-"));
         assert!(svg.contains("class=\"chartlet-hatch chartlet-style-1\""));
         assert!(svg.contains("chartlet-line chartlet-line-modeled chartlet-line-series-2"));
-        assert!(svg.contains(">Scenario (modeled)<"));
+        assert!(svg.contains(">Scenario (modelled)<"));
         assert!(svg.contains("<title>2050 – Scenario: 1.8 (range 0.5 to 2.5)</title>"));
         assert!(svg.contains(
-            "One line has a shaded band from its lower to its upper bound, hatched where modeled"
+            "One line has a shaded band from its lower to its upper bound, hatched where modelled"
         ));
         // Annual data reads as years, not as January 1st.
         assert!(svg.contains("from 2000 to 2050"));
@@ -3598,12 +3598,12 @@ mod tests {
             assert_eq!(svg.matches("class=\"chartlet-range-mid\"").count(), 1);
             assert!(svg.contains("-hatch-range\" width=\"6\""));
             assert!(svg.contains("<title>Observed: 1.05 (0.9 to 1.2)</title>"));
-            assert!(svg.contains("<title>Natural: −0.1 to 0.1, modeled</title>"));
-            assert!(svg.contains(">Hatched: modeled<"));
+            assert!(svg.contains("<title>Natural: −0.1 to 0.1, modelled</title>"));
+            assert!(svg.contains(">Hatched: modelled<"));
             // The legend text needs its own color; without it a dark chart draws it black.
             assert!(svg.contains(".chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}"));
             assert!(svg.contains(
-                "Range chart with 2 categories, each a span from low to high and a central value. Lowest low: −0.1 (Natural). Highest high: 1.2 (Observed). Modeled, drawn hatched: Natural."
+                "Range chart with 2 categories, each a span from low to high and a central value. Lowest low: −0.1 (Natural). Highest high: 1.2 (Observed). Modelled, drawn hatched: Natural."
             ));
         }
         let html = render_json(RANGES, RenderFormat::Html, &RenderOptions::default()).unwrap();
@@ -3611,7 +3611,7 @@ mod tests {
             "<th scope=\"col\">Low</th><th scope=\"col\">Mid</th><th scope=\"col\">High</th>"
         ));
         assert!(html.content.contains(
-            "<th scope=\"row\">Natural (modeled)</th><td>−0.1</td><td>Missing</td><td>0.1</td>"
+            "<th scope=\"row\">Natural (modelled)</th><td>−0.1</td><td>Missing</td><td>0.1</td>"
         ));
     }
 
@@ -3771,7 +3771,7 @@ mod tests {
         assert!(svg.contains(">req/s</text>") && svg.contains(">MB</text>"));
         assert!(svg.contains("<title>A – Speed: 10</title>"));
         assert!(svg.contains(
-            "Small multiples of bars: 2 panels over 3 categories, each with its own value axis. Speed: Highest 30 req/s (C), Lowest 10 req/s (A). Memory: Highest 5 MB (A), Lowest 3 MB (C)."
+            "Bar chart in 2 panels over 3 categories, each with its own value axis. Speed: Highest 30 req/s (C), Lowest 10 req/s (A). Memory: Highest 5 MB (A), Lowest 3 MB (C)."
         ));
         let html = render_json(PANEL_BARS, RenderFormat::Html, &RenderOptions::default()).unwrap();
         assert!(html.content.contains(
@@ -5595,7 +5595,7 @@ mod tests {
         assert_eq!(svg.matches(">30</text>").count(), 3);
         // One legend entry per name, not per panel; the same name keeps its color everywhere.
         assert_eq!(svg.matches("class=\"chartlet-legend\"").count(), 2);
-        assert!(svg.contains(">Pathway (modeled)<"));
+        assert!(svg.contains(">Pathway (modelled)<"));
         assert_eq!(
             svg.matches("chartlet-line chartlet-line-modeled chartlet-line-series-2")
                 .count(),
@@ -5604,7 +5604,7 @@ mod tests {
         );
         assert!(svg.contains("<title>2050 – Industry · Pathway: 0 (range 0 to 2)</title>"));
         assert!(svg.contains(
-            "Small multiples of 3 panels (Energy, Industry, Transport) with a shared value axis, each from 2000 to 2050, showing History, Pathway (modeled)."
+            "Time chart in 3 panels (Energy, Industry, Transport) with a shared value axis, each from 2000 to 2050, showing History, Pathway (modelled)."
         ));
         let html = render_json(&spec, RenderFormat::Html, &RenderOptions::default()).unwrap();
         assert!(
@@ -6454,7 +6454,7 @@ mod tests {
             );
         }
         // An explicit pattern replaces the modeled dash, but the legend still says modeled.
-        assert!(svg.contains(">Solid model (modeled)<"));
+        assert!(svg.contains(">Solid model (modelled)<"));
         assert!(!svg.contains("class=\"chartlet-line chartlet-line-modeled"));
 
         // Without the new options a chart carries none of their rules.

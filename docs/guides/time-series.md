@@ -221,7 +221,7 @@ takes no `title`; that heads the panels of small multiples.
 
 Give every point of a line `lower` and `upper` to draw a band around it, in the line's color. A
 layer with `"modeled": true` is drawn dashed, its band hatched, and its legend entry and the
-description say “(modeled)”, so the distinction does not rest on color. The data table gets a
+description say “(modelled)”, so the distinction does not rest on color. The data table gets a
 `lower` and an `upper` column for the layer. Both edges on every point with a value, or on none, is
 required (`incomplete_band`); `lower` above `upper` is `invalid_band`; a value outside its own band is
 reported as `value_outside_band`.

@@ -155,7 +155,7 @@ limits for dense series.
 
 A line layer can carry an uncertainty band: give every point `lower` and `upper`. With
 `"modeled": true` the line is dashed, its band hatched, and legend, description and data table
-say “modeled”. An `"annotation"` layer draws a labelled reference line: `value` for a horizontal
+say “modelled”. An `"annotation"` layer draws a labelled reference line: `value` for a horizontal
 threshold, `time` for a vertical marker. A bare year such as `"1850"` is a valid timestamp, and
 annual data is labelled by year. `null` as a value breaks the line, its band and its area.
 `"mark": "area"` fills the region between a line and zero, and `"stack": "normal"` on a pane

@@ -531,7 +531,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             .fold((f64::MAX, f64::MIN), |(low, high), value| {
                 (low.min(value), high.max(value))
             });
-        format!("{} to {}", show(low), show(high))
+        text::value_span(spec.locale, &show(low), &show(high))
     };
     let groups: Vec<String> = scatter
         .groups()

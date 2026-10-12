@@ -302,7 +302,7 @@ fn time_description(spec: &ChartSpec) -> String {
             }
         })
         .collect::<Vec<_>>();
-    let mut description = if spec.chart_type == ChartType::Multiples {
+    let opening = if spec.chart_type == ChartType::Multiples {
         let panels = spec
             .panes
             .iter()
@@ -316,18 +316,15 @@ fn time_description(spec: &ChartSpec) -> String {
         } else {
             &[]
         };
-        text::axis_noun(
+        text::time_opening(
             locale,
-            zone,
-            text::time_opening(
-                locale,
-                points,
-                &range,
-                listed,
-                names.len() == 1 && spec.data_layers().any(|entry| entry.layer.modeled),
-            ),
+            points,
+            &range,
+            listed,
+            names.len() == 1 && spec.data_layers().any(|entry| entry.layer.modeled),
         )
     };
+    let mut description = text::axis_noun(locale, zone, opening);
 
     describe_panel_notes(spec, &mut description);
 

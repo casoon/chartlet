@@ -133,7 +133,7 @@ const EN: Words = Words {
     value: "Value",
     lower: "lower",
     upper: "upper",
-    modeled: "modeled",
+    modeled: "modelled",
     from: "from",
     to: "to",
     range: "range",
@@ -165,7 +165,7 @@ const EN: Words = Words {
     range_low: "Low",
     range_mid: "Mid",
     range_high: "High",
-    hatched_modeled: "Hatched: modeled",
+    hatched_modeled: "Hatched: modelled",
     no_value: "no value",
     open: "open",
     high: "high",
@@ -426,7 +426,7 @@ pub(crate) fn time_opening(
             names.join(", ")
         ),
         (Locale::En, false) if modeled => {
-            format!("Time chart with {points} {point} {range}, modeled.")
+            format!("Time chart with {points} {point} {range}, modelled.")
         }
         (Locale::De, false) if modeled => {
             format!("Zeitreihe mit {points} {punkt} {range}, modelliert.")
@@ -452,7 +452,7 @@ pub(crate) fn axis_noun(locale: Locale, zone: crate::time::TimeZone, opening: St
     }
 }
 
-/// The opening sentence of small multiples.
+/// The opening sentence of small multiples: a time chart in panels, laid out in a grid.
 pub(crate) fn multiples_opening(
     locale: Locale,
     panels: &[String],
@@ -468,13 +468,15 @@ pub(crate) fn multiples_opening(
     };
     let mut text = match locale {
         Locale::En => format!(
-            "Small multiples of {} panels ({}) with {axis}, each {range}",
+            "Time chart in {} {} ({}) with {axis}, each {range}",
             panels.len(),
+            plural(panels.len(), "panel", "panels"),
             panels.join(", ")
         ),
         Locale::De => format!(
-            "Kleine Vielfache aus {} Feldern ({}) mit {axis}, jeweils {range}",
+            "Zeitreihe in {} {} ({}) mit {axis}, jeweils {range}",
             panels.len(),
+            plural(panels.len(), "Feld", "Feldern"),
             panels.join(", ")
         ),
     };
@@ -577,25 +579,19 @@ pub(crate) fn candles(locale: Locale, summary: &CandleSummary) -> String {
 pub(crate) fn bands(locale: Locale, banded: usize, hatched: bool) -> String {
     match locale {
         Locale::En => format!(
-            " {} a shaded band from its lower to its upper bound{}; the data table lists both.",
-            if banded == 1 {
-                "One line has"
-            } else {
-                "Lines have"
-            },
+            " {} a shaded band from {} lower to {} upper bound{}; the data table lists both.",
+            plural(banded, "One line has", "Lines have"),
+            plural(banded, "its", "their"),
+            plural(banded, "its", "their"),
             if hatched {
-                ", hatched where modeled"
+                ", hatched where modelled"
             } else {
                 ""
             }
         ),
         Locale::De => format!(
             " {} ein schattiertes Band von der unteren bis zur oberen Grenze{}; die Datentabelle nennt beide.",
-            if banded == 1 {
-                "Eine Linie hat"
-            } else {
-                "Linien haben"
-            },
+            plural(banded, "Eine Linie hat", "Linien haben je"),
             if hatched {
                 ", schraffiert, wo modelliert"
             } else {
@@ -605,14 +601,18 @@ pub(crate) fn bands(locale: Locale, banded: usize, hatched: bool) -> String {
     }
 }
 
-/// The opening sentence of small multiples of bars.
+/// The opening sentence of small multiples of bars: a bar chart in panels, laid out in a grid.
 pub(crate) fn panel_bars_opening(locale: Locale, panels: usize, categories: usize) -> String {
     match locale {
         Locale::En => format!(
-            "Small multiples of bars: {panels} panels over {categories} categories, each with its own value axis."
+            "Bar chart in {panels} {} over {categories} {}, each with its own value axis.",
+            plural(panels, "panel", "panels"),
+            plural(categories, "category", "categories")
         ),
         Locale::De => format!(
-            "Kleine Vielfache aus Balken: {panels} Felder über {categories} Kategorien, jedes mit eigener Wertachse."
+            "Balkendiagramm in {panels} {} über {categories} {}, jedes mit eigener Wertachse.",
+            plural(panels, "Feld", "Feldern"),
+            plural(categories, "Kategorie", "Kategorien")
         ),
     }
 }
@@ -770,6 +770,8 @@ pub(crate) fn diverging_scale(locale: Locale, reference: &str, min: &str, max: &
 /// The opening sentence of warming stripes.
 pub(crate) fn stripes_opening(locale: Locale, first: i32, last: i32, scale: &str) -> String {
     match locale {
+        Locale::En if first == last => format!("Warming stripes for {first}, one stripe, {scale}."),
+        Locale::De if first == last => format!("Wärmestreifen für {first}, ein Streifen, {scale}."),
         Locale::En => {
             format!("Warming stripes from {first} to {last}, one stripe per year, {scale}.")
         }
@@ -864,7 +866,7 @@ pub(crate) fn range_groups(locale: Locale, groups: &str) -> String {
 /// The sentence that names the modeled spans of a range chart.
 pub(crate) fn modeled_ranges(locale: Locale, labels: &str) -> String {
     match locale {
-        Locale::En => format!(" Modeled, drawn hatched: {labels}."),
+        Locale::En => format!(" Modelled, drawn hatched: {labels}."),
         Locale::De => format!(" Modelliert, schraffiert gezeichnet: {labels}."),
     }
 }
@@ -1448,14 +1450,20 @@ pub(crate) fn timeline_opening(
     (phases, milestones): (usize, usize),
     (first, last): (&str, &str),
 ) -> String {
+    let days = match locale {
+        Locale::En if first == last => format!("on {first}"),
+        Locale::De if first == last => format!("am {first}"),
+        Locale::En => format!("from {first} to {last}"),
+        Locale::De => format!("vom {first} bis zum {last}"),
+    };
     match locale {
         Locale::En => format!(
-            "Timeline with {phases} phase{} and {milestones} milestone{} from {first} to {last}.",
+            "Timeline with {phases} phase{} and {milestones} milestone{} {days}.",
             plural(phases, "", "s"),
             plural(milestones, "", "s"),
         ),
         Locale::De => format!(
-            "Zeitstrahl mit {phases} {} und {milestones} {} vom {first} bis zum {last}.",
+            "Zeitstrahl mit {phases} {} und {milestones} {} {days}.",
             plural(phases, "Phase", "Phasen"),
             plural(milestones, "Meilenstein", "Meilensteinen"),
         ),
@@ -1554,6 +1562,16 @@ pub(crate) fn parliament_coalition(
     }
 }
 
+/// Where the values of a scatter axis lie: `from 1 to 5`, or `at 3` when they are all equal.
+pub(crate) fn value_span(locale: Locale, low: &str, high: &str) -> String {
+    match locale {
+        Locale::En if low == high => format!("at {low}"),
+        Locale::De if low == high => format!("bei {low}"),
+        Locale::En => format!("from {low} to {high}"),
+        Locale::De => format!("von {low} bis {high}"),
+    }
+}
+
 /// What a scatter plot shows: its points, the spans of both axes, the groups and the lines.
 pub(crate) fn scatter_summary(
     locale: Locale,
@@ -1564,11 +1582,11 @@ pub(crate) fn scatter_summary(
 ) -> String {
     let mut text = match locale {
         Locale::En => format!(
-            "Scatter plot of {points} point{}: x from {x_span}, y from {y_span}.",
+            "Scatter plot of {points} point{}: x {x_span}, y {y_span}.",
             plural(points, "", "s")
         ),
         Locale::De => format!(
-            "Streudiagramm aus {points} {}: x von {x_span}, y von {y_span}.",
+            "Streudiagramm aus {points} {}: x {x_span}, y {y_span}.",
             plural(points, "Punkt", "Punkten")
         ),
     };
@@ -1758,18 +1776,20 @@ pub(crate) fn survival_group(
     median: Option<&str>,
     last: &str,
 ) -> String {
+    let event = plural(events, "event", "events");
+    let ereignis = plural(events, "Ereignis", "Ereignisse");
     match (locale, median) {
         (Locale::En, Some(median)) => format!(
-            "{label}: {observations} observations, {events} events, median {median}, {last} at the end."
+            "{label}: {observations} observations, {events} {event}, median {median}, {last} at the end."
         ),
         (Locale::En, None) => format!(
-            "{label}: {observations} observations, {events} events, median not reached, {last} at the end."
+            "{label}: {observations} observations, {events} {event}, median not reached, {last} at the end."
         ),
         (Locale::De, Some(median)) => format!(
-            "{label}: {observations} Beobachtungen, {events} Ereignisse, Median {median}, {last} am Ende."
+            "{label}: {observations} Beobachtungen, {events} {ereignis}, Median {median}, {last} am Ende."
         ),
         (Locale::De, None) => format!(
-            "{label}: {observations} Beobachtungen, {events} Ereignisse, Median nicht erreicht, {last} am Ende."
+            "{label}: {observations} Beobachtungen, {events} {ereignis}, Median nicht erreicht, {last} am Ende."
         ),
     }
 }
@@ -1896,8 +1916,9 @@ pub(crate) fn treemap_summary(
 #[cfg(test)]
 mod tests {
     use super::{
-        atlas_sentence, calendar_opening, categories_opening, equal_values, missing_values,
-        time_opening, topicmap_opening, years_without_value,
+        atlas_sentence, bands, calendar_opening, categories_opening, equal_values, missing_values,
+        multiples_opening, panel_bars_opening, stripes_opening, survival_group, time_opening,
+        timeline_opening, topicmap_opening, value_span, years_without_value,
     };
     use crate::spec::Locale;
 
@@ -1937,7 +1958,7 @@ mod tests {
         );
         assert_eq!(
             time_opening(Locale::En, 1, "in 2024", &[], true),
-            "Time chart with 1 point in 2024, modeled."
+            "Time chart with 1 point in 2024, modelled."
         );
         assert_eq!(
             time_opening(
@@ -1982,6 +2003,85 @@ mod tests {
         assert_eq!(
             atlas_sentence(Locale::En, 2, 3, ("A", "3"), 4),
             "Knowledge landscape of 2 realms and 3 regions; largest is A with 3. 4 places are marked."
+        );
+    }
+
+    #[test]
+    fn panels_are_named_in_plain_words() {
+        let two = ["A".to_owned(), "B".to_owned()];
+        assert_eq!(
+            multiples_opening(Locale::En, &two, "from 2000 to 2050", &[], true),
+            "Time chart in 2 panels (A, B) with a shared value axis, each from 2000 to 2050."
+        );
+        assert_eq!(
+            multiples_opening(Locale::De, &two, "von 2000 bis 2050", &[], false),
+            "Zeitreihe in 2 Feldern (A, B) mit je eigener Werteachse, jeweils von 2000 bis 2050."
+        );
+        let one = ["A".to_owned()];
+        assert!(
+            multiples_opening(Locale::En, &one, "from 2000 to 2050", &[], true)
+                .starts_with("Time chart in 1 panel (A)")
+        );
+        assert!(
+            multiples_opening(Locale::De, &one, "von 2000 bis 2050", &[], true)
+                .starts_with("Zeitreihe in 1 Feld (A)")
+        );
+        assert_eq!(
+            panel_bars_opening(Locale::En, 2, 3),
+            "Bar chart in 2 panels over 3 categories, each with its own value axis."
+        );
+        assert_eq!(
+            panel_bars_opening(Locale::De, 2, 1),
+            "Balkendiagramm in 2 Feldern über 1 Kategorie, jedes mit eigener Wertachse."
+        );
+    }
+
+    #[test]
+    fn bands_agree_with_the_number_of_lines() {
+        assert_eq!(
+            bands(Locale::En, 1, true),
+            " One line has a shaded band from its lower to its upper bound, hatched where modelled; the data table lists both."
+        );
+        assert_eq!(
+            bands(Locale::En, 2, false),
+            " Lines have a shaded band from their lower to their upper bound; the data table lists both."
+        );
+        assert!(bands(Locale::De, 2, false).starts_with(" Linien haben je ein schattiertes Band"));
+    }
+
+    #[test]
+    fn equal_ends_are_named_once() {
+        assert_eq!(value_span(Locale::En, "3", "3"), "at 3");
+        assert_eq!(value_span(Locale::De, "3", "3"), "bei 3");
+        assert_eq!(value_span(Locale::En, "1", "5"), "from 1 to 5");
+        assert_eq!(value_span(Locale::De, "1", "5"), "von 1 bis 5");
+        assert_eq!(
+            stripes_opening(Locale::En, 2020, 2020, "scale"),
+            "Warming stripes for 2020, one stripe, scale."
+        );
+        assert_eq!(
+            stripes_opening(Locale::De, 2020, 2020, "Skala"),
+            "Wärmestreifen für 2020, ein Streifen, Skala."
+        );
+        assert_eq!(
+            timeline_opening(Locale::En, (0, 1), ("3 Mar 2026", "3 Mar 2026")),
+            "Timeline with 0 phases and 1 milestone on 3 Mar 2026."
+        );
+        assert_eq!(
+            timeline_opening(Locale::De, (0, 1), ("3. Mär 2026", "3. Mär 2026")),
+            "Zeitstrahl mit 0 Phasen und 1 Meilenstein am 3. Mär 2026."
+        );
+    }
+
+    #[test]
+    fn one_event_is_singular() {
+        assert_eq!(
+            survival_group(Locale::En, ("A", 5, 1), None, "80%"),
+            "A: 5 observations, 1 event, median not reached, 80% at the end."
+        );
+        assert_eq!(
+            survival_group(Locale::De, ("A", 5, 1), Some("3"), "80 %"),
+            "A: 5 Beobachtungen, 1 Ereignis, Median 3, 80 % am Ende."
         );
     }
 }
