@@ -4,7 +4,7 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
-## [Unreleased]
+## [0.19.0] - 2026-10-12
 
 ### Added
 
@@ -13,6 +13,10 @@ does.
 - `theme: "blueprint"`: sequence, flow, state, architecture, tree and classes diagrams in pale lines on a deep blue ground; other charts refuse it (`option_not_supported`).
 - Trees: `"layout": "radial"` draws a mind map — the root in the middle, every level on a ring around it, each subtree in a sector as wide as its share of the leaves, straight spokes from box to box. The rings take the proportions that grow the canvas least. `orientation`, `partner` and `link` are refused on a radial tree (`option_not_supported`); the description opens with “Mind map (radial tree)” / „Mindmap (radialer Baum)“ and names the centre. Example `product-strategy`.
 - Scatter plots: `quadrants` divides the plot by a line at an x and a y value into four areas, each with an optional name in a free corner (an impact and effort matrix); the description lists the points of every area and the data table gains a Quadrant column. A dividing line must lie inside a fixed range (`out_of_range`); one on the end of an automatic axis, or an area too small for its name, warns `quadrant_without_room`. Example `feature-priorities`, with a phone variant.
+
+### Fixed
+
+- Scatter plots: the description and the data table named a regression line even without `regression: true`; they name it only when it is drawn. The count of points above a reference line reads „N Punkt(e) darüber“ in German.
 
 ## [0.18.0] - 2026-10-12
 
