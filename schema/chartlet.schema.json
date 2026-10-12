@@ -1018,6 +1018,27 @@
             }
           }
         },
+        "quadrants": {
+          "description": "Splits the plot into four areas by a line at x and one at y, such as an impact and effort matrix, and names each area in a corner; the description and the data table say in which area each point lies. With xRange or yRange the line lies inside it.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y"],
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "labels": {
+              "description": "The name of each area, each optional; top is the side of the larger y, right the side of the larger x.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "topLeft": { "type": "string", "minLength": 1, "maxLength": 40 },
+                "topRight": { "type": "string", "minLength": 1, "maxLength": 40 },
+                "bottomLeft": { "type": "string", "minLength": 1, "maxLength": 40 },
+                "bottomRight": { "type": "string", "minLength": 1, "maxLength": 40 }
+              }
+            }
+          }
+        },
         "xTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
         "yTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
         "regression": { "type": "boolean", "default": false, "description": "Draw the least-squares line through the points, one for each group; on a logarithmic axis it is fitted to the logarithms." },

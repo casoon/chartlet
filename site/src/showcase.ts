@@ -476,6 +476,13 @@ const catalogue = [
       'Significance along twenty-two chromosomes: the points alternate between two colors by chromosome, the chromosome numbers stand at the middle of their stretch, the dashed line marks the genome-wide threshold, and the axes end exactly at the genome and at 10. The table lists only the labeled points, so it stays short. Illustrative data, with a phone variant.',
   },
   {
+    slug: 'feature-priorities',
+    chart: 'Scatter plot (quadrants)',
+    useCase: 'Sort features by impact and effort',
+    blurb:
+      'Ten features placed by effort and impact, divided at 5 on both axes into quick wins, major projects, fill-ins and thankless tasks. Each area is named quietly in a corner that no point or name takes; the description lists the features of every area and the table gains a Quadrant column. Illustrative estimates, with a phone variant.',
+  },
+  {
     slug: 'monthly-satisfaction',
     chart: 'Line chart (error bars)',
     useCase: 'Show a trend with its uncertainty',

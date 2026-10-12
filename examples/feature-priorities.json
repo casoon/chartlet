@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "type": "scatter",
+  "title": "Feature priorities: impact against effort",
+  "source": "Team estimates on a scale of 1 to 10, illustrative",
+  "width": 800,
+  "height": 520,
+  "scatter": {
+    "points": [
+      { "x": 7.5, "y": 8.2, "label": "Analytics dashboard" },
+      { "x": 2.5, "y": 8.9, "label": "Single sign-on" },
+      { "x": 3.5, "y": 7.0, "label": "Saved filters" },
+      { "x": 1.5, "y": 6.2, "label": "Bulk export" },
+      { "x": 8.6, "y": 6.4, "label": "Offline mode" },
+      { "x": 6.2, "y": 3.2, "label": "Dark mode" },
+      { "x": 8.2, "y": 1.8, "label": "Legacy import" },
+      { "x": 1.8, "y": 2.4, "label": "New icons" },
+      { "x": 3.8, "y": 4.0, "label": "Keyboard shortcuts" },
+      { "x": 5.8, "y": 9.1, "label": "Usage-based billing" }
+    ],
+    "quadrants": {
+      "x": 5,
+      "y": 5,
+      "labels": {
+        "topLeft": "Quick wins",
+        "topRight": "Major projects",
+        "bottomLeft": "Fill-ins",
+        "bottomRight": "Thankless tasks"
+      }
+    },
+    "xRange": [0, 10],
+    "yRange": [0, 10],
+    "xTitle": "Effort",
+    "yTitle": "Impact"
+  },
+  "mobile": {
+    "width": 400,
+    "height": 480
+  }
+}

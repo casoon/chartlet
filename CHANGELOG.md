@@ -9,6 +9,7 @@ does.
 ### Added
 
 - Trees: `"layout": "radial"` draws a mind map — the root in the middle, every level on a ring around it, each subtree in a sector as wide as its share of the leaves, straight spokes from box to box. The rings take the proportions that grow the canvas least. `orientation`, `partner` and `link` are refused on a radial tree (`option_not_supported`); the description opens with “Mind map (radial tree)” / „Mindmap (radialer Baum)“ and names the centre. Example `product-strategy`.
+- Scatter plots: `quadrants` divides the plot by a line at an x and a y value into four areas, each with an optional name in a free corner (an impact and effort matrix); the description lists the points of every area and the data table gains a Quadrant column. A dividing line must lie inside a fixed range (`out_of_range`); one on the end of an automatic axis, or an area too small for its name, warns `quadrant_without_room`. Example `feature-priorities`, with a phone variant.
 
 ## [0.18.0] - 2026-10-12
 

@@ -44,7 +44,11 @@ pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::RangeSpec;
 pub(crate) use sankey::SankeyGraph;
 pub use sankey::{SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec};
-pub use scatter::{ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterSpec, ScatterTickSpec};
+pub(crate) use scatter::Quadrant;
+pub use scatter::{
+    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
+    ScatterSpec, ScatterTickSpec,
+};
 pub use sequence::{
     BranchSpec, DiagramOrientation, FragmentKind, FragmentSpec, MessageKind, MessageSpec,
     ParticipantKind, ParticipantSpec, SequenceSpec,

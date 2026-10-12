@@ -96,6 +96,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Scatter plot: points in groups with threshold lines and names (volcano, Manhattan) | `"type": "scatter"` with `scatter.points`, `lines` | [gene-expression](examples/gene-expression.json) |
 | Scatter plot with a regression line and logarithmic axes | `"regression": true`, `"xScale": "log"` on a `scatter` | [allometry](examples/allometry.json) |
 | Manhattan plot: scatter with named x ticks and fixed ranges | `scatter.xTicks`, `xRange` | [genome-scan](examples/genome-scan.json) |
+| Impact and effort matrix: scatter in four named quadrants | `scatter.quadrants` | [feature-priorities](examples/feature-priorities.json) |
 | Class diagram and entity-relationship diagram: classes with compartments, relations with cardinalities | `"type": "classes"` with `classes.classes` and `relations` | [order-model](examples/order-model.json), [shop-schema](examples/shop-schema.json) |
 | Kaplan-Meier curves: survival by group, censoring marks, confidence band, number at risk | `"type": "survival"` with `survival.groups` | [overall-survival](examples/overall-survival.json) |
 | Sankey diagram: flows between stages as bands | `"type": "sankey"` with `sankey.links` | [energy-flow](examples/energy-flow.json) |
