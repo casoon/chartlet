@@ -6,6 +6,8 @@ does.
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-12
+
 ### Added
 
 - Timelines: `timezone` also takes about 55 common IANA names such as `Europe/Berlin`, `America/New_York` or `Australia/Sydney`, with the daylight saving rules in force today (Europe, the USA, southern Australia, New Zealand); the axis is laid out in wall-clock time and an instant is shifted by the offset in force then.
