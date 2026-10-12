@@ -357,6 +357,13 @@ const catalogue = [
       'Three generations: persons in their own shape, couples side by side with their children hanging from the line between them, and a dashed box for something outside the family. The table gains a Partner column; the description names every couple as one. Illustrative family.',
   },
   {
+    slug: 'product-strategy',
+    chart: 'Mind map (radial tree)',
+    useCase: 'Lay out themes around one centre',
+    blurb:
+      'A product strategy as a mind map: the platform in the middle, four themes on the ring around it and their measures on the ring outside, every theme in a sector as wide as its share of the measures, branches clockwise from twelve o\'clock. The description calls it a mind map and names the centre and what hangs below every theme. Illustrative values.',
+  },
+  {
     slug: 'benefit-and-harm',
     chart: 'Bar chart (groups)',
     useCase: 'Set two kinds of effect apart',
@@ -467,6 +474,13 @@ const catalogue = [
     useCase: 'Find the hits along a genome',
     blurb:
       'Significance along twenty-two chromosomes: the points alternate between two colors by chromosome, the chromosome numbers stand at the middle of their stretch, the dashed line marks the genome-wide threshold, and the axes end exactly at the genome and at 10. The table lists only the labeled points, so it stays short. Illustrative data, with a phone variant.',
+  },
+  {
+    slug: 'feature-priorities',
+    chart: 'Scatter plot (quadrants)',
+    useCase: 'Sort features by impact and effort',
+    blurb:
+      'Ten features placed by effort and impact, divided at 5 on both axes into quick wins, major projects, fill-ins and thankless tasks. Each area is named quietly in a corner that no point or name takes; the description lists the features of every area and the table gains a Quadrant column. Illustrative estimates, with a phone variant.',
   },
   {
     slug: 'monthly-satisfaction',

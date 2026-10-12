@@ -3,7 +3,9 @@
 
 use std::fmt::Write as _;
 
-use crate::spec::{ComponentKind, FragmentSpec, Locale, MessageKind, NodeKind, ParticipantKind};
+use crate::spec::{
+    ComponentKind, FragmentSpec, Locale, MessageKind, NodeKind, ParticipantKind, Quadrant,
+};
 
 pub(crate) struct Words {
     pub value: &'static str,
@@ -64,6 +66,7 @@ pub(crate) struct Words {
     pub leads_to: &'static str,
     pub at_risk: &'static str,
     pub point: &'static str,
+    pub quadrant: &'static str,
     pub number_at_risk: &'static str,
     pub survival: &'static str,
     /// The columns of a state diagram's table, and the name of its initial dot.
@@ -185,6 +188,7 @@ const EN: Words = Words {
     leads_to: "Leads to",
     at_risk: "At risk",
     point: "Point",
+    quadrant: "Quadrant",
     number_at_risk: "Number at risk",
     survival: "Survival",
     event: "Event",
@@ -299,6 +303,7 @@ const DE: Words = Words {
     leads_to: "Führt zu",
     at_risk: "Unter Risiko",
     point: "Punkt",
+    quadrant: "Quadrant",
     number_at_risk: "Anzahl unter Risiko",
     survival: "Überleben",
     event: "Ereignis",
@@ -1360,27 +1365,36 @@ pub(crate) fn component(
     format!("{label} ({kind}): {next}.")
 }
 
-/// The opening sentence of a tree: how many nodes it has and how many levels they lie in.
-pub(crate) fn tree_opening(locale: Locale, nodes: usize, levels: usize) -> String {
+/// The opening sentence of a tree: how many nodes it has and how many levels they lie in. A
+/// radial tree says it is a mind map.
+pub(crate) fn tree_opening(locale: Locale, nodes: usize, levels: usize, radial: bool) -> String {
+    let kind = match (locale, radial) {
+        (Locale::En, false) => "Tree",
+        (Locale::En, true) => "Mind map (radial tree)",
+        (Locale::De, false) => "Baum",
+        (Locale::De, true) => "Mindmap (radialer Baum)",
+    };
     match locale {
         Locale::En => format!(
-            "Tree with {nodes} node{} in {levels} level{}.",
+            "{kind} with {nodes} node{} in {levels} level{}.",
             plural(nodes, "", "s"),
             plural(levels, "", "s"),
         ),
         Locale::De => format!(
-            "Baum mit {nodes} {} in {levels} {}.",
+            "{kind} mit {nodes} {} in {levels} {}.",
             plural(nodes, "Knoten", "Knoten"),
             plural(levels, "Ebene", "Ebenen"),
         ),
     }
 }
 
-/// The root of a tree, as a sentence.
-pub(crate) fn tree_root(locale: Locale, root: &str) -> String {
-    match locale {
-        Locale::En => format!("Root: {root}."),
-        Locale::De => format!("Wurzel: {root}."),
+/// The root of a tree, as a sentence; a radial tree has it in the centre.
+pub(crate) fn tree_root(locale: Locale, root: &str, radial: bool) -> String {
+    match (locale, radial) {
+        (Locale::En, false) => format!("Root: {root}."),
+        (Locale::En, true) => format!("Centre: {root}."),
+        (Locale::De, false) => format!("Wurzel: {root}."),
+        (Locale::De, true) => format!("Mitte: {root}."),
     }
 }
 
@@ -1610,6 +1624,14 @@ pub(crate) fn scatter_summary(
     text
 }
 
+/// How many points lie above a reference line of a scatter plot.
+pub(crate) fn points_above_line(locale: Locale, count: usize) -> String {
+    match locale {
+        Locale::En => format!("{count} point{} above it", plural(count, "", "s")),
+        Locale::De => format!("{count} {} darüber", plural(count, "Punkt", "Punkte")),
+    }
+}
+
 /// The nodes of a tree that are drawn collapsed.
 pub(crate) fn tree_collapsed(locale: Locale, labels: &[&str]) -> String {
     let labels = labels.join(", ");
@@ -1753,6 +1775,75 @@ pub(crate) fn scatter_fit(
             "{of} durch {points} Punkte, an die Logarithmen angepasst: ln y = {intercept} + {slope} ln x, r² = {r_squared}."
         ),
     }
+}
+
+/// Where an area of a scatter plot lies: `top left`, or `Top left` at the start of a sentence.
+pub(crate) fn quadrant_position(locale: Locale, quadrant: Quadrant, capital: bool) -> String {
+    let words = match (locale, quadrant) {
+        (Locale::En, Quadrant::TopLeft) => "top left",
+        (Locale::En, Quadrant::TopRight) => "top right",
+        (Locale::En, Quadrant::BottomLeft) => "bottom left",
+        (Locale::En, Quadrant::BottomRight) => "bottom right",
+        (Locale::De, Quadrant::TopLeft) => "oben links",
+        (Locale::De, Quadrant::TopRight) => "oben rechts",
+        (Locale::De, Quadrant::BottomLeft) => "unten links",
+        (Locale::De, Quadrant::BottomRight) => "unten rechts",
+    };
+    if capital {
+        let mut chars = words.chars();
+        chars.next().map_or_else(String::new, |first| {
+            first.to_uppercase().chain(chars).collect()
+        })
+    } else {
+        words.to_owned()
+    }
+}
+
+/// Where a point on a dividing line lies, for the table.
+pub(crate) const fn on_dividing_line(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => "on a dividing line",
+        Locale::De => "auf einer Trennlinie",
+    }
+}
+
+/// The opening of the areas of a scatter plot: where they are divided.
+pub(crate) fn quadrants_opening(locale: Locale, x: &str, y: &str) -> String {
+    match locale {
+        Locale::En => format!("Quadrants divided at x = {x} and y = {y}."),
+        Locale::De => format!("Quadranten geteilt bei x = {x} und y = {y}."),
+    }
+}
+
+/// One area of a scatter plot, or the points on a dividing line (`area` `None`): how many points
+/// it holds and the names of up to the first ten, with how many more there are.
+pub(crate) fn quadrant_points(
+    locale: Locale,
+    area: Option<(&str, Option<&str>)>,
+    count: usize,
+    names: &[&str],
+) -> String {
+    let head = match (locale, area) {
+        (_, Some((position, Some(label)))) => format!("{position}, {label}"),
+        (_, Some((position, None))) => position.to_owned(),
+        (Locale::En, None) => "On a dividing line".to_owned(),
+        (Locale::De, None) => "Auf einer Trennlinie".to_owned(),
+    };
+    let points = match (locale, count) {
+        (Locale::En, 0) => "no points".to_owned(),
+        (Locale::De, 0) => "keine Punkte".to_owned(),
+        (Locale::En, _) => format!("{count} point{}", plural(count, "", "s")),
+        (Locale::De, _) => format!("{count} {}", plural(count, "Punkt", "Punkte")),
+    };
+    let shown = &names[..names.len().min(10)];
+    let more = count - shown.len();
+    let list = match (locale, shown.is_empty(), more) {
+        (_, true, _) => String::new(),
+        (_, false, 0) => format!(" ({})", shown.join(", ")),
+        (Locale::En, false, _) => format!(" ({}, and {more} more)", shown.join(", ")),
+        (Locale::De, false, _) => format!(" ({} und {more} weitere)", shown.join(", ")),
+    };
+    format!("{head}: {points}{list}.")
 }
 
 /// The caption of a table that lists only some of the points of a big plot.

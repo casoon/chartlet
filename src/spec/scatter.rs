@@ -33,6 +33,10 @@ pub struct ScatterSpec {
     /// along the positions of a genome. A label that would run into the one before it is left out.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub x_ticks: Vec<ScatterTickSpec>,
+    /// Splits the plot into four named areas at a value of x and of y, such as an impact and
+    /// effort matrix; the description and the table say in which area each point lies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub quadrants: Option<ScatterQuadrantsSpec>,
     /// Draws the least-squares line through the points, one for each group. On a logarithmic
     /// axis the line is fitted to the logarithms, so it stays straight on the page.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -76,6 +80,93 @@ pub struct ScatterPointSpec {
 pub struct ScatterTickSpec {
     pub at: f64,
     pub label: String,
+}
+
+/// Four areas of a scatter plot, divided by a line at `x` and one at `y`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ScatterQuadrantsSpec {
+    pub x: f64,
+    pub y: f64,
+    /// The names of the four areas, each optional; an area without a name is called by where it
+    /// lies.
+    #[serde(default)]
+    pub labels: ScatterQuadrantLabels,
+}
+
+/// The names of the four areas of a scatter plot; top is the side of the larger y, right the
+/// side of the larger x.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ScatterQuadrantLabels {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_left: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_right: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bottom_left: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bottom_right: Option<String>,
+}
+
+/// One of the four areas of a scatter plot, in reading order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Quadrant {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+impl Quadrant {
+    pub(crate) const ALL: [Self; 4] = [
+        Self::TopLeft,
+        Self::TopRight,
+        Self::BottomLeft,
+        Self::BottomRight,
+    ];
+
+    /// The name of the field that names the area.
+    pub(crate) const fn field(self) -> &'static str {
+        match self {
+            Self::TopLeft => "topLeft",
+            Self::TopRight => "topRight",
+            Self::BottomLeft => "bottomLeft",
+            Self::BottomRight => "bottomRight",
+        }
+    }
+
+    pub(crate) const fn is_top(self) -> bool {
+        matches!(self, Self::TopLeft | Self::TopRight)
+    }
+
+    pub(crate) const fn is_left(self) -> bool {
+        matches!(self, Self::TopLeft | Self::BottomLeft)
+    }
+}
+
+impl ScatterQuadrantsSpec {
+    pub(crate) fn label(&self, quadrant: Quadrant) -> Option<&str> {
+        let labels = &self.labels;
+        match quadrant {
+            Quadrant::TopLeft => labels.top_left.as_deref(),
+            Quadrant::TopRight => labels.top_right.as_deref(),
+            Quadrant::BottomLeft => labels.bottom_left.as_deref(),
+            Quadrant::BottomRight => labels.bottom_right.as_deref(),
+        }
+    }
+
+    /// The area a point lies in; `None` on a dividing line.
+    pub(crate) fn of(&self, point: &ScatterPointSpec) -> Option<Quadrant> {
+        use std::cmp::Ordering::{Greater, Less};
+        match (point.y.partial_cmp(&self.y)?, point.x.partial_cmp(&self.x)?) {
+            (Greater, Less) => Some(Quadrant::TopLeft),
+            (Greater, Greater) => Some(Quadrant::TopRight),
+            (Less, Less) => Some(Quadrant::BottomLeft),
+            (Less, Greater) => Some(Quadrant::BottomRight),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -213,6 +304,7 @@ impl ChartSpec {
         validate_log_axes(scatter)?;
         validate_ticks(scatter)?;
         validate_ranges(scatter)?;
+        validate_quadrants(scatter)?;
         if scatter.lines.len() > MAX_LINES {
             return Err(ChartError::new(
                 "too_many_references",
@@ -414,6 +506,49 @@ fn validate_ranges(scatter: &ScatterSpec) -> Result<(), ChartError> {
                 found,
                 format!("this lies outside {name}"),
             ));
+        }
+    }
+    Ok(())
+}
+
+/// Dividing lines at finite values that suit the scale and lie inside a fixed range, so that
+/// every area has room; names of up to 40 characters.
+fn validate_quadrants(scatter: &ScatterSpec) -> Result<(), ChartError> {
+    let Some(quadrants) = &scatter.quadrants else {
+        return Ok(());
+    };
+    for (name, value, scale, range) in [
+        ("x", quadrants.x, scatter.x_scale, scatter.x_range),
+        ("y", quadrants.y, scatter.y_scale, scatter.y_range),
+    ] {
+        let path = format!("/scatter/quadrants/{name}");
+        validate_number(value, &path)?;
+        if scale == AxisScale::Log && value <= 0.0 {
+            return Err(ChartError::new(
+                "invalid_value",
+                path,
+                format!("a logarithmic {name} axis needs values above zero"),
+            ));
+        }
+        if let Some([min, max]) = range
+            && (value <= min || value >= max)
+        {
+            return Err(ChartError::new(
+                "out_of_range",
+                path,
+                format!(
+                    "the dividing line must lie inside {name}Range, so that all four areas have room"
+                ),
+            ));
+        }
+    }
+    for quadrant in Quadrant::ALL {
+        if let Some(label) = quadrants.label(quadrant) {
+            validate_text(
+                label,
+                &format!("/scatter/quadrants/labels/{}", quadrant.field()),
+                40,
+            )?;
         }
     }
     Ok(())

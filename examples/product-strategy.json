@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "type": "tree",
+  "title": "Product strategy 2026",
+  "source": "Illustrative themes and measures",
+  "width": 920,
+  "height": 540,
+  "tree": {
+    "layout": "radial",
+    "nodes": [
+      { "id": "platform", "label": "Platform", "sublabel": "strategy 2026" },
+      { "id": "ux", "label": "Experience", "parent": "platform" },
+      { "id": "data", "label": "Data", "parent": "platform" },
+      { "id": "ops", "label": "Operations", "parent": "platform" },
+      { "id": "growth", "label": "Growth", "parent": "platform" },
+      { "id": "design-system", "label": "Design system", "parent": "ux" },
+      { "id": "mobile", "label": "Mobile first", "parent": "ux" },
+      { "id": "accessibility", "label": "Accessibility", "parent": "ux" },
+      { "id": "tracking", "label": "Tracking", "parent": "data" },
+      { "id": "reporting", "label": "Reporting", "parent": "data" },
+      { "id": "deploy", "label": "Deployment", "parent": "ops" },
+      { "id": "monitoring", "label": "Monitoring", "parent": "ops" },
+      { "id": "seo", "label": "Search", "parent": "growth" },
+      { "id": "crm", "label": "CRM automation", "parent": "growth" },
+      { "id": "partners", "label": "Partner network", "kind": "external", "parent": "growth" }
+    ]
+  }
+}

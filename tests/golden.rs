@@ -1,7 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 60] = [
+const EXAMPLES: [(&str, &str, &str); 62] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -173,6 +173,11 @@ const EXAMPLES: [(&str, &str, &str); 60] = [
         include_str!("../examples/family-tree.svg"),
     ),
     (
+        "product-strategy",
+        include_str!("../examples/product-strategy.json"),
+        include_str!("../examples/product-strategy.svg"),
+    ),
+    (
         "framework-benchmarks",
         include_str!("../examples/framework-benchmarks.json"),
         include_str!("../examples/framework-benchmarks.svg"),
@@ -253,6 +258,11 @@ const EXAMPLES: [(&str, &str, &str); 60] = [
         include_str!("../examples/genome-scan.svg"),
     ),
     (
+        "feature-priorities",
+        include_str!("../examples/feature-priorities.json"),
+        include_str!("../examples/feature-priorities.svg"),
+    ),
+    (
         "latency-by-region",
         include_str!("../examples/latency-by-region.json"),
         include_str!("../examples/latency-by-region.svg"),
@@ -305,7 +315,7 @@ const EXAMPLES: [(&str, &str, &str); 60] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 26] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 27] = [
     (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
@@ -400,6 +410,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 26] = [
         "genome-scan",
         include_str!("../examples/genome-scan.json"),
         include_str!("../examples/genome-scan.mobile.svg"),
+    ),
+    (
+        "feature-priorities",
+        include_str!("../examples/feature-priorities.json"),
+        include_str!("../examples/feature-priorities.mobile.svg"),
     ),
     (
         "latency-by-region",

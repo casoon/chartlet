@@ -96,6 +96,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Scatter plot: points in groups with threshold lines and names (volcano, Manhattan) | `"type": "scatter"` with `scatter.points`, `lines` | [gene-expression](examples/gene-expression.json) |
 | Scatter plot with a regression line and logarithmic axes | `"regression": true`, `"xScale": "log"` on a `scatter` | [allometry](examples/allometry.json) |
 | Manhattan plot: scatter with named x ticks and fixed ranges | `scatter.xTicks`, `xRange` | [genome-scan](examples/genome-scan.json) |
+| Impact and effort matrix: scatter in four named quadrants | `scatter.quadrants` | [feature-priorities](examples/feature-priorities.json) |
 | Class diagram and entity-relationship diagram: classes with compartments, relations with cardinalities | `"type": "classes"` with `classes.classes` and `relations` | [order-model](examples/order-model.json), [shop-schema](examples/shop-schema.json) |
 | Kaplan-Meier curves: survival by group, censoring marks, confidence band, number at risk | `"type": "survival"` with `survival.groups` | [overall-survival](examples/overall-survival.json) |
 | Sankey diagram: flows between stages as bands | `"type": "sankey"` with `sankey.links` | [energy-flow](examples/energy-flow.json) |
@@ -126,6 +127,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Architecture diagram with a phone variant: a multi-tenant application | `"type": "architecture"`, `"mobile"` | [tenant-architecture](examples/tenant-architecture.json) |
 | Tree: an ownership structure with shares, with a phone variant | `"type": "tree"` with `nodes`, each with a `parent` and a `link` | [ownership-structure](examples/ownership-structure.json) |
 | Family tree: couples side by side, persons and an external node | `"type": "tree"` with `partner` and `kind` | [family-tree](examples/family-tree.json) |
+| Mind map: the root in the middle, branches on rings around it | `"layout": "radial"` on a `tree` | [product-strategy](examples/product-strategy.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 | Compact chart for a panel in a grid of columns | `"width": 240`, `"height": 180` (from 200 × 160 px: narrower gutter, same text size), `"timeAxis": { "step": 50, "min": "1850" }` for the ticks the panel's claim needs, `"stroke": "medium"`, `"valueAxis": { "unit": "W/m²" }` at the top tick instead of an axis title | – |
 

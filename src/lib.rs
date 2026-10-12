@@ -53,13 +53,13 @@ pub use spec::{
     MessageKind, MessageSpec, MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec,
     ParliamentSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec,
     RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
-    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterSpec, ScatterTickSpec, SequenceSpec,
-    SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec,
-    Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
-    TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
-    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale, WafflePartSpec,
-    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
+    ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec,
+    StateSpec, StepKind, StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec,
+    SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
+    TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout,
+    TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
+    ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4769,6 +4769,111 @@ mod tests {
             let spec = SCATTER.replace(from, to);
             assert!(render_json(&spec, RenderFormat::Svg, &RenderOptions::default()).is_err());
         }
+    }
+
+    const QUADRANTS: &str = r#"{"schemaVersion": 1, "type": "scatter", "title": "Priorities", "width": 640, "height": 420,
+        "scatter": {"xRange": [0, 10], "yRange": [0, 10], "xTitle": "Effort", "yTitle": "Impact",
+            "quadrants": {"x": 5, "y": 5, "labels": {"topLeft": "Quick wins", "topRight": "Major projects", "bottomRight": "Thankless"}},
+            "points": [{"x": 2, "y": 8, "label": "SSO"}, {"x": 3, "y": 7}, {"x": 7, "y": 8, "label": "Dashboard"},
+                {"x": 2, "y": 2, "label": "Import"}, {"x": 5, "y": 3, "label": "Icons"}]}}"#;
+
+    #[test]
+    fn a_scatter_plot_names_its_quadrants_and_says_where_each_point_lies() {
+        let output = render_ok(QUADRANTS);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        for name in ["Quick wins", "Major projects", "Thankless"] {
+            assert!(svg.contains(&format!(">{name}</text>")), "{name}");
+        }
+        let html = html_ok(QUADRANTS);
+        assert!(
+            html.contains(
+                "Quadrants divided at x = 5 and y = 5. Top left, Quick wins: 2 points (SSO, and 1 more). Top right, Major projects: 1 point (Dashboard). Bottom left: 1 point (Import). Bottom right, Thankless: no points. On a dividing line: 1 point (Icons)."
+            ),
+            "{html}"
+        );
+        assert!(html.contains("<th scope=\"col\">Quadrant</th>"), "{html}");
+        for cell in ["Quick wins", "bottom left", "on a dividing line"] {
+            assert!(html.contains(&format!("<td>{cell}</td>")), "{cell}");
+        }
+        let german = QUADRANTS.replace(
+            r#""title": "Priorities","#,
+            r#""title": "Prioritäten", "locale": "de","#,
+        );
+        let html = html_ok(&german);
+        assert!(
+            html.contains("Quadranten geteilt bei x = 5 und y = 5. Oben links, Quick wins: 2 Punkte (SSO und 1 weitere).")
+                && html.contains("Unten rechts, Thankless: keine Punkte. Auf einer Trennlinie: 1 Punkt (Icons).")
+                && html.contains("<td>unten links</td>"),
+            "{html}"
+        );
+    }
+
+    #[test]
+    fn a_quadrant_name_moves_to_a_free_corner_of_its_area() {
+        // A point in the top left corner of the plot: the name moves to the top right corner of
+        // its area, written to end at the dividing line.
+        let crowded = QUADRANTS.replace(r#"{"x": 3, "y": 7}"#, r#"{"x": 0.3, "y": 9.8}"#);
+        let svg = render_ok(&crowded).content;
+        let start = svg.find(">Quick wins</text>").expect("the name is drawn");
+        let text = &svg[svg[..start].rfind("<text").expect("a text element")..start];
+        assert!(text.contains("text-anchor=\"end\""), "{text}");
+    }
+
+    #[test]
+    fn invalid_quadrants_name_the_field() {
+        for (from, to, code, path) in [
+            (
+                r#""x": 5, "y": 5"#,
+                r#""x": 10, "y": 5"#,
+                "out_of_range",
+                "/scatter/quadrants/x",
+            ),
+            (
+                r#""x": 5, "y": 5"#,
+                r#""x": 5, "y": 0"#,
+                "out_of_range",
+                "/scatter/quadrants/y",
+            ),
+            (
+                r#""topLeft": "Quick wins""#,
+                r#""topLeft": " ""#,
+                "empty_text",
+                "/scatter/quadrants/labels/topLeft",
+            ),
+        ] {
+            assert_eq!(
+                render_err(&QUADRANTS.replace(from, to)),
+                (code, path.to_owned()),
+                "{to}"
+            );
+        }
+        let log = QUADRANTS
+            .replace(r#""xRange": [0, 10], "#, r#""xScale": "log", "#)
+            .replace(r#""x": 5, "y": 5"#, r#""x": -1, "y": 5"#);
+        assert_eq!(
+            render_err(&log),
+            ("invalid_value", "/scatter/quadrants/x".to_owned())
+        );
+        // Without a fixed range the axis reaches the dividing line; one on its end leaves two
+        // areas without room, and says so.
+        let edge = QUADRANTS
+            .replace(r#""xRange": [0, 10], "#, "")
+            .replace(r#""x": 5, "y": 5"#, r#""x": 0, "y": 5"#)
+            .replace(
+                r#"{"x": 5, "y": 3, "label": "Icons"}"#,
+                r#"{"x": 6, "y": 3}"#,
+            );
+        let output = render_ok(&edge);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "quadrant_without_room"
+                    && warning.path == "/scatter/quadrants/x"),
+            "{:?}",
+            output.warnings
+        );
     }
 
     #[test]

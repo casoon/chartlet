@@ -283,6 +283,16 @@ pub(crate) fn warn_growth(
     height: f64,
     warnings: &mut Vec<ChartWarning>,
 ) {
+    warn_growth_advising(spec, (width, height), "try the other orientation", warnings);
+}
+
+/// [`warn_growth`] with the last piece of advice of its own, for a diagram without orientation.
+pub(crate) fn warn_growth_advising(
+    spec: &ChartSpec,
+    (width, height): (f64, f64),
+    advice: &str,
+    warnings: &mut Vec<ChartWarning>,
+) {
     for (path, needed, given) in [
         ("/width", pixels(width), spec.width),
         ("/height", pixels(height), spec.height),
@@ -292,7 +302,7 @@ pub(crate) fn warn_growth(
                 "canvas_too_small",
                 path,
                 format!(
-                    "the diagram needs {needed} pixels here and was drawn that large; raise {} to {needed}, shorten labels, or try the other orientation",
+                    "the diagram needs {needed} pixels here and was drawn that large; raise {} to {needed}, shorten labels, or {advice}",
                     &path[1..]
                 ),
             ));

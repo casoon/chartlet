@@ -1018,6 +1018,27 @@
             }
           }
         },
+        "quadrants": {
+          "description": "Splits the plot into four areas by a line at x and one at y, such as an impact and effort matrix, and names each area in a corner; the description and the data table say in which area each point lies. With xRange or yRange the line lies inside it.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y"],
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" },
+            "labels": {
+              "description": "The name of each area, each optional; top is the side of the larger y, right the side of the larger x.",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "topLeft": { "type": "string", "minLength": 1, "maxLength": 40 },
+                "topRight": { "type": "string", "minLength": 1, "maxLength": 40 },
+                "bottomLeft": { "type": "string", "minLength": 1, "maxLength": 40 },
+                "bottomRight": { "type": "string", "minLength": 1, "maxLength": 40 }
+              }
+            }
+          }
+        },
         "xTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
         "yTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
         "regression": { "type": "boolean", "default": false, "description": "Draw the least-squares line through the points, one for each group; on a logarithmic axis it is fitted to the logarithms." },
@@ -1272,7 +1293,12 @@
             }
           }
         },
-        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "layout": {
+          "description": "layered: one row per level (a column in landscape). radial: a mind map, the root in the middle and every level on a ring around it, each subtree in a sector as wide as its share of the leaves; takes no orientation, partner or link.",
+          "enum": ["layered", "radial"],
+          "default": "layered"
+        }
       }
     },
     "architecture": {

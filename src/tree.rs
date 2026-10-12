@@ -7,17 +7,20 @@
 //! description and the data table list every node with its parent, so that the picture is never
 //! the only place the structure is said.
 
-use std::fmt::Write as _;
+use std::{
+    f64::consts::{FRAC_PI_2, TAU},
+    fmt::Write as _,
+};
 
 use crate::{
     DataTable,
-    diagram::{self, chip, pixels, rounded, warn_growth, wrap},
+    diagram::{self, chip, pixels, rounded, warn_growth, warn_growth_advising, wrap},
     error::ChartWarning,
     flow::{Shape, focus_classes, shape},
     layout::{NARROW, count, push_title, title_extra},
     metrics::TextMetrics,
     scene::{Element, Hotspot, Scene, Text, TextAnchor},
-    spec::{ChartSpec, DiagramOrientation, TreeNodeKind, TreeSpec},
+    spec::{ChartSpec, DiagramOrientation, TreeLayout, TreeNodeKind, TreeSpec},
     text,
 };
 
@@ -83,6 +86,30 @@ fn layout_all(
     let width = f64::from(spec.width);
     let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
     let nodes = boxes(tree, compact, metrics, warnings);
+    if tree.layout == TreeLayout::Radial {
+        let radial = Radial::new(spec, tree, &nodes, (top, margin, compact));
+        let mut elements = Vec::new();
+        push_title(
+            &mut elements,
+            spec,
+            margin,
+            width - 2.0 * margin,
+            metrics,
+            warnings,
+        );
+        warn_growth_advising(
+            spec,
+            (radial.width, radial.height),
+            "use the layered layout",
+            warnings,
+        );
+        radial.draw(tree, &nodes, &mut elements);
+        return Scene {
+            width: pixels(radial.width),
+            height: pixels(radial.height),
+            elements,
+        };
+    }
     let landscape = match tree.orientation {
         DiagramOrientation::Portrait => false,
         DiagramOrientation::Landscape => true,
@@ -435,16 +462,6 @@ impl Plan {
         metrics: &impl TextMetrics,
         elements: &mut Vec<Element>,
     ) {
-        let related = |node: usize| {
-            let mut related: Vec<usize> = tree
-                .children(node)
-                .into_iter()
-                .chain(tree.parent_of(node))
-                .chain(std::iter::once(node))
-                .collect();
-            related.sort_unstable();
-            related
-        };
         for node in 0..nodes.len() {
             let Some(partner) = tree.partner_of(node) else {
                 continue;
@@ -481,36 +498,7 @@ impl Plan {
             chip(&lines, at, TextAnchor::Middle, metrics, elements);
             elements.push(Element::GroupEnd);
         }
-        for node in 0..nodes.len() {
-            let spec = &tree.nodes[node];
-            elements.push(Element::Group(focus_classes(Some(node), &related(node))));
-            let (x, y, width, height) = self.node_box(nodes, node);
-            let tooltip = Some(match &spec.sublabel {
-                Some(sublabel) => format!("{} – {sublabel}", spec.label),
-                None => spec.label.clone(),
-            });
-            let kind = match spec.kind {
-                TreeNodeKind::Unit => Shape::Process,
-                TreeNodeKind::Person => Shape::Person,
-                TreeNodeKind::External => Shape::External,
-            };
-            shape(kind, (x, y, width, height), tooltip, elements);
-            Self::node_text(
-                &nodes[node],
-                spec.kind == TreeNodeKind::Person,
-                (x, y, width, height),
-                elements,
-            );
-            elements.push(Element::GroupEnd);
-            elements.push(Element::Hotspot(Hotspot {
-                node,
-                label: spec.label.clone(),
-                x,
-                y,
-                width,
-                height,
-            }));
-        }
+        draw_nodes(tree, nodes, |node| self.node_box(nodes, node), elements);
     }
 
     /// The short line between the two boxes of a couple: from the head to its partner.
@@ -600,39 +588,335 @@ impl Plan {
             ));
         }
     }
+}
 
-    /// A node's label, centered on one or two lines, and its sublabel below.
-    fn node_text(
-        node: &NodeBox,
-        person: bool,
-        (x, y, width, height): (f64, f64, f64, f64),
-        elements: &mut Vec<Element>,
-    ) {
-        let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
-        let block =
-            NODE_LINE * count(node.lines.len() - 1) + SUBLABEL_LINE * count(node.sublines.len());
-        // The text clears the head of a person.
-        let first = middle_y - block / 2.0 + 4.5 + if person { 8.0 } else { 0.0 };
-        for (index, line) in node.lines.iter().enumerate() {
-            elements.push(Element::Text(Text {
-                x: middle_x,
-                y: first + NODE_LINE * count(index),
-                class: "chartlet-flow-label",
-                anchor: TextAnchor::Middle,
-                content: line.clone(),
-            }));
+/// The radial layout of a mind map: the root in the middle, every level on a ring around it and
+/// every subtree in a sector of its own. Positions are centers, on the page.
+struct Radial {
+    center: Vec<(f64, f64)>,
+    width: f64,
+    height: f64,
+}
+
+impl Radial {
+    /// Sectors follow the leaves: every node gets the share of its parent's sector that its
+    /// leaves are of its parent's, the first child from twelve o'clock clockwise, and stands in
+    /// the middle of its sector. The rings are ellipses: of the proportions tried, the one that
+    /// grows the canvas least, and among those that fit, the one closest to the room on the page.
+    fn new(
+        spec: &ChartSpec,
+        tree: &TreeSpec,
+        nodes: &[NodeBox],
+        (top, margin, compact): (f64, f64, bool),
+    ) -> Self {
+        let gap = if compact {
+            COMPACT_SIBLING_GAP
+        } else {
+            SIBLING_GAP
+        };
+        let angle = sector_angles(tree, nodes.len());
+        let (width, height) = (f64::from(spec.width), f64::from(spec.height));
+        let room = (width - 2.0 * margin) / (height - top - BOTTOM);
+        let mut best: Option<Proportion> = None;
+        for step in 0..=STRETCH_STEPS {
+            let stretch = MIN_STRETCH + f64::from(step) * 0.1;
+            let centers = rings(tree, nodes, &angle, stretch, gap);
+            let bounds = (0..nodes.len()).fold(
+                (
+                    f64::INFINITY,
+                    f64::INFINITY,
+                    f64::NEG_INFINITY,
+                    f64::NEG_INFINITY,
+                ),
+                |(low_x, low_y, high_x, high_y), node| {
+                    let (x, y, w, h) = box_around(centers[node], &nodes[node]);
+                    (
+                        low_x.min(x),
+                        low_y.min(y),
+                        high_x.max(x + w),
+                        high_y.max(y + h),
+                    )
+                },
+            );
+            let growth = ((2.0 * margin + bounds.2 - bounds.0) / width)
+                .max((top + bounds.3 - bounds.1 + BOTTOM) / height)
+                .max(1.0);
+            let off = (stretch - room).abs();
+            let better = best.as_ref().is_none_or(|best| {
+                growth < best.growth - 1e-9 || (growth <= best.growth + 1e-9 && off < best.off)
+            });
+            if better {
+                best = Some(Proportion {
+                    growth,
+                    off,
+                    centers,
+                    bounds,
+                });
+            }
         }
-        for (index, line) in node.sublines.iter().enumerate() {
-            elements.push(Element::Text(Text {
-                x: middle_x,
-                y: first
-                    + NODE_LINE * count(node.lines.len() - 1)
-                    + SUBLABEL_LINE * count(index + 1),
-                class: "chartlet-flow-sublabel",
-                anchor: TextAnchor::Middle,
-                content: line.clone(),
-            }));
+        let Proportion {
+            centers: offsets,
+            bounds: (low_x, low_y, high_x, high_y),
+            ..
+        } = best.expect("at least one proportion is tried");
+        let page_width = width.max(2.0 * margin + high_x - low_x);
+        let page_height = height.max(top + high_y - low_y + BOTTOM);
+        // The drawing stands in the middle of the room the canvas leaves below the title.
+        let shift = (
+            margin + (page_width - 2.0 * margin - (high_x - low_x)) / 2.0 - low_x,
+            top + (page_height - top - BOTTOM - (high_y - low_y)) / 2.0 - low_y,
+        );
+        Self {
+            center: offsets
+                .iter()
+                .map(|(x, y)| (x + shift.0, y + shift.1))
+                .collect(),
+            width: page_width,
+            height: page_height,
         }
+    }
+
+    fn node_box(&self, nodes: &[NodeBox], node: usize) -> (f64, f64, f64, f64) {
+        box_around(self.center[node], &nodes[node])
+    }
+
+    /// A straight spoke from every parent to each of its children, from edge to edge of the
+    /// boxes, under the boxes.
+    fn draw(&self, tree: &TreeSpec, nodes: &[NodeBox], elements: &mut Vec<Element>) {
+        for node in tree.reading_order() {
+            let Some(parent) = tree.parent_of(node) else {
+                continue;
+            };
+            let (from, to) = (self.center[parent], self.center[node]);
+            elements.push(Element::Group(focus_classes(
+                None,
+                &[parent.min(node), parent.max(node)],
+            )));
+            elements.push(Element::Polyline(diagram::polyline(
+                vec![
+                    edge_toward(from, to, &nodes[parent]),
+                    edge_toward(to, from, &nodes[node]),
+                ],
+                "chartlet-flow-edge",
+                Some(format!(
+                    "{} → {}",
+                    tree.nodes[parent].label, tree.nodes[node].label
+                )),
+            )));
+            elements.push(Element::GroupEnd);
+        }
+        draw_nodes(tree, nodes, |node| self.node_box(nodes, node), elements);
+    }
+}
+
+/// How much wider than high the rings of a radial tree may be drawn: from 0.6 in steps of 0.1.
+const MIN_STRETCH: f64 = 0.6;
+const STRETCH_STEPS: u8 = 18;
+
+/// The angle of every node of a radial tree, the root's 0: the middle of its sector.
+fn sector_angles(tree: &TreeSpec, count_of_nodes: usize) -> Vec<f64> {
+    let order = tree.reading_order();
+    let mut leaves = vec![1_usize; count_of_nodes];
+    for &node in order.iter().rev() {
+        let children = tree.children(node);
+        if !children.is_empty() {
+            leaves[node] = children.iter().map(|child| leaves[*child]).sum();
+        }
+    }
+    let mut angle = vec![0.0_f64; count_of_nodes];
+    let mut sector = vec![(0.0_f64, 0.0_f64); count_of_nodes];
+    sector[tree.root()] = (-FRAC_PI_2, -FRAC_PI_2 + TAU);
+    for &node in &order {
+        let (start, end) = sector[node];
+        let mut at = start;
+        for child in tree.children(node) {
+            #[allow(clippy::cast_precision_loss)]
+            let share = (end - start) * leaves[child] as f64 / leaves[node] as f64;
+            sector[child] = (at, at + share);
+            angle[child] = at + share / 2.0;
+            at += share;
+        }
+    }
+    angle
+}
+
+/// The center of every node from the root, on rings that are `stretch` times wider than high.
+///
+/// The rings are worked out where boxes are `stretch` times narrower, so that they are circles
+/// there. A ring lies so far out that every box on it clears, by the level gap, the farthest
+/// corner of any box on the ring inside it, and then further out until no two of its boxes come
+/// closer than `gap`.
+fn rings(
+    tree: &TreeSpec,
+    nodes: &[NodeBox],
+    angle: &[f64],
+    stretch: f64,
+    gap: f64,
+) -> Vec<(f64, f64)> {
+    let half = |node: usize| (nodes[node].width / 2.0 / stretch, nodes[node].height / 2.0);
+    // How far a box reaches out along its spoke, and across it.
+    let radial = |node: usize| {
+        let (w, h) = half(node);
+        w * angle[node].cos().abs() + h * angle[node].sin().abs()
+    };
+    let tangential = |node: usize| {
+        let (w, h) = half(node);
+        w * angle[node].sin().abs() + h * angle[node].cos().abs()
+    };
+    let at_radius = |node: usize, radius: f64| {
+        (
+            stretch * radius * angle[node].cos(),
+            radius * angle[node].sin(),
+        )
+    };
+    let order = tree.reading_order();
+    let depths: Vec<usize> = (0..nodes.len()).map(|node| tree.depth(node)).collect();
+    let levels = depths.iter().copied().max().unwrap_or(0) + 1;
+    let mut radius = vec![0.0_f64; nodes.len()];
+    let (root_w, root_h) = half(tree.root());
+    let mut outer = root_w.hypot(root_h);
+    for level in 1..levels {
+        let ring: Vec<usize> = order
+            .iter()
+            .copied()
+            .filter(|node| depths[*node] == level)
+            .collect();
+        let mut at = outer + LEVEL_GAP + ring.iter().map(|node| radial(*node)).fold(0.0, f64::max);
+        let place = |node: usize, at: f64| box_around(at_radius(node, at), &nodes[node]);
+        while ring.iter().enumerate().any(|(index, a)| {
+            ring[index + 1..]
+                .iter()
+                .any(|b| !apart(place(*a, at), place(*b, at), gap))
+        }) {
+            at += (at * 0.03).max(2.0);
+        }
+        for &node in &ring {
+            radius[node] = at;
+        }
+        outer = ring
+            .iter()
+            .map(|node| (at + radial(*node)).hypot(tangential(*node)))
+            .fold(0.0, f64::max);
+    }
+    (0..nodes.len())
+        .map(|node| at_radius(node, radius[node]))
+        .collect()
+}
+
+/// One proportion of the rings of a radial tree: how much it grows the canvas, how far it is
+/// from the proportion of the room, the centers of the nodes from the root, and their bounds:
+/// left, top, right and bottom.
+struct Proportion {
+    growth: f64,
+    off: f64,
+    centers: Vec<(f64, f64)>,
+    bounds: (f64, f64, f64, f64),
+}
+
+/// The box of a node whose center is at `(x, y)`: left, top, width and height.
+fn box_around((x, y): (f64, f64), node: &NodeBox) -> (f64, f64, f64, f64) {
+    (
+        x - node.width / 2.0,
+        y - node.height / 2.0,
+        node.width,
+        node.height,
+    )
+}
+
+/// Whether two boxes keep at least `gap` between them, across or along.
+fn apart(a: (f64, f64, f64, f64), b: (f64, f64, f64, f64), gap: f64) -> bool {
+    a.0 + a.2 + gap <= b.0
+        || b.0 + b.2 + gap <= a.0
+        || a.1 + a.3 + gap <= b.1
+        || b.1 + b.3 + gap <= a.1
+}
+
+/// Where the line from the center `from` of a box toward `to` leaves the box.
+fn edge_toward(from: (f64, f64), to: (f64, f64), node: &NodeBox) -> (f64, f64) {
+    let (dx, dy) = (to.0 - from.0, to.1 - from.1);
+    let reach = (node.width / 2.0 / dx.abs()).min(node.height / 2.0 / dy.abs());
+    (from.0 + dx * reach, from.1 + dy * reach)
+}
+
+/// Every node: its shape, its text, and the hotspot the HTML profile focuses; `node_box` says
+/// where each one stands.
+fn draw_nodes(
+    tree: &TreeSpec,
+    nodes: &[NodeBox],
+    node_box: impl Fn(usize) -> (f64, f64, f64, f64),
+    elements: &mut Vec<Element>,
+) {
+    let related = |node: usize| {
+        let mut related: Vec<usize> = tree
+            .children(node)
+            .into_iter()
+            .chain(tree.parent_of(node))
+            .chain(std::iter::once(node))
+            .collect();
+        related.sort_unstable();
+        related
+    };
+    for (node, drawn) in nodes.iter().enumerate() {
+        let spec = &tree.nodes[node];
+        elements.push(Element::Group(focus_classes(Some(node), &related(node))));
+        let (x, y, width, height) = node_box(node);
+        let tooltip = Some(match &spec.sublabel {
+            Some(sublabel) => format!("{} – {sublabel}", spec.label),
+            None => spec.label.clone(),
+        });
+        let kind = match spec.kind {
+            TreeNodeKind::Unit => Shape::Process,
+            TreeNodeKind::Person => Shape::Person,
+            TreeNodeKind::External => Shape::External,
+        };
+        shape(kind, (x, y, width, height), tooltip, elements);
+        node_text(
+            drawn,
+            spec.kind == TreeNodeKind::Person,
+            (x, y, width, height),
+            elements,
+        );
+        elements.push(Element::GroupEnd);
+        elements.push(Element::Hotspot(Hotspot {
+            node,
+            label: spec.label.clone(),
+            x,
+            y,
+            width,
+            height,
+        }));
+    }
+}
+
+/// A node's label, centered on one or two lines, and its sublabel below.
+fn node_text(
+    node: &NodeBox,
+    person: bool,
+    (x, y, width, height): (f64, f64, f64, f64),
+    elements: &mut Vec<Element>,
+) {
+    let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
+    let block =
+        NODE_LINE * count(node.lines.len() - 1) + SUBLABEL_LINE * count(node.sublines.len());
+    // The text clears the head of a person.
+    let first = middle_y - block / 2.0 + 4.5 + if person { 8.0 } else { 0.0 };
+    for (index, line) in node.lines.iter().enumerate() {
+        elements.push(Element::Text(Text {
+            x: middle_x,
+            y: first + NODE_LINE * count(index),
+            class: "chartlet-flow-label",
+            anchor: TextAnchor::Middle,
+            content: line.clone(),
+        }));
+    }
+    for (index, line) in node.sublines.iter().enumerate() {
+        elements.push(Element::Text(Text {
+            x: middle_x,
+            y: first + NODE_LINE * count(node.lines.len() - 1) + SUBLABEL_LINE * count(index + 1),
+            class: "chartlet-flow-sublabel",
+            anchor: TextAnchor::Middle,
+            content: line.clone(),
+        }));
     }
 }
 
@@ -670,9 +954,14 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .max()
         .unwrap_or(0)
         + 1;
-    let mut description = text::tree_opening(locale, tree.nodes.len(), levels);
+    let radial = tree.layout == TreeLayout::Radial;
+    let mut description = text::tree_opening(locale, tree.nodes.len(), levels, radial);
     description.push(' ');
-    description.push_str(&text::tree_root(locale, &mention(tree, tree.root())));
+    description.push_str(&text::tree_root(
+        locale,
+        &mention(tree, tree.root()),
+        radial,
+    ));
     for node in tree.reading_order() {
         let children: Vec<String> = tree
             .children(node)
@@ -772,7 +1061,7 @@ mod tests {
         BuiltinMetrics, ChartSpec, RenderFormat, RenderOptions, render_json, text_alternative,
     };
 
-    use super::{Plan, boxes, tree};
+    use super::{Plan, Radial, apart, boxes, tree};
 
     const SPEC: &str = r#"{
         "schemaVersion": 1,
@@ -1092,5 +1381,186 @@ mod tests {
             "{:?}",
             output.warnings
         );
+    }
+
+    const MIND_MAP: &str = r#"{
+        "schemaVersion": 1,
+        "type": "tree",
+        "title": "Strategy",
+        "width": 940,
+        "height": 560,
+        "tree": {
+            "layout": "radial",
+            "nodes": [
+                {"id": "core", "label": "Platform", "sublabel": "2026"},
+                {"id": "ux", "label": "Experience", "parent": "core"},
+                {"id": "data", "label": "Data", "parent": "core"},
+                {"id": "ops", "label": "Operations", "parent": "core"},
+                {"id": "ds", "label": "Design system", "parent": "ux"},
+                {"id": "mobile", "label": "Mobile first", "parent": "ux"},
+                {"id": "a11y", "label": "Accessibility", "parent": "ux"},
+                {"id": "tracking", "label": "Tracking", "parent": "data"},
+                {"id": "deploy", "label": "Deployment", "parent": "ops", "kind": "external"},
+                {"id": "canary", "label": "Canary releases", "parent": "deploy"}
+            ]
+        }
+    }"#;
+
+    fn radial(json: &str) -> (Radial, Vec<(f64, f64, f64, f64)>) {
+        let spec: ChartSpec = serde_json::from_str(json).expect("a specification");
+        let tree = tree(&spec);
+        let nodes = boxes(tree, false, &BuiltinMetrics, &mut Vec::new());
+        let radial = Radial::new(&spec, tree, &nodes, (56.0, 24.0, false));
+        let rectangles = (0..nodes.len())
+            .map(|node| radial.node_box(&nodes, node))
+            .collect();
+        (radial, rectangles)
+    }
+
+    #[test]
+    fn a_radial_tree_keeps_its_boxes_apart_and_runs_clockwise_from_twelve() {
+        let (plan, boxes) = radial(MIND_MAP);
+        for (index, a) in boxes.iter().enumerate() {
+            for b in &boxes[index + 1..] {
+                assert!(apart(*a, *b, 0.0), "{a:?} overlaps {b:?}");
+            }
+        }
+        let root = plan.center[0];
+        // The branches run clockwise from twelve o'clock, each in the middle of a sector as wide
+        // as its share of the leaves: Experience (three of five) to the right, Data and
+        // Operations (one each) after it.
+        let clock = |node: usize| {
+            let (dx, dy) = (plan.center[node].0 - root.0, plan.center[node].1 - root.1);
+            (dy.atan2(dx) + std::f64::consts::FRAC_PI_2).rem_euclid(std::f64::consts::TAU)
+        };
+        assert!(
+            (clock(1).to_degrees() - 108.0).abs() < 25.0,
+            "{}",
+            clock(1).to_degrees()
+        );
+        assert!(clock(1) < clock(2) && clock(2) < clock(3));
+    }
+
+    #[test]
+    fn a_broad_radial_tree_keeps_its_boxes_apart_and_fits_the_size_it_asks_for() {
+        let mut nodes = vec![r#"{"id": "root", "label": "Root of it all"}"#.to_owned()];
+        for branch in 0..6 {
+            nodes.push(format!(
+                r#"{{"id": "b{branch}", "label": "Branch {branch}", "parent": "root"}}"#
+            ));
+            for leaf in 0..branch + 2 {
+                nodes.push(format!(
+                    r#"{{"id": "l{branch}x{leaf}", "label": "Leaf {leaf}.{branch}", "parent": "b{branch}"}}"#
+                ));
+            }
+        }
+        let json = format!(
+            r#"{{"schemaVersion": 1, "type": "tree", "title": "Big", "width": 800, "height": 450, "tree": {{"layout": "radial", "nodes": [{}]}}}}"#,
+            nodes.join(",")
+        );
+        let (_, boxes) = radial(&json);
+        for (index, a) in boxes.iter().enumerate() {
+            for b in &boxes[index + 1..] {
+                assert!(apart(*a, *b, 0.0), "{a:?} overlaps {b:?}");
+            }
+        }
+        // The canvas grows and says by how much; at that size the tree fits without a warning.
+        let output = svg(&json);
+        let needed = |path: &str| {
+            output
+                .warnings
+                .iter()
+                .find(|warning| warning.code == "canvas_too_small" && warning.path == path)
+                .map(|warning| {
+                    assert!(warning.message.ends_with("or use the layered layout"));
+                    warning
+                        .message
+                        .split(' ')
+                        .nth(3)
+                        .expect("a size")
+                        .to_owned()
+                })
+        };
+        let (width, height) = (needed("/width"), needed("/height"));
+        assert!(width.is_some() || height.is_some(), "{:?}", output.warnings);
+        let mut resized = json.clone();
+        if let Some(width) = width {
+            resized = resized.replace(r#""width": 800"#, &format!(r#""width": {width}"#));
+        }
+        if let Some(height) = height {
+            resized = resized.replace(r#""height": 450"#, &format!(r#""height": {height}"#));
+        }
+        let output = svg(&resized);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    }
+
+    #[test]
+    fn a_radial_tree_says_it_is_a_mind_map_in_both_languages() {
+        let output = svg(MIND_MAP);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert_eq!(output.content, svg(MIND_MAP).content);
+        assert!(output.content.contains(">Canary releases</text>"));
+        let alternative =
+            text_alternative(&ChartSpec::from_json(MIND_MAP).expect("parses")).expect("valid");
+        assert!(
+            alternative.description.starts_with(
+                "Mind map (radial tree) with 10 nodes in 4 levels. Centre: Platform (2026). Platform: Experience, Data, Operations."
+            ),
+            "{}",
+            alternative.description
+        );
+        let german = MIND_MAP.replace(
+            r#""title": "Strategy","#,
+            r#""title": "Strategie", "locale": "de","#,
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            alternative.description.starts_with(
+                "Mindmap (radialer Baum) mit 10 Knoten in 4 Ebenen. Mitte: Platform (2026)."
+            ),
+            "{}",
+            alternative.description
+        );
+    }
+
+    #[test]
+    fn a_radial_tree_draws_a_collapsed_node_without_what_hangs_below() {
+        let json = MIND_MAP.replace(
+            r#""label": "Experience", "parent": "core""#,
+            r#""label": "Experience", "parent": "core", "collapsed": true"#,
+        );
+        let output = svg(&json);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(output.content.contains(">+3</text>"));
+        assert!(!output.content.contains(">Mobile first</text>"));
+    }
+
+    #[test]
+    fn a_radial_tree_refuses_what_it_cannot_draw() {
+        for (from, to, path) in [
+            (
+                r#""layout": "radial","#,
+                r#""layout": "radial", "orientation": "landscape","#,
+                "/tree/orientation",
+            ),
+            (
+                r#""label": "Tracking", "parent": "data""#,
+                r#""label": "Tracking", "parent": "data", "link": "weekly""#,
+                "/tree/nodes/7/link",
+            ),
+            (
+                r#""label": "Tracking", "parent": "data""#,
+                r#""label": "Tracking", "partner": "data""#,
+                "/tree/nodes/7/partner",
+            ),
+        ] {
+            let json = MIND_MAP.replace(from, to);
+            assert_eq!(
+                error(&json),
+                ("option_not_supported", path.to_owned()),
+                "{to}"
+            );
+        }
     }
 }
