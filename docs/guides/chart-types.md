@@ -964,14 +964,21 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
 - **Components** have a `kind`, each with its own shape and role color: `person` (a box with a
   head), `frontend` (a box with a window bar), `service` (a box, the default), `database` (a
   cylinder), `queue` (a box with a stack behind it), `storage` (a bucket), `cache` (a hexagon),
-  `security` (a shield, for an identity provider, a firewall or a vault) and `external` (a dashed
-  box).
+  `security` (a shield, for an identity provider, a firewall or a vault), `external` (a dashed
+  box) and, for a deployment, `node` (a machine or a cluster node: a box seen from a corner) and
+  `artifact` (something deployed on it, such as an image or a package: a box with a folded
+  corner). A deployment is an architecture diagram whose boundaries are the hosts.
 - **Boundaries** are frames — a cloud region, a network, a zone, a system. A component lies `in`
   a boundary, and a boundary `in` another one, up to four deep. Every boundary holds at least one
   component (`empty_boundary`), and boundaries cannot lie in each other in a circle
   (`boundary_cycle`). chartlet keeps components that do not belong to a boundary out of its frame.
 - **Connections** carry a `label` for what they do and a `technology` for how, written in
-  brackets on a line below it.
+  brackets on a line below it. A `step` from 1 to 99 numbers the connection in a sequence of
+  calls; the number is written before the label, every number is used once (`duplicate_step`,
+  `invalid_step`), and the description lists the steps in order.
+- **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
+  classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
+  (`option_not_supported`).
 - **Text alternative.** The description says what each boundary holds and where each component
   connects to; the data table has one row per component with its kind, its boundaries
   (`Cloud › Private network`) and its connections.

@@ -14,7 +14,7 @@
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
     "description": { "type": "string", "minLength": 1, "maxLength": 1000 },
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
-    "theme": { "enum": ["light", "dark"], "default": "light" },
+    "theme": { "enum": ["light", "dark", "blueprint"], "default": "light" },
     "locale": {
       "description": "Language of the texts chartlet generates (description, legend additions, tooltips, HTML figure and table) and of the number format.",
       "enum": ["en", "de"],
@@ -1320,7 +1320,7 @@
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
               "kind": {
-                "enum": ["person", "frontend", "service", "database", "queue", "storage", "cache", "external", "security"],
+                "enum": ["person", "frontend", "service", "database", "queue", "storage", "cache", "external", "security", "node", "artifact"],
                 "default": "service"
               },
               "in": { "$ref": "#/$defs/identifier" }
@@ -1339,6 +1339,7 @@
               "to": { "$ref": "#/$defs/identifier" },
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "technology": { "type": "string", "minLength": 1, "maxLength": 40 },
+              "step": { "type": "integer", "minimum": 1, "maximum": 99 },
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" }
             }
           }

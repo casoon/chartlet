@@ -329,6 +329,20 @@ const catalogue = [
       'Ten components of a web shop in three nested boundaries — a cloud region, a private network, a data zone — with every kind in its own shape. Connections say what they do and, in brackets, how. Components outside a boundary stay out of its frame; the table names each component with its boundaries and connections.',
   },
   {
+    slug: 'checkout-calls',
+    chart: 'Architecture diagram with numbered steps',
+    useCase: 'Show the order of calls through a system',
+    blurb:
+      'Five connections of a checkout, numbered 1 to 5 in front of their labels. The description lists the steps in order with where each one goes, and a step number is used once. Laid out top down, so that the numbers read like a sequence. Illustrative values.',
+  },
+  {
+    slug: 'shop-deployment',
+    chart: 'Deployment diagram in the blueprint look',
+    useCase: 'Show what runs where',
+    blurb:
+      'A load balancer as a node, container images as artifacts on two nodes inside a cluster, and a volume. `node` is a box seen from a corner, `artifact` a box with a folded corner; the boundaries are the hosts. The blueprint theme draws pale lines on a deep blue ground. Illustrative values.',
+  },
+  {
     slug: 'sign-in-sequence',
     chart: 'Sequence diagram (phone variant)',
     useCase: 'Explain a sign-in to a mixed audience',

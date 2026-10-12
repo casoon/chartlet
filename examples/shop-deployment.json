@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Web shop: deployment",
+  "theme": "blueprint",
+  "source": "Operations handbook, production",
+  "width": 1180,
+  "height": 520,
+  "architecture": {
+    "boundaries": [
+      {
+        "id": "cluster",
+        "label": "Production cluster"
+      },
+      {
+        "id": "app-node",
+        "label": "Node app-1",
+        "in": "cluster"
+      },
+      {
+        "id": "data-node",
+        "label": "Node data-1",
+        "in": "cluster"
+      }
+    ],
+    "components": [
+      {
+        "id": "user",
+        "label": "Customer",
+        "kind": "person"
+      },
+      {
+        "id": "lb",
+        "label": "Load balancer",
+        "kind": "node",
+        "in": "cluster"
+      },
+      {
+        "id": "shop",
+        "label": "shop-api:2.4",
+        "sublabel": "container image",
+        "kind": "artifact",
+        "in": "app-node"
+      },
+      {
+        "id": "worker",
+        "label": "order-worker:2.4",
+        "sublabel": "container image",
+        "kind": "artifact",
+        "in": "app-node"
+      },
+      {
+        "id": "pg",
+        "label": "postgres:16",
+        "sublabel": "container image",
+        "kind": "artifact",
+        "in": "data-node"
+      },
+      {
+        "id": "vol",
+        "label": "Data volume",
+        "kind": "storage",
+        "in": "data-node"
+      }
+    ],
+    "connections": [
+      {
+        "from": "user",
+        "to": "lb",
+        "technology": "HTTPS"
+      },
+      {
+        "from": "lb",
+        "to": "shop",
+        "technology": "HTTP"
+      },
+      {
+        "from": "shop",
+        "to": "pg",
+        "technology": "SQL/TLS"
+      },
+      {
+        "from": "worker",
+        "to": "pg",
+        "technology": "SQL/TLS"
+      },
+      {
+        "from": "pg",
+        "to": "vol",
+        "label": "writes"
+      }
+    ]
+  }
+}

@@ -40,6 +40,8 @@ const fn shape(kind: ComponentKind) -> Shape {
         ComponentKind::Cache => Shape::Cache,
         ComponentKind::Security => Shape::Shield,
         ComponentKind::External => Shape::External,
+        ComponentKind::Node => Shape::Node,
+        ComponentKind::Artifact => Shape::Artifact,
     }
 }
 
@@ -70,7 +72,7 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
             .map(|(index, connection)| Edge {
                 from: architecture.component(&connection.from).expect("validated"),
                 to: architecture.component(&connection.to).expect("validated"),
-                label: connection.label.clone(),
+                label: step_label(connection.step, connection.label.as_deref()),
                 technology: connection.technology.clone(),
                 dash: connection.dash,
                 main: architecture.on_main_path(index),
@@ -90,6 +92,15 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
             })
             .collect(),
         orientation: architecture.orientation,
+    }
+}
+
+/// The label of a connection with its step number in front: `2. reads`.
+fn step_label(step: Option<u8>, label: Option<&str>) -> Option<String> {
+    match (step, label) {
+        (Some(step), Some(label)) => Some(format!("{step}. {label}")),
+        (Some(step), None) => Some(format!("{step}.")),
+        (None, label) => label.map(str::to_owned),
     }
 }
 
@@ -118,13 +129,43 @@ fn connects_to(locale: Locale, architecture: &ArchitectureSpec, component: usize
             let target = &architecture.components
                 [architecture.component(&connection.to).expect("validated")]
             .label;
-            match text::connection_note(
+            let note = text::connection_note(
                 locale,
                 connection.label.as_deref(),
                 connection.technology.as_deref(),
-            ) {
-                Some(note) => format!("{target} ({note})"),
-                None => target.clone(),
+            );
+            match (connection.step, note) {
+                (Some(step), Some(note)) => {
+                    format!("{target} ({}, {note})", text::step_number(locale, step))
+                }
+                (Some(step), None) => format!("{target} ({})", text::step_number(locale, step)),
+                (None, Some(note)) => format!("{target} ({note})"),
+                (None, None) => target.clone(),
+            }
+        })
+        .collect()
+}
+
+/// The numbered connections in the order of their steps, as `1 Reader → Site (reads)`.
+fn steps_in_order(architecture: &ArchitectureSpec) -> Vec<String> {
+    let mut numbered: Vec<_> = architecture
+        .connections
+        .iter()
+        .filter_map(|connection| connection.step.map(|step| (step, connection)))
+        .collect();
+    numbered.sort_by_key(|(step, _)| *step);
+    numbered
+        .into_iter()
+        .map(|(step, connection)| {
+            let label = |id: &str| {
+                architecture.components[architecture.component(id).expect("validated")]
+                    .label
+                    .as_str()
+            };
+            let ends = format!("{} → {}", label(&connection.from), label(&connection.to));
+            match &connection.label {
+                Some(note) => format!("{step} {ends} ({note})"),
+                None => format!("{step} {ends}"),
             }
         })
         .collect()
@@ -175,6 +216,11 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             .collect();
         description.push(' ');
         description.push_str(&text::main_path(locale, &path));
+    }
+    let steps = steps_in_order(architecture);
+    if !steps.is_empty() {
+        description.push(' ');
+        description.push_str(&text::steps(locale, &steps));
     }
     for component in reading_order(&diagram(architecture)) {
         let spec_component = &architecture.components[component];
@@ -468,5 +514,78 @@ mod tests {
             error(missing),
             ("missing_architecture", "/architecture".to_owned())
         );
+    }
+
+    #[test]
+    fn numbered_steps_are_written_before_labels_and_listed_in_order() {
+        let json = SPEC
+            .replace(
+                r#"{"from": "site", "to": "api", "label": "loads", "technology": "HTTPS"}"#,
+                r#"{"from": "site", "to": "api", "label": "loads", "technology": "HTTPS", "step": 2}"#,
+            )
+            .replace(
+                r#"{"from": "reader", "to": "site", "label": "reads"}"#,
+                r#"{"from": "reader", "to": "site", "label": "reads", "step": 1}"#,
+            );
+        let output = svg(&json);
+        assert!(output.content.contains("1. reads") && output.content.contains("2. loads"));
+        let text = text_alternative(&ChartSpec::from_json(&json).expect("parses"))
+            .expect("valid")
+            .description;
+        assert!(text.contains("Steps: 1 Reader → Site (reads); 2 Site → API (loads)."));
+        assert!(text.contains("API (step 2, loads, via HTTPS)"));
+    }
+
+    #[test]
+    fn a_step_is_a_unique_number_from_one_to_ninety_nine() {
+        let step = |first: u32, second: u32| {
+            SPEC.replace(
+                r#"{"from": "reader", "to": "site", "label": "reads"}"#,
+                &format!(r#"{{"from": "reader", "to": "site", "step": {first}}}"#),
+            )
+            .replace(
+                r#"{"from": "api", "to": "files", "label": "stores"}"#,
+                &format!(r#"{{"from": "api", "to": "files", "step": {second}}}"#),
+            )
+        };
+        assert_eq!(
+            error(&step(1, 1)),
+            (
+                "duplicate_step",
+                "/architecture/connections/3/step".to_owned()
+            )
+        );
+        assert_eq!(
+            error(&step(0, 2)),
+            (
+                "invalid_step",
+                "/architecture/connections/0/step".to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn a_node_and_an_artifact_belong_to_deployments() {
+        let json = SPEC
+            .replace(r#""kind": "storage""#, r#""kind": "node""#)
+            .replace(r#""kind": "external""#, r#""kind": "artifact""#);
+        let output = svg(&json);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let text = text_alternative(&ChartSpec::from_json(&json).expect("parses"))
+            .expect("valid")
+            .description;
+        assert!(
+            text.contains("Images is a node") || text.contains("Images (node)"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn the_blueprint_theme_is_for_diagrams() {
+        let blueprint = SPEC.replace("\"width\"", "\"theme\": \"blueprint\", \"width\"");
+        let output = svg(&blueprint);
+        assert!(output.content.contains("chartlet-blueprint"));
+        let chart = r#"{"schemaVersion":1,"type":"bar","title":"A","theme":"blueprint","data":[{"label":"x","value":1}]}"#;
+        assert_eq!(error(chart).0, "option_not_supported");
     }
 }

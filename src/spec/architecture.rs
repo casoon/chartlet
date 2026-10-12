@@ -66,6 +66,12 @@ pub enum ComponentKind {
     Security,
     /// A system outside the scope: a dashed box.
     External,
+    /// A machine, a virtual machine or a cluster node that runs other components: a box seen
+    /// from a corner.
+    Node,
+    /// Something that is deployed, such as an image, a package or a file: a box with a folded
+    /// corner.
+    Artifact,
 }
 
 impl ComponentKind {
@@ -89,6 +95,10 @@ pub struct ConnectionSpec {
     pub technology: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dash: Option<Dash>,
+    /// The place of this connection in a numbered sequence of calls, from 1 to 99; every step
+    /// number is used once. The number is written before the label.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step: Option<u8>,
 }
 
 /// A frame around components, such as a cloud region, a network, a zone or a system. Boundaries
@@ -314,6 +324,25 @@ impl ArchitectureSpec {
             }
             if let Some(technology) = &connection.technology {
                 validate_text(technology, &format!("{path}/technology"), 40)?;
+            }
+            if let Some(step) = connection.step {
+                if !(1..=99).contains(&step) {
+                    return Err(ChartError::new(
+                        "invalid_step",
+                        format!("{path}/step"),
+                        "a step is a number from 1 to 99",
+                    ));
+                }
+                if self.connections[..index]
+                    .iter()
+                    .any(|earlier| earlier.step == Some(step))
+                {
+                    return Err(ChartError::new(
+                        "duplicate_step",
+                        format!("{path}/step"),
+                        format!("step {step} is already used by an earlier connection"),
+                    ));
+                }
             }
         }
         for (index, id) in self.main_path.iter().enumerate() {

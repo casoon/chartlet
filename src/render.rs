@@ -15,6 +15,10 @@ const STYLE: &str = ".chartlet-root{--chartlet-text:#172033;--chartlet-muted:#34
 /// rely on the page behind it, which may be any color.
 const DARK_STYLE: &str = ".chartlet-theme-dark{--chartlet-text:#e8edf6;--chartlet-muted:#a9b4c7;--chartlet-grid:#2a3342;--chartlet-zero:#7b8697;--chartlet-accent:#7ea6ff;--chartlet-background:#0e131c;--chartlet-color-1:#7ea6ff;--chartlet-color-2:#ff9c72;--chartlet-color-3:#9aa7bd;--chartlet-color-4:#e2e8f4}";
 
+/// The blueprint look of a diagram: white-blue lines on a deep blue ground. It rests on the dark
+/// palette, so it only restates what differs; the roles keep their order of hue by lightness.
+const BLUEPRINT_STYLE: &str = ".chartlet-blueprint{--chartlet-text:#eaf4ff;--chartlet-muted:#b8d4f2;--chartlet-grid:#3d73ab;--chartlet-zero:#8fb8e0;--chartlet-accent:#7fd3ff;--chartlet-background:#0b3a68;--chartlet-node:#12497f;--chartlet-lane:#0e4073;--chartlet-lane-head:#14518d;--chartlet-shadow:rgba(0,0,0,0);--chartlet-role-blue:#8ecbff;--chartlet-role-blue-fill:#12497f;--chartlet-role-green:#9ae6b4;--chartlet-role-green-fill:#0f4d63;--chartlet-role-amber:#ffd98a;--chartlet-role-amber-fill:#1a4a6e;--chartlet-role-teal:#7fe3d6;--chartlet-role-teal-fill:#0c4b66;--chartlet-role-violet:#cbbaff;--chartlet-role-violet-fill:#1d4378;--chartlet-role-gray:#b8c9dc;--chartlet-role-gray-fill:#133f6e;--chartlet-role-red:#ffa198;--chartlet-role-red-fill:#183f6a}";
+
 /// Only emitted for multi-series charts. The palette stays distinguishable under simulated
 /// protanopia, deuteranopia and tritanopia and keeps at least 4.5:1 contrast against the
 /// theme background.
@@ -230,7 +234,8 @@ pub(crate) fn svg(
     let title_id = format!("{id_prefix}-title");
     let description_id = format!("{id_prefix}-description");
     let is_multiples = spec.chart_type == ChartType::Multiples;
-    let is_dark = spec.theme == Theme::Dark;
+    let is_blueprint = spec.theme == Theme::Blueprint;
+    let is_dark = spec.theme == Theme::Dark || is_blueprint;
     let mut output = String::new();
     write!(
         output,
@@ -241,6 +246,7 @@ pub(crate) fn svg(
         scene.height,
         match (is_dark, is_multiples) {
             (true, true) => " chartlet-theme-dark chartlet-multiples",
+            (true, false) if is_blueprint => " chartlet-theme-dark chartlet-blueprint",
             (true, false) => " chartlet-theme-dark",
             (false, true) => " chartlet-multiples",
             (false, false) => "",
@@ -272,9 +278,10 @@ pub(crate) fn svg(
     let stylesheet = match styles {
         StyleMode::Inline => base_style(spec, false) + &layer_style(spec),
         StyleMode::External => layer_style(spec),
-        StyleMode::Print => {
-            print_stylesheet(&(base_style(spec, true) + &layer_style(spec)), is_dark)
-        }
+        StyleMode::Print => print_stylesheet(
+            &(base_style(spec, true) + &layer_style(spec)),
+            (is_dark, is_blueprint),
+        ),
     };
     write!(
         output,
@@ -365,9 +372,9 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_rangebar = spec.chart_type == ChartType::Rangebar;
     let is_topicmap = spec.chart_type == ChartType::Topicmap;
     let is_atlas = spec.chart_type == ChartType::Atlas;
-    let is_dark = spec.theme == Theme::Dark;
+    let is_dark = matches!(spec.theme, Theme::Dark | Theme::Blueprint);
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -438,6 +445,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         if is_topicmap { TOPICMAP_STYLE } else { "" },
         if is_atlas { ATLAS_STYLE } else { "" },
         diagram_style(spec.chart_type),
+        if spec.theme == Theme::Blueprint {
+            BLUEPRINT_STYLE
+        } else {
+            ""
+        },
         if is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc) {
             OHLC_STYLE
         } else {
@@ -459,7 +471,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline, Topicmap,
         Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 37] = [
+    let groups: [(&str, &[ChartType]); 38] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -492,6 +504,10 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (STATE_STYLE, &[State]),
         (CLASSES_STYLE, &[Classes]),
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
+        (
+            BLUEPRINT_STYLE,
+            &[Sequence, Flow, State, Architecture, Tree, Classes],
+        ),
         (WATERFALL_STYLE, &[Waterfall]),
         (WAFFLE_STYLE, &[Waffle]),
         (PARLIAMENT_STYLE, &[Parliament]),
@@ -530,7 +546,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
 /// its fallback, the chart's text color, and drops the declarations of the custom properties,
 /// together with the rules left empty by that. The attribute selector for the realms of a
 /// landscape, which resvg does not match, is written out as the classes it matches.
-fn print_stylesheet(stylesheet: &str, is_dark: bool) -> String {
+fn print_stylesheet(stylesheet: &str, (is_dark, is_blueprint): (bool, bool)) -> String {
     let realms = crate::layout::REALM_CLASSES
         .iter()
         .chain(&["chartlet-atlas-realm-label"])
@@ -547,7 +563,10 @@ fn print_stylesheet(stylesheet: &str, is_dark: bool) -> String {
         let Some((selector, body)) = rule.split_once('{') else {
             continue;
         };
-        if selector != ".chartlet-root" && !(is_dark && selector == ".chartlet-theme-dark") {
+        if selector != ".chartlet-root"
+            && !(is_dark && selector == ".chartlet-theme-dark")
+            && !(is_blueprint && selector == ".chartlet-blueprint")
+        {
             continue;
         }
         for declaration in body.trim_end_matches('}').split(';') {
@@ -638,9 +657,10 @@ fn scope_stylesheet(stylesheet: &str, scope: &str, print: bool) -> String {
 }
 
 fn scope_selector(selector: &str, scope: &str, print: bool) -> String {
-    const ROOT_CLASSES: [&str; 3] = [
+    const ROOT_CLASSES: [&str; 4] = [
         ".chartlet-root",
         ".chartlet-theme-dark",
+        ".chartlet-blueprint",
         ".chartlet-multiples",
     ];
     if selector.starts_with('#')
@@ -653,6 +673,9 @@ fn scope_selector(selector: &str, scope: &str, print: bool) -> String {
     match (on_root, selector.contains(' ')) {
         (true, false) if selector == ".chartlet-theme-dark" => {
             ".chartlet-root.chartlet-theme-dark".to_owned()
+        }
+        (true, false) if selector == ".chartlet-blueprint" => {
+            ".chartlet-root.chartlet-blueprint".to_owned()
         }
         (true, false) if print => format!("{scope}{selector}"),
         (true, false) => selector.to_owned(),

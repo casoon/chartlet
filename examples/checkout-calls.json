@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Checkout: the calls in order",
+  "source": "Architecture handbook, runtime view",
+  "width": 900,
+  "height": 640,
+  "architecture": {
+    "components": [
+      {
+        "id": "customer",
+        "label": "Customer",
+        "kind": "person"
+      },
+      {
+        "id": "web",
+        "label": "Web shop",
+        "kind": "frontend"
+      },
+      {
+        "id": "api",
+        "label": "Shop API"
+      },
+      {
+        "id": "pay",
+        "label": "Payment provider",
+        "kind": "external"
+      },
+      {
+        "id": "db",
+        "label": "Orders",
+        "kind": "database"
+      },
+      {
+        "id": "mail",
+        "label": "Mail service",
+        "kind": "external"
+      }
+    ],
+    "connections": [
+      {
+        "from": "customer",
+        "to": "web",
+        "label": "confirms the cart",
+        "step": 1
+      },
+      {
+        "from": "web",
+        "to": "api",
+        "label": "places the order",
+        "technology": "HTTPS",
+        "step": 2
+      },
+      {
+        "from": "api",
+        "to": "pay",
+        "label": "charges",
+        "technology": "HTTPS",
+        "step": 3
+      },
+      {
+        "from": "api",
+        "to": "db",
+        "label": "stores the order",
+        "technology": "SQL",
+        "step": 4
+      },
+      {
+        "from": "api",
+        "to": "mail",
+        "label": "sends the receipt",
+        "step": 5,
+        "dash": "dashed"
+      }
+    ],
+    "mainPath": [
+      "customer",
+      "web",
+      "api",
+      "db"
+    ],
+    "orientation": "portrait"
+  }
+}

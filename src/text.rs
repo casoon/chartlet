@@ -1139,6 +1139,23 @@ pub(crate) fn main_path(locale: Locale, steps: &[&str]) -> String {
     }
 }
 
+/// The numbered steps of an architecture diagram, in order.
+pub(crate) fn steps(locale: Locale, steps: &[String]) -> String {
+    let steps = steps.join("; ");
+    match locale {
+        Locale::En => format!("Steps: {steps}."),
+        Locale::De => format!("Schritte: {steps}."),
+    }
+}
+
+/// One step number in a note: `step 2`.
+pub(crate) fn step_number(locale: Locale, step: u8) -> String {
+    match locale {
+        Locale::En => format!("step {step}"),
+        Locale::De => format!("Schritt {step}"),
+    }
+}
+
 /// What a step of a flow chart is, for the description and the data table.
 pub(crate) const fn node_kind(locale: Locale, kind: NodeKind) -> &'static str {
     match (locale, kind) {
@@ -1318,6 +1335,8 @@ pub(crate) const fn component_kind(locale: Locale, kind: ComponentKind) -> &'sta
         (Locale::En, ComponentKind::Cache) => "cache",
         (Locale::En, ComponentKind::External) => "external system",
         (Locale::En, ComponentKind::Security) => "security",
+        (Locale::En, ComponentKind::Node) => "node",
+        (Locale::En, ComponentKind::Artifact) => "artifact",
         (Locale::De, ComponentKind::Person) => "Person",
         (Locale::De, ComponentKind::Frontend) => "Oberfläche",
         (Locale::De, ComponentKind::Service) => "Dienst",
@@ -1327,6 +1346,8 @@ pub(crate) const fn component_kind(locale: Locale, kind: ComponentKind) -> &'sta
         (Locale::De, ComponentKind::Cache) => "Cache",
         (Locale::De, ComponentKind::External) => "externes System",
         (Locale::De, ComponentKind::Security) => "Sicherheit",
+        (Locale::De, ComponentKind::Node) => "Knoten",
+        (Locale::De, ComponentKind::Artifact) => "Artefakt",
     }
 }
 

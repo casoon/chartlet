@@ -8,6 +8,9 @@ does.
 
 ### Added
 
+- Architecture diagrams: `connections[].step` (1–99, each used once) numbers a connection in a sequence of calls; the number stands before the label (`2. places the order`), the description lists the steps in order and the notes on the connections name them. Example `checkout-calls`.
+- Architecture diagrams: the component kinds `node` (a machine or cluster node, a box seen from a corner) and `artifact` (something deployed on it, a box with a folded corner) make deployment diagrams; boundaries are the hosts. Example `shop-deployment`.
+- `theme: "blueprint"`: sequence, flow, state, architecture, tree and classes diagrams in pale lines on a deep blue ground; other charts refuse it (`option_not_supported`).
 - Trees: `"layout": "radial"` draws a mind map — the root in the middle, every level on a ring around it, each subtree in a sector as wide as its share of the leaves, straight spokes from box to box. The rings take the proportions that grow the canvas least. `orientation`, `partner` and `link` are refused on a radial tree (`option_not_supported`); the description opens with “Mind map (radial tree)” / „Mindmap (radialer Baum)“ and names the centre. Example `product-strategy`.
 - Scatter plots: `quadrants` divides the plot by a line at an x and a y value into four areas, each with an optional name in a free corner (an impact and effort matrix); the description lists the points of every area and the data table gains a Quadrant column. A dividing line must lie inside a fixed range (`out_of_range`); one on the end of an automatic axis, or an area too small for its name, warns `quadrant_without_room`. Example `feature-priorities`, with a phone variant.
 

@@ -278,6 +278,8 @@ pub enum Theme {
     #[default]
     Light,
     Dark,
+    /// Diagrams only: a deep blue ground with pale lines.
+    Blueprint,
 }
 
 impl Theme {
@@ -697,9 +699,31 @@ impl ChartSpec {
         self.validate_sized(false)
     }
 
+    /// The blueprint look is made for diagrams; a chart with axes and series keeps light or dark.
+    fn validate_theme(&self) -> Result<(), ChartError> {
+        let diagram = matches!(
+            self.chart_type,
+            ChartType::Sequence
+                | ChartType::Flow
+                | ChartType::State
+                | ChartType::Architecture
+                | ChartType::Tree
+                | ChartType::Classes
+        );
+        if self.theme == Theme::Blueprint && !diagram {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/theme",
+                "the blueprint theme is made for diagrams (sequence, flow, state, architecture, tree, classes); use light or dark",
+            ));
+        }
+        Ok(())
+    }
+
     fn validate_sized(&self, check_size: bool) -> Result<Vec<ChartWarning>, ChartError> {
         self.validate_metadata(check_size)?;
         self.reject_foreign_blocks()?;
+        self.validate_theme()?;
         self.validate_value_axes()?;
         match self.chart_type {
             ChartType::Time => return self.validate_time(),

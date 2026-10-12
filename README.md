@@ -124,6 +124,8 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | State diagram with a composite state, a choice and final states (experimental) | `"type": "state"` with `states`, `transitions`, `initial` | [ticket-states](examples/ticket-states.json) |
 | Architecture diagram in nested boundaries | `"type": "architecture"` with `components`, `connections`, `boundaries` | [shop-architecture](examples/shop-architecture.json) |
 | Sequence diagram with a phone variant: sign-in with a backend for frontend | `"type": "sequence"`, `"mobile"` | [sign-in-sequence](examples/sign-in-sequence.json) |
+| Architecture diagram with numbered steps | `"type": "architecture"`, `connections[].step` | [checkout-calls](examples/checkout-calls.json) |
+| Deployment diagram in the blueprint look | `kind: "node"`, `"artifact"`, `"theme": "blueprint"` | [shop-deployment](examples/shop-deployment.json) |
 | Architecture diagram with a phone variant: a multi-tenant application | `"type": "architecture"`, `"mobile"` | [tenant-architecture](examples/tenant-architecture.json) |
 | Tree: an ownership structure with shares, with a phone variant | `"type": "tree"` with `nodes`, each with a `parent` and a `link` | [ownership-structure](examples/ownership-structure.json) |
 | Family tree: couples side by side, persons and an external node | `"type": "tree"` with `partner` and `kind` | [family-tree](examples/family-tree.json) |
@@ -208,7 +210,7 @@ accessible output as for a chart.
 | `sequence` | participants (`service`, `actor`, `database`, `queue`, `external`), messages (`call`, `reply`, `async`), activation bars, fragments (`alt` with `else`, `opt`, `loop`, `par`, `critical`, `break`), numbered messages |
 | `flow` | steps (`process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external`), labelled edges, lanes, groups, a main path |
 | `state` | states, choices, composite and final states, an initial state, transitions `event [guard] / action` |
-| `architecture` | components (`person`, `frontend`, `service`, `database`, `queue`, `storage`, `cache`, `security`, `external`), connections with a technology, nested boundaries |
+| `architecture` | components (`person`, `frontend`, `service`, `database`, `queue`, `storage`, `cache`, `security`, `external`, `node`, `artifact`), connections with a technology and an optional `step` number, nested boundaries; `theme: "blueprint"` for the blueprint look |
 | `tree` | a root and the nodes below it, each naming its parent, with an optional link label such as a share; kinds (`unit`, `person`, `external`) and couples for family trees |
 
 ```json

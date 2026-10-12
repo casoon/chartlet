@@ -300,6 +300,10 @@ pub(crate) enum Shape {
     Shield,
     /// A class or an entity: a box with its name on top and compartments below.
     Class,
+    /// A machine that runs other components: a box seen from a corner.
+    Node,
+    /// Something that is deployed: a box with a folded corner.
+    Artifact,
 }
 
 impl From<NodeKind> for Shape {
@@ -504,6 +508,8 @@ fn node_boxes(
             Shape::Bucket => (16.0, 4.0),
             Shape::Cache => (24.0, 0.0),
             Shape::Shield | Shape::Person => (0.0, 18.0),
+            Shape::Node => (8.0, 6.0),
+            Shape::Artifact => (8.0, 0.0),
             _ => (0.0, 0.0),
         };
         // Never narrower than the longest word, which cannot wrap.
@@ -2821,6 +2827,8 @@ pub(crate) fn shape(
         | Shape::Queue
         | Shape::Bucket
         | Shape::Cache
+        | Shape::Node
+        | Shape::Artifact
         | Shape::Shield => {
             component_shape(kind, (x, y, width, height), tooltip, elements);
         }
@@ -2986,7 +2994,96 @@ fn component_shape(
             ),
             elements,
         ),
+        Shape::Node | Shape::Artifact => {
+            deployment_shape(kind, (x, y, width, height), tooltip, elements);
+        }
         _ => unreachable!("only the shapes of an architecture diagram come here"),
+    }
+}
+
+/// The shapes of a deployment: a node that runs other components, and what is deployed on it.
+fn deployment_shape(
+    kind: Shape,
+    (x, y, width, height): (f64, f64, f64, f64),
+    tooltip: Option<String>,
+    elements: &mut Vec<Element>,
+) {
+    let rect = |class: &'static str, tooltip: Option<String>| {
+        Element::Rect(Rect {
+            x,
+            y,
+            width,
+            height,
+            class,
+            series_index: None,
+            style_index: None,
+            tooltip,
+        })
+    };
+    let polygon = |points: Vec<(f64, f64)>, class: &'static str, tooltip: Option<String>| {
+        Element::Polyline(diagram::polyline(points, class, tooltip))
+    };
+    match kind {
+        Shape::Node => {
+            // The lid and the side of the box, drawn first so that the front covers their edges.
+            with_shadow(
+                polygon(
+                    vec![
+                        (x, y),
+                        (x + 8.0, y - 6.0),
+                        (x + width + 8.0, y - 6.0),
+                        (x + width + 8.0, y + height - 6.0),
+                        (x + width, y + height),
+                        (x + width, y),
+                        (x, y),
+                    ],
+                    "chartlet-flow-node chartlet-role-gray",
+                    None,
+                ),
+                elements,
+            );
+            with_shadow(
+                rect("chartlet-flow-node chartlet-role-gray", tooltip),
+                elements,
+            );
+            elements.push(Element::Line(Line {
+                x1: x + width,
+                y1: y,
+                x2: x + width + 8.0,
+                y2: y - 6.0,
+                class: "chartlet-flow-inner",
+            }));
+        }
+        Shape::Artifact => {
+            with_shadow(
+                polygon(
+                    vec![
+                        (x, y),
+                        (x + width - 12.0, y),
+                        (x + width, y + 12.0),
+                        (x + width, y + height),
+                        (x, y + height),
+                        (x, y),
+                    ],
+                    "chartlet-flow-node chartlet-role-blue",
+                    tooltip,
+                ),
+                elements,
+            );
+            for (from, to) in [
+                ((x + width - 12.0, y), (x + width - 12.0, y + 12.0)),
+                ((x + width - 12.0, y + 12.0), (x + width, y + 12.0)),
+            ] {
+                elements.push(Element::Line(Line {
+                    x1: from.0,
+                    y1: from.1,
+                    x2: to.0,
+                    y2: to.1,
+                    class: "chartlet-flow-inner",
+                }));
+            }
+        }
+        _ => unreachable!("only a node and an artifact come here"),
     }
 }
 
