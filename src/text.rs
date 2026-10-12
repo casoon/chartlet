@@ -1624,6 +1624,14 @@ pub(crate) fn scatter_summary(
     text
 }
 
+/// How many points lie above a reference line of a scatter plot.
+pub(crate) fn points_above_line(locale: Locale, count: usize) -> String {
+    match locale {
+        Locale::En => format!("{count} point{} above it", plural(count, "", "s")),
+        Locale::De => format!("{count} {} darüber", plural(count, "Punkt", "Punkte")),
+    }
+}
+
 /// The nodes of a tree that are drawn collapsed.
 pub(crate) fn tree_collapsed(locale: Locale, labels: &[&str]) -> String {
     let labels = labels.join(", ");

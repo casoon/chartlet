@@ -235,6 +235,9 @@ const FITS: [&str; 4] = [
 /// The fitted lines in words: slope, intercept and the share of variance they explain.
 fn fit_sentences(spec: &ChartSpec) -> String {
     let scatter = scatter(spec);
+    if !scatter.regression {
+        return String::new();
+    }
     let number = |value: f64| {
         format_value(
             value,
@@ -756,8 +759,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
                 .as_ref()
                 .map_or(String::new(), |label| format!("{label}: "));
             format!(
-                "{name}{axis} = {}, {beyond} points above it",
-                show(line.value)
+                "{name}{axis} = {}, {}",
+                show(line.value),
+                text::points_above_line(spec.locale, beyond)
             )
         })
         .collect();
