@@ -1272,7 +1272,12 @@
             }
           }
         },
-        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "layout": {
+          "description": "layered: one row per level (a column in landscape). radial: a mind map, the root in the middle and every level on a ring around it, each subtree in a sector as wide as its share of the leaves; takes no orientation, partner or link.",
+          "enum": ["layered", "radial"],
+          "default": "layered"
+        }
       }
     },
     "architecture": {

@@ -126,6 +126,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Architecture diagram with a phone variant: a multi-tenant application | `"type": "architecture"`, `"mobile"` | [tenant-architecture](examples/tenant-architecture.json) |
 | Tree: an ownership structure with shares, with a phone variant | `"type": "tree"` with `nodes`, each with a `parent` and a `link` | [ownership-structure](examples/ownership-structure.json) |
 | Family tree: couples side by side, persons and an external node | `"type": "tree"` with `partner` and `kind` | [family-tree](examples/family-tree.json) |
+| Mind map: the root in the middle, branches on rings around it | `"layout": "radial"` on a `tree` | [product-strategy](examples/product-strategy.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 | Compact chart for a panel in a grid of columns | `"width": 240`, `"height": 180` (from 200 × 160 px: narrower gutter, same text size), `"timeAxis": { "step": 50, "min": "1850" }` for the ticks the panel's claim needs, `"stroke": "medium"`, `"valueAxis": { "unit": "W/m²" }` at the top tick instead of an axis title | – |
 

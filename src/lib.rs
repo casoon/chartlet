@@ -57,9 +57,9 @@ pub use spec::{
     SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec,
     Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
     TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
-    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale, WafflePartSpec,
-    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec,
+    TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale,
+    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -6,6 +6,10 @@ does.
 
 ## [Unreleased]
 
+### Added
+
+- Trees: `"layout": "radial"` draws a mind map — the root in the middle, every level on a ring around it, each subtree in a sector as wide as its share of the leaves, straight spokes from box to box. The rings take the proportions that grow the canvas least. `orientation`, `partner` and `link` are refused on a radial tree (`option_not_supported`); the description opens with “Mind map (radial tree)” / „Mindmap (radialer Baum)“ and names the centre. Example `product-strategy`.
+
 ## [0.18.0] - 2026-10-12
 
 ### Added

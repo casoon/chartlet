@@ -62,7 +62,7 @@ pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_lay
 pub(crate) use timeline::Span;
 pub use timeline::{MarkerSpec, TimelineItemSpec, TimelineSpec};
 pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
-pub use tree::{TreeNodeKind, TreeNodeSpec, TreeSpec};
+pub use tree::{TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec};
 pub(crate) use treemap::{TmNode, TmTree};
 pub use treemap::{TreemapItemSpec, TreemapSpec};
 pub use waffle::{WafflePartSpec, WaffleSpec};

@@ -971,7 +971,8 @@ components and boundaries together.
 ## Trees
 
 A tree (`"type": "tree"`) draws a root and the nodes below it: an organization chart, an
-ownership structure, a family, a hierarchy of norms or components. Every node but the root names its `parent`; the children of a
+ownership structure, a family, a hierarchy of norms or components, or, laid out radially, a mind
+map. Every node but the root names its `parent`; the children of a
 node keep the order of the list. chartlet lays the tree out by itself: one row per level, the
 children of a node side by side, the node centered over them, and subtrees pushed together until
 they are a gap apart at every level, so that a narrow subtree tucks in under a broad neighbour.
@@ -1013,6 +1014,15 @@ they are a gap apart at every level, so that a narrow subtree tucks in under a b
   to its parent, for a share, a weight or a relation; the root has none.
 - **Orientation.** `portrait` runs down from the root, `landscape` to the right; `auto` takes the
   one that grows the canvas less, as in the other diagrams.
+- **Mind maps.** `"layout": "radial"` puts the root in the middle and every level on a ring
+  around it: the branches run clockwise from twelve o'clock, and every subtree keeps a sector of
+  its own, as wide as its share of the leaves, so that its spokes never reach into a neighbour's.
+  The rings are ellipses in the proportions that grow the canvas least; a ring lies so far out
+  that its boxes keep clear of every box inside it and of one another. A radial tree has no
+  direction, no room for couples and no stretch of line for a link's text, so `orientation`,
+  `partner` and `link` are refused (`option_not_supported`); `kind` and `collapsed` work as in the
+  layered tree. It needs room in both directions — on a phone a layered tree reads better. The
+  description opens with "Mind map (radial tree)" and names the root as the centre.
 - **Text alternative.** The description names the root and, for every node with children, what
   hangs below it; the data table has one row per node in reading order, with its level, its
   parent, its link and its children.

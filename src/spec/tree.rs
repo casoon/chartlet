@@ -18,6 +18,30 @@ pub struct TreeSpec {
     /// grows the canvas less.
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    /// `layered` (default) gives every level a row; `radial` puts the root in the middle and
+    /// every level on a ring around it, as in a mind map.
+    #[serde(default, skip_serializing_if = "TreeLayout::is_layered")]
+    pub layout: TreeLayout,
+}
+
+/// How a tree is laid out.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum TreeLayout {
+    /// One row per level (a column in landscape), parents centered over their children.
+    #[default]
+    Layered,
+    /// The root in the middle, every level on a ring around it, and each subtree in a sector of
+    /// its own, as wide as its share of the leaves: a mind map.
+    Radial,
+}
+
+impl TreeLayout {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_layered(&self) -> bool {
+        matches!(self, Self::Layered)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -183,6 +207,7 @@ impl TreeSpec {
             TreeSpec {
                 nodes,
                 orientation: self.orientation,
+                layout: self.layout,
             },
             kept,
         ))
@@ -230,6 +255,9 @@ impl ChartSpec {
         }
         tree.validate_nodes()?;
         tree.validate_structure()?;
+        if tree.layout == TreeLayout::Radial {
+            tree.validate_radial()?;
+        }
         let mut warnings = Vec::new();
         for (index, node) in tree.nodes.iter().enumerate() {
             if node.collapsed && tree.below(index).is_empty() {
@@ -245,6 +273,40 @@ impl ChartSpec {
 }
 
 impl TreeSpec {
+    /// A radial tree has no direction to choose, no room beside a node for its partner and no
+    /// stretch of line along which a link could be written.
+    fn validate_radial(&self) -> Result<(), ChartError> {
+        if !self.orientation.is_auto() {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/tree/orientation",
+                "a radial tree grows outward in every direction; remove orientation or use the layered layout",
+            ));
+        }
+        for (index, node) in self.nodes.iter().enumerate() {
+            let refuse = |field: &str, message: &str| {
+                Err(ChartError::new(
+                    "option_not_supported",
+                    format!("/tree/nodes/{index}/{field}"),
+                    message.to_owned(),
+                ))
+            };
+            if node.partner.is_some() {
+                return refuse(
+                    "partner",
+                    "a radial tree has no room for couples side by side; use the layered layout",
+                );
+            }
+            if node.link.is_some() {
+                return refuse(
+                    "link",
+                    "a radial tree writes no labels on its spokes; put the text in a sublabel or use the layered layout",
+                );
+            }
+        }
+        Ok(())
+    }
+
     /// A partner exists, is another node, is not itself joined to a partner or named by two
     /// nodes, and does not hang from a parent.
     fn validate_partner(&self, index: usize, partner: &str, path: &str) -> Result<(), ChartError> {

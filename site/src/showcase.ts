@@ -357,6 +357,13 @@ const catalogue = [
       'Three generations: persons in their own shape, couples side by side with their children hanging from the line between them, and a dashed box for something outside the family. The table gains a Partner column; the description names every couple as one. Illustrative family.',
   },
   {
+    slug: 'product-strategy',
+    chart: 'Mind map (radial tree)',
+    useCase: 'Lay out themes around one centre',
+    blurb:
+      'A product strategy as a mind map: the platform in the middle, four themes on the ring around it and their measures on the ring outside, every theme in a sector as wide as its share of the measures, branches clockwise from twelve o\'clock. The description calls it a mind map and names the centre and what hangs below every theme. Illustrative values.',
+  },
+  {
     slug: 'benefit-and-harm',
     chart: 'Bar chart (groups)',
     useCase: 'Set two kinds of effect apart',

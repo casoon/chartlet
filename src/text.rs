@@ -1360,27 +1360,36 @@ pub(crate) fn component(
     format!("{label} ({kind}): {next}.")
 }
 
-/// The opening sentence of a tree: how many nodes it has and how many levels they lie in.
-pub(crate) fn tree_opening(locale: Locale, nodes: usize, levels: usize) -> String {
+/// The opening sentence of a tree: how many nodes it has and how many levels they lie in. A
+/// radial tree says it is a mind map.
+pub(crate) fn tree_opening(locale: Locale, nodes: usize, levels: usize, radial: bool) -> String {
+    let kind = match (locale, radial) {
+        (Locale::En, false) => "Tree",
+        (Locale::En, true) => "Mind map (radial tree)",
+        (Locale::De, false) => "Baum",
+        (Locale::De, true) => "Mindmap (radialer Baum)",
+    };
     match locale {
         Locale::En => format!(
-            "Tree with {nodes} node{} in {levels} level{}.",
+            "{kind} with {nodes} node{} in {levels} level{}.",
             plural(nodes, "", "s"),
             plural(levels, "", "s"),
         ),
         Locale::De => format!(
-            "Baum mit {nodes} {} in {levels} {}.",
+            "{kind} mit {nodes} {} in {levels} {}.",
             plural(nodes, "Knoten", "Knoten"),
             plural(levels, "Ebene", "Ebenen"),
         ),
     }
 }
 
-/// The root of a tree, as a sentence.
-pub(crate) fn tree_root(locale: Locale, root: &str) -> String {
-    match locale {
-        Locale::En => format!("Root: {root}."),
-        Locale::De => format!("Wurzel: {root}."),
+/// The root of a tree, as a sentence; a radial tree has it in the centre.
+pub(crate) fn tree_root(locale: Locale, root: &str, radial: bool) -> String {
+    match (locale, radial) {
+        (Locale::En, false) => format!("Root: {root}."),
+        (Locale::En, true) => format!("Centre: {root}."),
+        (Locale::De, false) => format!("Wurzel: {root}."),
+        (Locale::De, true) => format!("Mitte: {root}."),
     }
 }
 
