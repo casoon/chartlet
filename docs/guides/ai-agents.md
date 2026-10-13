@@ -9,6 +9,33 @@ drawing a correct chart or describing data exactly. `@casoon/chartlet-mcp` split
 assistant proposes, chartlet validates and compiles deterministically. The server runs no
 language model, never changes the data, and reports only facts it can compute.
 
+## In practice
+
+<figure>
+<video controls preload="none" playsinline width="1920" height="1080" poster="../../../videos/chartlet-mcp-poster.webp" aria-label="Five requests to chartlet through MCP, as a chat with tool calls" style="width:100%;height:auto">
+<source src="../../../videos/chartlet-mcp.mp4" type="video/mp4">
+</video>
+<figcaption>Five requests to an assistant with the chartlet server, 1:48, no sound. The chat is staged; every tool call and result is real output of the server, shortened.</figcaption>
+</figure>
+
+1. **A chart from a data file:** "Make a chart from `data/revenue-2026.csv` for the Q3 report and
+   save it to `src/charts/`." `chartlet_inspect_data` suggests grouped bars;
+   `chartlet_validate_spec` rejects the first draft with `series_length_mismatch` and the hint to
+   use `null` for the missing Q4 value; `chartlet_render` writes the figure to
+   `src/charts/revenue-q3.html`.
+2. **A diagram from a description:** "Draw our checkout flow as a sequence diagram: browser, API,
+   payment provider, database." `chartlet_diagram_starter` gives a valid sequence
+   specification to start from; the assistant fills in participants and messages, and chartlet
+   lays the diagram out.
+3. **Fixing an existing chart:** "The labels in the plans chart get cut off – fix it."
+   `chartlet_validate_spec` reports `text_truncated` for all five labels; with
+   `"orientation": "horizontal"` the warnings are gone.
+4. **Text for a report:** "Write two sentences about the revenue chart." `chartlet_explain`
+   returns first, last, minimum, maximum and missing values; the sentences use only those.
+5. **A timeline:** "Show the relaunch phases with the launch milestone as a timeline."
+   `chartlet_validate_spec` warns with `follows_overlap` that the build phase starts before the
+   design phase ends; the assistant moves the start and renders the timeline.
+
 ## Setup
 
 The server speaks the [Model Context Protocol](https://modelcontextprotocol.io) over stdio. In
