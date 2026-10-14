@@ -317,6 +317,35 @@ fn a_main_path_between_two_steps_takes_the_shortest_way() {
 }
 
 #[test]
+fn weighted_edges_are_drawn_stronger_the_more_they_carry() {
+    let weighted = SPEC
+        .replace(
+            r#""to": "publish", "label": "yes""#,
+            r#""to": "publish", "label": "yes", "weight": 80"#,
+        )
+        .replace(
+            r#""to": "edit", "label": "no""#,
+            r#""to": "edit", "label": "no", "weight": 20"#,
+        );
+    let content = svg(&weighted).content;
+    assert!(content.contains(" chartlet-flow-w8\""), "{content}");
+    assert!(content.contains(" chartlet-flow-w2\""), "{content}");
+    assert!(content.contains(".chartlet-flow-w8 .chartlet-flow-edge{stroke-width:5}"));
+    assert!(!svg(SPEC).content.contains("chartlet-flow-w"));
+    let alternative =
+        text_alternative(&ChartSpec::from_json(&weighted).expect("parses")).expect("valid");
+    assert!(
+        alternative
+            .description
+            .contains("Heaviest connection: Looks good? → Publish (80).")
+    );
+    assert_eq!(
+        alternative.table.rows[1][2],
+        "Publish (yes, weight 80), Edit (no, weight 20)"
+    );
+}
+
+#[test]
 fn invalid_flows_name_the_field() {
     let lanes = SPEC.replace(
         "\"nodes\": [",
@@ -331,6 +360,7 @@ fn invalid_flows_name_the_field() {
         (SPEC.replace(r#"["start", "check", "publish", "done"]"#, r#"["start", "publish"]"#), "main_path_gap", "/flow/mainPath/1"),
         (SPEC.replace(r#"["start", "check", "publish", "done"]"#, r#"{"from": "start", "to": "nowhere"}"#), "unknown_node", "/flow/mainPath/to"),
         (SPEC.replace(r#"["start", "check", "publish", "done"]"#, r#"{"from": "done", "to": "start"}"#), "main_path_unreachable", "/flow/mainPath"),
+        (SPEC.replace(r#""to": "publish", "label": "yes""#, r#""to": "publish", "label": "yes", "weight": -1"#), "invalid_edge_weight", "/flow/edges/1/weight"),
         (
             SPEC.replace("\"mainPath\"", r#""groups": [{"label": "G", "nodes": ["edit", "publish"]}, {"label": "H", "nodes": ["edit"]}], "mainPath""#),
             "duplicate_member",

@@ -115,6 +115,10 @@ const SEQUENCE_STYLE: &str = ".chartlet-seq-box{stroke-width:1.5;stroke-linejoin
 /// by color.
 const FLOW_STYLE: &str = ".chartlet-flow-node{stroke-width:1.5;stroke-linejoin:round;rx:7px}.chartlet-flow-start{stroke-width:2}.chartlet-flow-end{stroke-width:3}.chartlet-flow-external{stroke-dasharray:5 3}.chartlet-flow-inner{stroke:var(--chartlet-role-blue);stroke-width:1}.chartlet-flow-label{font-size:13px;font-weight:600;fill:var(--chartlet-text)}.chartlet-flow-sublabel{font-size:11px;fill:var(--chartlet-muted)}.chartlet-flow-edge{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}.chartlet-flow-dashed{stroke-dasharray:5 4}.chartlet-flow-dotted{stroke-dasharray:1 4;stroke-linecap:round}.chartlet-flow-main{stroke:var(--chartlet-accent);stroke-width:2.2}.chartlet-flow-head{fill:var(--chartlet-zero);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-flow-main-head{fill:var(--chartlet-accent);stroke:var(--chartlet-accent)}.chartlet-flow-lane{fill:var(--chartlet-lane);stroke:var(--chartlet-grid);stroke-width:1}.chartlet-flow-lane-alt{fill:var(--chartlet-background)}.chartlet-flow-lane-head{fill:var(--chartlet-lane-head);stroke:none}.chartlet-flow-lane-label{font-size:11px;font-weight:650;fill:var(--chartlet-muted);letter-spacing:.04em}.chartlet-flow-group{fill:var(--chartlet-accent);fill-opacity:.04;stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:4 3;rx:10px}.chartlet-flow-group-label{font-size:11px;font-weight:600;fill:var(--chartlet-muted)}";
 
+/// Weighted edges of flow charts and architecture diagrams: one width per step of
+/// [`crate::flow::WEIGHT_STEPS`], half a pixel apart, from 1 px to 5 px.
+const WEIGHT_STYLE: &str = ".chartlet-flow-w0 .chartlet-flow-edge{stroke-width:1}.chartlet-flow-w1 .chartlet-flow-edge{stroke-width:1.5}.chartlet-flow-w2 .chartlet-flow-edge{stroke-width:2}.chartlet-flow-w3 .chartlet-flow-edge{stroke-width:2.5}.chartlet-flow-w4 .chartlet-flow-edge{stroke-width:3}.chartlet-flow-w5 .chartlet-flow-edge{stroke-width:3.5}.chartlet-flow-w6 .chartlet-flow-edge{stroke-width:4}.chartlet-flow-w7 .chartlet-flow-edge{stroke-width:4.5}.chartlet-flow-w8 .chartlet-flow-edge{stroke-width:5}";
+
 /// State diagrams, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: states with well rounded
 /// corners, the inner outline of a final state, and the initial dot.
 const STATE_STYLE: &str = ".chartlet-state{rx:14px}.chartlet-state-inner{fill:none;stroke:var(--chartlet-role-green);stroke-width:1.5;rx:11px}.chartlet-state-initial{fill:var(--chartlet-text);stroke:var(--chartlet-background);stroke-width:2}";
@@ -374,7 +378,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = matches!(spec.theme, Theme::Dark | Theme::Blueprint);
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -445,6 +449,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         if is_topicmap { TOPICMAP_STYLE } else { "" },
         if is_atlas { ATLAS_STYLE } else { "" },
         diagram_style(spec.chart_type),
+        if spec.has_edge_weights() {
+            WEIGHT_STYLE
+        } else {
+            ""
+        },
         if spec.theme == Theme::Blueprint {
             BLUEPRINT_STYLE
         } else {
@@ -471,7 +480,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline, Topicmap,
         Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 38] = [
+    let groups: [(&str, &[ChartType]); 39] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -504,6 +513,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (STATE_STYLE, &[State]),
         (CLASSES_STYLE, &[Classes]),
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
+        (WEIGHT_STYLE, &[Flow, Architecture]),
         (
             BLUEPRINT_STYLE,
             &[Sequence, Flow, State, Architecture, Tree, Classes],

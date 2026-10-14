@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ChartSpec, Dash, DiagramOrientation, MainPath, sequence::is_identifier, validate_text};
+use super::{
+    ChartSpec, Dash, DiagramOrientation, MainPath, sequence::is_identifier, validate_text,
+};
 use crate::error::{ChartError, ChartWarning};
 
 /// Components of one diagram, connections between them, and boundaries around them.
@@ -99,6 +101,10 @@ pub struct ConnectionSpec {
     /// number is used once. The number is written before the label.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step: Option<u8>,
+    /// How much the connection carries, such as requests per second: the line is drawn as much
+    /// stronger as it carries more.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<f64>,
 }
 
 /// A frame around components, such as a cloud region, a network, a zone or a system. Boundaries
@@ -335,6 +341,7 @@ impl ArchitectureSpec {
             if let Some(label) = &connection.label {
                 validate_text(label, &format!("{path}/label"), 60)?;
             }
+            super::flow::validate_weight(connection.weight, &path)?;
             if let Some(technology) = &connection.technology {
                 validate_text(technology, &format!("{path}/technology"), 40)?;
             }

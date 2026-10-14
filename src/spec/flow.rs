@@ -94,7 +94,11 @@ impl MainPath {
         (noun, edge): (&str, &str),
     ) -> Result<Vec<String>, ChartError> {
         let unknown = |id: &str, path: String| {
-            ChartError::new("unknown_node", path, format!("no {noun} has the id \"{id}\""))
+            ChartError::new(
+                "unknown_node",
+                path,
+                format!("no {noun} has the id \"{id}\""),
+            )
         };
         if let Self::Between { from, to } = self {
             for (end, id) in [("from", from), ("to", to)] {
@@ -117,7 +121,10 @@ impl MainPath {
             }
         }
         for (index, pair) in steps.windows(2).enumerate() {
-            if !edges.clone().any(|(start, end)| start == pair[0] && end == pair[1]) {
+            if !edges
+                .clone()
+                .any(|(start, end)| start == pair[0] && end == pair[1])
+            {
                 return Err(ChartError::new(
                     "main_path_gap",
                     format!("/{section}/mainPath/{}", index + 1),
@@ -187,6 +194,22 @@ pub struct FlowEdgeSpec {
     /// The line's pattern; solid when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dash: Option<Dash>,
+    /// How much the edge carries, a number of at least 0: the line is drawn as much stronger as
+    /// it carries more.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub weight: Option<f64>,
+}
+
+/// Checks the weight of an edge: a finite number of at least 0.
+pub(crate) fn validate_weight(weight: Option<f64>, path: &str) -> Result<(), ChartError> {
+    match weight {
+        Some(weight) if !weight.is_finite() || weight < 0.0 => Err(ChartError::new(
+            "invalid_edge_weight",
+            format!("{path}/weight"),
+            "the weight of an edge is a number of at least 0",
+        )),
+        _ => Ok(()),
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -260,6 +283,19 @@ impl FlowSpec {
 }
 
 impl ChartSpec {
+    /// Whether a flow chart or an architecture diagram has an edge with a weight.
+    pub(crate) fn has_edge_weights(&self) -> bool {
+        self.flow
+            .as_ref()
+            .is_some_and(|flow| flow.edges.iter().any(|edge| edge.weight.is_some()))
+            || self.architecture.as_ref().is_some_and(|architecture| {
+                architecture
+                    .connections
+                    .iter()
+                    .any(|connection| connection.weight.is_some())
+            })
+    }
+
     /// A flow chart: steps with unique identifiers, edges between them, lanes that every step
     /// names once there are any, groups of steps in one lane, and a main path along edges.
     pub(super) fn validate_flow(&self) -> Result<Vec<ChartWarning>, ChartError> {
@@ -395,6 +431,7 @@ impl FlowSpec {
             if let Some(label) = &edge.label {
                 validate_text(label, &format!("{path}/label"), 60)?;
             }
+            validate_weight(edge.weight, &path)?;
         }
         Ok(())
     }

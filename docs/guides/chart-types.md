@@ -849,6 +849,13 @@ releases.
   the edges (at a tie the first in the order of the edges). It keeps the path in line where the
   lanes leave room and draws it thicker in the accent color; `main_path_gap` reports two
   consecutive steps no edge joins, `main_path_unreachable` two ends no way joins.
+- **Weights.** An edge with a `weight` (a number of at least 0, such as cases per month) is drawn
+  as much stronger as it carries more: from 1 px for no weight to 5 px for the heaviest edge of
+  the chart, in steps of half a pixel; the arrowheads keep their size and the main path its
+  color. The description names the heaviest edge, and every weight stands in the description and
+  the table beside where the edge leads. Edges without a weight keep the usual line;
+  `invalid_edge_weight` reports a negative weight. Architecture diagrams take the same `weight`
+  on their connections.
 - **Lanes** are bands across the flow, one per role or system: columns in portrait, rows in
   landscape. Once a chart has `lanes`, every step names its `lane` (`missing_lane`).
 - **Groups** frame steps of one lane under a name (`group_spans_lanes` otherwise). A step outside

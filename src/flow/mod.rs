@@ -18,7 +18,7 @@ use crate::{
         warn_growth, with_shadow, wrap,
     },
     error::ChartWarning,
-    layout::{NARROW, count, push_title, title_extra},
+    layout::{NARROW, count, format_value, push_title, title_extra},
     metrics::TextMetrics,
     scene::{Circle, Element, Hotspot, Line, Rect, Scene, Text, TextAnchor},
     spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind},
@@ -222,6 +222,8 @@ pub(crate) struct Edge {
     pub label_path: String,
     /// What is drawn at either end of the line.
     pub ends: Ends,
+    /// How much the edge carries; the line is drawn stronger the more.
+    pub weight: Option<f64>,
 }
 
 /// What an edge has at one of its ends.
@@ -354,6 +356,7 @@ impl Diagram {
                     main: flow.on_main_path(index),
                     label_path: format!("/flow/edges/{index}/label"),
                     ends: Ends::arrow(),
+                    weight: edge.weight,
                 })
                 .collect(),
             lanes: flow.lanes.iter().map(|lane| lane.label.clone()).collect(),
@@ -788,6 +791,37 @@ impl Model<'_> {
         let (from, to) = self.ends[edge];
         focus_classes(None, &[from.min(to), from.max(to)])
     }
+}
+
+/// The number of width steps above the thinnest line of a weighted edge: every step adds half a
+/// pixel, from 1 px for no weight to 5 px for the heaviest edge.
+pub(crate) const WEIGHT_STEPS: f64 = 8.0;
+
+/// The width step of every edge with a weight: in proportion to its weight against the heaviest
+/// edge, from 0 to [`WEIGHT_STEPS`]. Edges without a weight keep the usual line.
+pub(crate) fn weight_widths(diagram: &Diagram) -> Vec<Option<u8>> {
+    let heaviest = diagram
+        .edges
+        .iter()
+        .filter_map(|edge| edge.weight)
+        .fold(0.0_f64, f64::max);
+    diagram
+        .edges
+        .iter()
+        .map(|edge| {
+            edge.weight.map(|weight| {
+                let share = if heaviest > 0.0 {
+                    weight / heaviest
+                } else {
+                    0.0
+                };
+                // At most WEIGHT_STEPS, which fits in a u8.
+                #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+                let step = (share * WEIGHT_STEPS).round() as u8;
+                step
+            })
+        })
+        .collect()
 }
 
 /// The classes that tie a drawn part to the nodes whose focus brings it forward, and to its own
@@ -2107,8 +2141,12 @@ impl Plan {
         let mut labels = Vec::new();
         // Every edge, loop and step sits in a group whose classes name the steps it belongs to,
         // so that focusing a step can bring them forward.
-        for edge in 0..model.diagram.edges.len() {
-            elements.push(Element::Group(model.edge_classes(edge)));
+        for (edge, width) in weight_widths(model.diagram).into_iter().enumerate() {
+            let mut classes = model.edge_classes(edge);
+            if let Some(width) = width {
+                write!(classes, " chartlet-flow-w{width}").expect("writing to String cannot fail");
+            }
+            elements.push(Element::Group(classes));
             self.draw_edge(model, edge, elements, &mut labels);
             elements.push(Element::GroupEnd);
         }
@@ -3158,17 +3196,59 @@ pub(crate) fn reading_order(diagram: &Diagram) -> Vec<usize> {
         .collect()
 }
 
-/// Where each step leads, as `label` or `label (edge label)`, in the order of the edges.
-fn next_steps(flow: &FlowSpec, ends: &[(usize, usize)], node: usize) -> Vec<String> {
+/// Where each step leads, as `label` or `label (edge label, weight)`, in the order of the edges.
+fn next_steps(spec: &ChartSpec, ends: &[(usize, usize)], node: usize) -> Vec<String> {
+    let flow = flow(spec);
     flow.edges
         .iter()
         .zip(ends)
         .filter(|(_, (from, _))| *from == node)
-        .map(|(edge, (_, to))| match &edge.label {
-            Some(label) => format!("{} ({label})", flow.nodes[*to].label),
-            None => flow.nodes[*to].label.clone(),
+        .map(|(edge, (_, to))| {
+            let notes: Vec<String> = edge
+                .label
+                .iter()
+                .cloned()
+                .chain(edge.weight.map(|weight| {
+                    text::edge_weight(spec.locale, &format_value(weight, spec.number_style()))
+                }))
+                .collect();
+            let target = &flow.nodes[*to].label;
+            if notes.is_empty() {
+                target.clone()
+            } else {
+                format!("{target} ({})", notes.join(", "))
+            }
         })
         .collect()
+}
+
+/// The edge with the largest weight, as a sentence, when at least two edges have one; the first
+/// at a tie. `ends` gives the labels at both ends of every edge.
+pub(crate) fn heaviest_edge(
+    spec: &ChartSpec,
+    weights: &[Option<f64>],
+    ends: impl Fn(usize) -> (String, String),
+) -> Option<String> {
+    if weights.iter().flatten().count() < 2 {
+        return None;
+    }
+    let (edge, weight) = weights
+        .iter()
+        .enumerate()
+        .filter_map(|(edge, weight)| weight.map(|weight| (edge, weight)))
+        .fold(
+            None,
+            |best: Option<(usize, f64)>, (edge, weight)| match best {
+                Some((_, most)) if most >= weight => best,
+                _ => Some((edge, weight)),
+            },
+        )?;
+    let (from, to) = ends(edge);
+    Some(text::heaviest_edge(
+        spec.locale,
+        &format!("{from} → {to}"),
+        &format_value(weight, spec.number_style()),
+    ))
 }
 
 /// The chart in sentences: its size and lanes, the main path, every step in reading order with
@@ -3199,6 +3279,14 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&structure);
     }
+    let weights: Vec<Option<f64>> = flow.edges.iter().map(|edge| edge.weight).collect();
+    if let Some(heaviest) = heaviest_edge(spec, &weights, |edge| {
+        let (from, to) = ends[edge];
+        (flow.nodes[from].label.clone(), flow.nodes[to].label.clone())
+    }) {
+        description.push(' ');
+        description.push_str(&heaviest);
+    }
     for node in reading_order(&Diagram::from_flow(flow)) {
         let step = &flow.nodes[node];
         let lane = flow
@@ -3212,7 +3300,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
                 &step.label,
                 step.kind,
                 lane,
-                &next_steps(flow, &ends, node)
+                &next_steps(spec, &ends, node)
             )
         )
         .expect("writing to String cannot fail");
@@ -3264,7 +3352,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                         .map_or_else(String::new, |group| flow.groups[group].label.clone()),
                 );
             }
-            row.push(next_steps(flow, &ends, node).join(", "));
+            row.push(next_steps(spec, &ends, node).join(", "));
             row
         })
         .collect();

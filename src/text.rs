@@ -1202,6 +1202,22 @@ pub(crate) fn bottlenecks(locale: Locale, nodes: &[String]) -> String {
     }
 }
 
+/// The weight of an edge in a note: `weight 120`.
+pub(crate) fn edge_weight(locale: Locale, weight: &str) -> String {
+    match locale {
+        Locale::En => format!("weight {weight}"),
+        Locale::De => format!("Gewicht {weight}"),
+    }
+}
+
+/// The edge that carries most, as `A → B`, with its weight.
+pub(crate) fn heaviest_edge(locale: Locale, edge: &str, weight: &str) -> String {
+    match locale {
+        Locale::En => format!("Heaviest connection: {edge} ({weight})."),
+        Locale::De => format!("Stärkste Verbindung: {edge} ({weight})."),
+    }
+}
+
 /// The numbered steps of an architecture diagram, in order.
 pub(crate) fn steps(locale: Locale, steps: &[String]) -> String {
     let steps = steps.join("; ");

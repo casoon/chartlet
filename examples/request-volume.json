@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Requests per second between the services of a web shop",
+  "source": "Load test, peak hour",
+  "width": 820,
+  "height": 580,
+  "architecture": {
+    "boundaries": [
+      { "id": "cluster", "label": "Cluster" }
+    ],
+    "components": [
+      { "id": "web", "label": "Web shop", "kind": "frontend" },
+      { "id": "gateway", "label": "API gateway", "in": "cluster" },
+      { "id": "catalog", "label": "Catalog", "in": "cluster" },
+      { "id": "cart", "label": "Cart", "in": "cluster" },
+      { "id": "checkout", "label": "Checkout", "in": "cluster" },
+      { "id": "search", "label": "Search index", "kind": "database", "in": "cluster" },
+      { "id": "db", "label": "Orders", "kind": "database", "in": "cluster" },
+      { "id": "pay", "label": "Payment provider", "kind": "external" }
+    ],
+    "connections": [
+      { "from": "web", "to": "gateway", "label": "1,200/s", "weight": 1200 },
+      { "from": "gateway", "to": "catalog", "label": "820/s", "weight": 820 },
+      { "from": "gateway", "to": "cart", "label": "310/s", "weight": 310 },
+      { "from": "gateway", "to": "checkout", "label": "70/s", "weight": 70 },
+      { "from": "catalog", "to": "search", "label": "640/s", "weight": 640 },
+      { "from": "cart", "to": "db", "label": "150/s", "weight": 150 },
+      { "from": "checkout", "to": "db", "label": "60/s", "weight": 60 },
+      { "from": "checkout", "to": "pay", "label": "35/s", "weight": 35 }
+    ],
+    "mainPath": { "from": "web", "to": "pay" }
+  }
+}

@@ -126,6 +126,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Sequence diagram with a phone variant: sign-in with a backend for frontend | `"type": "sequence"`, `"mobile"` | [sign-in-sequence](examples/sign-in-sequence.json) |
 | Architecture diagram with numbered steps | `"type": "architecture"`, `connections[].step` | [checkout-calls](examples/checkout-calls.json) |
 | Deployment diagram in the blueprint look | `kind: "node"`, `"artifact"`, `"theme": "blueprint"` | [shop-deployment](examples/shop-deployment.json) |
+| Architecture diagram with weighted connections | `connections[].weight`, `mainPath: {from, to}` | [request-volume](examples/request-volume.json) |
 | Architecture diagram with a phone variant: a multi-tenant application | `"type": "architecture"`, `"mobile"` | [tenant-architecture](examples/tenant-architecture.json) |
 | Tree: an ownership structure with shares, with a phone variant | `"type": "tree"` with `nodes`, each with a `parent` and a `link` | [ownership-structure](examples/ownership-structure.json) |
 | Family tree: couples side by side, persons and an external node | `"type": "tree"` with `partner` and `kind` | [family-tree](examples/family-tree.json) |

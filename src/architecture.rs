@@ -8,10 +8,11 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, Ends, Group, Node, Shape, layout_diagram, reading_order},
+    flow::{Diagram, Edge, Ends, Group, Node, Shape, heaviest_edge, layout_diagram, reading_order},
+    layout::format_value,
     metrics::TextMetrics,
     scene::Scene,
-    spec::{ArchitectureSpec, ChartSpec, ComponentKind, Locale},
+    spec::{ArchitectureSpec, ChartSpec, ComponentKind},
     structure::{Facts, Structure},
     text,
 };
@@ -79,6 +80,7 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
                 main: architecture.on_main_path(index),
                 label_path: format!("/architecture/connections/{index}/label"),
                 ends: Ends::arrow(),
+                weight: connection.weight,
             })
             .collect(),
         lanes: Vec::new(),
@@ -119,8 +121,10 @@ fn boundaries_of(architecture: &ArchitectureSpec, component: usize) -> String {
         .join(" › ")
 }
 
-/// Where a component connects to, as `label (what, how)`, in the order of the connections.
-fn connects_to(locale: Locale, architecture: &ArchitectureSpec, component: usize) -> Vec<String> {
+/// Where a component connects to, as `label (step, what, how, weight)`, in the order of the
+/// connections.
+fn connects_to(spec: &ChartSpec, component: usize) -> Vec<String> {
+    let (locale, architecture) = (spec.locale, architecture(spec));
     let id = &architecture.components[component].id;
     architecture
         .connections
@@ -135,13 +139,19 @@ fn connects_to(locale: Locale, architecture: &ArchitectureSpec, component: usize
                 connection.label.as_deref(),
                 connection.technology.as_deref(),
             );
-            match (connection.step, note) {
-                (Some(step), Some(note)) => {
-                    format!("{target} ({}, {note})", text::step_number(locale, step))
-                }
-                (Some(step), None) => format!("{target} ({})", text::step_number(locale, step)),
-                (None, Some(note)) => format!("{target} ({note})"),
-                (None, None) => target.clone(),
+            let notes: Vec<String> = connection
+                .step
+                .map(|step| text::step_number(locale, step))
+                .into_iter()
+                .chain(note)
+                .chain(connection.weight.map(|weight| {
+                    text::edge_weight(locale, &format_value(weight, spec.number_style()))
+                }))
+                .collect();
+            if notes.is_empty() {
+                target.clone()
+            } else {
+                format!("{target} ({})", notes.join(", "))
             }
         })
         .collect()
@@ -239,6 +249,21 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&structure);
     }
+    let weights: Vec<Option<f64>> = architecture
+        .connections
+        .iter()
+        .map(|connection| connection.weight)
+        .collect();
+    if let Some(heaviest) = heaviest_edge(spec, &weights, |edge| {
+        let (from, to) = ends[edge];
+        (
+            architecture.components[from].label.clone(),
+            architecture.components[to].label.clone(),
+        )
+    }) {
+        description.push(' ');
+        description.push_str(&heaviest);
+    }
     let steps = steps_in_order(architecture);
     if !steps.is_empty() {
         description.push(' ');
@@ -253,7 +278,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
                 locale,
                 &spec_component.label,
                 spec_component.kind,
-                &connects_to(locale, architecture, component),
+                &connects_to(spec, component),
             )
         )
         .expect("writing to String cannot fail");
@@ -282,7 +307,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             if bounded {
                 row.push(boundaries_of(architecture, component));
             }
-            row.push(connects_to(spec.locale, architecture, component).join(", "));
+            row.push(connects_to(spec, component).join(", "));
             row
         })
         .collect();

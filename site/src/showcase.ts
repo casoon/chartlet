@@ -343,6 +343,13 @@ const catalogue = [
       'A load balancer as a node, container images as artifacts on two nodes inside a cluster, and a volume. `node` is a box seen from a corner, `artifact` a box with a folded corner; the boundaries are the hosts. The blueprint theme draws pale lines on a deep blue ground. Illustrative values.',
   },
   {
+    slug: 'request-volume',
+    chart: 'Architecture diagram with weighted connections',
+    useCase: 'Show where the load goes',
+    blurb:
+      'Requests per second between the services of a shop. Every connection has a `weight`; its line is as much stronger as it carries more, from 1 px for nothing to 5 px for the heaviest, while the arrowheads keep their size. The description names the heaviest connection and the table gives every weight. The main path is given by its ends only, `{ "from": "web", "to": "pay" }`, and stays in the accent color. Illustrative values.',
+  },
+  {
     slug: 'sign-in-sequence',
     chart: 'Sequence diagram (phone variant)',
     useCase: 'Explain a sign-in to a mixed audience',

@@ -89,6 +89,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             main: machine.main_path.first() == Some(initial),
             label_path: "/state/initial".to_owned(),
             ends: Ends::arrow(),
+            weight: None,
         });
     }
     let mut groups = Vec::new();
@@ -125,6 +126,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             main: machine.on_main_path(index),
             label_path: format!("/state/transitions/{index}"),
             ends: Ends::arrow(),
+            weight: None,
         });
     }
     Diagram {

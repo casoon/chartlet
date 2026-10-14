@@ -107,6 +107,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
                 main: false,
                 label_path: format!("/classes/relations/{index}/label"),
                 ends: ends(relation),
+                weight: None,
             }
         })
         .collect();
