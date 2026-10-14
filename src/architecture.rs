@@ -65,6 +65,8 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
                 group: boundary(&component.boundary),
                 path: format!("/architecture/components/{index}"),
                 compartments: Vec::new(),
+                value: None,
+                parts: Vec::new(),
             })
             .collect(),
         edges: architecture

@@ -22,6 +22,10 @@ pub struct TreeSpec {
     /// every level on a ring around it, as in a mind map.
     #[serde(default, skip_serializing_if = "TreeLayout::is_layered")]
     pub layout: TreeLayout,
+    /// What the `value` of the nodes stands for, such as `Budget (m €)`: the name of the color
+    /// key and of the table column.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value_label: Option<String>,
 }
 
 /// How a tree is laid out.
@@ -70,6 +74,13 @@ pub struct TreeNodeSpec {
     /// many nodes are left out. The description and the data table still list all of them.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub collapsed: bool,
+    /// A number that colors the node's fill, light for the smallest value of the tree and dark
+    /// for the largest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
+    /// The parts of what the node holds, drawn as a stripe inside the bottom of its box.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<super::PartSpec>,
 }
 
 /// What a node is.
@@ -208,6 +219,7 @@ impl TreeSpec {
                 nodes,
                 orientation: self.orientation,
                 layout: self.layout,
+                value_label: self.value_label.clone(),
             },
             kept,
         ))
@@ -255,6 +267,15 @@ impl ChartSpec {
         }
         tree.validate_nodes()?;
         tree.validate_structure()?;
+        if let Some(label) = &tree.value_label {
+            validate_text(label, "/tree/valueLabel", 40)?;
+        }
+        super::flow::validate_parts(
+            tree.nodes
+                .iter()
+                .enumerate()
+                .map(|(index, node)| (node.parts.as_slice(), format!("/tree/nodes/{index}/parts"))),
+        )?;
         if tree.layout == TreeLayout::Radial {
             tree.validate_radial()?;
         }

@@ -18,10 +18,11 @@ use crate::{
         warn_growth, with_shadow, wrap,
     },
     error::ChartWarning,
+    heat, parts,
     layout::{NARROW, count, format_value, push_title, title_extra},
     metrics::TextMetrics,
     scene::{Circle, Element, Hotspot, Line, Rect, Scene, Text, TextAnchor},
-    spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind},
+    spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind, NumberStyle, PartSpec},
     structure::{Facts, Structure},
     text,
 };
@@ -111,7 +112,19 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
-    layout_diagram(spec, &Diagram::from_flow(flow(spec)), warnings, metrics)
+    let flow = flow(spec);
+    let mut scene = layout_diagram(spec, &Diagram::from_flow(flow), warnings, metrics);
+    let values: Vec<Option<f64>> = flow.nodes.iter().map(|node| node.value).collect();
+    heat::push_key(
+        &mut scene,
+        spec,
+        (&heat::name(spec, flow.value_label.as_deref()), &values),
+        MARGIN,
+        metrics,
+    );
+    let names = parts::names(flow.nodes.iter().map(|node| node.parts.as_slice()));
+    parts::push_legend(&mut scene, &names, MARGIN, metrics);
+    scene
 }
 
 /// Lays out and draws `diagram`, whatever specification it comes from.
@@ -125,7 +138,7 @@ pub(crate) fn layout_diagram(
     let spacing = Spacing::for_width(spec.width);
     let margin = spacing.margin;
     let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
-    let model = Model::new(diagram, spacing, metrics, warnings);
+    let model = Model::new(diagram, (spacing, spec.number_style()), metrics, warnings);
     let landscape = match diagram.orientation {
         DiagramOrientation::Portrait => false,
         DiagramOrientation::Landscape => true,
@@ -207,6 +220,10 @@ pub(crate) struct Node {
     /// The compartments of a class box below its name, each a list of lines such as the
     /// attributes or the methods; empty for every other shape.
     pub compartments: Vec<Vec<String>>,
+    /// The value that colors the node's fill.
+    pub value: Option<f64>,
+    /// The parts drawn as a stripe inside the bottom of the box.
+    pub parts: Vec<PartSpec>,
 }
 
 pub(crate) struct Edge {
@@ -340,6 +357,8 @@ impl Diagram {
                     group: flow.group_of(index),
                     path: format!("/flow/nodes/{index}"),
                     compartments: Vec::new(),
+                    value: node.value,
+                    parts: node.parts.clone(),
                 })
                 .collect(),
             edges: flow
@@ -414,12 +433,14 @@ struct Model<'a> {
     loops: Vec<Option<String>>,
     /// The same, on as many lines as the edge labels take.
     loop_lines: Vec<Vec<String>>,
+    /// How the values of the parts of a step are written.
+    number_style: NumberStyle,
 }
 
 impl<'a> Model<'a> {
     fn new(
         diagram: &'a Diagram,
-        spacing: Spacing,
+        (spacing, number_style): (Spacing, NumberStyle),
         metrics: &impl TextMetrics,
         warnings: &mut Vec<ChartWarning>,
     ) -> Self {
@@ -480,6 +501,7 @@ impl<'a> Model<'a> {
             edge_widths,
             loops,
             loop_lines,
+            number_style,
         }
     }
 }
@@ -557,8 +579,16 @@ fn node_boxes(
         let width = (text + 2.0 * PAD)
             .clamp(spacing.min_node, spacing.max_node.max(room + 2.0 * PAD))
             + extra_width;
-        let height =
-            20.0 + NODE_LINE * count(lines.len()) + 14.0 * count(sublines.len()) + extra_height;
+        let stripe = if node.parts.is_empty() {
+            0.0
+        } else {
+            parts::ROOM
+        };
+        let height = 20.0
+            + NODE_LINE * count(lines.len())
+            + 14.0 * count(sublines.len())
+            + extra_height
+            + stripe;
         labels.push(lines);
         sublabels.push(sublines);
         sizes.push((width, height));
@@ -2157,8 +2187,20 @@ impl Plan {
             elements.push(Element::GroupEnd);
         }
         let reach = self.draw_labels(model, labels, metrics, elements);
-        for node in 0..model.diagram.nodes.len() {
-            elements.push(Element::Group(model.node_classes(node)));
+        let heat = heat::steps(
+            &model
+                .diagram
+                .nodes
+                .iter()
+                .map(|node| node.value)
+                .collect::<Vec<_>>(),
+        );
+        for (node, step) in heat.into_iter().enumerate() {
+            let mut classes = model.node_classes(node);
+            if let Some(step) = step {
+                classes.push_str(&heat::class(step));
+            }
+            elements.push(Element::Group(classes));
             self.draw_node(model, node, elements);
             elements.push(Element::GroupEnd);
             let spec = &model.diagram.nodes[node];
@@ -2652,6 +2694,23 @@ impl Plan {
             return;
         }
         Self::node_text(model, node, (x, y, width, height), elements);
+        if !spec.parts.is_empty() {
+            let names = parts::names(
+                model
+                    .diagram
+                    .nodes
+                    .iter()
+                    .map(|node| node.parts.as_slice()),
+            );
+            let lift = if spec.shape == Shape::Store { 6.0 } else { 0.0 };
+            parts::push_stripe(
+                model.number_style,
+                (&spec.parts, &names),
+                (x, y, width, height),
+                lift,
+                elements,
+            );
+        }
     }
 
     /// A class box: the stereotype above the name, centered, then a line and the members of every
@@ -2731,6 +2790,10 @@ impl Plan {
             Shape::Frontend => 6.0,
             Shape::Shield => -6.0,
             _ => 0.0,
+        } - if spec.parts.is_empty() {
+            0.0
+        } else {
+            parts::ROOM / 2.0
         };
         let first = middle_y - block / 2.0 + 4.5 + shift;
         for (index, line) in lines.iter().enumerate() {
@@ -3306,6 +3369,31 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         )
         .expect("writing to String cannot fail");
     }
+    let valued: Vec<(&str, f64)> = reading_order(&Diagram::from_flow(flow))
+        .into_iter()
+        .filter_map(|node| {
+            let step = &flow.nodes[node];
+            step.value.map(|value| (step.label.as_str(), value))
+        })
+        .collect();
+    if !valued.is_empty() {
+        description.push(' ');
+        description.push_str(&heat::sentence(
+            spec,
+            &heat::name(spec, flow.value_label.as_deref()),
+            &valued,
+        ));
+    }
+    let with_parts: Vec<(&str, &[PartSpec])> = reading_order(&Diagram::from_flow(flow))
+        .into_iter()
+        .map(|node| &flow.nodes[node])
+        .filter(|step| !step.parts.is_empty())
+        .map(|step| (step.label.as_str(), step.parts.as_slice()))
+        .collect();
+    if !with_parts.is_empty() {
+        description.push(' ');
+        description.push_str(&parts::sentence(spec, &with_parts));
+    }
     for group in &flow.groups {
         let members: Vec<&str> = group
             .nodes
@@ -3332,6 +3420,14 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     if groups {
         columns.push(words.group.to_owned());
     }
+    let values = flow.nodes.iter().any(|node| node.value.is_some());
+    if values {
+        columns.push(heat::name(spec, flow.value_label.as_deref()));
+    }
+    let with_parts = flow.nodes.iter().any(|node| !node.parts.is_empty());
+    if with_parts {
+        columns.push(words.parts.to_owned());
+    }
     columns.push(words.leads_to.to_owned());
     let rows = reading_order(&Diagram::from_flow(flow))
         .into_iter()
@@ -3352,6 +3448,14 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                     flow.group_of(node)
                         .map_or_else(String::new, |group| flow.groups[group].label.clone()),
                 );
+            }
+            if values {
+                row.push(step.value.map_or_else(String::new, |value| {
+                    format_value(value, spec.number_style())
+                }));
+            }
+            if with_parts {
+                row.push(parts::listed(spec.number_style(), &step.parts));
             }
             row.push(next_steps(spec, &ends, node).join(", "));
             row

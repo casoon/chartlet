@@ -130,6 +130,8 @@ pub(crate) struct Words {
     pub show_all: &'static str,
     /// The ring column of a network's table.
     pub ring: &'static str,
+    /// The column of the parts of a node.
+    pub parts: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -244,6 +246,7 @@ const EN: Words = Words {
     focus: "Focus",
     show_all: "Show all",
     ring: "Ring",
+    parts: "Parts",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -360,6 +363,7 @@ const DE: Words = Words {
     focus: "Fokus",
     show_all: "Alle zeigen",
     ring: "Ring",
+    parts: "Anteile",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],
@@ -1316,6 +1320,34 @@ pub(crate) fn ring_name(locale: Locale, distance: Option<usize>) -> String {
         (_, Some(distance)) => distance.to_string(),
         (Locale::En, None) => "not connected".to_owned(),
         (Locale::De, None) => "nicht verbunden".to_owned(),
+    }
+}
+
+/// What the colors of a diagram's nodes show, the values at both ends of the scale, and every
+/// node's value as `label value`.
+pub(crate) fn node_values(
+    locale: Locale,
+    name: &str,
+    (low, high): (&str, &str),
+    nodes: &[String],
+) -> String {
+    let nodes = nodes.join(", ");
+    match locale {
+        Locale::En => {
+            format!("Color shows {name}, from {low} (lightest) to {high} (darkest): {nodes}.")
+        }
+        Locale::De => format!(
+            "Die Farbe zeigt {name}, von {low} (am hellsten) bis {high} (am dunkelsten): {nodes}."
+        ),
+    }
+}
+
+/// The parts of the nodes that have some, each as `label: part value (share), …`.
+pub(crate) fn node_parts(locale: Locale, nodes: &[String]) -> String {
+    let nodes = nodes.join("; ");
+    match locale {
+        Locale::En => format!("Parts: {nodes}."),
+        Locale::De => format!("Anteile: {nodes}."),
     }
 }
 

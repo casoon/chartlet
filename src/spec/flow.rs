@@ -30,6 +30,10 @@ pub struct FlowSpec {
     /// Which way the flow runs: down in portrait, right in landscape.
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    /// What the `value` of the steps stands for, such as `Lead time (days)`: the name of the
+    /// color key and of the table column.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value_label: Option<String>,
 }
 
 /// The main path of a diagram: the ids of its steps in order, each joined to the next by an edge,
@@ -151,6 +155,13 @@ pub struct FlowNodeSpec {
     /// The `id` of the lane the step belongs to; required once the chart has lanes.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lane: Option<String>,
+    /// A number that colors the step's fill, light for the smallest value of the chart and dark
+    /// for the largest.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<f64>,
+    /// The parts of what the step holds, drawn as a stripe inside the bottom of its box.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<PartSpec>,
 }
 
 /// What a step is; every kind has its own shape.
@@ -198,6 +209,67 @@ pub struct FlowEdgeSpec {
     /// it carries more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight: Option<f64>,
+}
+
+/// One part of what a node holds: a name and a value of at least 0.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PartSpec {
+    pub label: String,
+    pub value: f64,
+}
+
+/// Parts of one node, and the names of the parts of all nodes of a diagram.
+const MAX_PARTS: usize = 6;
+const MAX_PART_NAMES: usize = 8;
+
+/// Checks the parts of the nodes of a diagram, each node as its parts and the JSON path of its
+/// `parts`: at most six per node with values of at least 0 that add up to more than 0, and at
+/// most eight names in the whole diagram.
+pub(crate) fn validate_parts<'a>(
+    nodes: impl Iterator<Item = (&'a [PartSpec], String)>,
+) -> Result<(), ChartError> {
+    let mut names: Vec<&str> = Vec::new();
+    for (parts, path) in nodes {
+        if parts.is_empty() {
+            continue;
+        }
+        if parts.len() > MAX_PARTS {
+            return Err(ChartError::new(
+                "too_many_parts",
+                path,
+                format!("at most {MAX_PARTS} parts are supported on one node"),
+            ));
+        }
+        for (index, part) in parts.iter().enumerate() {
+            validate_text(&part.label, &format!("{path}/{index}/label"), 40)?;
+            if part.value < 0.0 {
+                return Err(ChartError::new(
+                    "invalid_value",
+                    format!("{path}/{index}/value"),
+                    "a part is a number of at least 0",
+                ));
+            }
+            if !names.contains(&part.label.as_str()) {
+                names.push(&part.label);
+            }
+            if names.len() > MAX_PART_NAMES {
+                return Err(ChartError::new(
+                    "too_many_parts",
+                    format!("{path}/{index}/label"),
+                    format!("at most {MAX_PART_NAMES} different parts are supported in one diagram"),
+                ));
+            }
+        }
+        if parts.iter().map(|part| part.value).sum::<f64>() <= 0.0 {
+            return Err(ChartError::new(
+                "invalid_value",
+                path,
+                "the parts of a node add up to more than 0",
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Checks the weight of an edge: a finite number of at least 0.
@@ -283,6 +355,28 @@ impl FlowSpec {
 }
 
 impl ChartSpec {
+    /// Whether a flow chart or a tree has a node with parts.
+    pub(crate) fn has_node_parts(&self) -> bool {
+        self.flow
+            .as_ref()
+            .is_some_and(|flow| flow.nodes.iter().any(|node| !node.parts.is_empty()))
+            || self
+                .tree
+                .as_ref()
+                .is_some_and(|tree| tree.nodes.iter().any(|node| !node.parts.is_empty()))
+    }
+
+    /// Whether a flow chart or a tree has a node with a value.
+    pub(crate) fn has_node_values(&self) -> bool {
+        self.flow
+            .as_ref()
+            .is_some_and(|flow| flow.nodes.iter().any(|node| node.value.is_some()))
+            || self
+                .tree
+                .as_ref()
+                .is_some_and(|tree| tree.nodes.iter().any(|node| node.value.is_some()))
+    }
+
     /// Whether a flow chart, an architecture diagram or a network has an edge with a weight.
     pub(crate) fn has_edge_weights(&self) -> bool {
         self.flow
@@ -316,6 +410,26 @@ impl ChartSpec {
         flow.validate_edges()?;
         flow.validate_groups()?;
         flow.validate_main_path()?;
+        if let Some(label) = &flow.value_label {
+            validate_text(label, "/flow/valueLabel", 40)?;
+        }
+        validate_parts(
+            flow.nodes
+                .iter()
+                .enumerate()
+                .map(|(index, node)| (node.parts.as_slice(), format!("/flow/nodes/{index}/parts"))),
+        )?;
+        if let Some(index) = flow
+            .nodes
+            .iter()
+            .position(|node| node.kind == NodeKind::Decision && !node.parts.is_empty())
+        {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("/flow/nodes/{index}/parts"),
+                "a decision is a diamond with no room for a stripe of parts",
+            ));
+        }
         Ok(Vec::new())
     }
 }

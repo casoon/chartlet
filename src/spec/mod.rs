@@ -40,7 +40,9 @@ pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use classes::{ClassKind, ClassSpec, ClassesSpec, RelationKind, RelationSpec};
-pub use flow::{FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, MainPath, NodeKind};
+pub use flow::{
+    FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, MainPath, NodeKind, PartSpec,
+};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::RangeSpec;

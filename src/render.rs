@@ -368,6 +368,7 @@ const fn type_style(chart_type: ChartType) -> &'static str {
 /// The style groups a chart uses, in the order of [`shared_stylesheet`], so that rules cascade
 /// alike in a chart's own stylesheet and in the shared one. The print variant has no series
 /// filter to style.
+#[allow(clippy::too_many_lines)]
 fn base_style(spec: &ChartSpec, print: bool) -> String {
     let has_series = spec.series.len() > 1 || spec.data_groups().len() > 1;
     let is_time = matches!(spec.chart_type, ChartType::Time | ChartType::Multiples)
@@ -383,7 +384,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = matches!(spec.theme, Theme::Dark | Theme::Blueprint);
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -459,6 +460,16 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         } else {
             ""
         },
+        if spec.has_node_values() {
+            crate::heat::STYLE
+        } else {
+            ""
+        },
+        if spec.has_node_parts() {
+            crate::parts::STYLE
+        } else {
+            ""
+        },
         if spec.theme == Theme::Blueprint {
             BLUEPRINT_STYLE
         } else {
@@ -485,7 +496,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
         Topicmap, Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 40] = [
+    let groups: [(&str, &[ChartType]); 42] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -523,6 +534,8 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
         (WEIGHT_STYLE, &[Flow, Architecture, Network]),
         (NETWORK_STYLE, &[Network]),
+        (crate::heat::STYLE, &[Flow, Tree]),
+        (crate::parts::STYLE, &[Flow, Tree]),
         (
             BLUEPRINT_STYLE,
             &[Sequence, Flow, State, Architecture, Tree, Classes, Network],

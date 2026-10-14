@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "How insurance claims were settled",
+  "source": "Claims system, 2025",
+  "width": 960,
+  "height": 300,
+  "flow": {
+    "orientation": "landscape",
+    "nodes": [
+      { "id": "in", "label": "Claim received", "sublabel": "12,400 claims", "kind": "start" },
+      { "id": "check", "label": "First check", "sublabel": "12,400", "parts": [
+        { "label": "settled", "value": 5200 }, { "label": "assessed", "value": 6400 }, { "label": "rejected", "value": 800 }
+      ] },
+      { "id": "assess", "label": "Assessment", "sublabel": "6,400", "parts": [
+        { "label": "settled", "value": 4100 }, { "label": "rejected", "value": 1300 }, { "label": "appealed", "value": 1000 }
+      ] },
+      { "id": "appeal", "label": "Appeal", "sublabel": "1,000", "parts": [
+        { "label": "settled", "value": 450 }, { "label": "rejected", "value": 550 }
+      ] },
+      { "id": "done", "label": "Closed", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "in", "to": "check" },
+      { "from": "check", "to": "assess" },
+      { "from": "check", "to": "done" },
+      { "from": "assess", "to": "appeal" },
+      { "from": "assess", "to": "done" },
+      { "from": "appeal", "to": "done" }
+    ],
+    "mainPath": { "from": "in", "to": "done" }
+  }
+}

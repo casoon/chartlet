@@ -889,7 +889,8 @@
           "description": "The usual way through the flow, as step ids joined by edges, or as {from, to}: the shortest way along the edges between two steps (at a tie the first in the order of the edges). Kept in line and drawn stronger.",
           "$ref": "#/$defs/mainPath"
         },
-        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
       }
     },
     "state": {
@@ -1350,7 +1351,9 @@
               "link": { "description": "What joins the node to its parent, such as a share; not on the root.", "type": "string", "minLength": 1, "maxLength": 40 },
               "kind": { "enum": ["unit", "person", "external"], "default": "unit" },
               "partner": { "description": "The id of the node this one is joined to as a couple: they stand side by side and the children of either hang from the middle of the line between them. A partner has no parent, and is not itself named as a partner.", "$ref": "#/$defs/identifier" },
-              "collapsed": { "type": "boolean", "default": false, "description": "Draw the node without what hangs below it and below its partner; a small +n says how many nodes are left out. The description and the data table still list them." }
+              "collapsed": { "type": "boolean", "default": false, "description": "Draw the node without what hangs below it and below its partner; a small +n says how many nodes are left out. The description and the data table still list them." },
+              "value": { "description": "A number that colors the node's fill, from light for the smallest value to dark for the largest.", "type": "number" },
+              "parts": { "description": "The parts of what the node holds, drawn as a stripe inside the bottom of its box; at most 6 per node and 8 names per diagram; a decision takes none.", "type": "array", "maxItems": 6, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "value": { "type": "number", "minimum": 0 } } } }
             }
           }
         },
@@ -1359,7 +1362,8 @@
           "description": "layered: one row per level (a column in landscape). radial: a mind map, the root in the middle and every level on a ring around it, each subtree in a sector as wide as its share of the leaves; takes no orientation, partner or link.",
           "enum": ["layered", "radial"],
           "default": "layered"
-        }
+        },
+        "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
       }
     },
     "architecture": {
@@ -1455,7 +1459,9 @@
           "enum": ["start", "end", "process", "decision", "io", "subprocess", "store", "external"],
           "default": "process"
         },
-        "lane": { "$ref": "#/$defs/identifier" }
+        "lane": { "$ref": "#/$defs/identifier" },
+        "value": { "description": "A number that colors the node's fill, from light for the smallest value to dark for the largest.", "type": "number" },
+        "parts": { "description": "The parts of what the node holds, drawn as a stripe inside the bottom of its box; at most 6 per node and 8 names per diagram; a decision takes none.", "type": "array", "maxItems": 6, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "value": { "type": "number", "minimum": 0 } } } }
       }
     },
     "flowEdge": {

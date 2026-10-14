@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "type": "tree",
+  "title": "Budget by department",
+  "source": "Annual plan",
+  "width": 960,
+  "height": 300,
+  "tree": {
+    "valueLabel": "Budget (m €)",
+    "nodes": [
+      { "id": "board", "label": "Executive board", "value": 4.2 },
+      { "id": "product", "label": "Product", "parent": "board", "value": 18.5 },
+      { "id": "sales", "label": "Sales", "parent": "board", "value": 11.0 },
+      { "id": "finance", "label": "Finance", "parent": "board", "value": 3.1 },
+      { "id": "design", "label": "Design", "parent": "product", "value": 2.4 },
+      { "id": "engineering", "label": "Engineering", "parent": "product", "value": 14.8 },
+      { "id": "research", "label": "Research", "parent": "product", "value": 1.3 },
+      { "id": "field", "label": "Field sales", "parent": "sales", "value": 7.6 },
+      { "id": "partners", "label": "Partner channel", "parent": "sales", "value": 3.4 },
+      { "id": "controlling", "label": "Controlling", "parent": "finance", "value": 1.2 },
+      { "id": "accounting", "label": "Accounting", "parent": "finance", "value": 1.9 }
+    ]
+  }
+}

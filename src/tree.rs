@@ -17,10 +17,14 @@ use crate::{
     diagram::{self, chip, pixels, rounded, warn_growth, warn_growth_advising, wrap},
     error::ChartWarning,
     flow::{Shape, focus_classes, shape},
-    layout::{NARROW, count, push_title, title_extra},
+    heat,
+    layout::{NARROW, count, format_value, push_title, title_extra},
+    parts,
     metrics::TextMetrics,
     scene::{Element, Hotspot, Scene, Text, TextAnchor},
-    spec::{ChartSpec, DiagramOrientation, TreeLayout, TreeNodeKind, TreeSpec},
+    spec::{
+        ChartSpec, DiagramOrientation, NumberStyle, PartSpec, TreeLayout, TreeNodeKind, TreeSpec,
+    },
     text,
 };
 
@@ -75,7 +79,33 @@ pub(crate) fn layout(
     scene
 }
 
+/// The tree as drawn, with the key of its node colors below when its nodes have values.
 fn layout_all(
+    spec: &ChartSpec,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Scene {
+    let tree = tree(spec);
+    let mut scene = draw_all(spec, warnings, metrics);
+    let values: Vec<Option<f64>> = tree.nodes.iter().map(|node| node.value).collect();
+    let margin = if spec.width < NARROW {
+        COMPACT_MARGIN
+    } else {
+        MARGIN
+    };
+    heat::push_key(
+        &mut scene,
+        spec,
+        (&heat::name(spec, tree.value_label.as_deref()), &values),
+        margin,
+        metrics,
+    );
+    let names = parts::names(tree.nodes.iter().map(|node| node.parts.as_slice()));
+    parts::push_legend(&mut scene, &names, margin, metrics);
+    scene
+}
+
+fn draw_all(
     spec: &ChartSpec,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
@@ -103,7 +133,7 @@ fn layout_all(
             "use the layered layout",
             warnings,
         );
-        radial.draw(tree, &nodes, &mut elements);
+        radial.draw((tree, spec.number_style()), &nodes, &mut elements);
         return Scene {
             width: pixels(radial.width),
             height: pixels(radial.height),
@@ -134,7 +164,7 @@ fn layout_all(
         warnings,
     );
     warn_growth(spec, plan.width, plan.height, warnings);
-    plan.draw(tree, &nodes, metrics, &mut elements);
+    plan.draw((tree, spec.number_style()), &nodes, metrics, &mut elements);
     Scene {
         width: pixels(plan.width),
         height: pixels(plan.height),
@@ -211,10 +241,16 @@ fn boxes(
             } else {
                 0.0
             };
+            let stripe = if node.parts.is_empty() {
+                0.0
+            } else {
+                parts::ROOM
+            };
             let height = 20.0
                 + NODE_LINE * count(lines.len())
                 + SUBLABEL_LINE * count(sublines.len())
-                + head;
+                + head
+                + stripe;
             NodeBox {
                 width: (text + 2.0 * PAD)
                     .clamp(min, max.max(room + 2.0 * PAD))
@@ -457,7 +493,7 @@ impl Plan {
 
     fn draw(
         &self,
-        tree: &TreeSpec,
+        (tree, style): (&TreeSpec, NumberStyle),
         nodes: &[NodeBox],
         metrics: &impl TextMetrics,
         elements: &mut Vec<Element>,
@@ -498,7 +534,7 @@ impl Plan {
             chip(&lines, at, TextAnchor::Middle, metrics, elements);
             elements.push(Element::GroupEnd);
         }
-        draw_nodes(tree, nodes, |node| self.node_box(nodes, node), elements);
+        draw_nodes((tree, style), nodes, |node| self.node_box(nodes, node), elements);
     }
 
     /// The short line between the two boxes of a couple: from the head to its partner.
@@ -682,7 +718,12 @@ impl Radial {
 
     /// A straight spoke from every parent to each of its children, from edge to edge of the
     /// boxes, under the boxes.
-    fn draw(&self, tree: &TreeSpec, nodes: &[NodeBox], elements: &mut Vec<Element>) {
+    fn draw(
+        &self,
+        (tree, style): (&TreeSpec, NumberStyle),
+        nodes: &[NodeBox],
+        elements: &mut Vec<Element>,
+    ) {
         for node in tree.reading_order() {
             let Some(parent) = tree.parent_of(node) else {
                 continue;
@@ -705,7 +746,7 @@ impl Radial {
             )));
             elements.push(Element::GroupEnd);
         }
-        draw_nodes(tree, nodes, |node| self.node_box(nodes, node), elements);
+        draw_nodes((tree, style), nodes, |node| self.node_box(nodes, node), elements);
     }
 }
 
@@ -841,7 +882,7 @@ fn edge_toward(from: (f64, f64), to: (f64, f64), node: &NodeBox) -> (f64, f64) {
 /// Every node: its shape, its text, and the hotspot the HTML profile focuses; `node_box` says
 /// where each one stands.
 fn draw_nodes(
-    tree: &TreeSpec,
+    (tree, style): (&TreeSpec, NumberStyle),
     nodes: &[NodeBox],
     node_box: impl Fn(usize) -> (f64, f64, f64, f64),
     elements: &mut Vec<Element>,
@@ -856,9 +897,15 @@ fn draw_nodes(
         related.sort_unstable();
         related
     };
+    let heat = heat::steps(&tree.nodes.iter().map(|node| node.value).collect::<Vec<_>>());
+    let names = parts::names(tree.nodes.iter().map(|node| node.parts.as_slice()));
     for (node, drawn) in nodes.iter().enumerate() {
         let spec = &tree.nodes[node];
-        elements.push(Element::Group(focus_classes(Some(node), &related(node))));
+        let mut classes = focus_classes(Some(node), &related(node));
+        if let Some(step) = heat[node] {
+            classes.push_str(&heat::class(step));
+        }
+        elements.push(Element::Group(classes));
         let (x, y, width, height) = node_box(node);
         let tooltip = Some(match &spec.sublabel {
             Some(sublabel) => format!("{} – {sublabel}", spec.label),
@@ -870,12 +917,27 @@ fn draw_nodes(
             TreeNodeKind::External => Shape::External,
         };
         shape(kind, (x, y, width, height), tooltip, elements);
+        let stripe = if spec.parts.is_empty() {
+            0.0
+        } else {
+            parts::ROOM
+        };
+        // The text stands in the middle of the room the stripe leaves.
         node_text(
             drawn,
             spec.kind == TreeNodeKind::Person,
-            (x, y, width, height),
+            (x, y, width, height - stripe),
             elements,
         );
+        if !spec.parts.is_empty() {
+            parts::push_stripe(
+                style,
+                (&spec.parts, &names),
+                (x, y, width, height),
+                0.0,
+                elements,
+            );
+        }
         elements.push(Element::GroupEnd);
         elements.push(Element::Hotspot(Hotspot {
             node,
@@ -977,6 +1039,33 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
                 .expect("writing to String cannot fail");
         }
     }
+    let valued: Vec<(&str, f64)> = tree
+        .reading_order()
+        .into_iter()
+        .filter_map(|node| {
+            let spec_node = &tree.nodes[node];
+            spec_node.value.map(|value| (spec_node.label.as_str(), value))
+        })
+        .collect();
+    if !valued.is_empty() {
+        description.push(' ');
+        description.push_str(&heat::sentence(
+            spec,
+            &heat::name(spec, tree.value_label.as_deref()),
+            &valued,
+        ));
+    }
+    let with_parts: Vec<(&str, &[PartSpec])> = tree
+        .reading_order()
+        .into_iter()
+        .map(|node| &tree.nodes[node])
+        .filter(|node| !node.parts.is_empty())
+        .map(|node| (node.label.as_str(), node.parts.as_slice()))
+        .collect();
+    if !with_parts.is_empty() {
+        description.push(' ');
+        description.push_str(&parts::sentence(spec, &with_parts));
+    }
     let collapsed: Vec<&str> = (0..tree.nodes.len())
         .filter(|node| tree.hidden_below(*node) > 0)
         .map(|node| tree.nodes[node].label.as_str())
@@ -1005,6 +1094,14 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     if linked {
         columns.push(words.link.to_owned());
     }
+    let values = tree.nodes.iter().any(|node| node.value.is_some());
+    if values {
+        columns.push(heat::name(spec, tree.value_label.as_deref()));
+    }
+    let with_parts = tree.nodes.iter().any(|node| !node.parts.is_empty());
+    if with_parts {
+        columns.push(words.parts.to_owned());
+    }
     columns.push(words.children.to_owned());
     let folded = tree.nodes.iter().any(|node| node.collapsed);
     if folded {
@@ -1029,6 +1126,14 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             }
             if linked {
                 row.push(tree.nodes[node].link.clone().unwrap_or_default());
+            }
+            if values {
+                row.push(tree.nodes[node].value.map_or_else(String::new, |value| {
+                    format_value(value, spec.number_style())
+                }));
+            }
+            if with_parts {
+                row.push(parts::listed(spec.number_style(), &tree.nodes[node].parts));
             }
             row.push(
                 tree.children(node)

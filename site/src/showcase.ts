@@ -350,6 +350,20 @@ const catalogue = [
       'Requests per second between the services of a shop. Every connection has a `weight`; its line is as much stronger as it carries more, from 1 px for nothing to 5 px for the heaviest, while the arrowheads keep their size. The description names the heaviest connection and the table gives every weight. The main path is given by its ends only, `{ "from": "web", "to": "pay" }`, and stays in the accent color. Illustrative values.',
   },
   {
+    slug: 'department-budgets',
+    chart: 'Tree with boxes colored by value',
+    useCase: 'Show where the money goes in an organization',
+    blurb:
+      'An organization chart whose boxes are filled by budget, from light for the smallest to dark for the largest, with a key below. The text in every box keeps its contrast on the fill; the description and the table give every budget, so the color is never the only sign. Illustrative values.',
+  },
+  {
+    slug: 'claim-handling',
+    chart: 'Flow chart with the shares of each step',
+    useCase: 'Show what happens to the cases at each step',
+    blurb:
+      'Insurance claims through a first check, an assessment and an appeal. A stripe inside each box splits it into the claims settled, rejected or passed on; one legend names the parts, and the description and the table give every part with its count and share. The main path is given by its ends. Illustrative values.',
+  },
+  {
     slug: 'co-authors',
     chart: 'Network on a circle',
     useCase: 'Show who works with whom',

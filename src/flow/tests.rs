@@ -346,6 +346,37 @@ fn weighted_edges_are_drawn_stronger_the_more_they_carry() {
 }
 
 #[test]
+fn values_color_the_steps_and_parts_draw_a_stripe() {
+    let colored = SPEC
+        .replace(r#""label": "Edit"}"#, r#""label": "Edit", "value": 9, "parts": [{"label": "kept", "value": 3}, {"label": "dropped", "value": 1}]}"#)
+        .replace(r#""label": "Publish"}"#, r#""label": "Publish", "value": 1}"#)
+        .replace("\"mainPath\"", "\"valueLabel\": \"Days\", \"mainPath\"");
+    let content = svg(&colored).content;
+    assert!(content.contains(" chartlet-heat-5\""), "{content}");
+    assert!(content.contains(" chartlet-heat-0\""), "{content}");
+    assert!(content.contains("class=\"chartlet-part chartlet-part-1\""));
+    assert!(content.contains("<title>kept 3 (75%)</title>"), "{content}");
+    let alternative =
+        text_alternative(&ChartSpec::from_json(&colored).expect("parses")).expect("valid");
+    assert!(
+        alternative
+            .description
+            .contains("Color shows Days, from 1 (lightest) to 9 (darkest): Edit 9, Publish 1."),
+        "{}",
+        alternative.description
+    );
+    assert!(
+        alternative
+            .description
+            .contains("Parts: Edit: kept 3 (75%), dropped 1 (25%).")
+    );
+    assert_eq!(
+        alternative.table.columns,
+        ["Step", "Kind", "Days", "Parts", "Leads to"]
+    );
+}
+
+#[test]
 fn invalid_flows_name_the_field() {
     let lanes = SPEC.replace(
         "\"nodes\": [",
@@ -361,6 +392,9 @@ fn invalid_flows_name_the_field() {
         (SPEC.replace(r#"["start", "check", "publish", "done"]"#, r#"{"from": "start", "to": "nowhere"}"#), "unknown_node", "/flow/mainPath/to"),
         (SPEC.replace(r#"["start", "check", "publish", "done"]"#, r#"{"from": "done", "to": "start"}"#), "main_path_unreachable", "/flow/mainPath"),
         (SPEC.replace(r#""to": "publish", "label": "yes""#, r#""to": "publish", "label": "yes", "weight": -1"#), "invalid_edge_weight", "/flow/edges/1/weight"),
+        (SPEC.replace(r#""kind": "decision"}"#, r#""kind": "decision", "parts": [{"label": "a", "value": 1}]}"#), "option_not_supported", "/flow/nodes/1/parts"),
+        (SPEC.replace(r#""label": "Edit"}"#, r#""label": "Edit", "parts": [{"label": "a", "value": 0}]}"#), "invalid_value", "/flow/nodes/2/parts"),
+        (SPEC.replace(r#""label": "Edit"}"#, r#""label": "Edit", "parts": [{"label": "a", "value": -1}]}"#), "invalid_value", "/flow/nodes/2/parts/0/value"),
         (
             SPEC.replace("\"mainPath\"", r#""groups": [{"label": "G", "nodes": ["edit", "publish"]}, {"label": "H", "nodes": ["edit"]}], "mainPath""#),
             "duplicate_member",

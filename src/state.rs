@@ -79,6 +79,8 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             group: None,
             path: "/state/initial".to_owned(),
             compartments: Vec::new(),
+            value: None,
+            parts: Vec::new(),
         });
         edges.push(Edge {
             from: 0,
@@ -114,6 +116,8 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             group: frame(state),
             path: format!("/state/states/{index}"),
             compartments: Vec::new(),
+            value: None,
+            parts: Vec::new(),
         });
     }
     for (index, transition) in machine.transitions.iter().enumerate() {

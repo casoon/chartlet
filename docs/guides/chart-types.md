@@ -53,6 +53,8 @@ order: 1
 | Architecture diagram with nested boundaries | `"type": "architecture"` with `components`, `connections`, `boundaries` | [Web shop on one cloud region](../../../showcase/shop-architecture/) |
 | Tree with a share on every link | `"type": "tree"` with `nodes`, `parent`, `link` | [Ownership structure](../../../showcase/ownership-structure/) |
 | Family tree with couples | `"type": "tree"` with `partner` and `kind` | [Three generations](../../../showcase/family-tree/) |
+| Tree with boxes colored by value | `value` on the nodes, `valueLabel` | [Budget by department](../../../showcase/department-budgets/) |
+| Flow chart with the shares of each step | `parts` on the steps | [How insurance claims were settled](../../../showcase/claim-handling/) |
 | Network on a circle, groups together, edges by weight | `"type": "network"` with `nodes`, `edges`, `group`, `weight` | [Joint papers](../../../showcase/co-authors/) |
 | Network in rings around one node, with arrowheads | `"layout": "rings"`, `center`, `"directed": true` | [What the checkout service depends on](../../../showcase/service-dependencies/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
@@ -852,6 +854,18 @@ releases.
   the edges (at a tie the first in the order of the edges). It keeps the path in line where the
   lanes leave room and draws it thicker in the accent color; `main_path_gap` reports two
   consecutive steps no edge joins, `main_path_unreachable` two ends no way joins.
+- **Values.** A node with a `value` is filled from a scale of six blues, light for the smallest
+  value of the diagram and dark for the largest; `valueLabel` names what the values stand for
+  (`Budget (m €)`) in the key below the diagram and in the table. Every step fixes its text color,
+  so labels keep at least 4.5:1 in the light and the dark theme; the colors are the custom
+  properties `--chartlet-heat-0` to `--chartlet-heat-5`. The description says what the colors
+  show and gives every value, so the color is never the only sign.
+- **Parts.** `parts: [{ "label": "kept", "value": 180 }, …]` draws a stripe inside the bottom of a
+  box, split into the shares of its parts; each name keeps one color across the diagram and the
+  legend below names them. The description and a Parts column give every part with its value
+  and share. At most 6 parts per node and 8 names per diagram (`too_many_parts`), values of at
+  least 0 that add up to more than 0 (`invalid_value`); a decision has no room for a stripe
+  (`option_not_supported`).
 - **Weights.** An edge with a `weight` (a number of at least 0, such as cases per month) is drawn
   as much stronger as it carries more: from 1 px for no weight to 5 px for the heaviest edge of
   the chart, in steps of half a pixel; the arrowheads keep their size and the main path its
@@ -1071,6 +1085,8 @@ they are a gap apart at every level, so that a narrow subtree tucks in under a b
   `partner` and `link` are refused (`option_not_supported`); `kind` and `collapsed` work as in the
   layered tree. It needs room in both directions — on a phone a layered tree reads better. The
   description opens with "Mind map (radial tree)" and names the root as the centre.
+- **Values and parts** work as in flow charts (see [Flow charts](#flow-charts)): `value` with
+  `valueLabel` colors the boxes, `parts` draws a stripe of shares in them.
 - **Text alternative.** The description names the root and, for every node with children, what
   hangs below it; the data table has one row per node in reading order, with its level, its
   parent, its link and its children.
