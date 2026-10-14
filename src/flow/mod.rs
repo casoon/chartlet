@@ -3179,9 +3179,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let ends = flow.ends();
     let lanes: Vec<String> = flow.lanes.iter().map(|lane| lane.label.clone()).collect();
     let mut description = text::flow_opening(locale, flow.nodes.len(), flow.edges.len(), &lanes);
-    if !flow.main_path.is_empty() {
-        let path: Vec<&str> = flow
-            .main_path
+    let main_path = flow.main_path_steps();
+    if !main_path.is_empty() {
+        let path: Vec<&str> = main_path
             .iter()
             .map(|id| flow.nodes[flow.node(id).expect("validated")].label.as_str())
             .collect();

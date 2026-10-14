@@ -302,6 +302,21 @@ fn lanes_and_groups_appear_in_the_table_and_in_german() {
 }
 
 #[test]
+fn a_main_path_between_two_steps_takes_the_shortest_way() {
+    let between = SPEC.replace(
+        r#"["start", "check", "publish", "done"]"#,
+        r#"{"from": "start", "to": "done"}"#,
+    );
+    // The same drawing; only the id prefix, a hash of the specification, differs.
+    let options = RenderOptions {
+        id_prefix: Some("review".to_owned()),
+        ..RenderOptions::default()
+    };
+    let render = |json: &str| render_json(json, RenderFormat::Svg, &options).expect("renders");
+    assert_eq!(render(&between).content, render(SPEC).content);
+}
+
+#[test]
 fn invalid_flows_name_the_field() {
     let lanes = SPEC.replace(
         "\"nodes\": [",
@@ -314,6 +329,8 @@ fn invalid_flows_name_the_field() {
         (lanes.clone(), "missing_lane", "/flow/nodes/0/lane"),
         (SPEC.replace(r#""kind": "start"}"#, r#""kind": "start", "lane": "a"}"#), "unknown_lane", "/flow/nodes/0/lane"),
         (SPEC.replace(r#"["start", "check", "publish", "done"]"#, r#"["start", "publish"]"#), "main_path_gap", "/flow/mainPath/1"),
+        (SPEC.replace(r#"["start", "check", "publish", "done"]"#, r#"{"from": "start", "to": "nowhere"}"#), "unknown_node", "/flow/mainPath/to"),
+        (SPEC.replace(r#"["start", "check", "publish", "done"]"#, r#"{"from": "done", "to": "start"}"#), "main_path_unreachable", "/flow/mainPath"),
         (
             SPEC.replace("\"mainPath\"", r#""groups": [{"label": "G", "nodes": ["edit", "publish"]}, {"label": "H", "nodes": ["edit"]}], "mainPath""#),
             "duplicate_member",

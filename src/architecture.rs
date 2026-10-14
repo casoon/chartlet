@@ -205,9 +205,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&text::boundary(&boundary.label, parent, &held));
     }
-    if !architecture.main_path.is_empty() {
-        let path: Vec<&str> = architecture
-            .main_path
+    let main_path = architecture.main_path_steps();
+    if !main_path.is_empty() {
+        let path: Vec<&str> = main_path
             .iter()
             .map(|id| {
                 architecture.components[architecture.component(id).expect("validated")]
@@ -516,6 +516,18 @@ mod tests {
                 r#"["reader", "api"]"#,
                 "main_path_gap",
                 "/architecture/mainPath/1",
+            ),
+            (
+                r#"["reader", "site", "api", "db"]"#,
+                r#"{"from": "db", "to": "reader"}"#,
+                "main_path_unreachable",
+                "/architecture/mainPath",
+            ),
+            (
+                r#"["reader", "site", "api", "db"]"#,
+                r#"{"from": "nobody", "to": "db"}"#,
+                "unknown_node",
+                "/architecture/mainPath/from",
             ),
             (
                 r#""type": "architecture""#,

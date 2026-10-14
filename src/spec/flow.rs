@@ -23,13 +23,113 @@ pub struct FlowSpec {
     /// Frames around steps that belong together.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub groups: Vec<GroupSpec>,
-    /// The usual way through the flow, as step ids joined by edges: kept in line and drawn
-    /// stronger.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub main_path: Vec<String>,
+    /// The usual way through the flow, as step ids joined by edges or as the shortest way between
+    /// two steps: kept in line and drawn stronger.
+    #[serde(default, skip_serializing_if = "MainPath::is_empty")]
+    pub main_path: MainPath,
     /// Which way the flow runs: down in portrait, right in landscape.
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+}
+
+/// The main path of a diagram: the ids of its steps in order, each joined to the next by an edge,
+/// or the two ends of the way, which the shortest way along the edges joins.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum MainPath {
+    Steps(Vec<String>),
+    Between { from: String, to: String },
+}
+
+impl Default for MainPath {
+    fn default() -> Self {
+        Self::Steps(Vec::new())
+    }
+}
+
+impl MainPath {
+    pub(crate) fn is_empty(&self) -> bool {
+        matches!(self, Self::Steps(steps) if steps.is_empty())
+    }
+
+    /// The ids along the path; for `Between`, the shortest way along `edges` (pairs of ids), the
+    /// first found in the order of the edges at a tie, or `None` when there is no way.
+    pub(crate) fn steps<'a>(
+        &'a self,
+        edges: &(impl Iterator<Item = (&'a str, &'a str)> + Clone),
+    ) -> Option<Vec<String>> {
+        let (from, to) = match self {
+            Self::Steps(steps) => return Some(steps.clone()),
+            Self::Between { from, to } => (from.as_str(), to.as_str()),
+        };
+        let mut reached: Vec<(&str, Option<usize>)> = vec![(from, None)];
+        let mut next = 0;
+        while next < reached.len() && !reached.iter().any(|(id, _)| *id == to) {
+            let at = reached[next].0;
+            for (start, end) in edges.clone() {
+                if start == at && !reached.iter().any(|(id, _)| *id == end) {
+                    reached.push((end, Some(next)));
+                }
+            }
+            next += 1;
+        }
+        let mut index = reached.iter().position(|(id, _)| *id == to)?;
+        let mut path = vec![to.to_owned()];
+        while let Some(previous) = reached[index].1 {
+            path.push(reached[previous].0.to_owned());
+            index = previous;
+        }
+        path.reverse();
+        Some(path)
+    }
+
+    /// Checks the path of a diagram whose steps `known` recognizes and whose edges join the pairs
+    /// of ids in `edges`; `section` is the block in the JSON path and `noun`/`edge` name a step
+    /// and an edge in messages. Returns the ids along the path.
+    pub(crate) fn validate<'a>(
+        &'a self,
+        section: &str,
+        known: impl Fn(&str) -> bool,
+        edges: &(impl Iterator<Item = (&'a str, &'a str)> + Clone),
+        (noun, edge): (&str, &str),
+    ) -> Result<Vec<String>, ChartError> {
+        let unknown = |id: &str, path: String| {
+            ChartError::new("unknown_node", path, format!("no {noun} has the id \"{id}\""))
+        };
+        if let Self::Between { from, to } = self {
+            for (end, id) in [("from", from), ("to", to)] {
+                if !known(id) {
+                    return Err(unknown(id, format!("/{section}/mainPath/{end}")));
+                }
+            }
+            return self.steps(edges).ok_or_else(|| {
+                ChartError::new(
+                    "main_path_unreachable",
+                    format!("/{section}/mainPath"),
+                    format!("no way along the {edge}s leads from \"{from}\" to \"{to}\""),
+                )
+            });
+        }
+        let steps = self.steps(edges).expect("a list of steps");
+        for (index, id) in steps.iter().enumerate() {
+            if !known(id) {
+                return Err(unknown(id, format!("/{section}/mainPath/{index}")));
+            }
+        }
+        for (index, pair) in steps.windows(2).enumerate() {
+            if !edges.clone().any(|(start, end)| start == pair[0] && end == pair[1]) {
+                return Err(ChartError::new(
+                    "main_path_gap",
+                    format!("/{section}/mainPath/{}", index + 1),
+                    format!(
+                        "no {edge} leads from \"{}\" to \"{}\"; the main path follows {edge}s",
+                        pair[0], pair[1]
+                    ),
+                ));
+            }
+        }
+        Ok(steps)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,9 +240,22 @@ impl FlowSpec {
     /// Whether edge `index` joins two consecutive steps of the main path.
     pub(crate) fn on_main_path(&self, index: usize) -> bool {
         let edge = &self.edges[index];
-        self.main_path
+        self.main_path_steps()
             .windows(2)
             .any(|pair| pair[0] == edge.from && pair[1] == edge.to)
+    }
+
+    /// The ids of the steps along the main path; empty without one.
+    pub(crate) fn main_path_steps(&self) -> Vec<String> {
+        self.main_path
+            .steps(&self.edge_ids())
+            .expect("validated main paths have a way")
+    }
+
+    fn edge_ids(&self) -> impl Iterator<Item = (&str, &str)> + Clone {
+        self.edges
+            .iter()
+            .map(|edge| (edge.from.as_str(), edge.to.as_str()))
     }
 }
 
@@ -339,31 +452,13 @@ impl FlowSpec {
     }
 
     fn validate_main_path(&self) -> Result<(), ChartError> {
-        for (index, id) in self.main_path.iter().enumerate() {
-            if self.node(id).is_none() {
-                return Err(ChartError::new(
-                    "unknown_node",
-                    format!("/flow/mainPath/{index}"),
-                    format!("no step has the id \"{id}\""),
-                ));
-            }
-        }
-        for (index, pair) in self.main_path.windows(2).enumerate() {
-            let joined = self
-                .edges
-                .iter()
-                .any(|edge| edge.from == pair[0] && edge.to == pair[1]);
-            if !joined {
-                return Err(ChartError::new(
-                    "main_path_gap",
-                    format!("/flow/mainPath/{}", index + 1),
-                    format!(
-                        "no edge leads from \"{}\" to \"{}\"; the main path follows edges",
-                        pair[0], pair[1]
-                    ),
-                ));
-            }
-        }
-        Ok(())
+        self.main_path
+            .validate(
+                "flow",
+                |id| self.node(id).is_some(),
+                &self.edge_ids(),
+                ("step", "edge"),
+            )
+            .map(|_| ())
     }
 }

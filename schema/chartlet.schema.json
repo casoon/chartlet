@@ -866,9 +866,8 @@
           }
         },
         "mainPath": {
-          "description": "The usual way through the flow, as step ids joined by edges: kept in line and drawn stronger.",
-          "type": "array",
-          "items": { "$ref": "#/$defs/identifier" }
+          "description": "The usual way through the flow, as step ids joined by edges, or as {from, to}: the shortest way along the edges between two steps (at a tie the first in the order of the edges). Kept in line and drawn stronger.",
+          "$ref": "#/$defs/mainPath"
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
       }
@@ -1360,12 +1359,25 @@
           }
         },
         "mainPath": {
-          "description": "The usual way a request takes, as component ids joined by connections: kept in line and drawn stronger.",
-          "type": "array",
-          "items": { "$ref": "#/$defs/identifier" }
+          "description": "The usual way a request takes, as component ids joined by connections, or as {from, to}: the shortest way along the connections between two components (at a tie the first in the order of the connections). Kept in line and drawn stronger.",
+          "$ref": "#/$defs/mainPath"
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
       }
+    },
+    "mainPath": {
+      "oneOf": [
+        { "type": "array", "items": { "$ref": "#/$defs/identifier" } },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["from", "to"],
+          "properties": {
+            "from": { "$ref": "#/$defs/identifier" },
+            "to": { "$ref": "#/$defs/identifier" }
+          }
+        }
+      ]
     },
     "flowNode": {
       "description": "A step; each kind has its own shape.",

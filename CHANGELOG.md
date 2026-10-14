@@ -9,6 +9,7 @@ does.
 ### Added
 
 - Flow charts, architecture diagrams and class diagrams: the description names the shape of the graph before the steps — the most connected nodes, where nothing leads in or out, loops, unconnected parts and bottlenecks — where it says more than the steps do (nothing for a single chain).
+- Flow charts and architecture diagrams: `mainPath` also takes `{ "from": "a", "to": "b" }`; chartlet takes the shortest way along the edges between the two (at a tie the first in the order of the edges), `main_path_unreachable` when there is none.
 
 ## [0.19.0] - 2026-10-12
 

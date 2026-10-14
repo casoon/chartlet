@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{ChartSpec, Dash, DiagramOrientation, sequence::is_identifier, validate_text};
+use super::{ChartSpec, Dash, DiagramOrientation, MainPath, sequence::is_identifier, validate_text};
 use crate::error::{ChartError, ChartWarning};
 
 /// Components of one diagram, connections between them, and boundaries around them.
@@ -22,8 +22,8 @@ pub struct ArchitectureSpec {
     pub boundaries: Vec<BoundarySpec>,
     /// The usual way a request takes, as component ids joined by connections: kept in line and
     /// drawn stronger.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub main_path: Vec<String>,
+    #[serde(default, skip_serializing_if = "MainPath::is_empty")]
+    pub main_path: MainPath,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
 }
@@ -128,9 +128,22 @@ impl ArchitectureSpec {
     /// Whether connection `index` joins two consecutive components of the main path.
     pub(crate) fn on_main_path(&self, index: usize) -> bool {
         let connection = &self.connections[index];
-        self.main_path
+        self.main_path_steps()
             .windows(2)
             .any(|pair| pair[0] == connection.from && pair[1] == connection.to)
+    }
+
+    /// The ids of the components along the main path; empty without one.
+    pub(crate) fn main_path_steps(&self) -> Vec<String> {
+        self.main_path
+            .steps(&self.connection_ids())
+            .expect("validated main paths have a way")
+    }
+
+    fn connection_ids(&self) -> impl Iterator<Item = (&str, &str)> + Clone {
+        self.connections
+            .iter()
+            .map(|connection| (connection.from.as_str(), connection.to.as_str()))
     }
 
     /// The boundaries around boundary `index`, outermost first, ending with it; `None` when
@@ -345,31 +358,12 @@ impl ArchitectureSpec {
                 }
             }
         }
-        for (index, id) in self.main_path.iter().enumerate() {
-            if self.component(id).is_none() {
-                return Err(ChartError::new(
-                    "unknown_node",
-                    format!("/architecture/mainPath/{index}"),
-                    format!("no component has the id \"{id}\""),
-                ));
-            }
-        }
-        for (index, pair) in self.main_path.windows(2).enumerate() {
-            if !self
-                .connections
-                .iter()
-                .any(|connection| connection.from == pair[0] && connection.to == pair[1])
-            {
-                return Err(ChartError::new(
-                    "main_path_gap",
-                    format!("/architecture/mainPath/{}", index + 1),
-                    format!(
-                        "no connection leads from \"{}\" to \"{}\"; the main path follows connections",
-                        pair[0], pair[1]
-                    ),
-                ));
-            }
-        }
+        self.main_path.validate(
+            "architecture",
+            |id| self.component(id).is_some(),
+            &self.connection_ids(),
+            ("component", "connection"),
+        )?;
         Ok(())
     }
 }

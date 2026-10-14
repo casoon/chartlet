@@ -50,7 +50,7 @@ pub use spec::{
     CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ClassKind,
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionSpec, Corner, Curve, Dash,
     DataPoint, DiagramOrientation, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind,
-    FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Mark, MarkerSpec,
+    FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, MainPath, Mark, MarkerSpec,
     MessageKind, MessageSpec, MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec,
     ParliamentSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec,
     RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,

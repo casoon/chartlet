@@ -844,9 +844,11 @@ releases.
 - **Edges** may carry a `label` and a `dash` (`solid`, `dashed`, `dotted`). They may form cycles —
   a retry, a loop back for changes — and an edge from a step to itself is drawn as a loop beside
   it. Say what an edge means in its label; the line pattern only repeats it.
-- **The main path** names the usual way through the flow as step ids joined by edges. chartlet
-  keeps it in line where the lanes leave room and draws it thicker in the accent color;
-  `main_path_gap` reports two consecutive steps no edge joins.
+- **The main path** names the usual way through the flow as step ids joined by edges, or only its
+  ends, `"mainPath": {"from": "draft", "to": "live"}`: chartlet then takes the shortest way along
+  the edges (at a tie the first in the order of the edges). It keeps the path in line where the
+  lanes leave room and draws it thicker in the accent color; `main_path_gap` reports two
+  consecutive steps no edge joins, `main_path_unreachable` two ends no way joins.
 - **Lanes** are bands across the flow, one per role or system: columns in portrait, rows in
   landscape. Once a chart has `lanes`, every step names its `lane` (`missing_lane`).
 - **Groups** frame steps of one lane under a name (`group_spans_lanes` otherwise). A step outside
