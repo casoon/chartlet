@@ -364,6 +364,13 @@ const catalogue = [
       'Insurance claims through a first check, an assessment and an appeal. A stripe inside each box splits it into the claims settled, rejected or passed on; one legend names the parts, and the description and the table give every part with its count and share. The main path is given by its ends. Illustrative values.',
   },
   {
+    slug: 'climate-similarity',
+    chart: 'Dendrogram from a distance matrix',
+    useCase: 'Show which items belong together',
+    blurb:
+      'Twelve capitals and how far apart their climates are. chartlet joins the two closest again and again (average linkage) and draws every join at its distance; the warm south, the west and centre, and the north fall apart into their groups. The description names the closest pair and the last join, the table every join. Illustrative values.',
+  },
+  {
     slug: 'co-authors',
     chart: 'Network on a circle',
     useCase: 'Show who works with whom',

@@ -4,7 +4,7 @@
 use std::fmt::Write as _;
 
 use crate::spec::{
-    ComponentKind, FragmentSpec, Locale, MessageKind, NodeKind, ParticipantKind, Quadrant,
+    ComponentKind, FragmentSpec, Linkage, Locale, MessageKind, NodeKind, ParticipantKind, Quadrant,
 };
 
 pub(crate) struct Words {
@@ -132,6 +132,10 @@ pub(crate) struct Words {
     pub ring: &'static str,
     /// The column of the parts of a node.
     pub parts: &'static str,
+    /// The columns of a dendrogram's table.
+    pub joins: &'static str,
+    pub distance: &'static str,
+    pub items: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -247,6 +251,9 @@ const EN: Words = Words {
     show_all: "Show all",
     ring: "Ring",
     parts: "Parts",
+    joins: "Joins",
+    distance: "Distance",
+    items: "Items",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -364,6 +371,9 @@ const DE: Words = Words {
     show_all: "Alle zeigen",
     ring: "Ring",
     parts: "Anteile",
+    joins: "Verbindet",
+    distance: "Abstand",
+    items: "Elemente",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],
@@ -1348,6 +1358,88 @@ pub(crate) fn node_parts(locale: Locale, nodes: &[String]) -> String {
     match locale {
         Locale::En => format!("Parts: {nodes}."),
         Locale::De => format!("Anteile: {nodes}."),
+    }
+}
+
+/// How a linkage measures the distance between two clusters, as a phrase.
+const fn linkage_phrase(locale: Locale, linkage: Linkage) -> &'static str {
+    match (locale, linkage) {
+        (Locale::En, Linkage::Average) => {
+            "average linkage (the mean distance between two clusters)"
+        }
+        (Locale::En, Linkage::Complete) => {
+            "complete linkage (the largest distance between two clusters)"
+        }
+        (Locale::En, Linkage::Single) => {
+            "single linkage (the smallest distance between two clusters)"
+        }
+        (Locale::De, Linkage::Average) => "mittleren Abstand zwischen zwei Gruppen",
+        (Locale::De, Linkage::Complete) => "größten Abstand zwischen zwei Gruppen",
+        (Locale::De, Linkage::Single) => "kleinsten Abstand zwischen zwei Gruppen",
+    }
+}
+
+/// The opening sentence of a dendrogram: how many items and by which linkage.
+pub(crate) fn dendrogram_opening(locale: Locale, items: usize, linkage: Linkage) -> String {
+    let phrase = linkage_phrase(locale, linkage);
+    match locale {
+        Locale::En => format!("Dendrogram of {items} items, joined by {phrase}."),
+        Locale::De => format!("Dendrogramm aus {items} Elementen, verbunden nach dem {phrase}."),
+    }
+}
+
+/// The first join of a dendrogram: the two closest items (or clusters, at a tie of several).
+pub(crate) fn closest_pair(
+    locale: Locale,
+    (left, right): (&[String], &[String]),
+    distance: &str,
+) -> String {
+    let (left, right) = (listed(locale, left), listed(locale, right));
+    match locale {
+        Locale::En => format!("Closest: {left} and {right} ({distance})."),
+        Locale::De => format!("Am nächsten: {left} und {right} ({distance})."),
+    }
+}
+
+/// The last join of a dendrogram: the two groups it brings together.
+pub(crate) fn last_join(
+    locale: Locale,
+    (left, right): (&[String], &[String]),
+    distance: &str,
+) -> String {
+    let (left, right) = (listed(locale, left), listed(locale, right));
+    match locale {
+        Locale::En => {
+            format!("The last join, at {distance}, brings together two groups: {left}; {right}.")
+        }
+        Locale::De => format!(
+            "Die letzte Verbindung, bei {distance}, führt zwei Gruppen zusammen: {left}; {right}."
+        ),
+    }
+}
+
+/// The items of a dendrogram in the order of the tree.
+pub(crate) fn dendrogram_order(locale: Locale, items: &[String]) -> String {
+    let items = listed(locale, items);
+    match locale {
+        Locale::En => format!("Order of the items: {items}."),
+        Locale::De => format!("Reihenfolge der Elemente: {items}."),
+    }
+}
+
+/// The title of a dendrogram's distance axis.
+pub(crate) fn distance_axis(locale: Locale, linkage: Linkage) -> String {
+    let how = match (locale, linkage) {
+        (Locale::En, Linkage::Average) => "average",
+        (Locale::En, Linkage::Complete) => "complete",
+        (Locale::En, Linkage::Single) => "single",
+        (Locale::De, Linkage::Average) => "mittlerer",
+        (Locale::De, Linkage::Complete) => "größter",
+        (Locale::De, Linkage::Single) => "kleinster",
+    };
+    match locale {
+        Locale::En => format!("Distance at the join ({how} linkage)"),
+        Locale::De => format!("Abstand bei der Verbindung ({how} Abstand)"),
     }
 }
 

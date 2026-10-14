@@ -55,6 +55,7 @@ order: 1
 | Family tree with couples | `"type": "tree"` with `partner` and `kind` | [Three generations](../../../showcase/family-tree/) |
 | Tree with boxes colored by value | `value` on the nodes, `valueLabel` | [Budget by department](../../../showcase/department-budgets/) |
 | Flow chart with the shares of each step | `parts` on the steps | [How insurance claims were settled](../../../showcase/claim-handling/) |
+| Dendrogram built from a distance matrix | `"type": "tree"` with `distances` and `linkage` | [How alike the climates are](../../../showcase/climate-similarity/) |
 | Network on a circle, groups together, edges by weight | `"type": "network"` with `nodes`, `edges`, `group`, `weight` | [Joint papers](../../../showcase/co-authors/) |
 | Network in rings around one node, with arrowheads | `"layout": "rings"`, `center`, `"directed": true` | [What the checkout service depends on](../../../showcase/service-dependencies/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
@@ -1094,6 +1095,35 @@ they are a gap apart at every level, so that a narrow subtree tucks in under a b
 Limits: 1–150 nodes. A node has one parent; a node with two parents (a shared holding) is not a
 tree — use an architecture or a flow diagram. The table of a tree with couples gains a Partner
 column.
+
+### Dendrograms
+
+With `distances` instead of `nodes`, chartlet builds the tree itself: it joins the two closest
+items, then again and again the two closest clusters, until one is left (agglomerative
+clustering), and draws a dendrogram — the items in rows on the left in the order the tree gives
+them, every join as a bracket at the distance where it happens, on a distance axis below.
+
+```json
+"tree": {
+  "distances": {
+    "labels": ["A", "B", "C"],
+    "matrix": [[0, 2, 6], [2, 0, 5], [6, 5, 0]]
+  },
+  "linkage": "average"
+}
+```
+
+- **The matrix** is square in the order of `labels`, symmetric, 0 on its diagonal and nowhere below
+  0 (`invalid_matrix` with the path of the first value that is not). 2–40 items with unique labels
+  (`duplicate_id`).
+- **Linkage** says how far apart two clusters are: `average` (default, the mean distance between
+  their items), `complete` (the largest) or `single` (the smallest). At a tie the pair whose items
+  come first in `labels` joins first, so the same matrix always gives the same tree.
+- A dendrogram takes no `nodes`, `layout`, `orientation` or `valueLabel`
+  (`option_not_supported`); `linkage` belongs to distances only.
+- **Text alternative.** The description names the linkage, the closest pair, the two groups of
+  the last join and the items in the order of the tree; the table has one row per join, with what
+  it joins (`{A, B} + C`), the distance and how many items the new cluster holds.
 
 ## Networks
 

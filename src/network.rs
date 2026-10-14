@@ -436,12 +436,7 @@ fn place_labels(
                 (x, y + reach + 11.0, TextAnchor::Middle)
             }
         };
-        let candidates = [
-            side(right),
-            vertical(upper),
-            vertical(!upper),
-            side(!right),
-        ];
+        let candidates = [side(right), vertical(upper), vertical(!upper), side(!right)];
         let text_box = |(x, y, anchor): (f64, f64, TextAnchor)| {
             let left = match anchor {
                 TextAnchor::Start => x,

@@ -257,7 +257,9 @@ pub(crate) fn validate_parts<'a>(
                 return Err(ChartError::new(
                     "too_many_parts",
                     format!("{path}/{index}/label"),
-                    format!("at most {MAX_PART_NAMES} different parts are supported in one diagram"),
+                    format!(
+                        "at most {MAX_PART_NAMES} different parts are supported in one diagram"
+                    ),
                 ));
             }
         }

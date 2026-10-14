@@ -19,8 +19,8 @@ use crate::{
     flow::{Shape, focus_classes, shape},
     heat,
     layout::{NARROW, count, format_value, push_title, title_extra},
-    parts,
     metrics::TextMetrics,
+    parts,
     scene::{Element, Hotspot, Scene, Text, TextAnchor},
     spec::{
         ChartSpec, DiagramOrientation, NumberStyle, PartSpec, TreeLayout, TreeNodeKind, TreeSpec,
@@ -59,6 +59,9 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
+    if tree(spec).distances.is_some() {
+        return crate::dendrogram::layout(spec, warnings, metrics);
+    }
     let Some((view, kept)) = tree(spec).collapsed_view() else {
         return layout_all(spec, warnings, metrics);
     };
@@ -534,7 +537,12 @@ impl Plan {
             chip(&lines, at, TextAnchor::Middle, metrics, elements);
             elements.push(Element::GroupEnd);
         }
-        draw_nodes((tree, style), nodes, |node| self.node_box(nodes, node), elements);
+        draw_nodes(
+            (tree, style),
+            nodes,
+            |node| self.node_box(nodes, node),
+            elements,
+        );
     }
 
     /// The short line between the two boxes of a couple: from the head to its partner.
@@ -746,7 +754,12 @@ impl Radial {
             )));
             elements.push(Element::GroupEnd);
         }
-        draw_nodes((tree, style), nodes, |node| self.node_box(nodes, node), elements);
+        draw_nodes(
+            (tree, style),
+            nodes,
+            |node| self.node_box(nodes, node),
+            elements,
+        );
     }
 }
 
@@ -1009,6 +1022,9 @@ fn mention(tree: &TreeSpec, node: usize) -> String {
 /// The tree in sentences: its size, its root, and what hangs below every node that has anything
 /// below it, in reading order.
 pub(crate) fn description(spec: &ChartSpec) -> String {
+    if tree(spec).distances.is_some() {
+        return crate::dendrogram::description(spec);
+    }
     let tree = tree(spec);
     let locale = spec.locale;
     let levels = (0..tree.nodes.len())
@@ -1044,7 +1060,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .into_iter()
         .filter_map(|node| {
             let spec_node = &tree.nodes[node];
-            spec_node.value.map(|value| (spec_node.label.as_str(), value))
+            spec_node
+                .value
+                .map(|value| (spec_node.label.as_str(), value))
         })
         .collect();
     if !valued.is_empty() {
@@ -1079,6 +1097,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
 
 /// One row per node in reading order: its label, level, parent, link and children.
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
+    if tree(spec).distances.is_some() {
+        return crate::dendrogram::data_table(spec);
+    }
     let tree = tree(spec);
     let words = spec.locale.words();
     let linked = tree.nodes.iter().any(|node| node.link.is_some());

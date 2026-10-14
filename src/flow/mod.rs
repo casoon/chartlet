@@ -18,9 +18,10 @@ use crate::{
         warn_growth, with_shadow, wrap,
     },
     error::ChartWarning,
-    heat, parts,
+    heat,
     layout::{NARROW, count, format_value, push_title, title_extra},
     metrics::TextMetrics,
+    parts,
     scene::{Circle, Element, Hotspot, Line, Rect, Scene, Text, TextAnchor},
     spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind, NumberStyle, PartSpec},
     structure::{Facts, Structure},
@@ -2695,13 +2696,7 @@ impl Plan {
         }
         Self::node_text(model, node, (x, y, width, height), elements);
         if !spec.parts.is_empty() {
-            let names = parts::names(
-                model
-                    .diagram
-                    .nodes
-                    .iter()
-                    .map(|node| node.parts.as_slice()),
-            );
+            let names = parts::names(model.diagram.nodes.iter().map(|node| node.parts.as_slice()));
             let lift = if spec.shape == Shape::Store { 6.0 } else { 0.0 };
             parts::push_stripe(
                 model.number_style,

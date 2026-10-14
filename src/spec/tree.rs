@@ -13,6 +13,8 @@ pub(crate) const MAX_DEPTH: usize = 12;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct TreeSpec {
+    /// The nodes of the tree; absent when `distances` gives the leaves of a dendrogram instead.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub nodes: Vec<TreeNodeSpec>,
     /// `portrait` runs down from the root, `landscape` to the right; `auto` takes the one that
     /// grows the canvas less.
@@ -26,7 +28,47 @@ pub struct TreeSpec {
     /// key and of the table column.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value_label: Option<String>,
+    /// The distances between items, from which chartlet builds the tree itself: a dendrogram.
+    /// Takes the place of `nodes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub distances: Option<DistancesSpec>,
+    /// How the distance between two clusters follows from the distances of their items.
+    #[serde(default, skip_serializing_if = "Linkage::is_average")]
+    pub linkage: Linkage,
 }
+
+/// Items and the distance between every two of them, as a square matrix in the order of the
+/// labels: symmetric, 0 on the diagonal, nowhere below 0.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DistancesSpec {
+    pub labels: Vec<String>,
+    pub matrix: Vec<Vec<f64>>,
+}
+
+/// How far apart two clusters are.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Linkage {
+    /// The mean distance between their items.
+    #[default]
+    Average,
+    /// The distance between their farthest items.
+    Complete,
+    /// The distance between their nearest items.
+    Single,
+}
+
+impl Linkage {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_average(&self) -> bool {
+        matches!(self, Self::Average)
+    }
+}
+
+/// Items of a dendrogram; beyond this its rows of labels grow too tall to read.
+pub(crate) const MAX_LEAVES: usize = 40;
 
 /// How a tree is laid out.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -220,6 +262,8 @@ impl TreeSpec {
                 orientation: self.orientation,
                 layout: self.layout,
                 value_label: self.value_label.clone(),
+                distances: None,
+                linkage: self.linkage,
             },
             kept,
         ))
@@ -251,6 +295,17 @@ impl ChartSpec {
                 "a tree requires a tree block",
             ));
         };
+        if let Some(distances) = &tree.distances {
+            tree.validate_dendrogram(distances)?;
+            return Ok(Vec::new());
+        }
+        if tree.linkage != Linkage::Average {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/tree/linkage",
+                "linkage belongs to a tree built from distances",
+            ));
+        }
         if tree.nodes.is_empty() {
             return Err(ChartError::new(
                 "empty_data",
@@ -294,6 +349,90 @@ impl ChartSpec {
 }
 
 impl TreeSpec {
+    /// A dendrogram: two to forty items with unique labels and a square, symmetric matrix of
+    /// distances of at least 0 with 0 on its diagonal; it builds its own nodes and lays them out
+    /// along a distance axis, so it takes neither nodes nor the options of a drawn tree.
+    fn validate_dendrogram(&self, distances: &DistancesSpec) -> Result<(), ChartError> {
+        let refuse = |field: &str| {
+            Err(ChartError::new(
+                "option_not_supported",
+                format!("/tree/{field}"),
+                format!("a dendrogram builds its tree from the distances; remove {field}"),
+            ))
+        };
+        if !self.nodes.is_empty() {
+            return refuse("nodes");
+        }
+        if self.layout != TreeLayout::Layered {
+            return refuse("layout");
+        }
+        if !self.orientation.is_auto() {
+            return refuse("orientation");
+        }
+        if self.value_label.is_some() {
+            return refuse("valueLabel");
+        }
+        let count = distances.labels.len();
+        if count < 2 {
+            return Err(ChartError::new(
+                "empty_data",
+                "/tree/distances/labels",
+                "a dendrogram joins at least two items",
+            ));
+        }
+        if count > MAX_LEAVES {
+            return Err(ChartError::new(
+                "too_many_nodes",
+                "/tree/distances/labels",
+                format!("at most {MAX_LEAVES} items are supported"),
+            ));
+        }
+        for (index, label) in distances.labels.iter().enumerate() {
+            let path = format!("/tree/distances/labels/{index}");
+            validate_text(label, &path, 60)?;
+            if distances.labels[..index].contains(label) {
+                return Err(ChartError::new(
+                    "duplicate_id",
+                    path,
+                    format!("the label \"{label}\" is already taken by an earlier item"),
+                ));
+            }
+        }
+        let invalid = |path: String, message: &str| {
+            Err(ChartError::new("invalid_matrix", path, message.to_owned()))
+        };
+        if distances.matrix.len() != count {
+            return invalid(
+                "/tree/distances/matrix".to_owned(),
+                "the matrix has one row per label",
+            );
+        }
+        for (row, values) in distances.matrix.iter().enumerate() {
+            if values.len() != count {
+                return invalid(
+                    format!("/tree/distances/matrix/{row}"),
+                    "every row has one distance per label",
+                );
+            }
+            for (column, value) in values.iter().enumerate() {
+                let path = format!("/tree/distances/matrix/{row}/{column}");
+                if row == column && *value != 0.0 {
+                    return invalid(path, "the distance of an item to itself is 0");
+                }
+                if *value < 0.0 {
+                    return invalid(path, "a distance is at least 0");
+                }
+                if (value - distances.matrix[column][row]).abs() > 1e-9 {
+                    return invalid(
+                        path,
+                        "the distance from a to b is the distance from b to a; the matrix is symmetric",
+                    );
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// A radial tree has no direction to choose, no room beside a node for its partner and no
     /// stretch of line along which a link could be written.
     fn validate_radial(&self) -> Result<(), ChartError> {

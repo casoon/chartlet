@@ -1333,7 +1333,7 @@
       "description": "A tree: one root and, below it, nodes that each name their parent; the children of a node keep the order of the list. Identifiers are unique, exactly one node has neither a parent nor a partner, the parents run to the root without a circle, and the tree goes at most twelve levels below the root.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["nodes"],
+      "oneOf": [{ "required": ["nodes"] }, { "required": ["distances"] }],
       "properties": {
         "nodes": {
           "type": "array",
@@ -1363,7 +1363,22 @@
           "enum": ["layered", "radial"],
           "default": "layered"
         },
-        "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
+        "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 },
+        "distances": {
+          "description": "Instead of nodes: the distances between items, from which chartlet builds a dendrogram by agglomerative clustering. A square matrix in the order of labels, symmetric, 0 on the diagonal, nowhere below 0; 2 to 40 items with unique labels. Takes no nodes, layout, orientation or valueLabel.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["labels", "matrix"],
+          "properties": {
+            "labels": { "type": "array", "minItems": 2, "maxItems": 40, "items": { "type": "string", "minLength": 1, "maxLength": 60 } },
+            "matrix": { "type": "array", "items": { "type": "array", "items": { "type": "number", "minimum": 0 } } }
+          }
+        },
+        "linkage": {
+          "description": "How far apart two clusters of a dendrogram are: the mean distance between their items (average), the largest (complete) or the smallest (single).",
+          "enum": ["average", "complete", "single"],
+          "default": "average"
+        }
       }
     },
     "architecture": {

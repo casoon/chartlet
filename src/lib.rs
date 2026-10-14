@@ -5,6 +5,7 @@ mod calendar;
 mod classes;
 mod color;
 mod contour;
+mod dendrogram;
 mod describe;
 mod diagram;
 mod diverging;
@@ -52,19 +53,20 @@ pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
     CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ClassKind,
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionSpec, Corner, Curve, Dash,
-    DataPoint, DiagramOrientation, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind,
-    FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, MainPath, Mark,
-    MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec, NetworkLayout,
-    NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, OhlcPoint, Orientation, PaneSpec, PartSpec,
-    ParliamentSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec,
-    RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
-    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
-    ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec,
-    StateSpec, StepKind, StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec,
-    SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
-    TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout,
-    TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
-    ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    DataPoint, DiagramOrientation, DistancesSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec,
+    FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage,
+    MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
+    NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, OhlcPoint, Orientation,
+    PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec,
+    ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder,
+    SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
+    ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack,
+    StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke,
+    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
+    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
+    TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec,
+    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale, WafflePartSpec,
+    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

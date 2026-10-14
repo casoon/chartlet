@@ -129,6 +129,7 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Architecture diagram with weighted connections | `connections[].weight`, `mainPath: {from, to}` | [request-volume](examples/request-volume.json) |
 | Tree with boxes colored by value | `value`, `valueLabel` on `tree` and `flow` | [department-budgets](examples/department-budgets.json) |
 | Flow chart with the shares of each step as a stripe | `parts` on `flow` and `tree` nodes | [claim-handling](examples/claim-handling.json) |
+| Dendrogram built from a distance matrix | `"type": "tree"` with `distances`, `linkage` | [climate-similarity](examples/climate-similarity.json) |
 | Network on a circle, groups together, edges by weight | `"type": "network"`, `group`, `weight` | [co-authors](examples/co-authors.json) |
 | Network in rings around one node | `"layout": "rings"`, `center`, `"directed": true` | [service-dependencies](examples/service-dependencies.json) |
 | Architecture diagram with a phone variant: a multi-tenant application | `"type": "architecture"`, `"mobile"` | [tenant-architecture](examples/tenant-architecture.json) |
