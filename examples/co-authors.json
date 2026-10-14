@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "type": "network",
+  "title": "Joint papers between the members of four institutes",
+  "source": "Publication database, 2021–2025",
+  "width": 820,
+  "height": 640,
+  "mobile": { "width": 360, "height": 560 },
+  "network": {
+    "nodes": [
+      { "id": "weber", "label": "Weber", "group": "Physics" },
+      { "id": "nair", "label": "Nair", "group": "Physics" },
+      { "id": "costa", "label": "Costa", "group": "Physics" },
+      { "id": "lindqvist", "label": "Lindqvist", "group": "Chemistry" },
+      { "id": "okafor", "label": "Okafor", "group": "Chemistry" },
+      { "id": "tanaka", "label": "Tanaka", "group": "Chemistry" },
+      { "id": "moreau", "label": "Moreau", "group": "Biology" },
+      { "id": "silva", "label": "Silva", "group": "Biology" },
+      { "id": "hughes", "label": "Hughes", "group": "Biology" },
+      { "id": "kowalski", "label": "Kowalski", "group": "Biology" },
+      { "id": "berger", "label": "Berger", "group": "Computing" },
+      { "id": "yilmaz", "label": "Yilmaz", "group": "Computing" },
+      { "id": "chen", "label": "Chen", "group": "Computing" },
+      { "id": "adeyemi", "label": "Adeyemi", "group": "Computing" }
+    ],
+    "edges": [
+      { "from": "weber", "to": "nair", "weight": 9 },
+      { "from": "weber", "to": "costa", "weight": 4 },
+      { "from": "nair", "to": "costa", "weight": 6 },
+      { "from": "lindqvist", "to": "okafor", "weight": 7 },
+      { "from": "okafor", "to": "tanaka", "weight": 3 },
+      { "from": "lindqvist", "to": "tanaka", "weight": 2 },
+      { "from": "moreau", "to": "silva", "weight": 8 },
+      { "from": "silva", "to": "hughes", "weight": 5 },
+      { "from": "hughes", "to": "kowalski", "weight": 4 },
+      { "from": "moreau", "to": "kowalski", "weight": 2 },
+      { "from": "berger", "to": "yilmaz", "weight": 6 },
+      { "from": "yilmaz", "to": "chen", "weight": 5 },
+      { "from": "chen", "to": "adeyemi", "weight": 3 },
+      { "from": "costa", "to": "lindqvist", "weight": 3 },
+      { "from": "okafor", "to": "silva", "weight": 4 },
+      { "from": "tanaka", "to": "hughes", "weight": 1 },
+      { "from": "chen", "to": "nair", "weight": 5 },
+      { "from": "yilmaz", "to": "silva", "weight": 6 },
+      { "from": "adeyemi", "to": "moreau", "weight": 2 },
+      { "from": "berger", "to": "weber", "weight": 1 }
+    ]
+  }
+}

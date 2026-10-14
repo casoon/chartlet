@@ -283,7 +283,7 @@ impl FlowSpec {
 }
 
 impl ChartSpec {
-    /// Whether a flow chart or an architecture diagram has an edge with a weight.
+    /// Whether a flow chart, an architecture diagram or a network has an edge with a weight.
     pub(crate) fn has_edge_weights(&self) -> bool {
         self.flow
             .as_ref()
@@ -294,6 +294,10 @@ impl ChartSpec {
                     .iter()
                     .any(|connection| connection.weight.is_some())
             })
+            || self
+                .network
+                .as_ref()
+                .is_some_and(|network| network.edges.iter().any(|edge| edge.weight.is_some()))
     }
 
     /// A flow chart: steps with unique identifiers, edges between them, lanes that every step

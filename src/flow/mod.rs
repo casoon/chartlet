@@ -800,16 +800,17 @@ pub(crate) const WEIGHT_STEPS: f64 = 8.0;
 /// The width step of every edge with a weight: in proportion to its weight against the heaviest
 /// edge, from 0 to [`WEIGHT_STEPS`]. Edges without a weight keep the usual line.
 pub(crate) fn weight_widths(diagram: &Diagram) -> Vec<Option<u8>> {
-    let heaviest = diagram
-        .edges
-        .iter()
-        .filter_map(|edge| edge.weight)
-        .fold(0.0_f64, f64::max);
-    diagram
-        .edges
-        .iter()
-        .map(|edge| {
-            edge.weight.map(|weight| {
+    weight_widths_of(diagram.edges.iter().map(|edge| edge.weight))
+}
+
+/// [`weight_widths`] for any edges, given by their weights.
+pub(crate) fn weight_widths_of(
+    weights: impl Iterator<Item = Option<f64>> + Clone,
+) -> Vec<Option<u8>> {
+    let heaviest = weights.clone().flatten().fold(0.0_f64, f64::max);
+    weights
+        .map(|weight| {
+            weight.map(|weight| {
                 let share = if heaviest > 0.0 {
                     weight / heaviest
                 } else {

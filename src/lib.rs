@@ -12,6 +12,7 @@ mod error;
 mod flow;
 mod layout;
 mod metrics;
+mod network;
 mod noise;
 mod ohlc;
 mod parliament;
@@ -51,7 +52,8 @@ pub use spec::{
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionSpec, Corner, Curve, Dash,
     DataPoint, DiagramOrientation, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind,
     FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, MainPath, Mark,
-    MarkerSpec, MessageKind, MessageSpec, MobileSpec, NodeKind, OhlcPoint, Orientation, PaneSpec,
+    MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec, NetworkLayout,
+    NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, OhlcPoint, Orientation, PaneSpec,
     ParliamentSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec, ReferenceSpec,
     RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
     ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,

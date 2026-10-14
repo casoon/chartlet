@@ -11,6 +11,7 @@ does.
 - Flow charts, architecture diagrams and class diagrams: the description names the shape of the graph before the steps — the most connected nodes, where nothing leads in or out, loops, unconnected parts and bottlenecks — where it says more than the steps do (nothing for a single chain).
 - Flow charts and architecture diagrams: `mainPath` also takes `{ "from": "a", "to": "b" }`; chartlet takes the shortest way along the edges between the two (at a tie the first in the order of the edges), `main_path_unreachable` when there is none.
 - Flow charts and architecture diagrams: `weight` on an edge or connection draws its line from 1 px (no weight) to 5 px (the heaviest), in half-pixel steps; the arrowheads keep their size. The description names the heaviest connection, the description and the table give every weight; `invalid_edge_weight` for a negative one. Example `request-volume`.
+- `"type": "network"`: nodes as dots joined by edges, on a circle (groups together, swapped for fewer crossings, or `"order": "listed"`) or in rings around a `center` by distance in edges. Groups color the dots and get a legend; edges take `dash`, `weight` and, with `"directed": true`, arrowheads; labels stand beside their dots without covering another. The description gives groups, rings, the shape of the graph and every node with its neighbours; the table one row per node. No force layout: the same input gives the same picture. Examples `co-authors` (with a phone variant) and `service-dependencies`.
 
 ## [0.19.0] - 2026-10-12
 

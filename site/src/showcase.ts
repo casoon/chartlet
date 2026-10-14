@@ -350,6 +350,20 @@ const catalogue = [
       'Requests per second between the services of a shop. Every connection has a `weight`; its line is as much stronger as it carries more, from 1 px for nothing to 5 px for the heaviest, while the arrowheads keep their size. The description names the heaviest connection and the table gives every weight. The main path is given by its ends only, `{ "from": "web", "to": "pay" }`, and stays in the accent color. Illustrative values.',
   },
   {
+    slug: 'co-authors',
+    chart: 'Network on a circle',
+    useCase: 'Show who works with whom',
+    blurb:
+      'Fourteen researchers of four institutes and their joint papers. The groups stand together around the circle, ordered so that few edges cross; every edge is as strong as its number of papers and bends a little towards the middle. The description names the most connected people and every person with their co-authors. With a phone variant. Illustrative values.',
+  },
+  {
+    slug: 'service-dependencies',
+    chart: 'Network in rings around one node',
+    useCase: 'Show what one thing depends on',
+    blurb:
+      'The checkout service in the middle, the services it calls on the first ring, theirs on the second, and so on; arrowheads say which way a dependency runs. The description lists the rings with their services. Illustrative values.',
+  },
+  {
     slug: 'sign-in-sequence',
     chart: 'Sequence diagram (phone variant)',
     useCase: 'Explain a sign-in to a mixed audience',

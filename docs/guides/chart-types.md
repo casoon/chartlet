@@ -1,6 +1,6 @@
 ---
 title: Chart types
-description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, sequence diagrams, flow charts, state diagrams and architecture diagrams.
+description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, sequence diagrams, flow charts, state diagrams, architecture diagrams and networks.
 order: 1
 ---
 
@@ -53,6 +53,9 @@ order: 1
 | Architecture diagram with nested boundaries | `"type": "architecture"` with `components`, `connections`, `boundaries` | [Web shop on one cloud region](../../../showcase/shop-architecture/) |
 | Tree with a share on every link | `"type": "tree"` with `nodes`, `parent`, `link` | [Ownership structure](../../../showcase/ownership-structure/) |
 | Family tree with couples | `"type": "tree"` with `partner` and `kind` | [Three generations](../../../showcase/family-tree/) |
+| Network on a circle, groups together, edges by weight | `"type": "network"` with `nodes`, `edges`, `group`, `weight` | [Joint papers](../../../showcase/co-authors/) |
+| Network in rings around one node, with arrowheads | `"layout": "rings"`, `center`, `"directed": true` | [What the checkout service depends on](../../../showcase/service-dependencies/) |
+| Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
@@ -893,16 +896,16 @@ Limits: 1–40 steps with unique `id`s, up to 80 edges, 8 lanes and 8 groups.
 
 ### Graph structure
 
-Flow charts, architecture diagrams and class diagrams describe the shape of their graph in a few
+Flow charts, architecture diagrams, class diagrams and networks describe the shape of their graph in a few
 sentences before the steps, as far as it says more than the steps themselves — a single chain
 says nothing here:
 
 - the most connected nodes, when they have at least three connections and no more than three
   share the top;
-- where nothing leads in and where nothing leads out (flow charts and architecture only; start
-  and end steps are not named again, nor are more than three);
+- where nothing leads in and where nothing leads out (flow charts, architecture and directed
+  networks only; start and end steps are not named again, nor are more than three);
 - loops: one per tangle of edges that leads back into itself, the shortest way back to its first
-  node (`Loop: Review → Build → Review.`), at most three (flow charts and architecture only);
+  node (`Loop: Review → Build → Review.`), at most three (as above);
 - unconnected parts, when there are several;
 - bottlenecks: nodes without which the graph falls into at least two pieces of more than one
   node each, when there are one or two.
@@ -1075,6 +1078,61 @@ they are a gap apart at every level, so that a narrow subtree tucks in under a b
 Limits: 1–150 nodes. A node has one parent; a node with two parents (a shared holding) is not a
 tree — use an architecture or a flow diagram. The table of a tree with couples gains a Partner
 column.
+
+## Networks
+
+`"type": "network"` draws nodes as dots joined by edges when the graph has no direction of flow to
+lay it out by — who works with whom, which services call each other, links between topics — and
+loops and dense cross-links would tangle a flow chart. There is deliberately no force layout: the
+same input always gives the same picture.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "network",
+  "title": "Who works with whom",
+  "network": {
+    "nodes": [
+      { "id": "ana", "label": "Ana", "group": "Design" },
+      { "id": "ben", "label": "Ben", "group": "Code" },
+      { "id": "cem", "label": "Cem", "group": "Design" }
+    ],
+    "edges": [
+      { "from": "ana", "to": "ben", "weight": 4 },
+      { "from": "ben", "to": "cem", "weight": 1 }
+    ]
+  }
+}
+```
+
+- **On a circle** (`"layout": "circle"`, the default) the nodes stand clockwise from twelve
+  o'clock. With `"order": "crossings"` (the default) groups stand together in the order they first
+  appear, and neighbours within a group swap places as long as that lets fewer edges cross;
+  `"order": "listed"` keeps the order of `nodes`. Edges bend a little towards the middle, so that
+  two of them between neighbours stay apart.
+- **In rings** (`"layout": "rings"` with `center`) the center stands in the middle and every other
+  node on the ring of its distance from it in edges, read in either direction: an ego network, the
+  dependencies of one service. Ring 1 follows the order of `nodes`, every further ring the angle
+  of each node's neighbours on the ring before. Nodes no way reaches stand on one more ring
+  outside.
+- **Groups.** A node's `group` gives it one of eight colors and an entry in the legend below; the
+  group also stands in the description and the table, so the color is never the only sign.
+- **Edges** take `dash` and `weight` as in flow charts: the heaviest edge is drawn 5 px wide, the
+  others in proportion. `"directed": true` draws an arrowhead at the `to` end; the description
+  then says where each node leads instead of whom it is connected with. An edge joins two
+  different nodes (`self_loop`).
+- **Labels** stand beside their dot on the outer side; where that would cover another dot or
+  label, above or below it, or on the inner side.
+- **Text alternative.** The description gives the number of nodes and connections, the groups,
+  the rings with their nodes, the shape of the graph (see [Graph structure](#graph-structure)),
+  the heaviest edge, and every node in reading order with its neighbours and weights. The data
+  table has one row per node with its group, its ring (`Center`, the distance, or
+  `not connected`) and its neighbours.
+
+Limits: 1–40 nodes, up to 120 edges and 8 groups. A network that does not fit its canvas is
+drawn larger and reported as `canvas_too_small`. With `layout: "rings"` a `center` is required
+(`missing_center`) and `order` is refused; on a circle `center` is refused
+(`option_not_supported`).
 
 ## Time series
 

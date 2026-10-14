@@ -128,6 +128,8 @@ pub(crate) struct Words {
     /// The names of a diagram's focus links, and of the link that clears the focus.
     pub focus: &'static str,
     pub show_all: &'static str,
+    /// The ring column of a network's table.
+    pub ring: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -241,6 +243,7 @@ const EN: Words = Words {
     connects_to: "Connects to",
     focus: "Focus",
     show_all: "Show all",
+    ring: "Ring",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -356,6 +359,7 @@ const DE: Words = Words {
     connects_to: "Verbunden mit",
     focus: "Fokus",
     show_all: "Alle zeigen",
+    ring: "Ring",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],
@@ -1215,6 +1219,103 @@ pub(crate) fn heaviest_edge(locale: Locale, edge: &str, weight: &str) -> String 
     match locale {
         Locale::En => format!("Heaviest connection: {edge} ({weight})."),
         Locale::De => format!("Stärkste Verbindung: {edge} ({weight})."),
+    }
+}
+
+/// The opening sentence of a network: how many nodes and connections, and its groups.
+pub(crate) fn network_opening(
+    locale: Locale,
+    (nodes, edges): (usize, usize),
+    groups: &[String],
+) -> String {
+    let groups = match (locale, groups.len()) {
+        (_, 0) => String::new(),
+        (Locale::En, count) => format!(
+            " in {count} group{}: {}",
+            plural(count, "", "s"),
+            listed(locale, groups)
+        ),
+        (Locale::De, count) => format!(
+            " in {count} {}: {}",
+            plural(count, "Gruppe", "Gruppen"),
+            listed(locale, groups)
+        ),
+    };
+    match locale {
+        Locale::En => format!(
+            "Network with {nodes} node{} and {edges} connection{}{groups}.",
+            plural(nodes, "", "s"),
+            plural(edges, "", "s"),
+        ),
+        Locale::De => format!(
+            "Netzwerk mit {nodes} Knoten und {edges} {}{groups}.",
+            plural(edges, "Verbindung", "Verbindungen"),
+        ),
+    }
+}
+
+/// The rings of a network around its center: which nodes stand how many steps away, and which
+/// no way reaches (the ring without a distance).
+pub(crate) fn network_rings(
+    locale: Locale,
+    center: &str,
+    rings: &[(Option<usize>, Vec<String>)],
+) -> String {
+    let rings: Vec<String> = rings
+        .iter()
+        .map(|(distance, members)| {
+            let members = listed(locale, members);
+            match (locale, distance) {
+                (Locale::En, Some(1)) => format!("1 step away: {members}"),
+                (Locale::En, Some(steps)) => format!("{steps} steps away: {members}"),
+                (Locale::En, None) => format!("not connected: {members}"),
+                (Locale::De, Some(1)) => format!("1 Schritt entfernt: {members}"),
+                (Locale::De, Some(steps)) => format!("{steps} Schritte entfernt: {members}"),
+                (Locale::De, None) => format!("nicht verbunden: {members}"),
+            }
+        })
+        .collect();
+    let rings = rings.join("; ");
+    match locale {
+        Locale::En => format!("In rings around {center}: {rings}."),
+        Locale::De => format!("In Ringen um {center}: {rings}."),
+    }
+}
+
+/// One node of a network with its group and the nodes it leads to or is connected with.
+pub(crate) fn network_node(
+    locale: Locale,
+    label: &str,
+    group: Option<&str>,
+    directed: bool,
+    neighbours: &[String],
+) -> String {
+    let group = match (locale, group) {
+        (_, None) => String::new(),
+        (Locale::En, Some(group)) => format!(" (group {group})"),
+        (Locale::De, Some(group)) => format!(" (Gruppe {group})"),
+    };
+    let names = listed(locale, neighbours);
+    match (locale, directed, neighbours.is_empty()) {
+        (Locale::En, false, true) => format!("{label}{group}: no connection."),
+        (Locale::En, true, true) => format!("{label}{group}: no outgoing connection."),
+        (Locale::En, false, false) => format!("{label}{group}: connected to {names}."),
+        (Locale::En, true, false) => format!("{label}{group}: leads to {names}."),
+        (Locale::De, false, true) => format!("{label}{group}: keine Verbindung."),
+        (Locale::De, true, true) => format!("{label}{group}: keine ausgehende Verbindung."),
+        (Locale::De, false, false) => format!("{label}{group}: verbunden mit {names}."),
+        (Locale::De, true, false) => format!("{label}{group}: führt zu {names}."),
+    }
+}
+
+/// The ring of a node in a network's table: the center, a distance, or none.
+pub(crate) fn ring_name(locale: Locale, distance: Option<usize>) -> String {
+    match (locale, distance) {
+        (Locale::En, Some(0)) => "Center".to_owned(),
+        (Locale::De, Some(0)) => "Mitte".to_owned(),
+        (_, Some(distance)) => distance.to_string(),
+        (Locale::En, None) => "not connected".to_owned(),
+        (Locale::De, None) => "nicht verbunden".to_owned(),
     }
 }
 

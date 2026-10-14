@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "type": "network",
+  "title": "What the checkout service depends on",
+  "source": "Service catalogue",
+  "width": 900,
+  "height": 640,
+  "network": {
+    "layout": "rings",
+    "center": "checkout",
+    "directed": true,
+    "nodes": [
+      { "id": "checkout", "label": "Checkout", "group": "Shop" },
+      { "id": "cart", "label": "Cart", "group": "Shop" },
+      { "id": "pricing", "label": "Pricing", "group": "Shop" },
+      { "id": "payments", "label": "Payments", "group": "Finance" },
+      { "id": "auth", "label": "Sign-in", "group": "Platform" },
+      { "id": "catalog", "label": "Catalog", "group": "Shop" },
+      { "id": "tax", "label": "Tax rules", "group": "Finance" },
+      { "id": "fraud", "label": "Fraud check", "group": "Finance" },
+      { "id": "ledger", "label": "Ledger", "group": "Finance" },
+      { "id": "users", "label": "User store", "group": "Platform" },
+      { "id": "search", "label": "Search", "group": "Shop" },
+      { "id": "events", "label": "Event bus", "group": "Platform" },
+      { "id": "metrics", "label": "Metrics", "group": "Platform" }
+    ],
+    "edges": [
+      { "from": "checkout", "to": "cart" },
+      { "from": "checkout", "to": "pricing" },
+      { "from": "checkout", "to": "payments" },
+      { "from": "checkout", "to": "auth" },
+      { "from": "cart", "to": "catalog" },
+      { "from": "pricing", "to": "catalog" },
+      { "from": "pricing", "to": "tax" },
+      { "from": "payments", "to": "fraud" },
+      { "from": "payments", "to": "ledger" },
+      { "from": "auth", "to": "users" },
+      { "from": "catalog", "to": "search" },
+      { "from": "ledger", "to": "events" },
+      { "from": "fraud", "to": "events", "dash": "dashed" },
+      { "from": "events", "to": "metrics", "dash": "dashed" }
+    ]
+  }
+}

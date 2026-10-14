@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament", "treemap", "sankey", "survival", "scatter", "classes"]
+      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -112,6 +112,10 @@
     "classes": {
       "description": "The classes of a type: \"classes\" chart.",
       "$ref": "#/$defs/classes"
+    },
+    "network": {
+      "description": "The nodes and edges of a type: \"network\" chart.",
+      "$ref": "#/$defs/network"
     },
     "scatter": {
       "description": "The points of a type: \"scatter\" chart.",
@@ -424,6 +428,17 @@
           }
         },
         {
+          "required": ["network"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["waffle"],
           "not": {
             "anyOf": [
@@ -579,6 +594,11 @@
       "if": { "properties": { "type": { "const": "classes" } } },
       "then": { "required": ["classes"] },
       "else": { "not": { "required": ["classes"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "network" } } },
+      "then": { "required": ["network"] },
+      "else": { "not": { "required": ["network"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waffle" } } },
@@ -920,6 +940,48 @@
           "items": { "$ref": "#/$defs/identifier" }
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "network": {
+      "description": "A network: nodes as dots joined by edges, with no direction of flow. On a circle (the default) the nodes stand clockwise from twelve o'clock, groups together, in the order that lets the fewest edges cross; in rings, center stands in the middle and every other node on the ring of its distance in edges, nodes no way reaches on one more ring outside. Up to 40 nodes and 120 edges.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nodes"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "group": { "description": "The group of the node: its color and a legend entry; at most 8 groups.", "type": "string", "minLength": 1, "maxLength": 40 }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "maxItems": 120,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "$ref": "#/$defs/identifier" },
+              "to": { "$ref": "#/$defs/identifier" },
+              "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
+              "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "layout": { "enum": ["circle", "rings"], "default": "circle" },
+        "center": { "description": "The node in the middle of the rings; required with layout rings, refused on a circle.", "$ref": "#/$defs/identifier" },
+        "directed": { "description": "Whether edges lead from one node to the other: drawn with an arrowhead.", "type": "boolean", "default": false },
+        "order": { "description": "The order around a circle: groups together with as few crossings as swaps find (crossings), or as listed.", "enum": ["crossings", "listed"], "default": "crossings" }
       }
     },
     "classes": {

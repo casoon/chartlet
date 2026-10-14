@@ -119,6 +119,10 @@ const FLOW_STYLE: &str = ".chartlet-flow-node{stroke-width:1.5;stroke-linejoin:r
 /// [`crate::flow::WEIGHT_STEPS`], half a pixel apart, from 1 px to 5 px.
 const WEIGHT_STYLE: &str = ".chartlet-flow-w0 .chartlet-flow-edge{stroke-width:1}.chartlet-flow-w1 .chartlet-flow-edge{stroke-width:1.5}.chartlet-flow-w2 .chartlet-flow-edge{stroke-width:2}.chartlet-flow-w3 .chartlet-flow-edge{stroke-width:2.5}.chartlet-flow-w4 .chartlet-flow-edge{stroke-width:3}.chartlet-flow-w5 .chartlet-flow-edge{stroke-width:3.5}.chartlet-flow-w6 .chartlet-flow-edge{stroke-width:4}.chartlet-flow-w7 .chartlet-flow-edge{stroke-width:4.5}.chartlet-flow-w8 .chartlet-flow-edge{stroke-width:5}";
 
+/// Networks, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: dots in the color of their group,
+/// labels beside them, and the rings around the center.
+const NETWORK_STYLE: &str = ".chartlet-root{--chartlet-net-5:#0f766e;--chartlet-net-6:#6d28d9;--chartlet-net-7:#b45309;--chartlet-net-8:#be185d}.chartlet-root.chartlet-theme-dark{--chartlet-net-5:#2dd4bf;--chartlet-net-6:#b69cff;--chartlet-net-7:#fbbf24;--chartlet-net-8:#f472b6}.chartlet-net-node{fill:var(--chartlet-role-blue);stroke:var(--chartlet-background);stroke-width:2}.chartlet-net-g1{fill:var(--chartlet-color-1)}.chartlet-net-g2{fill:var(--chartlet-color-2)}.chartlet-net-g3{fill:var(--chartlet-color-3)}.chartlet-net-g4{fill:var(--chartlet-color-4)}.chartlet-net-g5{fill:var(--chartlet-net-5)}.chartlet-net-g6{fill:var(--chartlet-net-6)}.chartlet-net-g7{fill:var(--chartlet-net-7)}.chartlet-net-g8{fill:var(--chartlet-net-8)}.chartlet-net-center{stroke:var(--chartlet-text)}.chartlet-net-label{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-net-ring{fill:none;stroke:var(--chartlet-grid);stroke-width:1;stroke-dasharray:3 4}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+
 /// State diagrams, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: states with well rounded
 /// corners, the inner outline of a final state, and the initial dot.
 const STATE_STYLE: &str = ".chartlet-state{rx:14px}.chartlet-state-inner{fill:none;stroke:var(--chartlet-role-green);stroke-width:1.5;rx:11px}.chartlet-state-initial{fill:var(--chartlet-text);stroke:var(--chartlet-background);stroke-width:2}";
@@ -336,6 +340,7 @@ fn diagram_style(chart_type: ChartType) -> String {
         ChartType::Flow => &[DIAGRAM_STYLE, FLOW_STYLE],
         ChartType::State => &[DIAGRAM_STYLE, FLOW_STYLE, STATE_STYLE],
         ChartType::Classes => &[DIAGRAM_STYLE, FLOW_STYLE, CLASSES_STYLE],
+        ChartType::Network => &[DIAGRAM_STYLE, FLOW_STYLE, NETWORK_STYLE],
         ChartType::Architecture | ChartType::Tree => {
             &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE]
         }
@@ -476,11 +481,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Architecture, Atlas, Bar, Boxplot, Calendar, Classes, Flow, Line, Multiples, Parliament,
-        Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline, Topicmap,
-        Tree, Treemap, Waffle, Waterfall,
+        Architecture, Atlas, Bar, Boxplot, Calendar, Classes, Flow, Line, Multiples, Network,
+        Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
+        Topicmap, Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 39] = [
+    let groups: [(&str, &[ChartType]); 40] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -506,17 +511,21 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (ATLAS_STYLE, &[Atlas]),
         (
             DIAGRAM_STYLE,
-            &[Sequence, Flow, State, Architecture, Tree, Classes],
+            &[Sequence, Flow, State, Architecture, Tree, Classes, Network],
         ),
         (SEQUENCE_STYLE, &[Sequence]),
-        (FLOW_STYLE, &[Flow, State, Architecture, Tree, Classes]),
+        (
+            FLOW_STYLE,
+            &[Flow, State, Architecture, Tree, Classes, Network],
+        ),
         (STATE_STYLE, &[State]),
         (CLASSES_STYLE, &[Classes]),
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
-        (WEIGHT_STYLE, &[Flow, Architecture]),
+        (WEIGHT_STYLE, &[Flow, Architecture, Network]),
+        (NETWORK_STYLE, &[Network]),
         (
             BLUEPRINT_STYLE,
-            &[Sequence, Flow, State, Architecture, Tree, Classes],
+            &[Sequence, Flow, State, Architecture, Tree, Classes, Network],
         ),
         (WATERFALL_STYLE, &[Waterfall]),
         (WAFFLE_STYLE, &[Waffle]),
@@ -973,6 +982,7 @@ fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Flow
             | ChartType::State
             | ChartType::Classes
+            | ChartType::Network
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
@@ -1571,6 +1581,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Flow => return crate::flow::data_table(spec),
         ChartType::State => return crate::state::data_table(spec),
         ChartType::Classes => return crate::classes::data_table(spec),
+        ChartType::Network => return crate::network::data_table(spec),
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
         ChartType::Timeline => return crate::timeline::data_table(spec),
@@ -1604,6 +1615,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Flow
         | ChartType::State
         | ChartType::Classes
+        | ChartType::Network
         | ChartType::Architecture
         | ChartType::Tree
         | ChartType::Timeline

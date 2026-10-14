@@ -6,6 +6,7 @@ mod categorical;
 mod classes;
 mod dataset;
 mod flow;
+mod network;
 mod parliament;
 mod rangebar;
 mod sankey;
@@ -40,6 +41,7 @@ pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use classes::{ClassKind, ClassSpec, ClassesSpec, RelationKind, RelationSpec};
 pub use flow::{FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, MainPath, NodeKind};
+pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::RangeSpec;
 pub(crate) use sankey::SankeyGraph;
@@ -213,6 +215,9 @@ pub struct ChartSpec {
     /// A class or entity-relationship diagram: classes with compartments, joined by relations. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub classes: Option<ClassesSpec>,
+    /// A network: nodes joined by edges on a circle or in rings around one node. Skipped while absent, like `topicmap`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub network: Option<NetworkSpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `topicmap`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -385,11 +390,13 @@ pub enum ChartType {
     Scatter,
     /// A class or entity-relationship diagram: classes with compartments, joined by relations.
     Classes,
+    /// A network: nodes joined by edges, on a circle or in rings around one node.
+    Network,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 25] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -414,6 +421,7 @@ impl ChartType {
         Self::Survival,
         Self::Scatter,
         Self::Classes,
+        Self::Network,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -709,12 +717,13 @@ impl ChartSpec {
                 | ChartType::Architecture
                 | ChartType::Tree
                 | ChartType::Classes
+                | ChartType::Network
         );
         if self.theme == Theme::Blueprint && !diagram {
             return Err(ChartError::new(
                 "option_not_supported",
                 "/theme",
-                "the blueprint theme is made for diagrams (sequence, flow, state, architecture, tree, classes); use light or dark",
+                "the blueprint theme is made for diagrams (sequence, flow, state, architecture, tree, classes, network); use light or dark",
             ));
         }
         Ok(())
@@ -748,6 +757,7 @@ impl ChartSpec {
             ChartType::Parliament => return self.validate_parliament(),
             ChartType::Waffle => return self.validate_waffle(),
             ChartType::Waterfall => return self.validate_waterfall(),
+            ChartType::Network => return self.validate_network(),
             ChartType::Bar | ChartType::Line => {}
         }
         let warnings = self.validate_data()?;
@@ -1359,6 +1369,7 @@ impl ChartSpec {
             ),
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
             ("/classes", self.classes.is_some(), ChartType::Classes),
+            ("/network", self.network.is_some(), ChartType::Network),
             ("/scatter", self.scatter.is_some(), ChartType::Scatter),
             ("/survival", self.survival.is_some(), ChartType::Survival),
             ("/sankey", self.sankey.is_some(), ChartType::Sankey),
@@ -1436,6 +1447,7 @@ impl ChartSpec {
                 | ChartType::Boxplot
                 | ChartType::Timeline
                 | ChartType::Classes
+                | ChartType::Network
                 | ChartType::Scatter
                 | ChartType::Survival
                 | ChartType::Sankey
@@ -1556,6 +1568,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Parliament => "parliament",
         ChartType::Waffle => "waffle",
         ChartType::Waterfall => "waterfall",
+        ChartType::Network => "network",
     }
 }
 
