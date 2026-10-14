@@ -1139,6 +1139,69 @@ pub(crate) fn main_path(locale: Locale, steps: &[&str]) -> String {
     }
 }
 
+/// The most connected nodes of a diagram and how many connections each has.
+pub(crate) fn most_connected(locale: Locale, nodes: &[String], degree: usize) -> String {
+    let names = listed(locale, nodes);
+    match (locale, nodes.len()) {
+        (Locale::En, 1) => format!("Most connected: {names} ({degree} connections)."),
+        (Locale::En, _) => format!("Most connected: {names} ({degree} connections each)."),
+        (Locale::De, 1) => format!("Am stärksten verbunden: {names} ({degree} Verbindungen)."),
+        (Locale::De, _) => format!("Am stärksten verbunden: {names} (je {degree} Verbindungen)."),
+    }
+}
+
+/// The nodes nothing leads into, other than those marked as a start.
+pub(crate) fn sources(locale: Locale, nodes: &[String]) -> String {
+    let names = listed(locale, nodes);
+    match locale {
+        Locale::En => format!("Nothing leads into {names}."),
+        Locale::De => format!("In {names} führt nichts hinein."),
+    }
+}
+
+/// The nodes nothing leads out of, other than those marked as an end.
+pub(crate) fn sinks(locale: Locale, nodes: &[String]) -> String {
+    let names = listed(locale, nodes);
+    match locale {
+        Locale::En => format!("Nothing leads out of {names}."),
+        Locale::De => format!("Aus {names} führt nichts heraus."),
+    }
+}
+
+/// The loops of a diagram, each as `A → B → A`.
+pub(crate) fn loops(locale: Locale, loops: &[String]) -> String {
+    let joined = loops.join("; ");
+    match (locale, loops.len()) {
+        (Locale::En, 1) => format!("Loop: {joined}."),
+        (Locale::En, _) => format!("Loops: {joined}."),
+        (Locale::De, 1) => format!("Schleife: {joined}."),
+        (Locale::De, _) => format!("Schleifen: {joined}."),
+    }
+}
+
+/// How many unconnected parts a diagram has.
+pub(crate) fn unconnected_parts(locale: Locale, parts: usize) -> String {
+    match locale {
+        Locale::En => format!("The diagram has {parts} unconnected parts."),
+        Locale::De => format!("Das Diagramm hat {parts} unverbundene Teile."),
+    }
+}
+
+/// The nodes without which a diagram falls apart.
+pub(crate) fn bottlenecks(locale: Locale, nodes: &[String]) -> String {
+    let names = listed(locale, nodes);
+    match (locale, nodes.len()) {
+        (Locale::En, 1) => format!("Bottleneck: {names}; without it the diagram falls apart."),
+        (Locale::En, _) => {
+            format!("Bottlenecks: {names}; without either the diagram falls apart.")
+        }
+        (Locale::De, 1) => format!("Engstelle: {names}; ohne sie zerfällt das Diagramm."),
+        (Locale::De, _) => {
+            format!("Engstellen: {names}; ohne eine davon zerfällt das Diagramm.")
+        }
+    }
+}
+
 /// The numbered steps of an architecture diagram, in order.
 pub(crate) fn steps(locale: Locale, steps: &[String]) -> String {
     let steps = steps.join("; ");

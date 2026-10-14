@@ -13,6 +13,7 @@ use crate::{
     metrics::TextMetrics,
     scene::Scene,
     spec::{ChartSpec, ClassesSpec, RelationKind, RelationSpec},
+    structure::{Facts, Structure},
     text,
 };
 
@@ -152,6 +153,20 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let classes = classes(spec);
     let mut description =
         text::classes_opening(spec.locale, classes.classes.len(), classes.relations.len());
+    let ends: Vec<(usize, usize)> = classes
+        .relations
+        .iter()
+        .map(|relation| {
+            let index = |id: &str| classes.class(id).expect("validated");
+            (index(&relation.from), index(&relation.to))
+        })
+        .collect();
+    let structure = Structure::of(classes.classes.len(), &ends, &[], Facts { directed: false })
+        .sentences(spec.locale, |class| classes.classes[class].label.clone());
+    if !structure.is_empty() {
+        description.push(' ');
+        description.push_str(&structure);
+    }
     for class in &classes.classes {
         let relations: Vec<String> = classes
             .relations

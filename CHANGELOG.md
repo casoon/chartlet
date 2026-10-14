@@ -4,6 +4,12 @@ All notable changes to chartlet are listed here. chartlet follows [Semantic Vers
 until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
 does.
 
+## [Unreleased]
+
+### Added
+
+- Flow charts, architecture diagrams and class diagrams: the description names the shape of the graph before the steps — the most connected nodes, where nothing leads in or out, loops, unconnected parts and bottlenecks — where it says more than the steps do (nothing for a single chain).
+
 ## [0.19.0] - 2026-10-12
 
 ### Added

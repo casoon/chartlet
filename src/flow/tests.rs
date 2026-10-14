@@ -270,7 +270,7 @@ fn the_text_alternative_follows_the_reading_order() {
         text_alternative(&ChartSpec::from_json(SPEC).expect("parses")).expect("valid");
     assert_eq!(
         alternative.description,
-        "Flow chart with 5 steps and 5 connections. Main path: Draft → Looks good? → Publish → Live. Draft (start): leads to Looks good?. Looks good? (decision): leads to Publish (yes) and Edit (no). Edit: leads to Looks good? (again). Publish: leads to Live. Live (end): no further step."
+        "Flow chart with 5 steps and 5 connections. Main path: Draft → Looks good? → Publish → Live. Most connected: Looks good? (4 connections). Loop: Looks good? → Edit → Looks good?. Draft (start): leads to Looks good?. Looks good? (decision): leads to Publish (yes) and Edit (no). Edit: leads to Looks good? (again). Publish: leads to Live. Live (end): no further step."
     );
     assert_eq!(alternative.table.columns, ["Step", "Kind", "Leads to"]);
     assert_eq!(

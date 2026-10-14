@@ -631,8 +631,9 @@ related.
   (`auto`, `portrait`, `landscape`) and the warning `canvas_too_small` when the diagram needs a
   bigger canvas.
 - **Text alternative.** The description gives every class with the number of its attributes and
-  methods and the relations it starts, in words (`Dog inherits from Animal`); the data table has
-  one row per class with its kind, attributes, methods and relations.
+  methods and the relations it starts, in words (`Dog inherits from Animal`), after the most
+  connected classes and the bottlenecks (see [Graph structure](#graph-structure)); the data table
+  has one row per class with its kind, attributes, methods and relations.
 
 ## Reference lines
 
@@ -853,8 +854,9 @@ releases.
 - **Orientation** works as for sequence diagrams: portrait runs the flow down, landscape right,
   and `auto` picks by the canvas.
 - **Text alternative.** The description names the steps in reading order — layer by layer — and
-  where each one leads, with the main path, the lanes and the groups; the data table has one row
-  per step with its kind, lane, group and next steps.
+  where each one leads, with the main path, the lanes and the groups. Before the steps it names
+  the shape of the graph where there is one to tell (see [Graph structure](#graph-structure));
+  the data table has one row per step with its kind, lane, group and next steps.
 
 **Focus.** In the HTML profile a diagram can be focused on one node — a step, a state, a
 component, a participant: a click on the node, or a choice in the "Focus" list above the figure,
@@ -879,6 +881,22 @@ color. The colors are CSS custom properties (`--chartlet-role-blue`, `--chartlet
 …) that a host page can override.
 
 Limits: 1–40 steps with unique `id`s, up to 80 edges, 8 lanes and 8 groups.
+
+### Graph structure
+
+Flow charts, architecture diagrams and class diagrams describe the shape of their graph in a few
+sentences before the steps, as far as it says more than the steps themselves — a single chain
+says nothing here:
+
+- the most connected nodes, when they have at least three connections and no more than three
+  share the top;
+- where nothing leads in and where nothing leads out (flow charts and architecture only; start
+  and end steps are not named again, nor are more than three);
+- loops: one per tangle of edges that leads back into itself, the shortest way back to its first
+  node (`Loop: Review → Build → Review.`), at most three (flow charts and architecture only);
+- unconnected parts, when there are several;
+- bottlenecks: nodes without which the graph falls into at least two pieces of more than one
+  node each, when there are one or two.
 
 ## State diagrams
 
@@ -979,8 +997,8 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
 - **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
   classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
   (`option_not_supported`).
-- **Text alternative.** The description says what each boundary holds and where each component
-  connects to; the data table has one row per component with its kind, its boundaries
+- **Text alternative.** The description says what each boundary holds, the shape of the graph
+  (see [Graph structure](#graph-structure)) and where each component connects to; the data table has one row per component with its kind, its boundaries
   (`Cloud › Private network`) and its connections.
 
 Limits: 1–40 components, up to 80 connections and 12 boundaries; identifiers are unique among

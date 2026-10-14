@@ -12,6 +12,7 @@ use crate::{
     metrics::TextMetrics,
     scene::Scene,
     spec::{ArchitectureSpec, ChartSpec, ComponentKind, Locale},
+    structure::{Facts, Structure},
     text,
 };
 
@@ -216,6 +217,27 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             .collect();
         description.push(' ');
         description.push_str(&text::main_path(locale, &path));
+    }
+    let ends: Vec<(usize, usize)> = architecture
+        .connections
+        .iter()
+        .map(|connection| {
+            let index = |id: &str| architecture.component(id).expect("validated");
+            (index(&connection.from), index(&connection.to))
+        })
+        .collect();
+    let structure = Structure::of(
+        architecture.components.len(),
+        &ends,
+        &[],
+        Facts { directed: true },
+    )
+    .sentences(locale, |component| {
+        architecture.components[component].label.clone()
+    });
+    if !structure.is_empty() {
+        description.push(' ');
+        description.push_str(&structure);
     }
     let steps = steps_in_order(architecture);
     if !steps.is_empty() {

@@ -22,6 +22,7 @@ use crate::{
     metrics::TextMetrics,
     scene::{Circle, Element, Hotspot, Line, Rect, Scene, Text, TextAnchor},
     spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind},
+    structure::{Facts, Structure},
     text,
 };
 use graph::{Graph, settle};
@@ -3186,6 +3187,17 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             .collect();
         description.push(' ');
         description.push_str(&text::main_path(locale, &path));
+    }
+    let marked: Vec<bool> = flow
+        .nodes
+        .iter()
+        .map(|node| matches!(node.kind, NodeKind::Start | NodeKind::End))
+        .collect();
+    let structure = Structure::of(flow.nodes.len(), &ends, &marked, Facts { directed: true })
+        .sentences(locale, |node| flow.nodes[node].label.clone());
+    if !structure.is_empty() {
+        description.push(' ');
+        description.push_str(&structure);
     }
     for node in reading_order(&Diagram::from_flow(flow)) {
         let step = &flow.nodes[node];

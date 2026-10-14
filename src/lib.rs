@@ -31,6 +31,7 @@ mod sort;
 mod spec;
 mod state;
 mod stripes;
+mod structure;
 mod survival;
 mod text;
 mod time;
