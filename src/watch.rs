@@ -119,22 +119,23 @@ fn render(
             }
             Ok(content)
         });
+    // The preview first, so that whoever reacts to the report finds the page of this render.
+    if let Some(preview) = preview {
+        preview.update(
+            match &result {
+                Ok(Content::Text(text)) => Ok(text.clone()),
+                Ok(Content::Png(_)) => unreachable!("the preview refuses PNG output"),
+                Err(failure) => Err(failure.to_string()),
+            },
+            &warnings,
+        );
+    }
     report_result(result.as_ref().err(), &warnings, json_diagnostics);
     if !json_diagnostics && result.is_ok() {
         match &job.output {
             Some(output) => eprintln!("chartlet: wrote {}", output.display()),
             None => eprintln!("chartlet: rendered {}", job.input.display()),
         }
-    }
-    if let Some(preview) = preview {
-        preview.update(
-            match result {
-                Ok(Content::Text(text)) => Ok(text),
-                Ok(Content::Png(_)) => unreachable!("the preview refuses PNG output"),
-                Err(failure) => Err(failure.to_string()),
-            },
-            &warnings,
-        );
     }
 }
 
