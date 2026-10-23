@@ -33,7 +33,8 @@ pub struct ArchitectureSpec {
     /// drawn stronger.
     #[serde(default, skip_serializing_if = "MainPath::is_empty")]
     pub main_path: MainPath,
-    /// Notes beside components, such as an assumption or a limitation.
+    /// Notes beside components, inside boundaries or on the whole diagram, such as an assumption
+    /// or a limitation.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<NoteSpec>,
     /// Sets of component ids that share one rank: each set lies at one position along the flow.
@@ -357,8 +358,8 @@ impl ChartSpec {
         validate_notes(
             &architecture.notes,
             "architecture",
-            |id| architecture.component(id).is_some(),
-            "component",
+            |id| architecture.component(id).is_some() || architecture.boundary(id).is_some(),
+            "component or boundary",
         )?;
         self.validate_views()?;
         Ok(Vec::new())

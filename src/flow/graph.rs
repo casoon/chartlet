@@ -6,7 +6,7 @@
 
 use std::{cmp::Reverse, collections::BinaryHeap};
 
-use super::Diagram;
+use super::{Diagram, Shape};
 
 /// An item of a layer: a step, or a placeholder that carries an edge through the layer.
 pub(super) struct Item {
@@ -331,7 +331,31 @@ fn layered(
     let rank_layers = layers(ranks, &rank_edges);
     let mut layer: Vec<usize> = rank.iter().map(|rank| rank_layers[*rank]).collect();
     pull_out_of_frames(diagram, &directed, &mut layer);
+    place_frame_notes(diagram, ends, &mut layer);
     (reversed, directed, layer)
+}
+
+/// Moves a note on a frame, a note node in a group without a line, to the first layer of the
+/// steps of its group, so that it stands at the frame's head; in a group of nothing else it stays
+/// in the first layer.
+fn place_frame_notes(diagram: &Diagram, ends: &[(usize, usize)], layer: &mut [usize]) {
+    let frame_note = |node: usize| {
+        diagram.nodes[node].shape == Shape::Note
+            && ends.iter().all(|&(from, to)| from != node && to != node)
+    };
+    for note in 0..layer.len() {
+        let Some(group) = diagram.nodes[note].group else {
+            continue;
+        };
+        if !frame_note(note) {
+            continue;
+        }
+        layer[note] = (0..layer.len())
+            .filter(|&node| !frame_note(node) && diagram.inside(node, group))
+            .map(|node| layer[node])
+            .min()
+            .unwrap_or(0);
+    }
 }
 
 /// The rank of every step, and how many ranks there are: a step on its own is a rank, and so is

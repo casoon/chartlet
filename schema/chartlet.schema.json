@@ -893,6 +893,7 @@
           "description": "Sets of step ids that lie at one position along the flow, such as parallel reviews or all end steps. A layout hint: it adds no edge. A step lies in at most one set, and no edge joins two steps of one set.",
           "$ref": "#/$defs/sameRank"
         },
+        "notes": { "description": "Notes on steps (on names a step) or on the whole chart (without on).", "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
         "spacing": { "$ref": "#/$defs/diagramSpacing" },
         "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
@@ -1055,7 +1056,7 @@
             }
           }
         },
-        "notes": { "$ref": "#/$defs/notes" },
+        "notes": { "description": "Notes on classes or packages (on names one) or on the whole diagram (without on).", "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
         "spacing": { "$ref": "#/$defs/diagramSpacing" }
       }
@@ -1491,7 +1492,7 @@
           "description": "Sets of component ids that lie at one position along the flow, such as the databases of a data tier. A layout hint: it adds no connection. A component lies in at most one set, and no connection joins two components of one set.",
           "$ref": "#/$defs/sameRank"
         },
-        "notes": { "$ref": "#/$defs/notes" },
+        "notes": { "description": "Notes on components or boundaries (on names one) or on the whole diagram (without on). A view keeps the notes on the whole diagram, and those on the components and boundaries it shows; a deployment view keeps only those on the whole diagram.", "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
         "spacing": { "$ref": "#/$defs/diagramSpacing" },
         "sharedTrunks": { "description": "Draws connections that leave a component together, or reach one together, on one shared line that branches with a dot at every branch: only those without label, technology or step, in the usual direction, off the main path, with the same dash, weight and role and their other ends in the same boundary. Every connection is still drawn and listed.", "type": "boolean", "default": false },
@@ -1589,13 +1590,13 @@
       }
     },
     "notes": {
-      "description": "Notes on elements, such as an assumption or a limitation: a box beside the element named by on, joined to it by a dotted line that only says the note explains it. The line is no relation or connection; the text wraps onto as many lines as it needs. At most 12 notes.",
+      "description": "Notes such as an assumption or a limitation. On an element (on names a step, class or component) a note is a box beside it, joined to it by a dotted line that only says the note explains it; on a frame (a package or boundary) it stands inside the frame at its head, without a line; without on it explains the whole diagram and stands in a band below it. No note adds an edge, relation or connection. The text wraps onto as many lines as it needs. The description names every note; the table gives notes on elements in a Notes column and the others in its caption. At most 12 notes.",
       "type": "array",
       "maxItems": 12,
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["on", "text"],
+        "required": ["text"],
         "properties": {
           "on": { "$ref": "#/$defs/identifier" },
           "text": { "type": "string", "minLength": 1, "maxLength": 160 }

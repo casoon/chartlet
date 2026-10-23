@@ -9,6 +9,7 @@
 
 mod blocks;
 mod graph;
+pub(crate) mod notes;
 mod trunks;
 
 use std::fmt::Write as _;
@@ -162,7 +163,12 @@ pub(crate) fn layout(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let flow = flow(spec);
-    let mut scene = layout_diagram(spec, &Diagram::from_flow(flow), warnings, metrics);
+    let mut diagram = Diagram::from_flow(flow);
+    notes::push_notes(&mut diagram, &flow.notes, "flow", |id| {
+        notes::Target::Node(flow.node(id).expect("validated"))
+    });
+    let mut scene = layout_diagram(spec, &diagram, warnings, metrics);
+    notes::push_band(&mut scene, spec, (&flow.notes, "flow"), metrics, warnings);
     let values: Vec<Option<f64>> = flow.nodes.iter().map(|node| node.value).collect();
     heat::push_key(
         &mut scene,
@@ -850,7 +856,7 @@ fn node_boxes(
             continue;
         }
         if node.shape == Shape::Note {
-            let (lines, size) = note_box(node, spacing, metrics, warnings);
+            let (lines, size) = note_box(&node.label, &node.path, spacing, metrics, warnings);
             labels.push(lines);
             sublabels.push(Vec::new());
             sizes.push(size);
@@ -938,19 +944,14 @@ const MAX_NOTE_LINES: usize = 10;
 
 /// The lines of a note and its box: width and height.
 fn note_box(
-    node: &Node,
+    text: &str,
+    path: &str,
     spacing: &Spacing,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> (Vec<String>, (f64, f64)) {
-    let path = format!("{}/text", node.path);
-    let lines = note_lines(
-        &node.label,
-        spacing.max_node - 2.0 * PAD,
-        metrics,
-        warnings,
-        &path,
-    );
+    let path = format!("{path}/text");
+    let lines = note_lines(text, spacing.max_node - 2.0 * PAD, metrics, warnings, &path);
     let text = lines
         .iter()
         .map(|line| metrics.width(line, NOTE_SIZE))
@@ -4348,6 +4349,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&sentence);
     }
+    description.push_str(&notes::sentences(locale, &flow.notes, |id| {
+        &flow.nodes[flow.node(id).expect("validated")].label
+    }));
     description
 }
 
@@ -4402,6 +4406,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         columns.push(words.role.to_owned());
     }
     columns.push(words.leads_to.to_owned());
+    let with_notes = flow.notes.iter().any(|note| note.on.is_some());
+    if with_notes {
+        columns.push(words.notes.to_owned());
+    }
     let rows = reading_order(&Diagram::from_flow(flow))
         .into_iter()
         .map(|node| {
@@ -4437,11 +4445,20 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 );
             }
             row.push(next_steps(spec, &ends, node, true).join(", "));
+            if with_notes {
+                row.push(notes::of(&flow.notes, &step.id));
+            }
             row
         })
         .collect();
     DataTable {
-        caption: format!("{} {}", words.data_for, spec.title),
+        caption: notes::caption(
+            format!("{} {}", words.data_for, spec.title),
+            spec.locale,
+            &flow.notes,
+            |_| true,
+            |id| &flow.nodes[flow.node(id).expect("validated")].label,
+        ),
         columns,
         rows,
     }

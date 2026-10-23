@@ -997,3 +997,61 @@ fn class_state_and_architecture_diagrams_take_a_spacing_profile() {
         }
     }
 }
+#[test]
+fn notes_explain_a_step_or_the_whole_chart_without_adding_an_edge() {
+    let json = SPEC.replace(
+        r#""mainPath""#,
+        r#""notes": [
+            {"on": "edit", "text": "At most two rounds"},
+            {"text": "Applies to every article"}
+        ],
+        "mainPath""#,
+    );
+    let plain = svg(SPEC);
+    let output = svg(&json);
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    for text in ["At most two rounds", "Applies to every article"] {
+        assert!(output.content.contains(&format!("<title>{text}</title>")));
+    }
+    // Only the note on a step has a line, a dotted one without an arrowhead.
+    assert_eq!(
+        output
+            .content
+            .matches("chartlet-flow-edge chartlet-flow-dotted")
+            .count(),
+        1
+    );
+    assert_eq!(
+        output.content.matches("chartlet-flow-head").count(),
+        plain.content.matches("chartlet-flow-head").count()
+    );
+    let plain = text_alternative(&ChartSpec::from_json(SPEC).expect("parses")).expect("valid");
+    let noted = text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+    assert_eq!(
+        noted.description,
+        format!(
+            "{} Note on Edit: At most two rounds. Note: Applies to every article.",
+            plain.description
+        )
+    );
+    assert_eq!(
+        noted.table.columns.last().map(String::as_str),
+        Some("Notes")
+    );
+    let edit = noted
+        .table
+        .rows
+        .iter()
+        .find(|row| row[0] == "Edit")
+        .expect("a row");
+    assert_eq!(edit.last().map(String::as_str), Some("At most two rounds"));
+    assert_eq!(
+        noted.table.caption,
+        format!("{}. Note: Applies to every article.", plain.table.caption)
+    );
+    let unknown = json.replace(r#"{"on": "edit""#, r#"{"on": "nowhere""#);
+    assert_eq!(
+        error(&unknown),
+        ("unknown_node", "/flow/notes/0/on".to_owned())
+    );
+}
