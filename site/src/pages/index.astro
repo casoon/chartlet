@@ -39,7 +39,7 @@ import revenue from '../data/monthly-revenue.json';
 <Base>
   <Hero
     title="Accessible charts and diagrams, compiled at build time."
-    lead="chartlet turns a small JSON specification into plain SVG or an HTML figure with caption, source and data table – data charts, and sequence, flow, state, architecture and tree diagrams it lays out itself. No chart JavaScript, no hydration, no layout shift – and the same bytes on every build."
+    lead="chartlet turns a small JSON specification into plain SVG or an HTML figure with caption, source and data table – data charts, and sequence, flow, state, architecture, class, tree and network diagrams it lays out itself. No chart JavaScript, no hydration, no layout shift – and the same bytes on every build."
   >
     <Install
       commands={[
@@ -49,7 +49,6 @@ import revenue from '../data/monthly-revenue.json';
     />
     <Badges>
       <Badge>MIT</Badge>
-      <Badge tone="brand">0.11</Badge>
       <Badge>crates.io 0.19.0</Badge>
       <Badge>npm 0.19.0</Badge>
       <Badge>Rust 1.88+</Badge>
@@ -60,9 +59,9 @@ import revenue from '../data/monthly-revenue.json';
   <Facts
     items={[
       { value: '0', label: 'bytes of chart JavaScript in the browser' },
-      { value: '42', label: 'examples, also the golden-file test inputs' },
+      { value: '100', label: 'examples, also the golden-file test inputs' },
       { value: '4.5:1', label: 'minimum contrast of every series colour on white' },
-      { value: '4', label: 'kinds of software diagram, laid out by chartlet' },
+      { value: '7', label: 'kinds of diagram, laid out by chartlet' },
     ]}
   />
 
@@ -73,24 +72,20 @@ import revenue from '../data/monthly-revenue.json';
         body: 'Every chart carries a title and a description generated from the data, and the HTML output always includes the complete data as a table.',
       },
       {
-        title: 'Deterministic',
-        body: 'The same specification produces the same bytes, so charts can be reviewed, diffed and cached like any other build artifact.',
-      },
-      {
-        title: 'Honest about problems',
-        body: 'Invalid input is rejected with a code, a path and a fix. Shortened labels and omitted value labels are reported as warnings instead of happening silently.',
-      },
-      {
-        title: 'Interaction without JavaScript',
-        body: 'Series filters, area selection on a topic map, focus on a diagram node and pre-rendered zoom steps use native controls and CSS; every mark has a native tooltip.',
+        title: 'Deterministic and honest',
+        body: 'The same specification produces the same bytes, so charts can be reviewed, diffed and cached. Invalid input is rejected with a code, a path and a fix; shortened labels are reported as warnings instead of happening silently.',
       },
       {
         title: 'Diagrams laid out for you',
-        body: 'Sequence, flow, state, architecture and tree diagrams come from what is connected. chartlet places the boxes, routes the edges, keeps the main path straight and turns the diagram to portrait or landscape to fit.',
+        body: 'Sequence, flow, state, architecture, class, tree and network diagrams come from what is connected. chartlet places the boxes, routes the edges, keeps the main path straight and turns the diagram to portrait or landscape to fit.',
       },
       {
-        title: 'One structure, many outputs',
-        body: 'Desktop, mobile, print and social variants and a PNG come from the same specification, and every diagram lists its whole structure in the data table.',
+        title: 'Architecture as a model',
+        body: 'One model yields several views, deployments per environment with hosts and instances, and perspectives such as the owning team. Interfaces, notes, roles and generic symbols say more than boxes, and chartlet inspect points out what the model leaves undocumented.',
+      },
+      {
+        title: 'One specification, many outputs',
+        body: 'Desktop, mobile, print and social variants and a PNG come from the same specification. In HTML, series filters, focus on a diagram node and zoom steps use native controls and CSS – no script.',
       },
     ]}
   />
@@ -114,7 +109,7 @@ import revenue from '../data/monthly-revenue.json';
     steps={[
       'Install the CLI, or the Astro package together with the CLI.',
       'Describe the chart in a small JSON specification.',
-      'Render it with <code>chartlet render</code> or the <code>&lt;Chart&gt;</code> component.',
+      'Render it with <code>chartlet render</code> or the <code>&lt;Chart&gt;</code> component; <code>--preview</code> shows every save on a local page.',
     ]}
   >
     <CodeBlock code={specJson} lang="json" title="spec.json" label="Specification" />

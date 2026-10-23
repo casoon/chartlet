@@ -52,13 +52,15 @@ const SURFACE_STYLE = `<style>.cl-surface{background:#fff;color:#172033;color-sc
  *
  * A light chart sits on a surface that follows the site's theme, with chartlet's dark palette on
  * a dark site. A chart with `"theme": "dark"` paints its own dark background and is left as it is.
+ * `view` picks the view of an architecture model with `views`; without it, its default view.
  */
 export function render(
   source: Spec,
   id: string,
   format: 'svg' | 'html' = 'html',
+  view?: string,
 ): { html: string; warnings: string[] } {
-  const { content, warnings } = renderChart(source, { format, table: 'details', idPrefix: id });
+  const { content, warnings } = renderChart(source, { format, table: 'details', idPrefix: id, view });
   const dark = source.theme === 'dark';
   return {
     html: dark ? content : `${SURFACE_STYLE}<div class="cl-surface">${content}</div>`,
@@ -364,6 +366,77 @@ const catalogue = [
       'Billing moves out of a monolith. The old path is `deprecated` (dotted, gray), the new service and its connections are `planned` (dashed, violet), the gateway, the accounts database and the payment call are `critical` (strong red). Each role also carries a badge or a line pattern, so it reads without color; the legend names only the roles used, and the description and the table name every role. Illustrative values.',
   },
   {
+    slug: 'shop-views',
+    chart: 'Architecture views',
+    useCase: 'Show one model at several levels of detail',
+    blurb:
+      'One model of a web shop with eleven components, shown through two `views`. The overview, shown here, keeps eight components with the connections between them and the boundaries that still hold one; the description says it shows 8 of the model\'s 11 components. The checkout view lists ten `steps` along existing connections, each with its own text, and renders as a numbered diagram. `--view checkout` renders it, `--all-views` both on one HTML page with links between them. Illustrative values.',
+  },
+  {
+    slug: 'api-environments',
+    view: 'production',
+    chart: 'Deployment view',
+    useCase: 'Show where a model runs in each environment',
+    blurb:
+      'Four components of an orders API and three views of them: the components alone, a developer laptop, and production, shown here with `--view production`. A view with an `environment` nests `hosts` like boundaries — a region with two nodes and a managed database — and draws `instances` of components, labelled with their id, such as Orders API (api-1). Only the `instanceConnections` it lists are drawn, each with the label and technology of the model connection it names. The description names the environment, the table every instance. Illustrative values.',
+  },
+  {
+    slug: 'booking-context',
+    chart: 'System context',
+    useCase: 'Show who uses a system and what it depends on',
+    blurb:
+      'A course booking system as one box, the learners and trainers who use it and the three external systems it calls — the `context` template of the MCP diagram starter. No boundary and nothing inside the system: the diagram answers who uses it and what it relies on, with the main path from the learner to the payment provider. Illustrative values.',
+  },
+  {
+    slug: 'booking-containers',
+    chart: 'Containers',
+    useCase: 'Show the deployable parts of a system',
+    blurb:
+      'The same course booking system one level down — the `containers` template: a boundary around its separately running parts, a web app, an API, a queue with its worker, a database and a file store, with the learner and the external systems outside. Sublabels say what each part is, connections how they talk. The description names the API and the queue as the bottlenecks. Illustrative values.',
+  },
+  {
+    slug: 'booking-deployment',
+    chart: 'Deployment view (default view)',
+    useCase: 'Document a deployment',
+    blurb:
+      'The `deployment` template: a logical model of the images, the managed queue, database and object storage, and a view of production — a cloud region holding a container cluster with two nodes, one API instance on each, and a node pool for the worker. `defaultView` makes the production view the one that renders; `--view logical` shows the model. Illustrative values.',
+  },
+  {
+    slug: 'service-perspectives',
+    chart: 'Architecture diagram with perspectives',
+    useCase: 'Show who owns what, or where the debt is',
+    blurb:
+      'A booking platform with two `perspectives`, the owning team and the technical debt as the teams rated it. Each view selects one; this one shows the teams: every box gains a stripe in its category\'s color and names the category, a legend lists the categories, and the guest and the payment provider, which belong to none, are shown as not stated. The description gives a sentence per category, the table a column. `--perspective debt` shows the other. Nothing is derived or rated by chartlet. Illustrative values.',
+  },
+  {
+    slug: 'payment-interfaces',
+    chart: 'Architecture diagram with interfaces',
+    useCase: 'Show which interface a call depends on',
+    blurb:
+      'A checkout and the interfaces it relies on. Orders, Payments and the card processor list what they `provides`, each drawn as a ball on a stem with its label; a connection with `toInterface` ends in a socket around that ball, so Support visibly requires the Refunds API rather than Payments as a whole. The description and the table say it in words — “requires Payments API”, a Provides column. With a phone variant. Illustrative values.',
+  },
+  {
+    slug: 'shop-symbols',
+    chart: 'Architecture diagram with symbols',
+    useCase: 'Make components recognizable at a glance',
+    blurb:
+      'The web shop on one cloud region with a generic `symbol` above the label of nine components — a browser, a content network, a container, a cache, a message broker, a function, object storage, identity and a cloud. The kind keeps its shape; each symbol is a plain stroke drawing, defined once per SVG, and the description and the table name it after the kind. Illustrative values.',
+  },
+  {
+    slug: 'payment-notes',
+    chart: 'Architecture diagram with notes',
+    useCase: 'Write down what the boxes do not say',
+    blurb:
+      'Payments with three `notes`: one on the token vault, joined to it by a dotted line, one inside the card data zone at the head of its frame, and one without `on` for the whole diagram, in a band below it. Notes add no connection, so structure and main path stay the same; the description gives every note after the elements. With a phone variant. Illustrative values.',
+  },
+  {
+    slug: 'service-fan-out',
+    chart: 'Architecture diagram with shared trunks',
+    useCase: 'Draw a fan-out without a tangle',
+    blurb:
+      'A gateway that calls four services, each of which writes to one log store. With `"sharedTrunks": true` the calls to Catalog, Search and Cart leave the gateway on one line that branches, and the four dashed log writes reach the store on one, with a dot at every branch. Only connections that read the same share a line: the call to Orders lies on the main path and the token check has a label, so both keep their own. Every connection is still drawn end to end with its tooltip and listed in the description and the table. Illustrative values.',
+  },
+  {
     slug: 'department-budgets',
     chart: 'Tree with boxes colored by value',
     useCase: 'Show where the money goes in an organization',
@@ -376,6 +449,20 @@ const catalogue = [
     useCase: 'Show what happens to the cases at each step',
     blurb:
       'Insurance claims through a first check, an assessment and an appeal. A stripe inside each box splits it into the claims settled, rejected or passed on; one legend names the parts, and the description and the table give every part with its count and share. The main path is given by its ends. Illustrative values.',
+  },
+  {
+    slug: 'contract-review',
+    chart: 'Flow chart with port sides',
+    useCase: 'Keep loops back apart from the way forward',
+    blurb:
+      'A contract from request to signature with two loops back: a failed legal review returns to the draft, failed negotiations to the terms. `fromSide` and `toSide` send the first loop down the right-hand side and the second down the left, so they run straight past the steps between instead of crossing the main path; the signed contract leaves to the archive on the left. The sides hold in either orientation and on the phone variant. The main path is given by its ends. Illustrative values.',
+  },
+  {
+    slug: 'order-fulfilment',
+    chart: 'Flow chart with shared trunks',
+    useCase: 'Show parallel work without a tangle',
+    blurb:
+      'An order split into four parallel checks in a group, which meet again at packing. With `"sharedTrunks": true` the three checks off the main path leave the split on one branching line and reach packing on one, with a dot at every branch; the payment check on the main path and the two branches of the decision keep their own lines. Every edge is still drawn end to end with its tooltip; the description and the table are unchanged. Illustrative values.',
   },
   {
     slug: 'climate-similarity',
@@ -525,6 +612,34 @@ const catalogue = [
       'Four tables of a shop as entities with their keys, joined by relations with cardinalities: the same diagram type as the class diagram, without methods. The table lists every entity with its columns and relations.',
   },
   {
+    slug: 'shop-modules',
+    chart: 'Class diagram with packages',
+    useCase: 'Show how a domain model is divided into modules',
+    blurb:
+      'Seven classes of a shop in four `packages`: Ordering and Catalog nested inside Shop, Billing beside it, and the customer outside all of them. Classes name their package with `in`; relations run across package borders as before. The description names every package with what it holds, and the table gains a Package column such as Shop › Ordering.',
+  },
+  {
+    slug: 'invoice-model',
+    chart: 'Class diagram with an oriented package',
+    useCase: 'Lay out one part of a model its own way',
+    blurb:
+      'Orders and their invoices in two packages. The diagram runs top down, but the Billing package sets `"orientation": "landscape"`, so invoice, invoice lines and tax rate lie side by side as one block that the diagram places like a class; relations from outside meet the block where their class lies. The reminder stays outside both packages.',
+  },
+  {
+    slug: 'subscription-model',
+    chart: 'Class diagram with notes',
+    useCase: 'Record rules a class box cannot show',
+    blurb:
+      'A subscription model with three `notes`: when a subscription renews, that plan prices are net, and that a card stores only a token. Each note is a pale box with a folded corner beside its class, joined by a dotted line that only says “explains” — it is no relation, so the structure stays the same. The description gives every note after the classes, the table a Notes column.',
+  },
+  {
+    slug: 'payment-redesign',
+    chart: 'Class diagram with roles',
+    useCase: 'Show what a redesign changes in a model',
+    blurb:
+      'Payments after a redesign: the order and its dependency on the payment interface are `critical`, the wallet payment and the composition with the receipt `planned`, the paper invoice and the relation to it `deprecated` — drawn with the same colors, badges and line patterns as roles in flow and architecture diagrams. A relation keeps its marks: the planned composition with the receipt keeps its filled diamond. The legend names the roles used, the description lists them.',
+  },
+  {
     slug: 'satisfaction-by-quarter',
     chart: 'Grouped bars (error bars)',
     useCase: 'Compare groups with their uncertainty',
@@ -638,9 +753,9 @@ const catalogue = [
   },
 ];
 
-export const examples: ShowcaseExample[] = catalogue.map(({ slug, chart, useCase, blurb }) => {
+export const examples: ShowcaseExample[] = catalogue.map(({ slug, view, chart, useCase, blurb }) => {
   const source = spec(slug);
-  const { html, warnings } = render(source, `showcase-${slug}`);
+  const { html, warnings } = render(source, `showcase-${slug}`, 'html', view);
   return {
     slug,
     title: String(source.title),
