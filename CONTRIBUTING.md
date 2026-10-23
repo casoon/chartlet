@@ -14,7 +14,9 @@ The crate declares no `rust-version`: only the pinned version is built and teste
 
 `tests/golden.rs` checks that every example in `examples/` renders to exactly its committed SVG,
 for the desktop, mobile, print and social variants it lists, and to its committed HTML. When a
-change moves pixels, those tests fail; to see what changed, write the visual report:
+change moves pixels, those tests fail. `tests/schema.rs`, also part of `cargo test`, validates
+every `examples/*.json` against `schema/chartlet.schema.json`. To see what changed, write the
+visual report:
 
 ```sh
 cargo test --test golden visual_report -- --ignored --nocapture
