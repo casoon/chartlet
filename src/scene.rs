@@ -30,6 +30,10 @@ pub(crate) enum Element {
     /// specification: the classes, then that ID, which the `hooks` render option writes out as
     /// `data-chartlet-node`. [`Element::GroupEnd`] closes it.
     NodeGroup(String, String),
+    /// Opens a group like [`Element::Group`] around a diagram edge that has an ID in the
+    /// specification: the classes, then that ID, which the `hooks` render option writes out as
+    /// `data-chartlet-edge`. [`Element::GroupEnd`] closes it.
+    EdgeGroup(String, String),
     GroupEnd,
     /// Draws nothing: where a diagram node stands, for the focus link the HTML profile lays over
     /// it.
@@ -71,7 +75,11 @@ pub(crate) enum Hook {
     },
     /// Opens a group around what one layer draws, by its index among all layers of all panes.
     Layer(usize),
-    /// Closes the group of the last [`Hook::Layer`].
+    /// Opens a group around a diagram object that has an ID in the specification but no focus
+    /// group of its own, such as a frame: the name of the attribute that carries the ID, then the
+    /// ID.
+    Object(&'static str, String),
+    /// Closes the group of the last [`Hook::Layer`] or [`Hook::Object`].
     End,
 }
 
