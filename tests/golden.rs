@@ -1,5 +1,7 @@
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 
+mod report;
+
 /// Every example as name, specification and reviewed SVG.
 const EXAMPLES: [(&str, &str, &str); 73] = [
     (
@@ -676,4 +678,120 @@ fn every_social_variant_is_a_resolved_1200_by_630_canvas() {
             );
         }
     }
+}
+
+/// Writes a visual report of every reference above against the current rendering, plus the
+/// examples without one, to `target/tmp/golden-report/index.html`:
+/// `cargo test --test golden visual_report -- --ignored --nocapture`. It shows the changed
+/// references by default and never fails on a difference or accepts one.
+#[test]
+#[ignore = "writes a local report for review; run on demand"]
+fn visual_report() {
+    let mut missing: Vec<(String, String)> = std::fs::read_dir("examples")
+        .expect("the examples directory should exist")
+        .map(|entry| entry.expect("readable entry").path())
+        .filter(|path| {
+            path.extension()
+                .is_some_and(|extension| extension == "json")
+        })
+        .filter_map(|path| {
+            let name = path.file_stem()?.to_str()?.to_owned();
+            (!EXAMPLES.iter().any(|(known, _, _)| *known == name)).then(|| {
+                let specification = std::fs::read_to_string(&path).expect("readable example");
+                (name, specification)
+            })
+        })
+        .collect();
+    missing.sort();
+    let directory = report::directory();
+    let summary = report::write(&directory, &report_entries(), &missing)
+        .expect("the report should be written");
+    println!(
+        "{} changed, {} failed, {} unchanged, {} without reference: {}",
+        summary.changed,
+        summary.failed,
+        summary.unchanged,
+        summary.missing,
+        directory.join("index.html").display()
+    );
+}
+
+/// Every reference of the catalogs above, with the options its variant renders with.
+fn report_entries() -> Vec<report::Entry<'static>> {
+    let catalogs = [
+        ("desktop", &EXAMPLES[..], Variant::Desktop),
+        ("mobile", &MOBILE_EXAMPLES[..], Variant::Mobile),
+        ("print", &PRINT_EXAMPLES[..], Variant::Print),
+        ("social", &SOCIAL_EXAMPLES[..], Variant::Social),
+    ];
+    catalogs
+        .into_iter()
+        .flat_map(|(label, catalog, variant)| {
+            catalog
+                .iter()
+                .map(move |&(name, specification, reference)| report::Entry {
+                    name,
+                    variant: label,
+                    specification,
+                    reference,
+                    options: RenderOptions {
+                        variant,
+                        ..RenderOptions::default()
+                    },
+                })
+        })
+        .collect()
+}
+
+/// An altered reference of a flow chart, an architecture diagram and a data chart appears in the
+/// report with both versions; an untouched one counts as unchanged.
+#[test]
+fn visual_report_tells_altered_references_from_unchanged_ones() {
+    let altered = [
+        ("release-flow", "desktop"),
+        ("tenant-architecture", "mobile"),
+        ("monthly-revenue", "desktop"),
+    ];
+    let mut entries: Vec<report::Entry> = report_entries()
+        .into_iter()
+        .filter(|entry| {
+            altered.contains(&(entry.name, entry.variant))
+                || (entry.name, entry.variant) == ("quarterly-change", "desktop")
+        })
+        .collect();
+    let references: Vec<String> = entries
+        .iter()
+        .map(|entry| {
+            entry
+                .reference
+                .replacen("<title", "<title data-altered=\"\"", 1)
+        })
+        .collect();
+    for (entry, reference) in entries.iter_mut().zip(&references) {
+        if altered.contains(&(entry.name, entry.variant)) {
+            entry.reference = reference;
+        }
+    }
+    let directory = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("golden-report-check");
+    let summary = report::write(&directory, &entries, &[]).expect("the report should be written");
+    assert_eq!(
+        (summary.changed, summary.unchanged, summary.failed),
+        (3, 1, 0)
+    );
+    let page = std::fs::read_to_string(directory.join("index.html")).expect("the report page");
+    for file in [
+        "release-flow",
+        "tenant-architecture.mobile",
+        "monthly-revenue",
+    ] {
+        for version in ["reference", "current"] {
+            assert!(page.contains(&format!("<img src=\"svg/{file}.{version}.svg\"")));
+            assert!(directory.join(format!("svg/{file}.{version}.svg")).exists());
+        }
+    }
+    assert!(page.contains("<section class=\"card unchanged\"><h2>quarterly-change"));
+    assert!(
+        !page.contains("<svg"),
+        "the report embeds every SVG as an image of its own"
+    );
 }
