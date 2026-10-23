@@ -37,6 +37,7 @@ mod state;
 mod stripes;
 mod structure;
 mod survival;
+mod symbols;
 mod text;
 mod time;
 mod timeline;

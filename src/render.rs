@@ -310,6 +310,7 @@ pub(crate) fn svg(
         emit_data_block(spec, &mut output);
     }
     emit_hatches(spec, id_prefix, &mut output);
+    crate::symbols::emit_defs(scene, id_prefix, &mut output);
 
     // A dark chart cannot know the color of the page behind it, so it paints its own surface.
     if is_dark {
@@ -384,7 +385,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = matches!(spec.theme, Theme::Dark | Theme::Blueprint);
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -470,6 +471,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         } else {
             ""
         },
+        if spec.has_component_symbols() {
+            crate::symbols::STYLE
+        } else {
+            ""
+        },
         if spec.theme == Theme::Blueprint {
             BLUEPRINT_STYLE
         } else {
@@ -496,7 +502,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
         Topicmap, Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 42] = [
+    let groups: [(&str, &[ChartType]); 43] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -536,6 +542,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (NETWORK_STYLE, &[Network]),
         (crate::heat::STYLE, &[Flow, Tree]),
         (crate::parts::STYLE, &[Flow, Tree]),
+        (crate::symbols::STYLE, &[Architecture]),
         (
             BLUEPRINT_STYLE,
             &[Sequence, Flow, State, Architecture, Tree, Classes, Network],
@@ -915,6 +922,15 @@ fn emit_element(
         }
         Element::GroupEnd => output.push_str("</g>"),
         Element::Hotspot(_) => {}
+        Element::Symbol(symbol) => write!(
+            output,
+            "<use href=\"#{id_prefix}-symbol-{}\" x=\"{}\" y=\"{}\" width=\"{size}\" height=\"{size}\" class=\"chartlet-arch-symbol\"/>",
+            symbol.name,
+            number(symbol.x),
+            number(symbol.y),
+            size = number(crate::symbols::SIZE),
+        )
+        .expect("write"),
     }
 }
 

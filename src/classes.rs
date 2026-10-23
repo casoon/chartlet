@@ -85,6 +85,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             compartments: vec![class.attributes.clone(), class.methods.clone()],
             value: None,
             parts: Vec::new(),
+            symbol: None,
         })
         .collect();
     let edges = classes

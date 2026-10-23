@@ -298,6 +298,7 @@ const NOTES = [
   "Every kind has its own shape and a role color; say what an edge means in its label, the line pattern only repeats it.",
   "The description and the data table list every element in reading order; check a spec with chartlet_validate_spec.",
   '"theme": "blueprint" draws a diagram in pale lines on a deep blue ground (diagrams only; charts keep light and dark). A deployment is an architecture diagram: boundaries are the hosts, components of kind node and artifact sit in them.',
+'An architecture component may take "symbol", a generic symbol above its label that names its technology category (the kind keeps its shape; put a product name in sublabel): browser, mobile, api-gateway, load-balancer, cdn, firewall, identity, container, orchestrator, function, cloud, cache, object-storage, message-broker, search-index, monitoring. Any other name fails with unknown_symbol.',
   'A tree takes "layout": "radial" for a mind map (root in the middle, subtrees in sectors); it refuses orientation, partner and link. "collapsed": true on a node hides what hangs below it.',
 ];
 
