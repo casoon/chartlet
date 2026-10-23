@@ -5,7 +5,7 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "view", "strict", "allowWarnings", "manifest", "alternative", "styles", "hooks" } }`, or
+//! "variant", "view", "allViews", "strict", "allowWarnings", "manifest", "alternative", "styles", "hooks" } }`, or
 //! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
 //! `"styles": "external"`, for every chart type when `types` is absent. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
@@ -156,6 +156,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
             styles,
             hooks: options["hooks"].as_bool() == Some(true),
             view: options["view"].as_str().map(str::to_owned),
+            all_views: options["allViews"].as_bool() == Some(true),
         },
     )
     .map_err(|error| error_json(&error))?;
