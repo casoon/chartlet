@@ -1674,13 +1674,7 @@ pub(crate) fn connection_note(
 }
 
 /// A component as a sentence: its label and kind, and where it connects to.
-pub(crate) fn component(
-    locale: Locale,
-    label: &str,
-    kind: ComponentKind,
-    next: &[String],
-) -> String {
-    let kind = component_kind(locale, kind);
+pub(crate) fn component(locale: Locale, label: &str, kind: &str, next: &[String]) -> String {
     let next = match (locale, next.is_empty()) {
         (Locale::En, true) => "no outgoing connection".to_owned(),
         (Locale::De, true) => "keine ausgehende Verbindung".to_owned(),

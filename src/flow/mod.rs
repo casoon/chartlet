@@ -22,9 +22,10 @@ use crate::{
     layout::{NARROW, count, format_value, push_title, title_extra},
     metrics::TextMetrics,
     parts,
-    scene::{Circle, Element, Hotspot, Line, Rect, Scene, Text, TextAnchor},
+    scene::{Circle, Element, Hotspot, Line, Rect, Scene, SymbolUse, Text, TextAnchor},
     spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind, NumberStyle, PartSpec},
     structure::{Facts, Structure},
+    symbols::{self, Symbol},
     text,
 };
 use graph::{Graph, settle};
@@ -225,6 +226,8 @@ pub(crate) struct Node {
     pub value: Option<f64>,
     /// The parts drawn as a stripe inside the bottom of the box.
     pub parts: Vec<PartSpec>,
+    /// The symbol drawn above the label.
+    pub symbol: Option<&'static Symbol>,
 }
 
 pub(crate) struct Edge {
@@ -360,6 +363,7 @@ impl Diagram {
                     compartments: Vec::new(),
                     value: node.value,
                     parts: node.parts.clone(),
+                    symbol: None,
                 })
                 .collect(),
             edges: flow
@@ -585,11 +589,17 @@ fn node_boxes(
         } else {
             parts::ROOM
         };
+        let symbol = if node.symbol.is_some() {
+            symbols::ROOM
+        } else {
+            0.0
+        };
         let height = 20.0
             + NODE_LINE * count(lines.len())
             + 14.0 * count(sublines.len())
             + extra_height
-            + stripe;
+            + stripe
+            + symbol;
         labels.push(lines);
         sublabels.push(sublines);
         sizes.push((width, height));
@@ -2790,7 +2800,22 @@ impl Plan {
         } else {
             parts::ROOM / 2.0
         };
-        let first = middle_y - block / 2.0 + 4.5 + shift;
+        // A symbol stands centered above the label, in the room the box grew by.
+        let first = middle_y - block / 2.0
+            + 4.5
+            + shift
+            + if spec.symbol.is_some() {
+                symbols::ROOM / 2.0
+            } else {
+                0.0
+            };
+        if let Some(symbol) = spec.symbol {
+            elements.push(Element::Symbol(SymbolUse {
+                name: symbol.name,
+                x: middle_x - symbols::SIZE / 2.0,
+                y: first - 10.0 - symbols::ROOM,
+            }));
+        }
         for (index, line) in lines.iter().enumerate() {
             elements.push(Element::Text(Text {
                 x: middle_x,

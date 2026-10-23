@@ -1403,6 +1403,10 @@
                 "enum": ["person", "frontend", "service", "database", "queue", "storage", "cache", "external", "security", "node", "artifact"],
                 "default": "service"
               },
+              "symbol": {
+                "description": "A generic symbol drawn above the label that names the component's technology category; the kind keeps its shape and meaning. The description and the data table name the category after the kind.",
+                "enum": ["browser", "mobile", "api-gateway", "load-balancer", "cdn", "firewall", "identity", "container", "orchestrator", "function", "cloud", "cache", "object-storage", "message-broker", "search-index", "monitoring"]
+              },
               "in": { "$ref": "#/$defs/identifier" }
             }
           }

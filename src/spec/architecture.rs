@@ -40,6 +40,10 @@ pub struct ComponentSpec {
     pub sublabel: Option<String>,
     #[serde(default, skip_serializing_if = "ComponentKind::is_service")]
     pub kind: ComponentKind,
+    /// The name of a symbol drawn above the label, which names the component's technology
+    /// category, such as `cache` or `load-balancer`; the kind keeps its shape.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
     /// The `id` of the boundary the component lies in.
     #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
     pub boundary: Option<String>,
@@ -170,6 +174,16 @@ impl ArchitectureSpec {
 }
 
 impl ChartSpec {
+    /// Whether an architecture diagram has a component with a symbol.
+    pub(crate) fn has_component_symbols(&self) -> bool {
+        self.architecture.as_ref().is_some_and(|architecture| {
+            architecture
+                .components
+                .iter()
+                .any(|component| component.symbol.is_some())
+        })
+    }
+
     /// An architecture diagram: components and boundaries with identifiers unique among both,
     /// connections between components, boundaries that nest without a circle and each hold at
     /// least one component, and a main path along connections.
@@ -296,6 +310,18 @@ impl ArchitectureSpec {
                     "unknown_boundary",
                     format!("{path}/in"),
                     format!("no boundary has the id \"{boundary}\""),
+                ));
+            }
+            if let Some(symbol) = &component.symbol
+                && crate::symbols::find(symbol).is_none()
+            {
+                return Err(ChartError::new(
+                    "unknown_symbol",
+                    format!("{path}/symbol"),
+                    format!(
+                        "no symbol is named \"{symbol}\"; use one of {}",
+                        crate::symbols::names()
+                    ),
                 ));
             }
         }

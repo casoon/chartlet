@@ -468,3 +468,20 @@ fn manifest_records_the_provenance_of_the_render() {
 
     std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
 }
+
+/// The CLI writes the same bytes as the library: the reviewed SVG of an architecture diagram
+/// with symbols.
+#[test]
+fn cli_renders_component_symbols_like_the_library() {
+    let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+        .args(["render", "examples/shop-symbols.json"])
+        .output()
+        .expect("chartlet CLI should start");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("SVG output should be UTF-8");
+    assert_eq!(
+        stdout.trim_end(),
+        include_str!("../examples/shop-symbols.svg")
+    );
+}

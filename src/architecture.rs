@@ -12,9 +12,9 @@ use crate::{
     layout::format_value,
     metrics::TextMetrics,
     scene::Scene,
-    spec::{ArchitectureSpec, ChartSpec, ComponentKind},
+    spec::{ArchitectureSpec, ChartSpec, ComponentKind, ComponentSpec, Locale},
     structure::{Facts, Structure},
-    text,
+    symbols, text,
 };
 
 pub(crate) fn layout(
@@ -67,6 +67,10 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
                 compartments: Vec::new(),
                 value: None,
                 parts: Vec::new(),
+                symbol: component
+                    .symbol
+                    .as_deref()
+                    .map(|name| symbols::find(name).expect("validated")),
             })
             .collect(),
         edges: architecture
@@ -106,6 +110,25 @@ fn step_label(step: Option<u8>, label: Option<&str>) -> Option<String> {
         (Some(step), Some(label)) => Some(format!("{step}. {label}")),
         (Some(step), None) => Some(format!("{step}.")),
         (None, label) => label.map(str::to_owned),
+    }
+}
+
+/// What a component is: its kind, and after it the technology category of its symbol, as
+/// `database, search index`; a category that names the kind stands alone, as `object storage`.
+/// The sublabel is not repeated.
+fn kind(locale: Locale, component: &ComponentSpec) -> String {
+    let kind = text::component_kind(locale, component.kind);
+    match component
+        .symbol
+        .as_deref()
+        .and_then(symbols::find)
+        .map(|symbol| symbol.category(locale))
+    {
+        Some(category) if category.to_lowercase().contains(&kind.to_lowercase()) => {
+            category.to_owned()
+        }
+        Some(category) => format!("{kind}, {category}"),
+        None => kind.to_owned(),
     }
 }
 
@@ -279,7 +302,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             text::component(
                 locale,
                 &spec_component.label,
-                spec_component.kind,
+                &kind(locale, spec_component),
                 &connects_to(spec, component),
             )
         )
@@ -303,8 +326,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         .map(|component| {
             let mut row = vec![
                 architecture.components[component].label.clone(),
-                text::component_kind(spec.locale, architecture.components[component].kind)
-                    .to_owned(),
+                kind(spec.locale, &architecture.components[component]),
             ];
             if bounded {
                 row.push(boundaries_of(architecture, component));
@@ -639,6 +661,99 @@ mod tests {
             text.contains("Images is a node") || text.contains("Images (node)"),
             "{text}"
         );
+    }
+
+    #[test]
+    fn a_symbol_is_defined_once_under_the_id_prefix_and_named_in_the_text() {
+        let json = SPEC
+            .replace(
+                r#"{"id": "api", "label": "API", "in": "private"}"#,
+                r#"{"id": "api", "label": "API", "in": "private", "symbol": "container"}"#,
+            )
+            .replace(
+                r#""kind": "frontend"}"#,
+                r#""kind": "frontend", "symbol": "container"}"#,
+            )
+            .replace(
+                r#""kind": "storage", "in": "cloud"}"#,
+                r#""kind": "storage", "in": "cloud", "symbol": "object-storage"}"#,
+            );
+        let render = |prefix: &str| {
+            render_json(
+                &json,
+                RenderFormat::Svg,
+                &RenderOptions {
+                    id_prefix: Some(prefix.to_owned()),
+                    ..RenderOptions::default()
+                },
+            )
+            .expect("renders")
+            .content
+        };
+        let (first, second) = (render("one"), render("two"));
+        assert_eq!(first.matches("<symbol ").count(), 2);
+        assert_eq!(first.matches("id=\"one-symbol-container\"").count(), 1);
+        assert_eq!(first.matches("href=\"#one-symbol-container\"").count(), 2);
+        assert!(first.contains("id=\"one-symbol-object-storage\""));
+        assert!(first.contains(".chartlet-arch-symbol{"));
+        // Two charts on one page share no id.
+        assert!(!second.contains("one-symbol") && second.contains("id=\"two-symbol-container\""));
+        // A chart without symbols carries neither definitions nor their style.
+        let plain = svg(SPEC).content;
+        assert!(!plain.contains("<symbol") && !plain.contains("chartlet-arch-symbol"));
+
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .contains("Site (frontend, container): connects to API"),
+            "{}",
+            alternative.description
+        );
+        let row = |label: &str| {
+            alternative
+                .table
+                .rows
+                .iter()
+                .find(|row| row[0] == label)
+                .expect("a row")
+                .clone()
+        };
+        assert_eq!(row("API")[1], "service, container");
+        assert_eq!(row("Images")[1], "object storage");
+        assert_eq!(row("Posts")[1], "database");
+        // A category that names the kind is not preceded by it.
+        let cache = SPEC.replace(
+            r#""kind": "database", "in": "private"}"#,
+            r#""kind": "cache", "in": "private", "symbol": "cache"}"#,
+        );
+        let table = text_alternative(&ChartSpec::from_json(&cache).expect("parses"))
+            .expect("valid")
+            .table;
+        assert_eq!(
+            table
+                .rows
+                .iter()
+                .find(|row| row[0] == "Posts")
+                .expect("a row")[1],
+            "in-memory cache"
+        );
+    }
+
+    #[test]
+    fn an_unknown_symbol_is_named_with_its_field() {
+        let json = SPEC.replace(
+            r#"{"id": "api", "label": "API", "in": "private"}"#,
+            r#"{"id": "api", "label": "API", "in": "private", "symbol": "teapot"}"#,
+        );
+        let error = render_json(&json, RenderFormat::Svg, &RenderOptions::default())
+            .expect_err("an unknown symbol is refused");
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("unknown_symbol", "/architecture/components/2/symbol")
+        );
+        assert!(error.message.contains("load-balancer"), "{}", error.message);
     }
 
     #[test]

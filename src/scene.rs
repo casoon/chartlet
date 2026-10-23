@@ -30,6 +30,16 @@ pub(crate) enum Element {
     /// Draws nothing: where a diagram node stands, for the focus link the HTML profile lays over
     /// it.
     Hotspot(Hotspot),
+    /// A symbol of an architecture component, see [`crate::symbols`].
+    Symbol(SymbolUse),
+}
+
+/// Where a symbol stands: its name and the top left corner of its square.
+#[derive(Debug, Clone)]
+pub(crate) struct SymbolUse {
+    pub name: &'static str,
+    pub x: f64,
+    pub y: f64,
 }
 
 /// A diagram node the HTML profile can focus: its index, its name, and its box.
