@@ -18,7 +18,8 @@ const { content, warnings } = renderChart(spec, { format: 'svg', idPrefix: 'reve
 ```
 
 The options are those of the CLI: `format`, `table`, `idPrefix`, `variant` (`desktop`, `mobile`
-or `print`), `view` (the key of a view of an architecture model), `strict`, `allowWarnings`,
+or `print`), `view` (the key of a view of an architecture model), `perspective` (the key of a perspective
+to show in place of the one the model or the view selects), `strict`, `allowWarnings`,
 `manifest` and `hooks`. When
 `options.binary` or the environment variable `CHARTLET_BIN` names a `chartlet` executable,
 `renderChart` calls that CLI instead.

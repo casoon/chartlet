@@ -18,6 +18,11 @@ export interface RenderChartOptions {
    */
   view?: string;
   /**
+   * The `key` of the perspective of an architecture diagram to show, in place of the one the
+   * model or the rendered view selects. Every variant shows the same perspective.
+   */
+  perspective?: string;
+  /**
    * Render every view of an architecture model on one HTML page instead of one view: a
    * navigation of links to the views, the default view first, and each view as a section with
    * its own figure and data table. HTML and the desktop variant only; not together with `view`.

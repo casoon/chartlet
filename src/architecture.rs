@@ -69,9 +69,13 @@ pub(crate) fn layout(
         metrics,
     );
     if let Some((perspective, categories)) = categories(architecture) {
-        // The categories used, in the perspective's order, and not stated last.
+        // The categories used by components or connections, in the perspective's order, and not
+        // stated last.
+        let used: Vec<Option<usize>> = (0..architecture.connections.len())
+            .map(|index| architecture.connection_category(index))
+            .collect();
         let mut entries: Vec<(&'static str, &str)> = (0..perspective.categories.len())
-            .filter(|index| categories.contains(&Some(*index)))
+            .filter(|index| categories.contains(&Some(*index)) || used.contains(&Some(*index)))
             .map(|index| {
                 (
                     parts::CLASSES[index],
@@ -211,7 +215,11 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
                 from: architecture.component(&connection.from).expect("validated"),
                 to: architecture.component(&connection.to).expect("validated"),
                 id: connection.id.clone(),
-                label: step_label(connection.step, connection.label.as_deref()),
+                label: in_category(
+                    step_label(connection.step, connection.label.as_deref()),
+                    architecture,
+                    index,
+                ),
                 technology: connection.technology.clone(),
                 dash: connection.dash,
                 main: architecture.on_main_path(index),
@@ -220,6 +228,9 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
                 sign: connection.direction.sign(),
                 weight: connection.weight,
                 role: connection.role,
+                category: architecture
+                    .connection_category(index)
+                    .map(|category| parts::EDGE_CLASSES[category]),
                 sides: Sides {
                     from: connection.from_side,
                     to: connection.to_side,
@@ -288,6 +299,7 @@ fn push_interfaces(architecture: &ArchitectureSpec, diagram: &mut Diagram) {
                 weight: None,
                 role: None,
                 sides: Sides::default(),
+                category: None,
             });
             diagram.nodes.push(Node {
                 label: interface.label.clone(),
@@ -334,6 +346,27 @@ fn ends(direction: ConnectionDirection) -> Ends {
     }
 }
 
+/// The label of connection `index` with the category of the shown perspective it is in after
+/// it, so that the category does not rest on the color of the line: `reads · Data`.
+fn in_category(
+    label: Option<String>,
+    architecture: &ArchitectureSpec,
+    index: usize,
+) -> Option<String> {
+    let Some(category) = architecture.connection_category(index) else {
+        return label;
+    };
+    let name = &architecture
+        .shown_perspective()
+        .expect("a category lies in the shown perspective")
+        .categories[category]
+        .label;
+    Some(match label {
+        Some(label) => format!("{label} · {name}"),
+        None => name.clone(),
+    })
+}
+
 /// The label of a connection with its step number in front: `2. reads`.
 fn step_label(step: Option<u8>, label: Option<&str>) -> Option<String> {
     match (step, label) {
@@ -376,16 +409,19 @@ fn boundaries_of(architecture: &ArchitectureSpec, component: usize) -> String {
         .join(" › ")
 }
 
-/// Where a component connects to, as `label (step, what, how, weight, role)`, in the order of
-/// the connections; the role only `with_roles`.
-fn connects_to(spec: &ChartSpec, component: usize, with_roles: bool) -> Vec<String> {
+/// Where a component connects to, as `label (step, what, how, weight, role, category)`, in the
+/// order of the connections; the role and the category of the shown perspective only
+/// `in_table`.
+fn connects_to(spec: &ChartSpec, component: usize, in_table: bool) -> Vec<String> {
     let (locale, architecture) = (spec.locale, architecture(spec));
     let id = &architecture.components[component].id;
+    let perspective = architecture.shown_perspective();
     architecture
         .connections
         .iter()
-        .filter(|connection| &connection.from == id)
-        .map(|connection| {
+        .enumerate()
+        .filter(|(_, connection)| &connection.from == id)
+        .map(|(index, connection)| {
             let target = &architecture.components
                 [architecture.component(&connection.to).expect("validated")]
             .label;
@@ -411,8 +447,19 @@ fn connects_to(spec: &ChartSpec, component: usize, with_roles: bool) -> Vec<Stri
                 .chain(
                     connection
                         .role
-                        .filter(|_| with_roles)
+                        .filter(|_| in_table)
                         .map(|role| text::role(locale, role).to_owned()),
+                )
+                .chain(
+                    perspective
+                        .zip(architecture.connection_category(index))
+                        .filter(|_| in_table)
+                        .map(|(perspective, category)| {
+                            format!(
+                                "{}: {}",
+                                perspective.title, perspective.categories[category].label
+                            )
+                        }),
                 )
                 .collect();
             if notes.is_empty() {
@@ -611,11 +658,22 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             .map(Some)
             .chain([None])
             .filter_map(|category| {
-                let members: Vec<&str> = order
+                // The components first, then the connections, which only a category has; a
+                // connection that occurs again is written once.
+                let mut members: Vec<String> = order
                     .iter()
                     .filter(|&&component| categories[component] == category)
-                    .map(|&component| architecture.components[component].label.as_str())
+                    .map(|&component| architecture.components[component].label.clone())
                     .collect();
+                let components = members.len();
+                for index in (0..architecture.connections.len()).filter(|&index| {
+                    category.is_some() && architecture.connection_category(index) == category
+                }) {
+                    let connection = written(architecture, &architecture.connections[index]);
+                    if !members[components..].contains(&connection) {
+                        members.push(connection);
+                    }
+                }
                 (!members.is_empty()).then(|| {
                     format!(
                         "{}: {}",
@@ -1764,6 +1822,101 @@ mod tests {
         assert!(manifest.to_json().contains("\"perspective\": \"team\""));
     }
 
+    /// The blog with ids on two connections, and the perspective of teams shown with a category
+    /// of connections: what the reader reads is the front end's, the query the data team's.
+    fn with_connection_teams(shown: &str) -> String {
+        with_teams(shown)
+            .replace(
+                r#"{"from": "reader", "to": "site""#,
+                r#"{"id": "read", "from": "reader", "to": "site""#,
+            )
+            .replace(
+                r#"{"from": "api", "to": "db""#,
+                r#"{"id": "query", "from": "api", "to": "db""#,
+            )
+            .replace(
+                r#""label": "Frontend", "components": []"#,
+                r#""label": "Frontend", "connections": ["read"]"#,
+            )
+            .replace(
+                r#""components": ["db"]"#,
+                r#""components": ["db"], "connections": ["query"]"#,
+            )
+    }
+
+    #[test]
+    fn a_category_of_connections_is_named_on_the_line_and_in_the_text() {
+        let json = with_connection_teams(r#""perspective": "team", "#);
+        let output = svg(&json).content;
+        // A pinned side changes the way of the line, not its category.
+        let pinned = svg(&json.replace(
+            r#"{"id": "query", "from": "api", "to": "db""#,
+            r#"{"id": "query", "from": "api", "to": "db", "fromSide": "end", "toSide": "start""#,
+        ))
+        .content;
+        assert!(pinned.contains(" chartlet-flow-part-3\""));
+        assert!(pinned.contains(">Data</text>"));
+        // The line in the category's color, its name after the label (or alone), and the
+        // category in the legend, which no component has.
+        assert!(output.contains(" chartlet-flow-part-1\""), "{output}");
+        assert!(output.contains(" chartlet-flow-part-3\""));
+        assert!(output.contains(".chartlet-flow-part-1 .chartlet-flow-edge{stroke:"));
+        assert!(output.contains(">reads · Frontend</text>"));
+        assert!(output.contains(">Data</text>"));
+        assert!(output.contains(">Frontend</text>"));
+        let alternative = text_alternative(&ChartSpec::from_json(&json).unwrap()).unwrap();
+        assert!(
+            alternative.description.contains(
+                "Perspective Team: Frontend: Reader → Site; Backend: API; Data: Posts, API → Posts; not stated: Reader, Site, Images, Mail service."
+            ),
+            "{}",
+            alternative.description
+        );
+        let connects = alternative.table.columns.len() - 1;
+        let reader_row = alternative
+            .table
+            .rows
+            .iter()
+            .find(|row| row[0] == "Reader")
+            .unwrap();
+        assert_eq!(reader_row[connects], "Site (reads, Team: Frontend)");
+
+        for (edited, code, path) in [
+            (
+                json.replace(r#""connections": ["read"]"#, r#""connections": ["load"]"#),
+                "unknown_connection",
+                "/architecture/perspectives/0/categories/0/connections/0",
+            ),
+            (
+                json.replace(r#""connections": ["query"]"#, r#""connections": ["read"]"#),
+                "duplicate_member",
+                "/architecture/perspectives/0/categories/2/connections/0",
+            ),
+        ] {
+            assert_eq!(error(&edited), (code, path.to_owned()));
+        }
+        // Without the perspective shown, the connections are drawn as before.
+        let options = RenderOptions {
+            id_prefix: Some("blog".to_owned()),
+            ..RenderOptions::default()
+        };
+        let render = |json: &str| {
+            render_json(json, RenderFormat::Html, &options)
+                .unwrap()
+                .content
+        };
+        let plain = SPEC
+            .replace(
+                r#"{"from": "reader", "to": "site""#,
+                r#"{"id": "read", "from": "reader", "to": "site""#,
+            )
+            .replace(
+                r#"{"from": "api", "to": "db""#,
+                r#"{"id": "query", "from": "api", "to": "db""#,
+            );
+        assert_eq!(render(&with_connection_teams("")), render(&plain));
+    }
+
     #[test]
     fn metadata_without_a_shown_perspective_changes_nothing() {
         let options = RenderOptions {
@@ -2138,6 +2291,55 @@ mod tests {
             alternative
                 .description
                 .contains("Payments provides Payments API")
+        );
+    }
+
+    #[test]
+    fn an_interface_connection_keeps_its_category_and_is_derived_with_its_interface() {
+        let charge = INTERFACES.replace(
+            r#"{ "from": "checkout", "to": "payments","#,
+            r#"{ "id": "charge", "from": "checkout", "to": "payments","#,
+        );
+        let json = charge.replace(
+            "\"orientation\"",
+            r#""perspectives": [{"key": "team", "title": "Team", "categories": [
+                {"label": "Payments team", "components": ["payments"], "connections": ["charge"]}
+            ]}],
+            "perspective": "team",
+            "orientation""#,
+        );
+        let output = svg(&json);
+        let socket = output
+            .content
+            .split("<g class=\"")
+            .find(|group| group.contains("<title>Checkout → Payments API: charges · Payments team"))
+            .expect("drawn");
+        assert!(socket.contains("chartlet-flow-part-1"), "{socket}");
+        assert!(socket.contains("chartlet-arch-socket"));
+        assert!(
+            output
+                .content
+                .contains(".chartlet-flow-part-1 .chartlet-arch-socket{")
+        );
+        // A deployment view that derives its connections keeps the interface.
+        let json = INTERFACES.replace(
+            "\"orientation\"",
+            r#""views": [{"key": "prod", "title": "Production", "environment": "Production",
+                "hosts": [{"id": "node", "label": "Cluster"}],
+                "instances": [{"id": "checkout-1", "of": "checkout", "in": "node"}, {"id": "payments-1", "of": "payments", "in": "node"}],
+                "deriveConnections": true}],
+            "orientation""#,
+        );
+        let options = RenderOptions {
+            view: Some("prod".to_owned()),
+            ..RenderOptions::default()
+        };
+        let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        assert_eq!(count(&output.content, "chartlet-arch-socket"), 1);
+        assert!(
+            output
+                .content
+                .contains("<title>Checkout (checkout-1) → Payments API: charges</title>")
         );
     }
 }

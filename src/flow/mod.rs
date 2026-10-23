@@ -370,6 +370,9 @@ pub(crate) struct Edge {
     pub weight: Option<f64>,
     /// What the edge means beyond its kind: the color and pattern of its line.
     pub role: Option<DiagramRole>,
+    /// The class its group gains for the category of a perspective it is in: the color of its
+    /// line and arrowheads.
+    pub category: Option<&'static str>,
     /// The sides of its steps the edge is asked to leave and reach.
     pub sides: Sides,
 }
@@ -557,6 +560,7 @@ impl Diagram {
                     sign: "→",
                     weight: edge.weight,
                     role: edge.role,
+                    category: None,
                     sides: Sides {
                         from: edge.from_side,
                         to: edge.to_side,
@@ -633,6 +637,7 @@ impl Diagram {
             sign: "—",
             weight: None,
             role: None,
+            category: None,
             sides: Sides::default(),
         });
         self.nodes.push(Node {
@@ -846,7 +851,7 @@ fn side_room(
 }
 
 /// Each step's label and sublabel on one or two lines, and its box: width and height.
-#[allow(clippy::type_complexity)]
+#[allow(clippy::type_complexity, clippy::too_many_lines)]
 fn node_boxes(
     diagram: &Diagram,
     spacing: &Spacing,
@@ -874,15 +879,12 @@ fn node_boxes(
             sizes.push((INITIAL, INITIAL));
             continue;
         }
-        if node.shape == Shape::Note {
-            let (lines, size) = note_box(&node.label, &node.path, spacing, metrics, warnings);
-            labels.push(lines);
-            sublabels.push(Vec::new());
-            sizes.push(size);
-            continue;
-        }
-        if node.shape == Shape::Interface {
-            let (lines, size) = interface_box(node, spacing, metrics, warnings);
+        if matches!(node.shape, Shape::Note | Shape::Interface) {
+            let (lines, size) = if node.shape == Shape::Note {
+                note_box(&node.label, &node.path, spacing, metrics, warnings)
+            } else {
+                interface_box(node, spacing, metrics, warnings)
+            };
             labels.push(lines);
             sublabels.push(Vec::new());
             sizes.push(size);
@@ -3053,6 +3055,9 @@ impl Plan {
             let mut classes = model.edge_classes(edge);
             if let Some(width) = width {
                 write!(classes, " chartlet-flow-w{width}").expect("writing to String cannot fail");
+            }
+            if let Some(category) = model.diagram.edges[edge].category {
+                classes.push_str(category);
             }
             if let Some(role) = model.diagram.edges[edge].role {
                 classes.push_str(roles::class(role));

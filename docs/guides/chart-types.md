@@ -1231,6 +1231,21 @@ first — and never the whole model, so a view never passes for the complete sys
   by the optional `id` a connection carries. A view draws no connection the model does not have
   and leaves out every connection to a component it hides; it does not merge components into
   coarser ones.
+- **Tags.** Components and connections may carry `tags`, such as `"tags": ["public"]` — up to
+  eight, written like ids, never drawn. A view selects by them with `include` and `exclude`, in
+  addition to its lists, by one rule:
+  1. A component is shown when the view lists it in `components`, or when it carries a tag of
+     `include` and none of `exclude`. A view with `exclude` but neither `components` nor
+     `include` starts from every component.
+  2. Without `connections`, every connection between shown components comes along, except one
+     that carries a tag of `exclude`. With `connections`, the view shows those, and every
+     connection between shown components that carries a tag of `include` and none of `exclude`.
+
+  What a view lists by id is always shown; tags never take it away. The model's order stays.
+  `unknown_tag` for a tag no component or connection carries, `duplicate_tag` for one named
+  twice in `include` and `exclude` together, `invalid_tag`, `too_many_tags`, and `empty_view`
+  when the tags select no component. A dynamic or deployment view takes no tags
+  (`option_not_supported`).
 - **Boundaries** come along when they hold a shown component, directly or further in; the others
   are left out.
 - **Highlighting.** A view's `mainPath` is drawn stronger, along its own connections. Without
@@ -1243,6 +1258,9 @@ first — and never the whole model, so a view never passes for the complete sys
   is never used. Without one the description is generated from what the view shows and says
   how much of the model that is (“It is a view that shows 8 of the model's 11 components and 8
   of its 11 connections.”). The data table lists the shown components only.
+- **Size.** A view may set its own `width`, `height` and `mobile`, in place of the model's — a
+  narrow detail beside a wide overview. They are checked like the model's, with diagnostics at
+  the view; a view without them keeps the model's size. `spacing` always comes from the model.
 - **Variants and provenance.** Every variant — HTML, mobile, print, social, PNG — renders the
   chosen view. The manifest names it in `view`; `specHash` is the hash of the whole model. Each
   view gets its own derived ID prefix, so several views can share a page.
@@ -1271,7 +1289,10 @@ print every view after the first starts a new page.
   specification without views and PNG are refused (`option_not_supported` at
   `/render/allViews`); each view as SVG stays a file of its own. A single view's export is
   unchanged by this option.
-- **Provenance.** The manifest lists the views in `views`, in the order of the page.
+- **Size and perspective.** Each section has the `width`, `height` and `mobile` of its view,
+  or the model's. `--perspective` shows the perspective asked for in every section.
+- **Provenance.** The manifest lists the views in `views`, in the order of the page, and the
+  perspective asked for in `perspective`.
 
 Example `shop-views.all.html`.
 
@@ -1281,7 +1302,8 @@ The same diagram can answer different questions: which team runs each component,
 technical debt is high. A model keeps the answers as stated metadata, apart from its components
 and from how it is drawn: `perspectives` names the questions, each with its categories and the
 components in each. Nothing is drawn until a perspective is selected — by `perspective` on the
-model, or on a view, which takes the place of the model's.
+model, or on a view, which takes the place of the model's, or at render time
+(`--perspective debt`, `perspective: 'debt'`), which takes the place of both in every view.
 
 ```json
 "perspectives": [
@@ -1305,8 +1327,15 @@ model, or on a view, which takes the place of the model's.
 - **Not stated.** A component that no category of the shown perspective lists is drawn with an
   outlined stripe and named “not stated” — never as the lowest category. A component lies in at
   most one category of a perspective. A view keeps in each category only the components it shows.
-- **Legend.** Below the diagram, after the perspective's title: the categories used, in their
-  order, and “not stated” when it occurs.
+- **Connections.** A category may also list `connections` by their `id`. Such a line is drawn in
+  the category's color, arrowheads too, and carries the category's name after its label (`reads ·
+  Data`, or the name alone) so the meaning does not rest on color; a role keeps its own color.
+  A connection no category lists is drawn as without the perspective, never as not stated. A
+  view keeps the categories of the connections it shows; every occurrence of a step and every
+  instance connection that carries a listed model connection lies in its category. The description names them after the
+  components of their category (`Data: Posts, API → Posts`), the table after the connection.
+- **Legend.** Below the diagram, after the perspective's title: the categories used by components
+  or connections, in their order, and “not stated” when it occurs.
 - **Text.** The description ends with the perspective: each category with the components that
   have it, then the perspective's own description. The data table has a column named after the
   perspective. The manifest names it in `perspective`.
@@ -1354,9 +1383,25 @@ them.
   (api-1)`, so replicas stay apart in the drawing, the description and the table. A label changed
   in the model reaches every environment.
 - **Only listed connections.** Nothing joins instances but `instanceConnections`; chartlet never
-  connects replicas by itself. An instance connection with the `id` of a model connection must
+  connects replicas by itself unless the view asks for it with `deriveConnections`. An instance connection with the `id` of a model connection must
   join instances of that connection's ends (`instance_mismatch`) and takes the label, technology,
-  dash and role it leaves out from it.
+  dash, role, `fromSide` and `toSide` it leaves out from it.
+- **Derived connections.** `"deriveConnections": true` adds instance connections from the model,
+  by one stated rule, after the listed ones:
+  1. Every model connection whose `id` no instance connection names is derived; one the view
+     names is left to its instance connections entirely, so the listed ones take precedence.
+  2. Each instance of its `from` component, in the order of `instances`, joins the nearest
+     instances of its `to` component: those whose hosts share the most enclosing hosts with its
+     own, counted from the outermost (an instance without a host shares none). At a tie it joins
+     all of them, and never itself.
+  3. The derived connection is the model connection — label, technology, dash, role, weight,
+     direction, `fromSide` and `toSide` — with the two instances as its ends.
+
+  So two API replicas on their own nodes each join the database on their node, and a load
+  balancer outside the nodes joins both replicas. Derived connections count toward the 80
+  connections of the view (`too_many_edges` at `…/deriveConnections`), and a diagnostic about
+  one points to its model connection. Only a deployment view takes `deriveConnections`
+  (`option_not_supported`).
 - **Hosts** replace the model's boundaries in the view; the model's main path, shared ranks and
   notes stay out of it, except notes without `on`, which every view keeps.
 - **Text.** The description names the environment and how many instances run how many
@@ -1365,7 +1410,8 @@ them.
   instances, 80 instance connections and 12 hosts nested four deep — and every diagnostic points
   into the view: `unknown_node` for an `of`, `from` or `to` that names nothing, `unknown_boundary`
   for a host, `duplicate_id` for an id used twice among instances and hosts,
-  `unknown_connection` for an `id` the model does not have. A deployment view takes no
+  `unknown_connection` for an `id` the model does not have, `text_too_long` at an instance's `id`
+  when its label `Label (id)` exceeds 60 characters. A deployment view takes no
   `components`, `connections`, `steps` or `mainPath`, and another view no `hosts`, `instances`
   or `instanceConnections` (`option_not_supported`).
 

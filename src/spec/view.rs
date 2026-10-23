@@ -6,8 +6,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ArchitectureSpec, BoundarySpec, ChartSpec, ConnectionSpec, MainPath, sequence::is_identifier,
-    validate_text,
+    ArchitectureSpec, BoundarySpec, ChartSpec, ConnectionSpec, MainPath, MobileSpec,
+    sequence::is_identifier, validate_text,
 };
 use crate::error::ChartError;
 
@@ -49,6 +49,25 @@ pub struct ViewSpec {
     /// The `key` of the perspective the view shows, in place of the model's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub perspective: Option<String>,
+    /// The width of the diagram the view renders, in place of the model's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+    /// The height of the diagram the view renders, in place of the model's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
+    /// The mobile layout of the diagram the view renders, in place of the model's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mobile: Option<MobileSpec>,
+    /// Tags that select more components: one carrying any of them is shown, unless it carries
+    /// an `exclude` tag. With `connections`, also the connections between shown components that
+    /// carry one.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub include: Vec<String>,
+    /// Tags that leave out what `include` or the model brings: a component or connection
+    /// carrying any of them is not shown, unless the view lists it. A view with `exclude` alone
+    /// starts from every component.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
     /// A deployment view: the name of the environment, such as `Production`. Such a view shows
     /// `instances` of the model's components on its `hosts`, joined by its
     /// `instanceConnections`, in place of components, connections and steps.
@@ -64,6 +83,11 @@ pub struct ViewSpec {
     /// with the `id` of a model connection takes what it leaves out from it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub instance_connections: Vec<ConnectionSpec>,
+    /// Whether a deployment view also derives instance connections from every model connection
+    /// whose `id` its `instanceConnections` do not name: each instance of its `from` component
+    /// joins the nearest instances of its `to` component, by hosts.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub derive_connections: bool,
 }
 
 /// One running instance of a component in a deployment view.
@@ -119,6 +143,12 @@ pub(crate) struct ResolvedView {
     /// The view is a deployment: its components are the view's instances, its boundaries its
     /// hosts and its connections its instance connections.
     pub(super) deployment: bool,
+    /// The fields of the size the view sets in place of the model's: `width`, `height`, `mobile`.
+    pub(super) own_size: Vec<&'static str>,
+    /// How many instance connections a deployment view lists, and the place in the model of the
+    /// connection each derived one after them comes from.
+    pub(super) explicit_connections: usize,
+    pub(super) derived: Vec<usize>,
 }
 
 impl ChartSpec {
@@ -245,7 +275,7 @@ impl ChartSpec {
                     }
                     // A connection that occurs again keeps its id only the first time.
                     if connections[..occurrence].contains(&index) {
-                        connection.id = None;
+                        connection.model_id = connection.id.take();
                     }
                 }
                 connection
@@ -294,10 +324,15 @@ impl ChartSpec {
         architecture.views = Vec::new();
         architecture.default_view = None;
         architecture.perspective = view.perspective.clone().or(architecture.perspective);
-        // A category keeps the components the view shows.
+        // A category keeps the components and connections the view shows.
         for perspective in &mut architecture.perspectives {
             for category in &mut perspective.categories {
                 category.components.retain(|id| is_shown(id));
+                category.connections.retain(|id| {
+                    connections
+                        .iter()
+                        .any(|&index| model.connections[index].id.as_ref() == Some(id))
+                });
             }
         }
         let mut distinct = connections.clone();
@@ -312,6 +347,7 @@ impl ChartSpec {
         spec.title.clone_from(&view.title);
         spec.description.clone_from(&view.description);
         spec.architecture = Some(architecture);
+        let own_size = view.size_of(&mut spec);
         ResolvedView {
             spec,
             key: view.key.clone(),
@@ -324,6 +360,9 @@ impl ChartSpec {
             dynamic,
             own_main_path: !view.main_path.is_empty(),
             deployment: false,
+            own_size,
+            explicit_connections: 0,
+            derived: Vec::new(),
         }
     }
 }
@@ -354,6 +393,45 @@ pub(super) fn shown_notes(model: &ArchitectureSpec, is_shown: impl Fn(&str) -> b
     (0..model.notes.len())
         .filter(|&note| model.notes[note].on.as_deref().is_none_or(&is_shown))
         .collect()
+}
+
+impl ViewSpec {
+    /// Whether a static view shows the component `id` with `tags`: one it lists always; another
+    /// when one of its tags is in `include` (or, for a view that lists neither components nor
+    /// `include`, any) and none in `exclude`.
+    fn selects(&self, id: &str, tags: &[String]) -> bool {
+        if self.components.iter().any(|listed| listed == id) {
+            return true;
+        }
+        let tagged = |with: &[String]| tags.iter().any(|tag| with.contains(tag));
+        let selected = tagged(&self.include)
+            || (self.components.is_empty() && self.include.is_empty() && !self.exclude.is_empty());
+        selected && !tagged(&self.exclude)
+    }
+
+    /// Whether the view selects components by tags.
+    fn has_tags(&self) -> bool {
+        !self.include.is_empty() || !self.exclude.is_empty()
+    }
+
+    /// Gives `spec` the size the view sets in place of the model's, and returns the fields it
+    /// set.
+    pub(super) fn size_of(&self, spec: &mut ChartSpec) -> Vec<&'static str> {
+        let mut own = Vec::new();
+        if let Some(width) = self.width {
+            spec.width = width;
+            own.push("width");
+        }
+        if let Some(height) = self.height {
+            spec.height = height;
+            own.push("height");
+        }
+        if let Some(mobile) = &self.mobile {
+            spec.mobile = Some(mobile.clone());
+            own.push("mobile");
+        }
+        own
+    }
 }
 
 fn unknown_view(key: &str, keys: &[&str]) -> ChartError {
@@ -396,13 +474,13 @@ impl ArchitectureSpec {
 
         let shown = |component: usize| {
             let id = &model.components[component].id;
-            if view.components.is_empty() {
+            if dynamic && view.components.is_empty() {
                 steps.iter().any(|&step| {
                     let connection = &model.connections[step];
                     &connection.from == id || &connection.to == id
                 })
             } else {
-                view.components.contains(id)
+                view.selects(id, &model.components[component].tags)
             }
         };
         let components: Vec<usize> = (0..model.components.len())
@@ -414,22 +492,29 @@ impl ArchitectureSpec {
                 .any(|&component| model.components[component].id == id)
         };
 
+        let tagged = |tags: &[String], with: &[String]| tags.iter().any(|tag| with.contains(tag));
         let connections: Vec<usize> = if dynamic {
             steps.clone()
         } else if let Some(ids) = &view.connections {
+            // The listed connections, and those between shown components that an `include`
+            // tag selects and no `exclude` tag leaves out.
             (0..model.connections.len())
                 .filter(|&index| {
-                    model.connections[index]
-                        .id
-                        .as_ref()
-                        .is_some_and(|id| ids.contains(id))
+                    let connection = &model.connections[index];
+                    connection.id.as_ref().is_some_and(|id| ids.contains(id))
+                        || (is_shown(&connection.from)
+                            && is_shown(&connection.to)
+                            && tagged(&connection.tags, &view.include)
+                            && !tagged(&connection.tags, &view.exclude))
                 })
                 .collect()
         } else {
             (0..model.connections.len())
                 .filter(|&index| {
                     let connection = &model.connections[index];
-                    is_shown(&connection.from) && is_shown(&connection.to)
+                    is_shown(&connection.from)
+                        && is_shown(&connection.to)
+                        && !tagged(&connection.tags, &view.exclude)
                 })
                 .collect()
         };
@@ -483,11 +568,11 @@ impl ArchitectureSpec {
             return self.validate_deployment(view, &path);
         }
         super::deployment::reject_deployment_fields(view, &path)?;
-        if view.components.is_empty() && view.steps.is_empty() {
+        if view.components.is_empty() && view.steps.is_empty() && !view.has_tags() {
             return Err(ChartError::new(
                 "empty_view",
                 path,
-                "a view shows at least one component; list its components or its steps",
+                "a view shows at least one component; list its components, its steps or tags to include",
             ));
         }
         if !view.steps.is_empty() && view.connections.is_some() {
@@ -514,6 +599,7 @@ impl ArchitectureSpec {
                 ));
             }
         }
+        self.validate_view_tags(view, &path)?;
         let ids = view.connections.iter().flatten().enumerate();
         for (position, id) in ids {
             let at = format!("{path}/connections/{position}");
@@ -549,6 +635,64 @@ impl ArchitectureSpec {
         Ok(())
     }
 
+    /// The tags a view selects by: well formed, each once in `include` and `exclude` together,
+    /// carried by a component or a connection of the model, and selecting at least one
+    /// component; none in a dynamic view.
+    fn validate_view_tags(&self, view: &ViewSpec, path: &str) -> Result<(), ChartError> {
+        let lists = [("include", &view.include), ("exclude", &view.exclude)];
+        if let Some((field, _)) = lists
+            .iter()
+            .find(|(_, tags)| !view.steps.is_empty() && !tags.is_empty())
+        {
+            return Err(ChartError::new(
+                "option_not_supported",
+                format!("{path}/{field}"),
+                "a view with steps shows the components of its steps; leave out include and exclude",
+            ));
+        }
+        let mut seen: Vec<&str> = Vec::new();
+        for (field, tags) in lists {
+            for (at, tag) in tags.iter().enumerate() {
+                let at = format!("{path}/{field}/{at}");
+                super::architecture::validate_tag(tag, &at)?;
+                if seen.contains(&tag.as_str()) {
+                    return Err(ChartError::new(
+                        "duplicate_tag",
+                        at,
+                        format!("the tag \"{tag}\" is already listed in include or exclude"),
+                    ));
+                }
+                seen.push(tag);
+                let carried = self
+                    .components
+                    .iter()
+                    .map(|component| &component.tags)
+                    .chain(self.connections.iter().map(|connection| &connection.tags))
+                    .any(|tags| tags.contains(tag));
+                if !carried {
+                    return Err(ChartError::new(
+                        "unknown_tag",
+                        at,
+                        format!("no component or connection carries the tag \"{tag}\""),
+                    ));
+                }
+            }
+        }
+        if view.has_tags()
+            && !self
+                .components
+                .iter()
+                .any(|component| view.selects(&component.id, &component.tags))
+        {
+            return Err(ChartError::new(
+                "empty_view",
+                path,
+                "the view's tags select no component; check include and exclude",
+            ));
+        }
+        Ok(())
+    }
+
     /// A connection a view names: one the model has, between components the view shows.
     fn check_view_connection(
         &self,
@@ -567,11 +711,14 @@ impl ArchitectureSpec {
                 format!("no connection has the id \"{id}\""),
             ));
         };
-        if view.components.is_empty() {
+        if view.components.is_empty() && !view.has_tags() {
             return Ok(());
         }
         for end in [&connection.from, &connection.to] {
-            if !view.components.contains(end) {
+            let shown = self
+                .component(end)
+                .is_some_and(|index| view.selects(end, &self.components[index].tags));
+            if !shown {
                 return Err(ChartError::new(
                     "connection_outside_view",
                     path,
@@ -594,7 +741,33 @@ impl ResolvedView {
         if path == "/title" || path == "/description" {
             return format!("{view}{path}");
         }
+        // A size the view sets is checked in the view.
+        if self.own_size.iter().any(|field| {
+            path.strip_prefix('/')
+                .and_then(|rest| rest.strip_prefix(field))
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+        }) {
+            return format!("{view}{path}");
+        }
         if self.deployment {
+            // A derived connection comes from the model's; too many of them, from deriving.
+            if let Some(rest) = path.strip_prefix("/architecture/connections") {
+                if rest.is_empty() && !self.derived.is_empty() {
+                    return format!("{view}/deriveConnections");
+                }
+                let (number, rest) = rest
+                    .strip_prefix('/')
+                    .map(|rest| rest.split_at(rest.find('/').unwrap_or(rest.len())))
+                    .unwrap_or_default();
+                if let Some(&place) = number
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|at| at.checked_sub(self.explicit_connections))
+                    .and_then(|at| self.derived.get(at))
+                {
+                    return format!("/architecture/connections/{place}{rest}");
+                }
+            }
             // Instances, hosts and instance connections are the view's own lists.
             for (list, own) in [
                 ("components", "instances"),
@@ -1212,6 +1385,340 @@ mod tests {
         let team = &architecture(&overview).perspectives[0];
         assert_eq!(team.categories[0].components, ["site"]);
         assert_eq!(team.categories[1].components, ["api"]);
+    }
+
+    #[test]
+    fn a_render_option_shows_its_perspective_in_every_view() {
+        let json = include_str!("../../examples/service-perspectives.json");
+        let options = |view: &str, perspective: Option<&str>| RenderOptions {
+            perspective: perspective.map(str::to_owned),
+            manifest: true,
+            ..with(Some(view))
+        };
+        let debt = render_json(json, RenderFormat::Svg, &options("debt", None)).unwrap();
+        let owners =
+            render_json(json, RenderFormat::Svg, &options("owners", Some("debt"))).unwrap();
+        assert!(owners.content.contains(">Technical debt:</text>"));
+        assert!(!owners.content.contains(">Team:</text>"));
+        let manifest = owners.manifest.unwrap();
+        assert_eq!(manifest.perspective.as_deref(), Some("debt"));
+        assert_eq!(manifest.view.as_deref(), Some("owners"));
+        // The hash is that of the model as given.
+        assert_eq!(manifest.spec_hash, debt.manifest.unwrap().spec_hash);
+        // On the page of all views, every view shows the perspective asked for.
+        let page = render_json(
+            json,
+            RenderFormat::Html,
+            &RenderOptions {
+                perspective: Some("debt".to_owned()),
+                all_views: true,
+                manifest: true,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(page.content.matches(">Technical debt:</text>").count() >= 2);
+        assert!(!page.content.contains(">Team:</text>"));
+        let manifest = page.manifest.unwrap();
+        assert_eq!(manifest.perspective.as_deref(), Some("debt"));
+        // The same perspective asked for again changes nothing.
+        let same = render_json(json, RenderFormat::Svg, &options("debt", Some("debt"))).unwrap();
+        assert_eq!(same.content, debt.content);
+        // A plain diagram with perspectives but none selected shows the one asked for.
+        let mut plain = ChartSpec::from_json(json)
+            .unwrap()
+            .view(Some("debt"))
+            .unwrap();
+        plain.architecture.as_mut().unwrap().perspective = None;
+        let plain = serde_json::to_string(&plain).unwrap();
+        let shown = render_json(
+            &plain,
+            RenderFormat::Svg,
+            &RenderOptions {
+                perspective: Some("debt".to_owned()),
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(shown.content.contains(">Technical debt:</text>"));
+
+        let error =
+            render_json(json, RenderFormat::Svg, &options("owners", Some("cost"))).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("unknown_perspective", "/render/perspective")
+        );
+        assert!(
+            error
+                .message
+                .contains("the perspectives are \"owner\", \"debt\""),
+            "{}",
+            error.message
+        );
+        let error = ChartSpec::from_json(MODEL)
+            .unwrap()
+            .with_perspective("cost")
+            .unwrap_err();
+        assert_eq!(error.code, "unknown_perspective");
+        assert!(
+            error
+                .message
+                .contains("the specification has no perspectives")
+        );
+    }
+
+    #[test]
+    fn a_view_keeps_the_categories_of_the_connections_it_shows() {
+        let json = edited(
+            r#""mainPath": ["#,
+            r#""perspectives": [
+                {"key": "team", "title": "Team", "categories": [
+                    {"label": "Web", "connections": ["read", "store"]},
+                    {"label": "Data", "components": ["db"], "connections": ["query"]}]}
+               ], "perspective": "team", "mainPath": ["#,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        let media = spec.view(Some("media")).unwrap();
+        let team = &architecture(&media).perspectives[0];
+        assert_eq!(team.categories[0].connections, ["store"]);
+        assert!(team.categories[1].connections.is_empty());
+        // Every occurrence of a connection in a dynamic view is in its category.
+        let svg = render_json(&json, RenderFormat::Svg, &with(Some("comment")))
+            .unwrap()
+            .content;
+        assert!(svg.contains(">2. reads post · Data</text>"), "{svg}");
+        assert!(svg.contains(">3. saves comment · Data</text>"));
+        assert_eq!(svg.matches(" chartlet-flow-part-2\"").count(), 2);
+        assert!(!svg.contains(">Web</text>"));
+        let alternative = text_alternative(&spec.view(Some("comment")).unwrap()).unwrap();
+        assert!(
+            alternative
+                .description
+                .contains("Data: Posts, API → Posts;"),
+            "{}",
+            alternative.description
+        );
+    }
+
+    #[test]
+    fn a_view_may_set_its_own_size() {
+        let json = edited(
+            r#""title": "Blog media","#,
+            r#""title": "Blog media", "width": 720, "height": 480,
+               "mobile": {"width": 340, "height": 700},"#,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        let media = spec.view(Some("media")).unwrap();
+        assert_eq!((media.width, media.height), (720, 480));
+        assert_eq!(media.mobile.as_ref().map(|mobile| mobile.width), Some(340));
+        // The other views keep the model's size.
+        let overview = spec.view(Some("overview")).unwrap();
+        assert_eq!((overview.width, overview.height), (1000, 600));
+        assert_eq!(
+            overview.mobile.as_ref().map(|mobile| mobile.width),
+            Some(360)
+        );
+        let svg = render_json(&json, RenderFormat::Svg, &with(Some("media")))
+            .unwrap()
+            .content;
+        assert!(svg.contains(r#"viewBox="0 0 720 "#), "{svg}");
+        let mobile = render_json(
+            &json,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: crate::Variant::Mobile,
+                ..with(Some("media"))
+            },
+        )
+        .unwrap()
+        .content;
+        assert!(mobile.contains(r#"viewBox="0 0 340 "#));
+        // On the page of all views, each section has the size of its view.
+        let page = render_json(
+            &json,
+            RenderFormat::Html,
+            &RenderOptions {
+                all_views: true,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap()
+        .content;
+        assert!(page.contains(r#"viewBox="0 0 720 "#) && page.contains(r#"viewBox="0 0 1000 "#));
+        assert!(page.contains(r#"viewBox="0 0 340 "#) && page.contains(r#"viewBox="0 0 360 "#));
+        // Without a size of its own, a view renders the bytes it did.
+        assert_eq!(
+            render(&json, Some("overview")).unwrap().content,
+            render(MODEL, Some("overview")).unwrap().content
+        );
+
+        for (field, path) in [
+            (r#""width": 100,"#, "/architecture/views/1/width"),
+            (r#""height": 100,"#, "/architecture/views/1/height"),
+            (
+                r#""mobile": {"width": 100},"#,
+                "/architecture/views/1/mobile/width",
+            ),
+        ] {
+            let json = edited(
+                r#""title": "Blog media","#,
+                &format!(r#""title": "Blog media", {field}"#),
+            );
+            let error = error(&json);
+            assert_eq!(error.path, path, "{}: {}", error.code, error.message);
+        }
+        // The model's own size is checked at the model's.
+        let error = error(&edited(r#""width": 1000"#, r#""width": 100"#));
+        assert_eq!(error.path, "/width");
+    }
+
+    /// The model with tags on its components and on one connection, and `views` in place of its
+    /// own.
+    fn tagged(views: &str) -> String {
+        let mut json = MODEL.to_owned();
+        for (component, tags) in [
+            ("reader", r#"["public"]"#),
+            ("site", r#"["public"]"#),
+            ("api", r#"["core"]"#),
+            ("db", r#"["core", "data"]"#),
+            ("files", r#"["data"]"#),
+            ("mail", r#"["external"]"#),
+        ] {
+            let from = format!(r#"{{"id": "{component}", "#);
+            json = json.replacen(
+                &from,
+                &format!(r#"{{"tags": {tags}, "id": "{component}", "#),
+                1,
+            );
+        }
+        let json = json.replacen(
+            r#"{"id": "load", "#,
+            r#"{"tags": ["sync"], "id": "load", "#,
+            1,
+        );
+        let start = json.find(r#""views": ["#).unwrap();
+        let end = json.rfind(']').unwrap();
+        format!("{}\"views\": [{views}{}", &json[..start], &json[end..])
+    }
+
+    #[test]
+    fn tags_select_and_leave_out_by_one_rule() {
+        let json = tagged(
+            r#"{"key": "public", "title": "Public", "include": ["public"]},
+               {"key": "core", "title": "Core", "components": ["site"], "include": ["core"], "exclude": ["data"]},
+               {"key": "inner", "title": "Inner", "exclude": ["external", "public"]},
+               {"key": "quiet", "title": "Quiet", "components": ["reader", "site", "api"], "exclude": ["sync"]},
+               {"key": "listed", "title": "Listed", "components": ["site", "api", "db"], "connections": ["query"], "include": ["sync"]},
+               {"key": "kept", "title": "Kept", "components": ["db"], "include": ["core"], "exclude": ["data"]}"#,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        let shown = |key: &str| {
+            let view = spec.view(Some(key)).unwrap();
+            let shown = architecture(&view);
+            (
+                ids(shown.components.iter().map(|c| c.id.as_str())),
+                ids(shown.connections.iter().filter_map(|c| c.id.as_deref())),
+            )
+        };
+        let pair =
+            |components: &str, connections: &str| (components.to_owned(), connections.to_owned());
+        // Included by tag; the connections between them come along.
+        assert_eq!(shown("public"), pair("reader site", "read"));
+        // Listed, or included and not excluded.
+        assert_eq!(shown("core"), pair("site api", "load"));
+        // Exclude alone starts from every component.
+        assert_eq!(shown("inner"), pair("api db files", "query store"));
+        // A connection with an excluded tag is left out.
+        assert_eq!(shown("quiet"), pair("reader site api", "read"));
+        // With listed connections, include adds the tagged ones between shown components.
+        assert_eq!(shown("listed"), pair("site api db", "load query"));
+        // A listed component is shown although an exclude tag would leave it out.
+        assert_eq!(shown("kept"), pair("api db", "query"));
+        // Tags are not drawn: with one ID prefix, a view that does not select by them renders
+        // the bytes it did.
+        let fixed = |json: &str| {
+            let options = RenderOptions {
+                id_prefix: Some("blog".to_owned()),
+                ..RenderOptions::default()
+            };
+            render_json(json, RenderFormat::Html, &options)
+                .unwrap()
+                .content
+        };
+        let overview = r#"{"key": "overview", "title": "Blog overview",
+            "components": ["reader", "site", "api", "db"]}"#;
+        assert_eq!(fixed(&tagged(overview)), fixed(MODEL));
+    }
+
+    #[test]
+    fn tags_are_checked_in_the_model_and_the_view() {
+        for (views, code, path) in [
+            (
+                r#"{"key": "a", "title": "A", "include": ["private"]}"#,
+                "unknown_tag",
+                "/architecture/views/0/include/0",
+            ),
+            (
+                r#"{"key": "a", "title": "A", "include": ["core"], "exclude": ["core"]}"#,
+                "duplicate_tag",
+                "/architecture/views/0/exclude/0",
+            ),
+            (
+                r#"{"key": "a", "title": "A", "include": ["1st"]}"#,
+                "invalid_tag",
+                "/architecture/views/0/include/0",
+            ),
+            (
+                r#"{"key": "a", "title": "A", "include": ["sync"]}"#,
+                "empty_view",
+                "/architecture/views/0",
+            ),
+            (
+                r#"{"key": "a", "title": "A", "include": ["public"], "connections": ["load"]}"#,
+                "connection_outside_view",
+                "/architecture/views/0/connections/0",
+            ),
+            (
+                r#"{"key": "a", "title": "A", "steps": [{"connection": "load"}], "exclude": ["data"]}"#,
+                "option_not_supported",
+                "/architecture/views/0/exclude",
+            ),
+        ] {
+            let error = error(&tagged(views));
+            assert_eq!(
+                (error.code, error.path.as_str()),
+                (code, path),
+                "{}",
+                error.message
+            );
+        }
+        let view = r#"{"key": "a", "title": "A", "include": ["public"]}"#;
+        for (tags, code, path) in [
+            (
+                r#"["public", "1st"]"#,
+                "invalid_tag",
+                "/architecture/components/0/tags/1",
+            ),
+            (
+                r#"["public", "public"]"#,
+                "duplicate_tag",
+                "/architecture/components/0/tags/1",
+            ),
+            (
+                r#"["public", "a", "b", "c", "d", "e", "f", "g", "h"]"#,
+                "too_many_tags",
+                "/architecture/components/0/tags",
+            ),
+        ] {
+            let json = tagged(view).replacen(r#"["public"]"#, tags, 1);
+            let error = error(&json);
+            assert_eq!(
+                (error.code, error.path.as_str()),
+                (code, path),
+                "{}",
+                error.message
+            );
+        }
     }
 
     #[test]
