@@ -31,6 +31,7 @@ export function createRenderer(module) {
         table: options.table ?? "details",
         idPrefix: options.idPrefix || undefined,
         variant: options.variant,
+        view: options.view || undefined,
         strict: options.strict ?? false,
         allowWarnings: options.allowWarnings ?? [],
         manifest: options.manifest ?? false,

@@ -260,6 +260,11 @@ const KINDS = {
       label: "what it does",
       technology: "how, in brackets below the label",
       step: "1-99, each once: numbers the connection in a sequence of calls, written before the label",
+      id: "optional stable name by which views select the connection",
+    },
+    view: {
+      components: "architecture.views[]: a key, a title and the components shown; connections between them come along, or only the listed connections",
+      steps: "a dynamic view: connection ids in the order they occur, each with optional step text, numbered from 1; a connection may occur again",
     },
   },
   tree: {
@@ -298,6 +303,7 @@ const NOTES = [
   "Every kind has its own shape and a role color; say what an edge means in its label, the line pattern only repeats it.",
   "The description and the data table list every element in reading order; check a spec with chartlet_validate_spec.",
   '"theme": "blueprint" draws a diagram in pale lines on a deep blue ground (diagrams only; charts keep light and dark). A deployment is an architecture diagram: boundaries are the hosts, components of kind node and artifact sit in them.',
+  'An architecture model with "views" renders one view (chartlet_render view, or defaultView, or the first): only its components, the connections between them and the boundaries holding them; never the whole model.',
   'A tree takes "layout": "radial" for a mind map (root in the middle, subtrees in sectors); it refuses orientation, partner and link. "collapsed": true on a node hides what hangs below it.',
 ];
 
