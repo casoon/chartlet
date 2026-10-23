@@ -31,6 +31,9 @@ pub struct FlowSpec {
     /// layout hint only; it adds no edge.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub same_rank: Vec<Vec<String>>,
+    /// Notes beside steps or on the whole chart, such as an assumption or a limitation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<NoteSpec>,
     /// Which way the flow runs: down in portrait, right in landscape.
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
@@ -337,19 +340,23 @@ pub(crate) fn validate_weight(weight: Option<f64>, path: &str) -> Result<(), Cha
 pub(crate) const MAX_NOTES: usize = 12;
 const MAX_NOTE_TEXT: usize = 160;
 
-/// A note on an element of a class or architecture diagram, such as an assumption or a
-/// limitation: a box beside the element, joined to it by a dotted line that only says the note
-/// explains it. The line is no relation or connection of the model.
+/// A note on a flow chart, class or architecture diagram, such as an assumption or a limitation.
+/// On an element it is a box beside the element, joined to it by a dotted line that only says the
+/// note explains it; the line is no edge, relation or connection of the model. On a frame (a
+/// package or a boundary) it stands inside the frame without a line, and without `on` it explains
+/// the diagram as a whole and stands in a band below it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct NoteSpec {
-    /// The `id` of the element the note explains.
-    pub on: String,
+    /// The `id` of the element or frame the note explains; `None` for the whole diagram.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on: Option<String>,
     pub text: String,
 }
 
 /// Checks the notes of `block`: at most [`MAX_NOTES`], each with a text of at most
-/// [`MAX_NOTE_TEXT`] characters on an element that `exists`, named `element` in the message.
+/// [`MAX_NOTE_TEXT`] characters, on nothing or on an element or frame that `exists`, named
+/// `element` in the message.
 pub(crate) fn validate_notes(
     notes: &[NoteSpec],
     block: &str,
@@ -365,11 +372,13 @@ pub(crate) fn validate_notes(
     }
     for (index, note) in notes.iter().enumerate() {
         let path = format!("/{block}/notes/{index}");
-        if !exists(&note.on) {
+        if let Some(on) = &note.on
+            && !exists(on)
+        {
             return Err(ChartError::new(
                 "unknown_node",
                 format!("{path}/on"),
-                format!("no {element} has the id \"{}\"", note.on),
+                format!("no {element} has the id \"{on}\""),
             ));
         }
         validate_text(&note.text, &format!("{path}/text"), MAX_NOTE_TEXT)?;
@@ -603,6 +612,7 @@ impl ChartSpec {
             &flow.edge_ids(),
             "step",
         )?;
+        validate_notes(&flow.notes, "flow", |id| flow.node(id).is_some(), "step")?;
         if let Some(label) = &flow.value_label {
             validate_text(label, "/flow/valueLabel", 40)?;
         }

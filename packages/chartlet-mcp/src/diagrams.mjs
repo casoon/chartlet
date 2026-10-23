@@ -231,6 +231,7 @@ const KINDS = {
       external: "dashed box",
     },
     edge: { solid: "default", dashed: "dash", dotted: "dash" },
+    note: { note: "on a step id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no edge; without on, it explains the whole chart and stands in a band below it; up to 12" },
   },
   state: {
     state: {
@@ -270,7 +271,7 @@ const KINDS = {
       size: "optional width, height and mobile on a view, in place of the model's, checked like them",
       tags: "tags on components and connections (up to 8, like ids, not drawn); a view's include shows components with one of them besides its listed components, exclude leaves out components and connections with one unless listed; exclude alone starts from every component; not with steps",
     },
-    note: { note: "on a component id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no connection; up to 12" },
+    note: { note: "on a component id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no connection; on a boundary id, inside that frame without a line; without on, it explains the whole diagram and stands in a band below it; up to 12" },
   },
   tree: {
     node: {
@@ -299,7 +300,7 @@ const KINDS = {
       direction: "on an association only: forward (navigable to to, open arrowhead there), both or none (plain line)",
     },
     package: { package: "frame around the classes that name it with in; packages nest with in, up to four deep; relations join classes, never packages" },
-    note: { note: "on a class id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no relation; up to 12" },
+    note: { note: "on a class id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no relation; on a package id, inside that frame without a line; without on, it explains the whole diagram and stands in a band below it; up to 12" },
   },
 };
 
@@ -506,6 +507,7 @@ export function diagramCounts(spec) {
         edges: length(spec.flow?.edges),
         lanes: length(spec.flow?.lanes),
         groups: length(spec.flow?.groups),
+        notes: length(spec.flow?.notes),
       };
     case "state": {
       const states = spec.state?.states ?? [];

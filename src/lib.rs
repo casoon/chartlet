@@ -5618,6 +5618,49 @@ mod tests {
     }
 
     #[test]
+    fn a_note_on_a_package_or_the_whole_diagram_joins_nothing() {
+        let spec = packaged_classes().replace(
+            r#""relations": ["#,
+            r#""notes": [{"on": "pets", "text": "Owned by the pets team"},
+                         {"text": "Simplified for the overview"}], "relations": ["#,
+        );
+        let output = render_ok(&spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert!(svg.contains("<title>Owned by the pets team</title>"));
+        assert!(svg.contains("<title>Simplified for the overview</title>"));
+        assert!(!svg.contains("chartlet-flow-edge chartlet-flow-dotted"));
+        let plain = text_alternative(&ChartSpec::from_json(&packaged_classes()).expect("parses"))
+            .expect("valid");
+        let noted = text_alternative(&ChartSpec::from_json(&spec).expect("parses")).expect("valid");
+        assert_eq!(
+            noted.description,
+            format!(
+                "{} Note on Pets: Owned by the pets team. Note: Simplified for the overview.",
+                plain.description
+            )
+        );
+        // No class row carries them, so the table keeps its columns and the caption names them.
+        assert_eq!(noted.table.columns, plain.table.columns);
+        assert_eq!(
+            noted.table.caption,
+            format!(
+                "{}. Note on Pets: Owned by the pets team. Note: Simplified for the overview.",
+                plain.table.caption
+            )
+        );
+        let german = spec.replace(
+            r#""type": "classes""#,
+            r#""type": "classes", "locale": "de""#,
+        );
+        let german =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(german.description.ends_with(
+            "Notiz zu Pets: Owned by the pets team. Notiz: Simplified for the overview."
+        ));
+    }
+
+    #[test]
     fn notes_are_validated_by_name() {
         let spec = noted_classes(false);
         let note = r#"{"on": "dog", "text": "Only dogs that live in the household"}"#;

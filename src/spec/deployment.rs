@@ -7,8 +7,10 @@
 //! its `from` component to the nearest instances of its `to` component.
 
 use super::{
-    ArchitectureSpec, ChartSpec, ConnectionSpec, MainPath, ViewSpec, sequence::is_identifier,
-    validate_text, view::ResolvedView,
+    ArchitectureSpec, ChartSpec, ConnectionSpec, MainPath, ViewSpec,
+    sequence::is_identifier,
+    validate_text,
+    view::{ResolvedView, shown_notes},
 };
 use crate::error::ChartError;
 
@@ -65,7 +67,12 @@ impl ChartSpec {
         architecture.boundaries.clone_from(&view.hosts);
         architecture.main_path = MainPath::default();
         architecture.same_rank = Vec::new();
-        architecture.notes = Vec::new();
+        // Only the notes on the whole diagram: the view shows instances and hosts instead.
+        let notes = shown_notes(model, |_| false);
+        architecture.notes = notes
+            .iter()
+            .map(|&note| model.notes[note].clone())
+            .collect();
         architecture.views = Vec::new();
         architecture.default_view = None;
         architecture.perspective = view.perspective.clone().or(architecture.perspective);
@@ -105,7 +112,7 @@ impl ChartSpec {
             connections,
             boundaries: Vec::new(),
             same_rank: Vec::new(),
-            notes: Vec::new(),
+            notes,
             dynamic: false,
             own_main_path: false,
             deployment: true,
@@ -415,6 +422,31 @@ mod tests {
         // The plain specification of the environment renders like any other.
         let json = serde_json::to_string(&production).unwrap();
         render_json(&json, RenderFormat::Svg, &RenderOptions::default()).unwrap();
+    }
+
+    #[test]
+    fn an_environment_keeps_only_the_notes_on_the_whole_diagram() {
+        let json = edited(
+            r#""views": ["#,
+            r#""notes": [
+                {"on": "api", "text": "Stateless"},
+                {"text": "Figures from the last audit"}
+            ],
+            "views": ["#,
+        );
+        let production = view(&json, "production");
+        let notes = &production.architecture.as_ref().unwrap().notes;
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].text, "Figures from the last audit");
+        let resolved = ChartSpec::from_json(&json)
+            .unwrap()
+            .resolve_view(Some("production"))
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            resolved.model_path("/architecture/notes/0/text"),
+            "/architecture/notes/1/text"
+        );
     }
 
     #[test]
