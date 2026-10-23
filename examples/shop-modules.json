@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "type": "classes",
+  "title": "Shop modules",
+  "source": "Illustrative domain model",
+  "width": 900,
+  "height": 860,
+  "classes": {
+    "packages": [
+      {
+        "id": "shop",
+        "label": "Shop"
+      },
+      {
+        "id": "ordering",
+        "label": "Ordering",
+        "in": "shop"
+      },
+      {
+        "id": "catalog",
+        "label": "Catalog",
+        "in": "shop"
+      },
+      {
+        "id": "billing",
+        "label": "Billing"
+      }
+    ],
+    "classes": [
+      {
+        "id": "customer",
+        "label": "Customer",
+        "attributes": [
+          "+ id: Int",
+          "+ name: String",
+          "+ email: String"
+        ],
+        "methods": [
+          "+ placeOrder(): Order"
+        ]
+      },
+      {
+        "id": "order",
+        "label": "Order",
+        "attributes": [
+          "+ id: Int",
+          "+ placedAt: Date",
+          "+ status: Status"
+        ],
+        "methods": [
+          "+ total(): Money",
+          "+ cancel()"
+        ],
+        "in": "ordering"
+      },
+      {
+        "id": "line",
+        "label": "OrderLine",
+        "attributes": [
+          "+ quantity: Int",
+          "+ price: Money"
+        ],
+        "in": "ordering"
+      },
+      {
+        "id": "product",
+        "label": "Product",
+        "attributes": [
+          "+ sku: String",
+          "+ name: String",
+          "+ price: Money"
+        ],
+        "in": "catalog"
+      },
+      {
+        "id": "payment",
+        "label": "Payment",
+        "kind": "interface",
+        "methods": [
+          "+ charge(amount: Money): Receipt"
+        ],
+        "in": "billing"
+      },
+      {
+        "id": "card",
+        "label": "CardPayment",
+        "attributes": [
+          "- number: String"
+        ],
+        "methods": [
+          "+ charge(amount: Money): Receipt"
+        ],
+        "in": "billing"
+      },
+      {
+        "id": "status",
+        "label": "Status",
+        "kind": "enum",
+        "attributes": [
+          "PLACED",
+          "PAID",
+          "SHIPPED",
+          "CANCELLED"
+        ],
+        "in": "ordering"
+      }
+    ],
+    "relations": [
+      {
+        "from": "customer",
+        "to": "order",
+        "fromCardinality": "1",
+        "toCardinality": "0..*",
+        "label": "places"
+      },
+      {
+        "from": "order",
+        "to": "line",
+        "kind": "composition",
+        "fromCardinality": "1",
+        "toCardinality": "1..*"
+      },
+      {
+        "from": "line",
+        "to": "product",
+        "fromCardinality": "*",
+        "toCardinality": "1"
+      },
+      {
+        "from": "card",
+        "to": "payment",
+        "kind": "realization"
+      },
+      {
+        "from": "order",
+        "to": "payment",
+        "kind": "dependency",
+        "label": "paid by"
+      },
+      {
+        "from": "order",
+        "to": "status",
+        "kind": "dependency"
+      }
+    ]
+  }
+}

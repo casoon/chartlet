@@ -287,6 +287,7 @@ const KINDS = {
       aggregation: "hollow diamond at from",
       dependency: "dashed line with an open arrowhead at to",
     },
+    package: { package: "frame around the classes that name it with in; packages nest with in, up to four deep; relations join classes, never packages" },
   },
 };
 
@@ -359,6 +360,7 @@ export function diagramCounts(spec) {
       return {
         classes: length(spec.classes?.classes),
         relations: length(spec.classes?.relations),
+        packages: length(spec.classes?.packages),
       };
     default:
       return null;

@@ -510,3 +510,34 @@ fn a_long_sublabel_wraps_instead_of_being_cut_off() {
     assert!(output.content.contains("Puzzles · worksheets"));
     assert!(output.content.contains("certificates · invoices"));
 }
+
+/// A layer whose steps the specification lists with a stranger between the members of a group
+/// is reordered, even when that order has no crossings: the frame keeps the stranger out and the
+/// canvas keeps its size.
+#[test]
+fn a_group_split_by_the_order_of_the_specification_stays_together() {
+    let json = r#"{
+        "schemaVersion": 1, "type": "architecture", "title": "Split", "width": 900, "height": 600,
+        "architecture": {
+            "boundaries": [
+                {"id": "ordering", "label": "Ordering"},
+                {"id": "billing", "label": "Billing"}
+            ],
+            "components": [
+                {"id": "order", "label": "Order", "in": "ordering"},
+                {"id": "line", "label": "Line", "in": "ordering"},
+                {"id": "payment", "label": "Payment", "in": "billing"},
+                {"id": "status", "label": "Status", "in": "ordering"},
+                {"id": "card", "label": "Card", "in": "billing"}
+            ],
+            "connections": [
+                {"from": "order", "to": "line"},
+                {"from": "order", "to": "payment"},
+                {"from": "order", "to": "status"},
+                {"from": "payment", "to": "card"}
+            ]
+        }
+    }"#;
+    let output = svg(json);
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+}

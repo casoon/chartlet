@@ -39,7 +39,7 @@ pub use boxplot::{BoxDisplay, BoxSpec, ViolinScale};
 pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
-pub use classes::{ClassKind, ClassSpec, ClassesSpec, RelationKind, RelationSpec};
+pub use classes::{ClassKind, ClassSpec, ClassesSpec, PackageSpec, RelationKind, RelationSpec};
 pub use flow::{
     FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, MainPath, NodeKind, PartSpec,
 };

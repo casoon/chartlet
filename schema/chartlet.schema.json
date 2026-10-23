@@ -986,7 +986,7 @@
       }
     },
     "classes": {
-      "description": "A class or entity-relationship diagram: boxes with a name, a stereotype for the kind, and an attribute and a method compartment, joined by relations whose kind sets the marks at the line's ends, with cardinalities at either end. Laid out like a flow chart; up to 40 classes and 100 relations.",
+      "description": "A class or entity-relationship diagram: boxes with a name, a stereotype for the kind, and an attribute and a method compartment, joined by relations whose kind sets the marks at the line's ends, with cardinalities at either end, optionally framed in nested packages. Laid out like a flow chart; up to 40 classes, 100 relations and 12 packages.",
       "type": "object",
       "additionalProperties": false,
       "required": ["classes"],
@@ -1004,7 +1004,23 @@
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "kind": { "enum": ["class", "interface", "abstract", "enum", "entity"], "default": "class" },
               "attributes": { "type": "array", "maxItems": 30, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
-              "methods": { "type": "array", "maxItems": 30, "items": { "type": "string", "minLength": 1, "maxLength": 100 } }
+              "methods": { "type": "array", "maxItems": 30, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
+              "in": { "description": "The id of the package the class lies in.", "$ref": "#/$defs/identifier" }
+            }
+          }
+        },
+        "packages": {
+          "description": "Frames that group classes into modules, nesting at most four deep by naming the package they lie in. Identifiers are unique among classes and packages; every package holds at least one class, directly or in a package inside it. Relations join classes, never packages.",
+          "type": "array",
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "in": { "$ref": "#/$defs/identifier" }
             }
           }
         },

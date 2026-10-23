@@ -57,9 +57,9 @@ pub use spec::{
     FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage,
     MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
     NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, OhlcPoint, Orientation,
-    PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec,
-    ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder,
-    SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
+    PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec,
+    RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec,
+    SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
     ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack,
     StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke,
     SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
@@ -5225,6 +5225,144 @@ mod tests {
             .unwrap_err();
             assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
         }
+    }
+
+    /// [`CLASSES`] with Animal and Dog in a package Pets inside a package Model.
+    fn packaged_classes() -> String {
+        CLASSES
+            .replace(
+                r#""classes": {"classes": ["#,
+                r#""classes": {"packages": [
+                    {"id": "model", "label": "Model"},
+                    {"id": "pets", "label": "Pets", "in": "model"}
+                ], "classes": ["#,
+            )
+            .replace(
+                r#"{"id": "dog", "label": "Dog","#,
+                r#"{"id": "dog", "label": "Dog", "in": "pets","#,
+            )
+            .replace(
+                r#"{"id": "animal", "label": "Animal","#,
+                r#"{"id": "animal", "label": "Animal", "in": "pets","#,
+            )
+    }
+
+    #[test]
+    fn packages_frame_their_classes_and_name_them_in_the_text() {
+        let spec = packaged_classes();
+        for orientation in ["portrait", "landscape"] {
+            let json = spec.replace(
+                r#""relations": ["#,
+                &format!(r#""orientation": "{orientation}", "relations": ["#),
+            );
+            let output = render_ok(&json);
+            assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+            assert_eq!(output.content.matches("chartlet-flow-group\"").count(), 2);
+            assert!(output.content.contains(">Pets</text>"));
+        }
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&spec).expect("parses")).expect("valid");
+        assert!(
+            alternative.description.starts_with(
+                "Class diagram with 3 classes and 2 relations in 2 packages. Model: Pets. Pets (in Model): Animal, Dog."
+            ),
+            "{}",
+            alternative.description
+        );
+        assert_eq!(
+            alternative.table.columns,
+            [
+                "Item",
+                "Kind",
+                "Package",
+                "Attributes",
+                "Methods",
+                "Relations"
+            ]
+        );
+        assert_eq!(alternative.table.rows[1][2], "Model › Pets");
+        assert_eq!(alternative.table.rows[2][2], "");
+        let german = spec.replace(
+            r#""type": "classes""#,
+            r#""type": "classes", "locale": "de""#,
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .starts_with("Klassendiagramm mit 3 Klassen und 2 Beziehungen in 2 Paketen.")
+        );
+        assert_eq!(alternative.table.columns[2], "Paket");
+    }
+
+    #[test]
+    fn packages_are_validated_by_name() {
+        let spec = packaged_classes();
+        for (from, to, code, path) in [
+            (
+                r#""in": "pets","#,
+                r#""in": "toys","#,
+                "unknown_package",
+                "/classes/classes/0/in",
+            ),
+            (
+                r#"{"id": "model", "label": "Model"}"#,
+                r#"{"id": "model", "label": "Model", "in": "zoo"}"#,
+                "unknown_package",
+                "/classes/packages/0/in",
+            ),
+            (
+                r#"{"id": "model", "label": "Model"}"#,
+                r#"{"id": "model", "label": "Model", "in": "pets"}"#,
+                "package_cycle",
+                "/classes/packages/0/in",
+            ),
+            (
+                r#"{"id": "model", "label": "Model"}"#,
+                r#"{"id": "model", "label": "Model"}, {"id": "empty", "label": "Empty"}"#,
+                "empty_package",
+                "/classes/packages/1",
+            ),
+            (
+                r#"{"id": "pets", "label": "Pets", "in": "model"}"#,
+                r#"{"id": "model", "label": "Pets", "in": "model"}"#,
+                "duplicate_id",
+                "/classes/packages/1/id",
+            ),
+            (
+                r#"{"id": "owner""#,
+                r#"{"id": "pets""#,
+                "duplicate_id",
+                "/classes/classes/2/id",
+            ),
+            (
+                r#""to": "animal""#,
+                r#""to": "pets""#,
+                "unknown_node",
+                "/classes/relations/0/to",
+            ),
+        ] {
+            assert!(spec.contains(from), "{from}");
+            let error = render_json(
+                &spec.replacen(from, to, 1),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{to}");
+        }
+        let deep = spec
+            .replace(
+                r#"{"id": "model", "label": "Model"}"#,
+                r#"{"id": "a", "label": "A"}, {"id": "b", "label": "B", "in": "a"},
+                   {"id": "c", "label": "C", "in": "b"}, {"id": "model", "label": "Model", "in": "c"}"#,
+            );
+        let error = render_json(&deep, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("packages_too_deep", "/classes/packages/4/in")
+        );
     }
 
     const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,

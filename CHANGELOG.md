@@ -15,6 +15,11 @@ does.
 - Flow charts and trees: `parts` on a node draws a stripe of shares inside the bottom of its box, with one legend for the diagram; description and table give every part with value and share. At most 6 parts per node and 8 names per diagram (`too_many_parts`); decisions take none. Example `claim-handling`.
 - Trees: `distances` (labels and a square, symmetric matrix) instead of `nodes` builds a dendrogram by agglomerative clustering with `linkage` `average` (default), `complete` or `single`; joins are brackets at their distance on a distance axis. The description names the closest pair and the two groups of the last join, the table every join. `invalid_matrix` for a matrix that is not square, symmetric, 0 on the diagonal or nowhere negative. Example `climate-similarity`.
 - `"type": "network"`: nodes as dots joined by edges, on a circle (groups together, swapped for fewer crossings, or `"order": "listed"`) or in rings around a `center` by distance in edges. Groups color the dots and get a legend; edges take `dash`, `weight` and, with `"directed": true`, arrowheads; labels stand beside their dots without covering another. The description gives groups, rings, the shape of the graph and every node with its neighbours; the table one row per node. No force layout: the same input gives the same picture. Examples `co-authors` (with a phone variant) and `service-dependencies`.
+- Class diagrams: `packages` (`id`, `label`, optional parent `in`) frame classes that name them with `"in"`, nested up to four deep, at most 12; relations still join classes across package borders. The description names every package with what it holds, the table gains a Package column (`Shop › Ordering`). `unknown_package`, `package_cycle`, `packages_too_deep`, `empty_package`, `too_many_packages`; a relation to a package is `unknown_node`. Example `shop-modules`.
+
+### Fixed
+
+- Flow charts, architecture diagrams and class diagrams: a layer listed with a step between the members of a group no longer keeps that order when it has no crossings; the frame used to take the step in, or push frames apart until the canvas grew many times its width.
 
 ## [0.19.0] - 2026-10-12
 
