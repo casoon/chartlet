@@ -34,7 +34,10 @@ export interface RenderChartOptions {
    * `@casoon/chartlet/chartlet.css` once, and a chart carries only its own declared colors.
    */
   styles?: "inline" | "external";
-  /** Also return the chart's text alternative in `alternative`. */
+  /**
+   * Also return the chart's text alternative in `alternative`; with `allViews`, that of the
+   * default view, and that of every view on the page in `alternatives`.
+   */
   alternative?: boolean;
   /**
    * Add the `data-*` hooks that `@casoon/chartlet/interactive` reads: plot geometry, layer
@@ -91,6 +94,11 @@ export interface RenderChartResult {
   manifest?: ChartManifest;
   /** Present when `options.alternative` is set. */
   alternative?: ChartTextAlternative;
+  /**
+   * Present when `options.alternative` and `options.allViews` are set: the text alternative of
+   * every view on the page, in its order (the default view first), each with its `view` key.
+   */
+  alternatives?: ChartViewTextAlternative[];
 }
 
 /**
@@ -106,6 +114,11 @@ export interface ChartTextAlternative {
     /** One row per category, starting with the category; values as the chart writes them. */
     rows: string[][];
   };
+}
+
+/** The text alternative of one view of an architecture model, with the view's key. */
+export interface ChartViewTextAlternative extends ChartTextAlternative {
+  view: string;
 }
 
 export interface StylesheetOptions {
@@ -147,6 +160,11 @@ export interface RenderChartDetailedSuccess {
   manifest?: ChartManifest;
   /** Present when `options.alternative` is set. */
   alternative?: ChartTextAlternative;
+  /**
+   * Present when `options.alternative` and `options.allViews` are set: the text alternative of
+   * every view on the page, in its order (the default view first), each with its `view` key.
+   */
+  alternatives?: ChartViewTextAlternative[];
 }
 
 export interface RenderChartDetailedFailure {

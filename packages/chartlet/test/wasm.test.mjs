@@ -297,6 +297,15 @@ test("renders all views on one page, alike from WebAssembly and the CLI", () => 
   assert.deepEqual(fromWasm.manifest.views, ["overview", "checkout"]);
   assert.equal(fromWasm.manifest.view, undefined);
 
+  // The text alternative of every view, in the order of the page; `alternative` is the default's.
+  const texts = renderChart(spec, { ...all, alternative: true });
+  assert.deepEqual(renderChart(spec, { ...all, alternative: true, binary }).alternatives, texts.alternatives);
+  assert.deepEqual(texts.alternatives.map(({ view }) => view), ["overview", "checkout"]);
+  const { view, ...checkout } = texts.alternatives[1];
+  assert.deepEqual(checkout, renderChart(spec, { view: "checkout", alternative: true }).alternative);
+  assert.deepEqual(texts.alternative, renderChart(spec, { alternative: true }).alternative);
+  assert.equal(renderChart(spec, { alternative: true }).alternatives, undefined);
+
   const svg = renderChartDetailed(spec, { format: "svg", allViews: true });
   assert.equal(svg.ok, false);
   assert.deepEqual([svg.error.code, svg.error.path], ["option_not_supported", "/render/allViews"]);
