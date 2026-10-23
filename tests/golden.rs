@@ -3,7 +3,7 @@ use chartlet::{ChartSpec, RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 98] = [
+const EXAMPLES: [(&str, &str, &str); 100] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -198,6 +198,16 @@ const EXAMPLES: [(&str, &str, &str); 98] = [
         "request-volume",
         include_str!("../examples/request-volume.json"),
         include_str!("../examples/request-volume.svg"),
+    ),
+    (
+        "contract-review",
+        include_str!("../examples/contract-review.json"),
+        include_str!("../examples/contract-review.svg"),
+    ),
+    (
+        "invoice-model",
+        include_str!("../examples/invoice-model.json"),
+        include_str!("../examples/invoice-model.svg"),
     ),
     (
         "co-authors",
@@ -497,7 +507,7 @@ const EXAMPLES: [(&str, &str, &str); 98] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 32] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 33] = [
     (
         "co-authors",
         include_str!("../examples/co-authors.json"),
@@ -647,6 +657,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 32] = [
         "warming-causes",
         include_str!("../examples/warming-causes.json"),
         include_str!("../examples/warming-causes.mobile.svg"),
+    ),
+    (
+        "contract-review",
+        include_str!("../examples/contract-review.json"),
+        include_str!("../examples/contract-review.mobile.svg"),
     ),
     (
         "payment-notes",

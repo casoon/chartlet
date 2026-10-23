@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Contract review",
+  "source": "Legal operations handbook",
+  "width": 720,
+  "height": 860,
+  "flow": {
+    "nodes": [
+      { "id": "request", "label": "Contract requested", "kind": "start" },
+      { "id": "draft", "label": "Draft contract", "sublabel": "from the template" },
+      { "id": "legal", "label": "Legal review" },
+      { "id": "compliant", "label": "Compliant?", "kind": "decision" },
+      { "id": "terms", "label": "Negotiate terms" },
+      { "id": "agreed", "label": "Terms agreed?", "kind": "decision" },
+      { "id": "sign", "label": "Sign", "sublabel": "both parties" },
+      { "id": "archive", "label": "Contract archive", "kind": "store" },
+      { "id": "done", "label": "In force", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "request", "to": "draft" },
+      { "from": "draft", "to": "legal" },
+      { "from": "legal", "to": "compliant" },
+      { "from": "compliant", "to": "terms", "label": "yes" },
+      { "from": "compliant", "to": "draft", "label": "no", "dash": "dashed", "fromSide": "right", "toSide": "right" },
+      { "from": "terms", "to": "agreed" },
+      { "from": "agreed", "to": "sign", "label": "yes" },
+      { "from": "agreed", "to": "terms", "label": "no, revise", "dash": "dashed", "fromSide": "left", "toSide": "left" },
+      { "from": "sign", "to": "archive", "fromSide": "left" },
+      { "from": "sign", "to": "done" }
+    ],
+    "mainPath": { "from": "request", "to": "done" }
+  },
+  "mobile": { "width": 360, "height": 860 }
+}
