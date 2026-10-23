@@ -510,3 +510,181 @@ fn a_long_sublabel_wraps_instead_of_being_cut_off() {
     assert!(output.content.contains("Puzzles · worksheets"));
     assert!(output.content.contains("certificates · invoices"));
 }
+
+const REVIEWS: &str = r#"{
+    "schemaVersion": 1, "type": "flow", "title": "Contract", "width": 1200, "height": 480,
+    "flow": {
+        "nodes": [
+            {"id": "request", "label": "Requested", "kind": "start"},
+            {"id": "quotes", "label": "Collect quotes"},
+            {"id": "legal", "label": "Legal review"},
+            {"id": "finance", "label": "Finance review"},
+            {"id": "done", "label": "Approved", "kind": "end"}
+        ],
+        "edges": [
+            {"from": "request", "to": "quotes"},
+            {"from": "request", "to": "legal"},
+            {"from": "quotes", "to": "finance"},
+            {"from": "legal", "to": "done"},
+            {"from": "finance", "to": "done"}
+        ],
+        "sameRank": [["legal", "finance"]]
+    },
+    "mobile": {"width": 360, "height": 900}
+}"#;
+
+/// Where a step lies along the flow: down in portrait, right in landscape.
+fn along(svg: &str, name: &str, landscape: bool) -> f64 {
+    let (_, x, y) = centers(svg)
+        .into_iter()
+        .find(|(title, _, _)| title == name)
+        .unwrap_or_else(|| panic!("{name} is drawn"));
+    if landscape { x } else { y }
+}
+
+#[test]
+fn steps_that_share_a_rank_line_up_in_every_orientation_and_on_a_phone() {
+    let without = REVIEWS.replace(r#"[["legal", "finance"]]"#, "[]");
+    assert_ne!(without, REVIEWS);
+    for orientation in ["portrait", "landscape"] {
+        let landscape = orientation == "landscape";
+        let pin = |json: &str| {
+            json.replacen(
+                "\"nodes\": [",
+                &format!("\"orientation\": \"{orientation}\", \"nodes\": ["),
+                1,
+            )
+        };
+        let before = svg(&pin(&without)).content;
+        assert!(
+            along(&before, "Legal review", landscape) < along(&before, "Finance review", landscape),
+            "{orientation}: without the hint legal review comes first"
+        );
+        for variant in [crate::Variant::Desktop, crate::Variant::Mobile] {
+            let options = RenderOptions {
+                variant,
+                ..RenderOptions::default()
+            };
+            let output = render_json(&pin(REVIEWS), RenderFormat::Svg, &options).expect("renders");
+            // A landscape flow is wider than a phone; that is all the layout may report.
+            assert!(
+                output
+                    .warnings
+                    .iter()
+                    .all(|warning| warning.code == "canvas_too_small"),
+                "{:?}",
+                output.warnings
+            );
+            let after = output.content;
+            assert!(
+                (along(&after, "Legal review", landscape)
+                    - along(&after, "Finance review", landscape))
+                .abs()
+                    < 0.01,
+                "{orientation} {variant:?}: the reviews share a rank"
+            );
+            let again = render_json(&pin(REVIEWS), RenderFormat::Svg, &options)
+                .expect("renders")
+                .content;
+            assert_eq!(after, again, "{orientation} {variant:?} is deterministic");
+        }
+    }
+}
+
+#[test]
+fn a_shared_rank_gathers_the_stores_of_a_data_tier() {
+    let example = include_str!("../../examples/data-tier.json");
+    let without = example.replace(r#"[["catalogDb", "ordersDb", "billingDb"]]"#, "[]");
+    assert_ne!(without, example);
+    let spread = |json: &str| {
+        let content = svg(json).content;
+        let positions: Vec<f64> = ["Catalog", "Orders", "Invoices"]
+            .iter()
+            .map(|store| along(&content, &format!("{store} – Postgres"), true))
+            .collect();
+        let low = positions.iter().copied().fold(f64::MAX, f64::min);
+        let high = positions.iter().copied().fold(f64::MIN, f64::max);
+        high - low
+    };
+    assert!(spread(&without) > 100.0);
+    assert!(spread(example) < 0.01);
+}
+
+#[test]
+fn an_edge_against_a_shared_rank_is_drawn_back() {
+    // "b" follows "x", which follows "a"; with "a" and "b" on one rank the edge into "b" turns
+    // around like the edge that closes a cycle.
+    let json = r#"{
+        "schemaVersion": 1, "type": "flow", "title": "Back",
+        "flow": {
+            "orientation": "portrait",
+            "nodes": [
+                {"id": "a", "label": "A"}, {"id": "x", "label": "X"}, {"id": "b", "label": "B"}
+            ],
+            "edges": [{"from": "a", "to": "x"}, {"from": "x", "to": "b"}],
+            "sameRank": [["a", "b"]]
+        }
+    }"#;
+    let output = svg(json);
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    let content = output.content;
+    assert!((along(&content, "A", false) - along(&content, "B", false)).abs() < 0.01);
+    assert!(along(&content, "X", false) > along(&content, "A", false));
+    assert_eq!(content.matches("class=\"chartlet-flow-head").count(), 2);
+}
+
+#[test]
+fn invalid_shared_ranks_name_the_field() {
+    let flow = |ranks: &str| {
+        REVIEWS.replace(
+            r#""sameRank": [["legal", "finance"]]"#,
+            &format!(r#""sameRank": {ranks}"#),
+        )
+    };
+    for (json, code, path) in [
+        (
+            flow(r#"[["legal", "nowhere"]]"#),
+            "unknown_node",
+            "/flow/sameRank/0/1",
+        ),
+        (flow(r#"[["legal"]]"#), "empty_data", "/flow/sameRank/0"),
+        (
+            flow(r#"[["legal", "finance", "legal"]]"#),
+            "duplicate_member",
+            "/flow/sameRank/0/2",
+        ),
+        (
+            flow(r#"[["legal", "finance"], ["quotes", "finance"]]"#),
+            "duplicate_member",
+            "/flow/sameRank/1/1",
+        ),
+        (
+            flow(r#"[["quotes", "legal", "finance"]]"#),
+            "same_rank_edge",
+            "/flow/sameRank/0/2",
+        ),
+        (
+            flow(r#"[["done", "legal"]]"#),
+            "same_rank_edge",
+            "/flow/sameRank/0/1",
+        ),
+    ] {
+        assert_eq!(error(&json), (code, path.to_owned()), "{json}");
+    }
+    let architecture = include_str!("../../examples/data-tier.json");
+    for (ranks, code, path) in [
+        (
+            r#"[["catalogDb", "db"]]"#,
+            "unknown_node",
+            "/architecture/sameRank/0/1",
+        ),
+        (
+            r#"[["catalog", "catalogDb"]]"#,
+            "same_rank_edge",
+            "/architecture/sameRank/0/1",
+        ),
+    ] {
+        let json = architecture.replace(r#"[["catalogDb", "ordersDb", "billingDb"]]"#, ranks);
+        assert_eq!(error(&json), (code, path.to_owned()), "{json}");
+    }
+}

@@ -208,6 +208,8 @@ pub(crate) struct Diagram {
     pub edges: Vec<Edge>,
     pub lanes: Vec<String>,
     pub groups: Vec<Group>,
+    /// Sets of steps that share one layer, by index; no step lies in two.
+    pub ranks: Vec<Vec<usize>>,
     pub orientation: DiagramOrientation,
 }
 
@@ -396,6 +398,15 @@ impl Diagram {
                     label: group.label.clone(),
                     path: format!("/flow/groups/{index}"),
                     parent: None,
+                })
+                .collect(),
+            ranks: flow
+                .same_rank
+                .iter()
+                .map(|set| {
+                    set.iter()
+                        .map(|id| flow.node(id).expect("validated ranks name steps"))
+                        .collect()
                 })
                 .collect(),
             orientation: flow.orientation,

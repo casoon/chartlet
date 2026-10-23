@@ -142,6 +142,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         edges,
         lanes: Vec::new(),
         groups,
+        ranks: Vec::new(),
         orientation: machine.orientation,
     }
 }

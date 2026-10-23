@@ -120,6 +120,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         edges,
         lanes: Vec::new(),
         groups: Vec::new(),
+        ranks: Vec::new(),
         orientation: classes.orientation,
     }
 }

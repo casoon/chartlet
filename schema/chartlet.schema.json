@@ -889,6 +889,10 @@
           "description": "The usual way through the flow, as step ids joined by edges, or as {from, to}: the shortest way along the edges between two steps (at a tie the first in the order of the edges). Kept in line and drawn stronger.",
           "$ref": "#/$defs/mainPath"
         },
+        "sameRank": {
+          "description": "Sets of step ids that lie at one position along the flow, such as parallel reviews or all end steps. A layout hint: it adds no edge. A step lies in at most one set, and no edge joins two steps of one set.",
+          "$ref": "#/$defs/sameRank"
+        },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
         "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
       }
@@ -1448,7 +1452,20 @@
           "description": "The usual way a request takes, as component ids joined by connections, or as {from, to}: the shortest way along the connections between two components (at a tie the first in the order of the connections). Kept in line and drawn stronger.",
           "$ref": "#/$defs/mainPath"
         },
+        "sameRank": {
+          "description": "Sets of component ids that lie at one position along the flow, such as the databases of a data tier. A layout hint: it adds no connection. A component lies in at most one set, and no connection joins two components of one set.",
+          "$ref": "#/$defs/sameRank"
+        },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "sameRank": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/identifier" }
       }
     },
     "mainPath": {
