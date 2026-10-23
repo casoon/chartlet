@@ -96,6 +96,15 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
                 parent: boundary(&group.parent),
             })
             .collect(),
+        ranks: architecture
+            .same_rank
+            .iter()
+            .map(|set| {
+                set.iter()
+                    .map(|id| architecture.component(id).expect("validated"))
+                    .collect()
+            })
+            .collect(),
         orientation: architecture.orientation,
     }
 }

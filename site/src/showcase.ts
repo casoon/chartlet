@@ -350,6 +350,13 @@ const catalogue = [
       'Requests per second between the services of a shop. Every connection has a `weight`; its line is as much stronger as it carries more, from 1 px for nothing to 5 px for the heaviest, while the arrowheads keep their size. The description names the heaviest connection and the table gives every weight. The main path is given by its ends only, `{ "from": "web", "to": "pay" }`, and stays in the accent color. Illustrative values.',
   },
   {
+    slug: 'data-tier',
+    chart: 'Architecture diagram with a shared rank (phone variant)',
+    useCase: 'Line up what belongs to one tier',
+    blurb:
+      'Three services, each with its own database. Left to itself, every database follows its service, so they land at three depths and the Data tier boundary around them stretches over the queue and the worker. `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` puts the three at one position along the flow: the frame is one layer deep and the main path stays straight. A layout hint, not an edge; laid out again for the phone, where the tier is a row at the bottom. Illustrative values.',
+  },
+  {
     slug: 'department-budgets',
     chart: 'Tree with boxes colored by value',
     useCase: 'Show where the money goes in an organization',

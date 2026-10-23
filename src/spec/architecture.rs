@@ -26,6 +26,10 @@ pub struct ArchitectureSpec {
     /// drawn stronger.
     #[serde(default, skip_serializing_if = "MainPath::is_empty")]
     pub main_path: MainPath,
+    /// Sets of component ids that share one rank: each set lies at one position along the flow.
+    /// A layout hint only; it adds no connection.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub same_rank: Vec<Vec<String>>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
 }
@@ -370,6 +374,13 @@ impl ArchitectureSpec {
             |id| self.component(id).is_some(),
             &self.connection_ids(),
             ("component", "connection"),
+        )?;
+        super::flow::validate_same_rank(
+            &self.same_rank,
+            "architecture",
+            |id| self.component(id).is_some(),
+            &self.connection_ids(),
+            "component",
         )?;
         Ok(())
     }

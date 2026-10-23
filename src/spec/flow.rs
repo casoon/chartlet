@@ -27,6 +27,10 @@ pub struct FlowSpec {
     /// two steps: kept in line and drawn stronger.
     #[serde(default, skip_serializing_if = "MainPath::is_empty")]
     pub main_path: MainPath,
+    /// Sets of step ids that share one rank: each set lies at one position along the flow. A
+    /// layout hint only; it adds no edge.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub same_rank: Vec<Vec<String>>,
     /// Which way the flow runs: down in portrait, right in landscape.
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
@@ -286,6 +290,63 @@ pub(crate) fn validate_weight(weight: Option<f64>, path: &str) -> Result<(), Cha
     }
 }
 
+/// Checks the `sameRank` sets of a diagram whose nodes `known` recognizes and whose edges join the
+/// pairs of ids in `edges`; `section` is the block in the JSON path and `noun` names a node in
+/// messages. Every set names at least two known nodes, no node lies in two sets or twice in one,
+/// and no edge joins two nodes of one set: the layout only draws edges between ranks.
+pub(crate) fn validate_same_rank<'a>(
+    sets: &[Vec<String>],
+    section: &str,
+    known: impl Fn(&str) -> bool,
+    edges: &(impl Iterator<Item = (&'a str, &'a str)> + Clone),
+    noun: &str,
+) -> Result<(), ChartError> {
+    for (index, set) in sets.iter().enumerate() {
+        let path = format!("/{section}/sameRank/{index}");
+        if set.len() < 2 {
+            return Err(ChartError::new(
+                "empty_data",
+                path,
+                format!("a shared rank names at least two {noun}s"),
+            ));
+        }
+        for (member_index, id) in set.iter().enumerate() {
+            let member_path = format!("{path}/{member_index}");
+            if !known(id) {
+                return Err(ChartError::new(
+                    "unknown_node",
+                    member_path,
+                    format!("no {noun} has the id \"{id}\""),
+                ));
+            }
+            if sets[..index].iter().any(|other| other.contains(id))
+                || set[..member_index].contains(id)
+            {
+                return Err(ChartError::new(
+                    "duplicate_member",
+                    member_path,
+                    format!("the {noun} \"{id}\" already lies on a shared rank"),
+                ));
+            }
+            let joined = set[..member_index].iter().find(|other| {
+                edges
+                    .clone()
+                    .any(|(from, to)| (from == *other && to == id) || (from == id && to == *other))
+            });
+            if let Some(other) = joined {
+                return Err(ChartError::new(
+                    "same_rank_edge",
+                    member_path,
+                    format!(
+                        "an edge joins \"{other}\" and \"{id}\"; {noun}s that share a rank cannot be joined"
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct LaneSpec {
@@ -412,6 +473,13 @@ impl ChartSpec {
         flow.validate_edges()?;
         flow.validate_groups()?;
         flow.validate_main_path()?;
+        validate_same_rank(
+            &flow.same_rank,
+            "flow",
+            |id| flow.node(id).is_some(),
+            &flow.edge_ids(),
+            "step",
+        )?;
         if let Some(label) = &flow.value_label {
             validate_text(label, "/flow/valueLabel", 40)?;
         }
