@@ -1,4 +1,4 @@
-// The MCP server: six tools, the specification schema as a resource, and the MCP App view of
+// The MCP server: seven tools, the specification schema as a resource, and the MCP App view of
 // chartlet_render. The tools only read data, call the chartlet compiler and compute; there is no
 // model and no interpretation here.
 
@@ -7,6 +7,8 @@ import { readFileSync } from "node:fs";
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { CLIENT_CAPABILITIES_META_KEY, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+
+import { inspectChart } from "@casoon/chartlet";
 
 import { explainSpec, renderSpec, validateSpec } from "./charts.mjs";
 import { ARCHITECTURE_TEMPLATES, DIAGRAM_TYPES, diagramStarter } from "./diagrams.mjs";
@@ -289,12 +291,48 @@ For ohlc layers min is the lowest low, max the highest high, first the first ope
   );
 
   server.registerTool(
+    "chartlet_inspect",
+    {
+      title: "Inspect a model for gaps",
+      description: `Run chartlet's inspections of a model for gaps in its documentation, without rendering it — the same findings as \`chartlet inspect\`. Available for architecture diagrams (connections without a label or technology, components without a sublabel, isolated components, components no view shows, views that add nothing), flow charts (unlabelled branches of a decision, steps no start leads to, a start without an end) and class diagrams (classes without members, isolated classes).
+
+Each finding has a stable code, a severity, the JSON Pointer of the part it is about, what was found and how to improve it. A gap is missing documentation the specification has a field for; a hint is something to look at, which may well be intended — never treat a hint as an error. Findings never stop a render. Pass the codes of inspections that do not apply in disable.
+
+An invalid specification, or a type without inspections (inspections_unavailable), returns a tool error with code, path and message.`,
+      inputSchema: z.object({
+        spec,
+        disable: z
+          .array(z.string())
+          .optional()
+          .describe('Inspection codes to leave out, as findings report them, e.g. ["connection_without_technology"].'),
+      }),
+      outputSchema: z.object({
+        ok: z.literal(true),
+        findings: z.array(
+          z.object({
+            code: z.string().describe("Stable inspection code, e.g. unlabelled_connection."),
+            severity: z.enum(["gap", "hint"]),
+            path: z.string().describe("JSON Pointer into the specification."),
+            message: z.string(),
+            hint: z.string().describe("How to improve it."),
+          }),
+        ),
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ spec, disable }) => {
+      const result = inspectChart(spec, { disable });
+      return result.ok ? success(result) : specFailure({ error: result.error, warnings: [] });
+    },
+  );
+
+  server.registerTool(
     "chartlet_diagram_starter",
     {
       title: "Start a software diagram",
       description: `Return a valid starting specification for a chartlet software diagram, the kinds its elements can take with the shape each is drawn in, and notes on ids, layout and orientation. Diagrams are drawn from structure, not data: sequence (participants exchanging messages, with fragments), flow (steps and edges, with lanes, groups and a main path), state (states and transitions event [guard] / action, with choices, composite and final states), architecture (components and connections inside nested boundaries), tree (an organization or ownership structure, or a radial mind map) and classes (class and entity-relationship diagrams: classes with attribute and method compartments, joined by relations with cardinalities).
 
-For an architecture diagram, template picks a starter at one level of abstraction, modeled in the usual architecture fields: context (the system as one box, its users and the external systems it calls), containers (the separately running or deployable parts inside the system boundary; a container is such a part, not a container image) or deployment (one environment: region, cluster and node pools as boundaries, deployed artifacts, managed queue, database and storage). The result names the question the template answers and its level. These are C4-like starting points, not a full C4 model: each is one diagram, and elements are not kept in sync across levels.
+For an architecture diagram, template picks a starter at one level of abstraction, modeled in the usual architecture fields: context (the system as one box, its users and the external systems it calls), containers (the separately running or deployable parts inside the system boundary; a container is such a part, not a container image) or deployment (a logical model of the deployable parts plus a deployment view of production: hosts nested in region and cluster, two instances of the API, managed queue, database and storage). The result names the question the template answers and its level. These are C4-like starting points, not a full C4 model: each is one diagram, and elements are not kept in sync across levels.
 
 chartlet lays a diagram out itself; the specification only says what is connected. Adapt the starter, then check it with chartlet_validate_spec and render it with chartlet_render.`,
       inputSchema: z.object({

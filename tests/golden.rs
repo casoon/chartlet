@@ -3,7 +3,7 @@ use chartlet::{ChartSpec, RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 83] = [
+const EXAMPLES: [(&str, &str, &str); 95] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -419,10 +419,70 @@ const EXAMPLES: [(&str, &str, &str); 83] = [
         include_str!("../examples/api-environments.json"),
         include_str!("../examples/api-environments.svg"),
     ),
+    (
+        "acceleration-indicators",
+        include_str!("../examples/acceleration-indicators.json"),
+        include_str!("../examples/acceleration-indicators.svg"),
+    ),
+    (
+        "audit-outcomes",
+        include_str!("../examples/audit-outcomes.json"),
+        include_str!("../examples/audit-outcomes.svg"),
+    ),
+    (
+        "deep-sea-isotopes",
+        include_str!("../examples/deep-sea-isotopes.json"),
+        include_str!("../examples/deep-sea-isotopes.svg"),
+    ),
+    (
+        "energy-mix",
+        include_str!("../examples/energy-mix.json"),
+        include_str!("../examples/energy-mix.svg"),
+    ),
+    (
+        "generation-mix",
+        include_str!("../examples/generation-mix.json"),
+        include_str!("../examples/generation-mix.svg"),
+    ),
+    (
+        "population-and-emissions",
+        include_str!("../examples/population-and-emissions.json"),
+        include_str!("../examples/population-and-emissions.svg"),
+    ),
+    (
+        "quake-frequency",
+        include_str!("../examples/quake-frequency.json"),
+        include_str!("../examples/quake-frequency.svg"),
+    ),
+    (
+        "resting-heart-rate",
+        include_str!("../examples/resting-heart-rate.json"),
+        include_str!("../examples/resting-heart-rate.svg"),
+    ),
+    (
+        "soil-animals",
+        include_str!("../examples/soil-animals.json"),
+        include_str!("../examples/soil-animals.svg"),
+    ),
+    (
+        "ticket-backlog",
+        include_str!("../examples/ticket-backlog.json"),
+        include_str!("../examples/ticket-backlog.svg"),
+    ),
+    (
+        "visitors-by-channel",
+        include_str!("../examples/visitors-by-channel.json"),
+        include_str!("../examples/visitors-by-channel.svg"),
+    ),
+    (
+        "warming-causes",
+        include_str!("../examples/warming-causes.json"),
+        include_str!("../examples/warming-causes.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 29] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 30] = [
     (
         "co-authors",
         include_str!("../examples/co-authors.json"),
@@ -568,6 +628,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 29] = [
         include_str!("../examples/data-tier.json"),
         include_str!("../examples/data-tier.mobile.svg"),
     ),
+    (
+        "warming-causes",
+        include_str!("../examples/warming-causes.json"),
+        include_str!("../examples/warming-causes.mobile.svg"),
+    ),
 ];
 
 /// Examples with a reviewed print variant: hatched bands and modeled lines on a light chart, and
@@ -603,7 +668,7 @@ const SOCIAL_EXAMPLES: [(&str, &str, &str); 1] = [(
 )];
 
 /// Views of an architecture model besides its default view, and their reviewed SVGs.
-const VIEW_EXAMPLES: [(&str, &str, &str, &str); 3] = [
+const VIEW_EXAMPLES: [(&str, &str, &str, &str); 4] = [
     (
         "shop-views",
         "checkout",
@@ -622,6 +687,12 @@ const VIEW_EXAMPLES: [(&str, &str, &str, &str); 3] = [
         include_str!("../examples/api-environments.json"),
         include_str!("../examples/api-environments.production.svg"),
     ),
+    (
+        "booking-deployment",
+        "logical",
+        include_str!("../examples/booking-deployment.json"),
+        include_str!("../examples/booking-deployment.logical.svg"),
+    ),
 ];
 
 /// The committed SVGs are the reviewed reference output. Each example must render to exactly the
@@ -634,6 +705,22 @@ fn every_example_matches_its_reviewed_svg() {
         assert_eq!(
             actual.content, expected,
             "{name} drifted from its reviewed SVG"
+        );
+    }
+}
+
+/// The HTML profile of every example is reference output too, read from `examples/` next to its
+/// SVG.
+#[test]
+fn every_example_matches_its_reviewed_html() {
+    for (name, specification, _) in EXAMPLES {
+        let expected = std::fs::read_to_string(format!("examples/{name}.html"))
+            .unwrap_or_else(|error| panic!("{name} should have a reviewed HTML file: {error}"));
+        let actual = render_json(specification, RenderFormat::Html, &RenderOptions::default())
+            .unwrap_or_else(|error| panic!("{name} should render its HTML: {error}"));
+        assert_eq!(
+            actual.content, expected,
+            "{name} drifted from its reviewed HTML"
         );
     }
 }

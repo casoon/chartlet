@@ -185,3 +185,37 @@ export declare function renderChartDetailed(
   spec: Record<string, unknown> | string,
   options?: RenderChartOptions,
 ): RenderChartDetailedResult;
+
+export interface InspectChartOptions {
+  /** Inspection codes to leave out, such as `["connection_without_technology"]`. */
+  disable?: string[];
+  /** A `chartlet` executable to inspect with instead of the bundled WebAssembly build. */
+  binary?: string;
+}
+
+/** One finding of an inspection, as `chartlet inspect --format json` reports it. */
+export interface ChartInspection {
+  /** The stable code of the inspection, such as `unlabelled_connection`. */
+  code: string;
+  /** `gap`: missing documentation the specification has a field for; `hint`: worth a look. */
+  severity: "gap" | "hint";
+  /** A JSON Pointer to the part of the model the finding is about. */
+  path: string;
+  message: string;
+  /** How to improve it. */
+  hint: string;
+}
+
+export type InspectChartResult =
+  | { ok: true; findings: ChartInspection[] }
+  | { ok: false; error: ChartDiagnostic };
+
+/**
+ * Runs the inspections of a model without rendering it. An invalid specification, a type
+ * without inspections (`inspections_unavailable`) or an unknown code in `disable` is returned as
+ * `{ ok: false, error }`. A missing WebAssembly build or CLI still throws.
+ */
+export declare function inspectChart(
+  spec: Record<string, unknown> | string,
+  options?: InspectChartOptions,
+): InspectChartResult;

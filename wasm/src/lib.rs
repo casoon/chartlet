@@ -7,7 +7,9 @@
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
 //! "variant", "view", "allViews", "strict", "allowWarnings", "manifest", "alternative", "styles", "hooks" } }`, or
 //! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
-//! `"styles": "external"`, for every chart type when `types` is absent. Response: `{ "ok": true, "content", "styleHashes",
+//! `"styles": "external"`, for every chart type when `types` is absent, or
+//! `{ "inspect": true, "spec", "disable": ["code", …] }` for the inspections of a model, answered
+//! with `{ "ok": true, "findings": [{ "code", "severity", "path", "message", "hint" }] }`. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
 //! `{ "ok": false, "error": { "code", "path", "message" }, "warnings" }`, the same diagnostics
 //! the CLI reports with `--diagnostics json`. `styleHashes` are the CSP source expressions of the
@@ -25,9 +27,9 @@ use std::{
 };
 
 use chartlet::{
-    ChartSpec, ChartType, ChartWarning, Manifest, RenderFormat, RenderOptions, Styles, TableMode,
-    TextAlternative, Variant, render_json, stylesheet, stylesheet_for, stylesheet_types,
-    text_alternative,
+    ChartSpec, ChartType, ChartWarning, INSPECTIONS, Manifest, RenderFormat, RenderOptions, Styles,
+    TableMode, TextAlternative, Variant, inspect_json, render_json, stylesheet, stylesheet_for,
+    stylesheet_types, text_alternative,
 };
 use serde_json::{Value, json};
 
@@ -74,6 +76,11 @@ fn respond(request: &[u8]) -> Value {
         && request["stylesheet"] == true
     {
         return shared_stylesheet(&request["types"], request["common"] != false);
+    }
+    if let Ok(request) = serde_json::from_slice::<Value>(request)
+        && request["inspect"] == true
+    {
+        return inspections(&request["spec"], &request["disable"]);
     }
     let mut warnings = Vec::new();
     let result = run(request, &mut warnings);
@@ -273,6 +280,47 @@ fn shared_stylesheet(types: &Value, common: bool) -> Value {
         stylesheet_types(&chart_types)
     };
     json!({ "ok": true, "stylesheet": stylesheet })
+}
+
+/// The findings of the inspections of `spec`, leaving out those whose codes are in `disable`.
+fn inspections(spec: &Value, disable: &Value) -> Value {
+    let mut disabled = Vec::new();
+    for code in disable.as_array().into_iter().flatten() {
+        match code.as_str().filter(|code| INSPECTIONS.contains(code)) {
+            Some(code) => disabled.push(code),
+            None => {
+                return json!({
+                    "ok": false,
+                    "error": failure(&format!(
+                        "unknown inspection {code}; the inspections are {}",
+                        INSPECTIONS.join(", ")
+                    )),
+                });
+            }
+        }
+    }
+    let spec = match spec {
+        Value::String(spec) => Cow::Borrowed(spec.as_str()),
+        spec => Cow::Owned(spec.to_string()),
+    };
+    match inspect_json(&spec, &disabled) {
+        Ok(findings) => {
+            let findings: Vec<Value> = findings
+                .iter()
+                .map(|finding| {
+                    json!({
+                        "code": finding.code,
+                        "severity": finding.severity.name(),
+                        "path": finding.path,
+                        "message": finding.message,
+                        "hint": finding.hint,
+                    })
+                })
+                .collect();
+            json!({ "ok": true, "findings": findings })
+        }
+        Err(error) => json!({ "ok": false, "error": error_json(&error) }),
+    }
 }
 
 fn failure(message: &str) -> Value {

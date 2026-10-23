@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { createRenderer } from "@casoon/chartlet/wasm";
 
-import { renderChart, renderChartDetailed, stylesheet } from "../src/render.mjs";
+import { inspectChart, renderChart, renderChartDetailed, stylesheet } from "../src/render.mjs";
 
 // Without a CLI configured, renderChart uses the bundled WebAssembly build.
 delete process.env.CHARTLET_BIN;
@@ -319,5 +319,27 @@ test("hooks are written alike by the WebAssembly build and the CLI, and only on 
     assert.match(hooked, /data-chartlet-type="time"/);
     assert.match(hooked, /<g data-chartlet-plot="" data-pane="0"/);
     assert.doesNotMatch(renderChart(spec, { format }).content, /data-chartlet-/);
+  }
+});
+
+test("inspects a model alike from WebAssembly and the CLI", () => {
+  const spec = readExample("shop-architecture.json");
+  const fromWasm = inspectChart(spec);
+  assert.equal(fromWasm.ok, true);
+  assert.deepEqual(inspectChart(JSON.parse(spec), { binary }), fromWasm);
+  assert.deepEqual(Object.keys(fromWasm.findings[0]).sort(), ["code", "hint", "message", "path", "severity"]);
+  assert.ok(fromWasm.findings.some(({ code }) => code === "connection_without_technology"));
+
+  const disable = ["connection_without_technology"];
+  const fewer = inspectChart(spec, { disable });
+  assert.deepEqual(inspectChart(spec, { disable, binary }), fewer);
+  assert.ok(fewer.findings.every(({ code }) => code !== "connection_without_technology"));
+
+  const bar = readExample("monthly-trend.json");
+  for (const options of [{}, { binary }]) {
+    const unavailable = inspectChart(bar, options);
+    assert.equal(unavailable.ok, false);
+    assert.equal(unavailable.error.code, "inspections_unavailable");
+    assert.equal(inspectChart(spec, { ...options, disable: ["nonsense"] }).ok, false);
   }
 });

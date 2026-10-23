@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 import test from "node:test";
 
-import { architecture, id } from "@casoon/chartlet/builder";
+import { architecture, flow, id } from "@casoon/chartlet/builder";
 
 import { renderChart, renderChartDetailed } from "../src/render.mjs";
 
@@ -237,4 +237,120 @@ test("leaves everything else to the validation of the core", () => {
   const result = renderChartDetailed(a.spec(), { format: "svg" });
   assert.equal(result.ok, false);
   assert.match(result.error.path, /^\/architecture\//);
+});
+
+test("builds the order flow example as its JSON, and renders it byte-identical", () => {
+  const f = flow();
+  const received = f.node("received", "Order received", { kind: "start" });
+  const paid = f.node("paid", "Payment cleared?", { kind: "decision" });
+  const reserve = f.node("reserve", "Reserve stock");
+  const stock = f.node("stock", "Inventory", { kind: "store" });
+  const available = f.node("available", "In stock?", { kind: "decision" });
+  const backorder = f.node("backorder", "Backorder", { sublabel: "supplier", kind: "subprocess" });
+  const ship = f.node("ship", "Ship parcel");
+  const notify = f.node("notify", "Notify customer", { kind: "io" });
+  const delivered = f.node("delivered", "Delivered", { kind: "end" });
+  const cancelled = f.node("cancelled", "Cancelled", { kind: "end" });
+  f.connect(received, paid)
+    .connect(paid, reserve, { label: "yes" })
+    .connect(paid, notify, { label: "no" })
+    .connect(reserve, stock, { label: "update", dash: "dotted" })
+    .connect(reserve, available)
+    .connect(available, ship, { label: "yes" })
+    .connect(available, backorder, { label: "no" })
+    .connect(backorder, reserve, { label: "restocked", dash: "dashed" })
+    .connect(ship, delivered)
+    .connect(notify, cancelled)
+    .mainPath([received, paid, reserve, available, ship, delivered]);
+  const built = f.spec({
+    title: "Handling an order",
+    source: "Shop operations handbook",
+    width: 1320,
+    height: 420,
+  });
+
+  const expected = readExample("order-flow.json");
+  assert.deepEqual(built, expected);
+  for (const format of ["svg", "html"]) {
+    assert.equal(renderChart(built, { format }).content, renderChart(expected, { format }).content);
+  }
+});
+
+test("builds the release flow example with lanes and a group", () => {
+  const f = flow();
+  const dev = f.lane("dev", "Development");
+  const ci = f.lane("ci", "Continuous integration");
+  const ops = f.lane("ops", "Operations");
+  const commit = f.node("commit", "Commit pushed", { kind: "start", lane: dev });
+  const review = f.node("review", "Code review", { lane: dev });
+  const build = f.node("build", "Build", { sublabel: "locked inputs", lane: ci });
+  const tests = f.node("tests", "Run tests", { lane: ci });
+  const green = f.node("green", "All green?", { kind: "decision", lane: ci });
+  const fix = f.node("fix", "Fix failures", { lane: dev });
+  const staging = f.node("staging", "Deploy to staging", { lane: ops });
+  const approve = f.node("approve", "Approved?", { kind: "decision", lane: ops });
+  const prod = f.node("prod", "Deploy to production", { lane: ops });
+  const done = f.node("done", "Released", { kind: "end", lane: ops });
+  f.connect(commit, review)
+    .connect(review, build, { label: "merged" })
+    .chain([build, tests, green])
+    .connect(green, staging, { label: "yes" })
+    .connect(green, fix, { label: "no" })
+    .connect(fix, build, { label: "retry" })
+    .connect(staging, approve)
+    .connect(approve, prod, { label: "yes" })
+    .connect(approve, review, { label: "changes requested", dash: "dashed" })
+    .connect(prod, done)
+    .group("Quality gates", [build, tests, green])
+    .mainPath([commit, review, build, tests, green, staging, approve, prod, done]);
+  const built = f.spec({
+    title: "From commit to release",
+    source: "Team handbook, release process",
+    width: 1120,
+    height: 1020,
+  });
+
+  const expected = readExample("release-flow.json");
+  assert.deepEqual(built, expected);
+  for (const format of ["svg", "html"]) {
+    assert.equal(renderChart(built, { format }).content, renderChart(expected, { format }).content);
+  }
+});
+
+test("a flow takes settings, fans, shared ranks and a main path between two ends", () => {
+  const f = flow({ orientation: "landscape" });
+  const [start, a, b, end] = ["start", "a", "b", "end"].map((name) => f.node(name, name));
+  f.fanOut(start, [a, b]).fanIn([a, b], end).sameRank([a, b]).mainPath({ from: start, to: end });
+  const built = f.spec({ title: "Two reviews" });
+  assert.deepEqual(built.flow.sameRank, [["a", "b"]]);
+  assert.deepEqual(built.flow.mainPath, { from: "start", to: "end" });
+  assert.equal(built.flow.orientation, "landscape");
+  assert.deepEqual(
+    built.flow.edges.map(({ from, to }) => `${from}>${to}`),
+    ["start>a", "start>b", "a>end", "b>end"],
+  );
+  assert.equal(renderChartDetailed(built, { format: "svg" }).ok, true);
+});
+
+test("a flow reports identifiers used twice and references to undeclared lanes or steps", () => {
+  const f = flow();
+  const lane = f.lane("ops", "Operations");
+  f.node("deploy", "Deploy", { lane });
+  // Lanes and steps have identifiers of their own.
+  assert.equal(f.node("ops", "Operations review", { lane }), "ops");
+  assert.throws(() => f.lane("ops", "Again"), /"ops" is already declared as a lane/);
+  assert.throws(() => f.node("deploy", "Again"), /"deploy" is already declared as a step/);
+  assert.throws(() => f.node("x", "X", { lane: "nowhere" }), /lane of "x" is "nowhere", which is not declared/);
+  assert.throws(() => f.node("y", "Y", { lane: "deploy" }), /"deploy", which is a step, not a lane/);
+  assert.throws(() => f.connect("deploy", "done"), /end of an edge is "done", which is not declared/);
+  assert.throws(() => f.connect(["deploy"], "ops"), /must be one identifier/);
+  assert.throws(() => f.group("Gate", "deploy"), /group takes a list of identifiers/);
+  assert.throws(() => f.group("Gate", ["deploy", "done"]), /member of a group is "done"/);
+  assert.throws(() => f.sameRank(["deploy", "later"]), /shared rank is "later"/);
+  assert.throws(() => f.mainPath({ from: "deploy", to: "done" }), /main path is "done"/);
+  const built = f.spec();
+  assert.deepEqual(built.flow.nodes.map((node) => node.id), ["deploy", "ops"]);
+  assert.equal(built.flow.edges, undefined);
+  assert.equal(built.flow.groups, undefined);
+  assert.equal(built.flow.sameRank, undefined);
 });

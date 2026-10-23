@@ -52,6 +52,7 @@ test("serves the tools and the schema over stdio", async (t) => {
     "chartlet_chart_starter",
     "chartlet_diagram_starter",
     "chartlet_explain",
+    "chartlet_inspect",
     "chartlet_inspect_data",
     "chartlet_render",
     "chartlet_validate_spec",
@@ -124,6 +125,31 @@ test("serves the tools and the schema over stdio", async (t) => {
     arguments: { type: "flow", template: "context" },
   });
   assert.equal(misplaced.isError, true);
+
+  const unlabelled = structuredClone(context.structuredContent.spec);
+  delete unlabelled.architecture.connections[0].label;
+  const gaps = await client.callTool({ name: "chartlet_inspect", arguments: { spec: unlabelled } });
+  assert.equal(gaps.isError, undefined);
+  assert.deepEqual(
+    gaps.structuredContent.findings.filter(({ code }) => code === "unlabelled_connection"),
+    [
+      {
+        code: "unlabelled_connection",
+        severity: "gap",
+        path: "/architecture/connections/0",
+        message: gaps.structuredContent.findings[0].message,
+        hint: gaps.structuredContent.findings[0].hint,
+      },
+    ],
+  );
+  const disabled = await client.callTool({
+    name: "chartlet_inspect",
+    arguments: { spec: unlabelled, disable: ["unlabelled_connection"] },
+  });
+  assert.ok(disabled.structuredContent.findings.every(({ code }) => code !== "unlabelled_connection"));
+  const notInspected = await client.callTool({ name: "chartlet_inspect", arguments: { spec } });
+  assert.equal(notInspected.isError, true);
+  assert.match(notInspected.content[0].text, /inspections_unavailable/);
 
   const { contents } = await client.readResource({ uri: "chartlet://schema" });
   assert.equal(contents[0].text, schema);
