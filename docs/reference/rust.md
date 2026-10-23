@@ -23,6 +23,11 @@ With `RenderOptions { manifest: true, .. }`, `output.manifest` holds the provena
 (`Manifest::to_json` writes the JSON of `--manifest`). `chartlet::sha256` is the SHA-256 it hashes
 with.
 
+An architecture model with `views` renders its default view, or the one in
+`RenderOptions { view: Some("checkout".into()), .. }`. `ChartSpec::view` resolves a view to a
+specification of its own, for `text_alternative` or `render_png`; `ChartSpec::view_keys` lists
+the keys.
+
 With the `png` feature (`cargo add chartlet --features png`), `render_png` rasterizes the print or
 the social variant, see [Social images and PNG](../../guides/social-and-png/).
 

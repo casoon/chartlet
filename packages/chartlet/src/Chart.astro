@@ -11,6 +11,8 @@ export interface Props {
   styles?: 'inline' | 'external';
   /** Add the `data-*` hooks for `@casoon/chartlet/interactive`. */
   hooks?: boolean;
+  /** The key of the view of an architecture model; without it, its default view. */
+  view?: string;
   binary?: string;
 }
 
@@ -23,6 +25,7 @@ const {
   allowWarnings,
   styles,
   hooks = false,
+  view,
   binary,
 } = Astro.props;
 
@@ -37,6 +40,7 @@ const rendered = renderChart(spec, {
   allowWarnings,
   styles,
   hooks,
+  view,
   binary,
   idPrefix: id,
 });

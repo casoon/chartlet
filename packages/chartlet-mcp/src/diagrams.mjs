@@ -260,6 +260,11 @@ const KINDS = {
       label: "what it does",
       technology: "how, in brackets below the label",
       step: "1-99, each once: numbers the connection in a sequence of calls, written before the label",
+      id: "optional stable name by which views select the connection",
+    },
+    view: {
+      components: "architecture.views[]: a key, a title and the components shown; connections between them come along, or only the listed connections",
+      steps: "a dynamic view: connection ids in the order they occur, each with optional step text, numbered from 1; a connection may occur again",
     },
     note: { note: "on a component id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no connection; up to 12" },
   },
@@ -304,6 +309,7 @@ const NOTES = [
   '"theme": "blueprint" draws a diagram in pale lines on a deep blue ground (diagrams only; charts keep light and dark). A deployment is an architecture diagram: boundaries are the hosts, components of kind node and artifact sit in them.',
   'An architecture component may take "symbol", a generic symbol above its label that names its technology category (the kind keeps its shape; put a product name in sublabel): browser, mobile, api-gateway, load-balancer, cdn, firewall, identity, container, orchestrator, function, cloud, cache, object-storage, message-broker, search-index, monitoring. Any other name fails with unknown_symbol.',
   'Flow and architecture diagrams take "role" on nodes and edges: "critical" (strong red outline or line, badge !), "planned" (dashed violet, badge +) or "deprecated" (dotted gray, badge −). The kind keeps its shape and fill; a legend names only the roles used. Use a role for what something means in this picture, not for its kind (external is a kind); planned and deprecated edges take no dash (role_conflict).',
+  'An architecture model with "views" renders one view (chartlet_render view, or defaultView, or the first): only its components, the connections between them and the boundaries holding them; never the whole model.',
   'A tree takes "layout": "radial" for a mind map (root in the middle, subtrees in sectors); it refuses orientation, partner and link. "collapsed": true on a node hides what hangs below it.',
 ];
 

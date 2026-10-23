@@ -3,7 +3,7 @@ use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 75] = [
+const EXAMPLES: [(&str, &str, &str); 76] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -379,6 +379,11 @@ const EXAMPLES: [(&str, &str, &str); 75] = [
         include_str!("../examples/data-tier.json"),
         include_str!("../examples/data-tier.svg"),
     ),
+    (
+        "shop-views",
+        include_str!("../examples/shop-views.json"),
+        include_str!("../examples/shop-views.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -562,6 +567,14 @@ const SOCIAL_EXAMPLES: [(&str, &str, &str); 1] = [(
     include_str!("../examples/temperature-projection.social.svg"),
 )];
 
+/// Views of an architecture model besides its default view, and their reviewed SVGs.
+const VIEW_EXAMPLES: [(&str, &str, &str, &str); 1] = [(
+    "shop-views",
+    "checkout",
+    include_str!("../examples/shop-views.json"),
+    include_str!("../examples/shop-views.checkout.svg"),
+)];
+
 /// The committed SVGs are the reviewed reference output. Each example must render to exactly the
 /// bytes that are checked into `examples/`, on every supported platform.
 #[test]
@@ -592,6 +605,26 @@ fn every_mobile_variant_matches_its_reviewed_svg() {
         assert_eq!(
             actual.content, expected,
             "{name} drifted from its reviewed mobile SVG"
+        );
+    }
+}
+
+/// The views besides the default view are reference output too.
+#[test]
+fn every_view_matches_its_reviewed_svg() {
+    for (name, view, specification, expected) in VIEW_EXAMPLES {
+        let actual = render_json(
+            specification,
+            RenderFormat::Svg,
+            &RenderOptions {
+                view: Some(view.to_owned()),
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("{name} should render its view {view}: {error}"));
+        assert_eq!(
+            actual.content, expected,
+            "{name} drifted from its reviewed SVG of the view {view}"
         );
     }
 }

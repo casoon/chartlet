@@ -1070,6 +1070,62 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
 Limits: 1–40 components, up to 80 connections and 12 boundaries; identifiers are unique among
 components and boundaries together.
 
+### Views on one model
+
+One architecture model can be shown as several diagrams: an overview, the way a checkout takes, a
+detail of one zone. The model keeps its components, connections and boundaries once; `views`
+lists what each diagram shows. A specification with views always renders one of them — the one
+asked for by its `key` (`--view checkout`, `view: 'checkout'`), else `defaultView`, else the
+first — and never the whole model, so a view never passes for the complete system.
+
+```json
+"connections": [
+  { "id": "call", "from": "web", "to": "api", "label": "calls" },
+  { "id": "orders", "from": "api", "to": "db", "label": "reads, writes" }
+],
+"views": [
+  { "key": "overview", "title": "Web shop: overview", "components": ["web", "api", "db"] },
+  {
+    "key": "checkout",
+    "title": "Web shop: checkout",
+    "steps": [
+      { "connection": "call", "label": "submits order" },
+      { "connection": "orders", "label": "reserves stock" },
+      { "connection": "orders", "label": "saves order" }
+    ]
+  }
+]
+```
+
+- **Selection.** `components` lists the components a view shows, by id; they keep the order of
+  the model. The connections between them come along, or only those listed in `connections`,
+  by the optional `id` a connection carries. A view draws no connection the model does not have
+  and leaves out every connection to a component it hides; it does not merge components into
+  coarser ones.
+- **Boundaries** come along when they hold a shown component, directly or further in; the others
+  are left out.
+- **Highlighting.** A view's `mainPath` is drawn stronger, along its own connections. Without
+  one, the view keeps the model's main path when it shows all of it.
+- **Dynamic views.** `steps` lists connections in the order they occur, each with an optional
+  text in place of the connection's label; the same connection may occur again. The view
+  numbers them from 1, shows only them and the components at their ends, and draws a repeated
+  connection once per occurrence — a static numbered diagram, without timing or parallel steps.
+- **Text.** A view has its own `title` and, optionally, `description`; the model's description
+  is never used. Without one the description is generated from what the view shows and says
+  how much of the model that is (“It is a view that shows 8 of the model's 11 components and 8
+  of its 11 connections.”). The data table lists the shown components only.
+- **Variants and provenance.** Every variant — HTML, mobile, print, social, PNG — renders the
+  chosen view. The manifest names it in `view`; `specHash` is the hash of the whole model. Each
+  view gets its own derived ID prefix, so several views can share a page.
+- **Diagnostics** point into the model: `unknown_view` for a key no view has (at `/render/view`,
+  or `/architecture/defaultView`), `empty_view` for a view without components or steps,
+  `unknown_node` and `unknown_connection` for ids the model does not have,
+  `connection_outside_view` for a listed connection to a hidden component, and the usual
+  diagnostics of the resolved diagram at the place in the model or the view they come from.
+
+Up to 20 views and 99 steps per view. Example `shop-views` (overview, and checkout as
+`shop-views.checkout.svg`).
+
 ## Trees
 
 A tree (`"type": "tree"`) draws a root and the nodes below it: an organization chart, an

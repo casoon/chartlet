@@ -66,6 +66,18 @@ test("renders the same bytes as @casoon/chartlet with a manifest", () => {
   assert.equal(renderSpec({ spec: { ...spec, type: "pie" } }).error.code, "invalid_spec");
 });
 
+test("renders the view of an architecture model it is asked for", () => {
+  const spec = example("shop-views");
+  const checkout = renderSpec({ spec, format: "svg", view: "checkout" });
+  assert.equal(checkout.ok, true);
+  assert.equal(checkout.content, renderChart(spec, { format: "svg", view: "checkout" }).content);
+  assert.equal(checkout.manifest.view, "checkout");
+  assert.equal(renderSpec({ spec, format: "svg" }).manifest.view, "overview");
+  const unknown = renderSpec({ spec, view: "deploy" });
+  assert.equal(unknown.ok, false);
+  assert.deepEqual([unknown.error.code, unknown.error.path], ["unknown_view", "/render/view"]);
+});
+
 test("writes to outputPath inside the root and returns path and size", () => {
   const root = mkdtempSync(join(tmpdir(), "chartlet-mcp-"));
   try {

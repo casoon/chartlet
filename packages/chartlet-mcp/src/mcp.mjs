@@ -38,6 +38,7 @@ const manifest = z
     format: z.string(),
     variant: z.string(),
     idPrefix: z.string(),
+    view: z.string().optional().describe("The key of the view of an architecture model that was rendered."),
     warnings: z.array(diagnostic),
   })
   .describe("Provenance of the render: compiler version and SHA-256 of specification and output.");
@@ -177,6 +178,10 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
           .enum(["desktop", "mobile", "print", "social"])
           .optional()
           .describe("SVG only: mobile renders the spec's mobile layout; needs a mobile field in the spec. print renders the chart with literal colors for PDF and print renderers (resvg, Typst, librsvg). social renders a 1200×630 image for Open Graph previews, with literal colors."),
+        view: z
+          .string()
+          .optional()
+          .describe("The key of a view of an architecture model (architecture.views) to render; its default view when omitted. Each view is a diagram of its own with its own title, description and table; the manifest names the view."),
         idPrefix: z
           .string()
           .optional()

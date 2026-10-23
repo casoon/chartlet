@@ -469,6 +469,60 @@ fn manifest_records_the_provenance_of_the_render() {
     std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
 }
 
+#[test]
+fn cli_renders_the_view_it_is_asked_for() {
+    let render = |view: Option<&str>| {
+        let mut args = vec!["render", "examples/shop-views.json", "--format", "svg"];
+        args.extend(view.iter().flat_map(|view| ["--view", view]));
+        Command::new(env!("CARGO_BIN_EXE_chartlet"))
+            .args(&args)
+            .output()
+            .expect("chartlet CLI should start")
+    };
+
+    let checkout = render(Some("checkout"));
+    assert!(checkout.status.success(), "{checkout:?}");
+    let svg = String::from_utf8(checkout.stdout).expect("SVG output should be UTF-8");
+    assert_eq!(
+        svg,
+        format!("{}\n", include_str!("../examples/shop-views.checkout.svg"))
+    );
+    let default = String::from_utf8(render(None).stdout).expect("SVG output should be UTF-8");
+    assert!(default.contains("Web shop: overview"));
+    assert!(!default.contains("Session cache"));
+
+    let unknown = render(Some("deploy"));
+    assert!(!unknown.status.success());
+    let stderr = String::from_utf8(unknown.stderr).expect("errors should be UTF-8");
+    assert!(stderr.contains("unknown_view at /render/view"), "{stderr}");
+}
+
+#[test]
+fn manifest_records_the_view() {
+    let directory = std::env::temp_dir().join(format!("chartlet-cli-view-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory should be writable");
+    let manifest = directory.join("manifest.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+        .args([
+            "render",
+            "examples/shop-views.json",
+            "--view",
+            "checkout",
+            "-o",
+            directory.join("chart.svg").to_str().expect("UTF-8 path"),
+            "--manifest",
+            manifest.to_str().expect("UTF-8 path"),
+        ])
+        .output()
+        .expect("chartlet CLI should start");
+    assert!(output.status.success(), "{output:?}");
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&manifest).expect("the manifest should be written"))
+            .expect("the manifest should be JSON");
+    assert_eq!(manifest["view"], "checkout");
+    std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
+}
+
 /// The CLI writes the same bytes as the library: the reviewed SVG of an architecture diagram
 /// with symbols.
 #[test]

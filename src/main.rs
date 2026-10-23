@@ -98,6 +98,7 @@ fn render_job(job: &Job, input: &str) -> Result<Rendered, Failure> {
     if job.png {
         let (png, warnings) = render_png(
             input,
+            job.options.view.as_deref(),
             job.options.variant,
             job.scale,
             job.manifest.is_some(),
@@ -144,6 +145,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut hooks = false;
     let mut png = false;
     let mut scale = None;
+    let mut view = None;
     let mut watch = false;
     let mut preview = false;
     let mut port = None;
@@ -174,6 +176,13 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                 };
             }
             "--variant" => variant = parse_variant(arguments.next().as_deref())?,
+            "--view" => {
+                view = Some(
+                    arguments
+                        .next()
+                        .ok_or_else(|| "--view requires the key of a view".to_owned())?,
+                );
+            }
             "--styles" => styles = parse_styles(arguments.next().as_deref())?,
             "--hooks" => hooks = true,
             "--manifest" => manifest = Some(path_after(&mut arguments, "--manifest")?),
@@ -203,6 +212,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             manifest: manifest.is_some(),
             styles,
             hooks,
+            view,
         },
         manifest,
         strict: strict.then_some(allowed),
@@ -287,6 +297,7 @@ fn spec_failure(error: chartlet::ChartError) -> Failure {
 #[cfg(feature = "png")]
 fn render_png(
     input: &str,
+    view: Option<&str>,
     variant: Variant,
     scale: Option<f32>,
     manifest: bool,
@@ -297,7 +308,9 @@ fn render_png(
             .into());
     }
     let scale = scale.unwrap_or(1.0);
-    let spec = chartlet::ChartSpec::from_json(input).map_err(spec_failure)?;
+    let spec = chartlet::ChartSpec::from_json(input)
+        .and_then(|spec| spec.view(view))
+        .map_err(spec_failure)?;
     let output = chartlet::render_png(&spec, &chartlet::PngOptions { variant, scale })
         .map_err(spec_failure)?;
     Ok((output.png, output.warnings))
@@ -306,6 +319,7 @@ fn render_png(
 #[cfg(not(feature = "png"))]
 fn render_png(
     _input: &str,
+    _view: Option<&str>,
     _variant: Variant,
     _scale: Option<f32>,
     _manifest: bool,
@@ -419,7 +433,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
+    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
        chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
 }
 

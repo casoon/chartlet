@@ -30,6 +30,7 @@ function withAlternative(rendered, spec, options) {
   if (options.alternative) {
     rendered.alternative = wasmRenderer().renderChartDetailed(spec, {
       format: "svg",
+      view: options.view,
       alternative: true,
     }).alternative;
   }
@@ -121,6 +122,9 @@ function runCli(binary, input, options, extraArgs) {
   }
   if (options.variant) {
     args.push("--variant", options.variant);
+  }
+  if (options.view) {
+    args.push("--view", options.view);
   }
   if (options.styles) {
     args.push("--styles", options.styles);
