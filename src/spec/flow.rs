@@ -37,6 +37,8 @@ pub struct FlowSpec {
     /// Which way the flow runs: down in portrait, right in landscape.
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    #[serde(default, skip_serializing_if = "DiagramSpacing::is_normal")]
+    pub spacing: DiagramSpacing,
     /// What the `value` of the steps stands for, such as `Lead time (days)`: the name of the
     /// color key and of the table column.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -220,6 +222,68 @@ pub struct FlowEdgeSpec {
     pub weight: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<DiagramRole>,
+    /// The side of `from` the edge leaves, and the side of `to` it reaches; where the layout
+    /// chooses when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_side: Option<PortSide>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_side: Option<PortSide>,
+}
+
+/// How much room a layered diagram leaves between its layers and between neighbours in a layer.
+/// Only the gaps scale: steps, texts, margins and the distance between two parallel lines keep
+/// their size, and a compact gap stays at least 16 pixels between steps, 20 between layers.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum DiagramSpacing {
+    /// The gaps at about 70 %.
+    Compact,
+    #[default]
+    Normal,
+    /// The gaps at 150 %.
+    Roomy,
+}
+
+impl DiagramSpacing {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub(crate) const fn is_normal(&self) -> bool {
+        matches!(self, Self::Normal)
+    }
+}
+
+/// A side of a node, named after the direction of the flow so that it holds in either
+/// orientation: `start` faces the steps before, `end` the steps after, and `left` and `right` are
+/// the sides across the flow, left and right in portrait, top and bottom in landscape.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PortSide {
+    Start,
+    End,
+    Left,
+    Right,
+}
+
+/// Checks the sides an edge from `from` to `to` asks for: an edge from a node to itself is drawn
+/// as a loop beside it and takes none.
+pub(crate) fn validate_sides(
+    (from, to): (&str, &str),
+    sides: (Option<PortSide>, Option<PortSide>),
+    path: &str,
+) -> Result<(), ChartError> {
+    if from != to {
+        return Ok(());
+    }
+    let field = match sides {
+        (Some(_), _) => "fromSide",
+        (None, Some(_)) => "toSide",
+        (None, None) => return Ok(()),
+    };
+    Err(ChartError::new(
+        "option_not_supported",
+        format!("{path}/{field}"),
+        "an edge from a node to itself is drawn as a loop beside it; remove the side",
+    ))
 }
 
 /// What a node or an edge of a diagram means beyond its kind, the same in every diagram: each
@@ -754,6 +818,11 @@ impl FlowSpec {
             }
             validate_weight(edge.weight, &path)?;
             validate_role(edge.role, edge.dash, &path)?;
+            validate_sides(
+                (&edge.from, &edge.to),
+                (edge.from_side, edge.to_side),
+                &path,
+            )?;
         }
         Ok(())
     }

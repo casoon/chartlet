@@ -7,7 +7,7 @@ use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
     scene::{Element, Scene, Text, TextAnchor},
-    spec::{ChartSpec, Locale, NoteSpec},
+    spec::{ChartSpec, DiagramSpacing, Locale, NoteSpec},
     text,
 };
 
@@ -68,7 +68,7 @@ pub(crate) fn push_band(
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) {
-    let spacing = Spacing::for_width(spec.width);
+    let spacing = Spacing::new(spec.width, DiagramSpacing::Normal);
     let boxes: Vec<(&str, Vec<String>, (f64, f64))> = notes
         .iter()
         .enumerate()

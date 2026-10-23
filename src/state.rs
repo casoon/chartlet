@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, Ends, Group, MARGIN, Node, Shape, layout_diagram, reading_order},
+    flow::{Diagram, Edge, Ends, Group, MARGIN, Node, Shape, Sides, layout_diagram, reading_order},
     metrics::TextMetrics,
     roles,
     scene::Scene,
@@ -71,6 +71,7 @@ fn places(machine: &StateSpec) -> Places {
 /// The diagram the layered layout draws: the initial dot first, when there is one, then every
 /// state that is not composite; the composite states become frames around the states inside
 /// them. The arrow into the initial state comes before the transitions.
+#[allow(clippy::too_many_lines)]
 fn diagram(spec: &ChartSpec) -> Diagram {
     let machine = machine(spec);
     let words = spec.locale.words();
@@ -114,6 +115,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             weight: None,
             role: None,
             category: None,
+            sides: Sides::default(),
         });
     }
     let mut groups = Vec::new();
@@ -162,15 +164,16 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             weight: None,
             role: transition.role,
             category: None,
+            sides: Sides::default(),
         });
     }
     Diagram {
         nodes,
         edges,
-        lanes: Vec::new(),
         groups,
-        ranks: Vec::new(),
         orientation: machine.orientation,
+        spacing: machine.spacing,
+        ..Diagram::default()
     }
 }
 

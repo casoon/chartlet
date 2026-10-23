@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, DiagramRole, flow::validate_role, is_false,
-    sequence::is_identifier, validate_text,
+    ChartSpec, Dash, DiagramOrientation, DiagramRole, DiagramSpacing, flow::validate_role,
+    is_false, sequence::is_identifier, validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -27,6 +27,8 @@ pub struct StateSpec {
     pub main_path: Vec<String>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    #[serde(default, skip_serializing_if = "DiagramSpacing::is_normal")]
+    pub spacing: DiagramSpacing,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

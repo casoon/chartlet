@@ -53,6 +53,8 @@ impl ChartSpec {
                     connection.technology = connection.technology.or_else(|| of.technology.clone());
                     connection.dash = connection.dash.or(of.dash);
                     connection.role = connection.role.or(of.role);
+                    connection.from_side = connection.from_side.or(of.from_side);
+                    connection.to_side = connection.to_side.or(of.to_side);
                     // A model connection carried by several instances keeps its id once.
                     if carried[..at]
                         .iter()
@@ -739,6 +741,42 @@ mod tests {
                 .unwrap()
                 .content
         );
+    }
+
+    #[test]
+    fn instance_connections_take_the_sides_of_their_model_connection() {
+        let json = edited(
+            r#"{ "id": "query", "from": "api", "to": "db","#,
+            r#"{ "id": "query", "from": "api", "to": "db", "fromSide": "right", "toSide": "start","#,
+        )
+        .replacen(
+            r#""environment": "Production","#,
+            r#""environment": "Production", "deriveConnections": true,"#,
+            1,
+        )
+        .replacen(
+            ",\n          { \"id\": \"query\", \"from\": \"api-1\", \"to\": \"db-prod\" },\n          { \"id\": \"query\", \"from\": \"api-2\", \"to\": \"db-prod\" }",
+            "",
+            1,
+        );
+        assert!(!json.contains(r#""from": "api-1", "to": "db-prod""#));
+        let sides = |key: &str| {
+            view(&json, key)
+                .architecture
+                .unwrap()
+                .connections
+                .iter()
+                .filter(|connection| connection.to.starts_with("db"))
+                .map(|connection| (connection.from_side, connection.to_side))
+                .collect::<Vec<_>>()
+        };
+        // Listed in the local view, derived in production: the same sides.
+        let expected = (
+            Some(crate::spec::PortSide::Right),
+            Some(crate::spec::PortSide::Start),
+        );
+        assert_eq!(sides("local"), [expected]);
+        assert_eq!(sides("production"), [expected, expected]);
     }
 
     #[test]
