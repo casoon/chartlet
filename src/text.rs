@@ -1620,6 +1620,26 @@ pub(crate) fn architecture_opening(
     }
 }
 
+/// How much of its model a view shows: `(shown, in all)` components and connections.
+pub(crate) fn view_scope(
+    locale: Locale,
+    (components, all_components): (usize, usize),
+    (connections, all_connections): (usize, usize),
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "It is a view that shows {components} of the model's {all_components} component{} and {connections} of its {all_connections} connection{}.",
+            plural(all_components, "", "s"),
+            plural(all_connections, "", "s"),
+        ),
+        Locale::De => format!(
+            "Die Sicht zeigt {components} der {all_components} {} und {connections} der {all_connections} {} des Modells.",
+            plural(all_components, "Komponente", "Komponenten"),
+            plural(all_connections, "Verbindung", "Verbindungen"),
+        ),
+    }
+}
+
 /// A boundary and what it holds, components and boundaries, as a sentence.
 /// The same in English and German.
 pub(crate) fn boundary(label: &str, parent: Option<&str>, held: &[&str]) -> String {

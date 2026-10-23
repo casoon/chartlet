@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, MainPath, sequence::is_identifier, validate_text,
+    ChartSpec, Dash, DiagramOrientation, MainPath,
+    sequence::is_identifier,
+    validate_text,
+    view::{ViewScope, ViewSpec},
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -28,6 +31,17 @@ pub struct ArchitectureSpec {
     pub main_path: MainPath,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    /// Views on this model: each shows a selection of its components and connections as a
+    /// diagram of its own. A specification with views renders one of them, never the whole
+    /// model.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub views: Vec<ViewSpec>,
+    /// The `key` of the view rendered when none is asked for; the first view without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_view: Option<String>,
+    /// How much of its model a resolved view shows, for its description.
+    #[serde(skip)]
+    pub(crate) scope: Option<ViewScope>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -87,6 +101,9 @@ impl ComponentKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ConnectionSpec {
+    /// A stable name by which views select the connection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub from: String,
     pub to: String,
     /// What the connection does, such as `reads orders`.
@@ -172,7 +189,8 @@ impl ArchitectureSpec {
 impl ChartSpec {
     /// An architecture diagram: components and boundaries with identifiers unique among both,
     /// connections between components, boundaries that nest without a circle and each hold at
-    /// least one component, and a main path along connections.
+    /// least one component, a main path along connections, and views that each resolve to a
+    /// valid diagram.
     pub(super) fn validate_architecture(&self) -> Result<Vec<ChartWarning>, ChartError> {
         self.reject_map_options("an architecture diagram", "architecture.components")?;
         let Some(architecture) = &self.architecture else {
@@ -185,6 +203,7 @@ impl ChartSpec {
         architecture.validate_boundaries()?;
         architecture.validate_components()?;
         architecture.validate_connections()?;
+        self.validate_views()?;
         Ok(Vec::new())
     }
 }
@@ -207,6 +226,29 @@ fn validate_id<'a>(
             "duplicate_id",
             format!("{path}/id"),
             format!("the id \"{id}\" is already taken by an earlier component or boundary"),
+        ));
+    }
+    Ok(())
+}
+
+/// The `id` of a connection: well formed, and not taken by an `earlier` connection.
+fn validate_connection_id(
+    id: &str,
+    earlier: &[ConnectionSpec],
+    path: &str,
+) -> Result<(), ChartError> {
+    if !is_identifier(id) {
+        return Err(ChartError::new(
+            "invalid_id",
+            format!("{path}/id"),
+            "use 1–64 ASCII letters, digits, hyphens, or underscores, starting with a letter",
+        ));
+    }
+    if earlier.iter().any(|other| other.id.as_deref() == Some(id)) {
+        return Err(ChartError::new(
+            "duplicate_id",
+            format!("{path}/id"),
+            format!("the id \"{id}\" is already taken by an earlier connection"),
         ));
     }
     Ok(())
@@ -329,6 +371,9 @@ impl ArchitectureSpec {
         }
         for (index, connection) in self.connections.iter().enumerate() {
             let path = format!("/architecture/connections/{index}");
+            if let Some(id) = &connection.id {
+                validate_connection_id(id, &self.connections[..index], &path)?;
+            }
             for (field, id) in [("from", &connection.from), ("to", &connection.to)] {
                 if self.component(id).is_none() {
                     return Err(ChartError::new(

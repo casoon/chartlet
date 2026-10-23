@@ -12,7 +12,7 @@ use crate::{
     layout::format_value,
     metrics::TextMetrics,
     scene::Scene,
-    spec::{ArchitectureSpec, ChartSpec, ComponentKind},
+    spec::{ArchitectureSpec, ChartSpec, ComponentKind, Locale},
     structure::{Facts, Structure},
     text,
 };
@@ -184,6 +184,23 @@ fn steps_in_order(architecture: &ArchitectureSpec) -> Vec<String> {
         .collect()
 }
 
+/// For a view that leaves out part of its model, a sentence that says how much it shows, with a
+/// space in front; empty otherwise.
+fn view_scope(architecture: &ArchitectureSpec, locale: Locale) -> String {
+    match architecture.scope {
+        Some(scope)
+            if scope.components.0 < scope.components.1
+                || scope.connections.0 < scope.connections.1 =>
+        {
+            format!(
+                " {}",
+                text::view_scope(locale, scope.components, scope.connections)
+            )
+        }
+        _ => String::new(),
+    }
+}
+
 /// The diagram in sentences: its size, the boundaries and what each holds, the main path, and
 /// every component in reading order with where it connects to.
 pub(crate) fn description(spec: &ChartSpec) -> String {
@@ -195,6 +212,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         architecture.connections.len(),
         architecture.boundaries.len(),
     );
+    description.push_str(&view_scope(architecture, locale));
     for boundary in &architecture.boundaries {
         let parent = boundary
             .parent
