@@ -2,11 +2,13 @@
 //! production, as the running instances of the model's components on hosts. The view resolves
 //! to an architecture diagram of its own whose components are the instances, whose boundaries
 //! are the hosts and whose connections are only those the view lists; limits and diagnostics are
-//! those of that diagram, pointing into the view.
+//! those of that diagram, pointing into the view. A view that derives its connections adds,
+//! for every model connection it does not list, one instance connection from each instance of
+//! its `from` component to the nearest instances of its `to` component.
 
 use super::{
-    ArchitectureSpec, ChartSpec, MainPath, ViewSpec, sequence::is_identifier, validate_text,
-    view::ResolvedView,
+    ArchitectureSpec, ChartSpec, ConnectionSpec, MainPath, ViewSpec, sequence::is_identifier,
+    validate_text, view::ResolvedView,
 };
 use crate::error::ChartError;
 
@@ -32,11 +34,11 @@ impl ChartSpec {
                 component
             })
             .collect();
-        architecture.connections = view
-            .instance_connections
+        let carried = model.instance_connections(view);
+        architecture.connections = carried
             .iter()
             .enumerate()
-            .map(|(at, connection)| {
+            .map(|(at, (connection, _))| {
                 let mut connection = connection.clone();
                 if let Some(of) = connection.id.as_deref().and_then(|id| {
                     model
@@ -50,9 +52,9 @@ impl ChartSpec {
                     connection.dash = connection.dash.or(of.dash);
                     connection.role = connection.role.or(of.role);
                     // A model connection carried by several instances keeps its id once.
-                    if view.instance_connections[..at]
+                    if carried[..at]
                         .iter()
-                        .any(|earlier| earlier.id == connection.id)
+                        .any(|(earlier, _)| earlier.id == connection.id)
                     {
                         connection.model_id = connection.id.take();
                     }
@@ -78,9 +80,9 @@ impl ChartSpec {
                     .map(|instance| instance.id.clone())
                     .collect();
                 category.connections.retain(|id| {
-                    view.instance_connections
+                    carried
                         .iter()
-                        .any(|connection| connection.id.as_ref() == Some(id))
+                        .any(|(connection, _)| connection.id.as_ref() == Some(id))
                 });
             }
         }
@@ -108,6 +110,8 @@ impl ChartSpec {
             own_main_path: false,
             deployment: true,
             own_size,
+            explicit_connections: view.instance_connections.len(),
+            derived: carried.iter().filter_map(|(_, of)| *of).collect(),
         }
     }
 }
@@ -118,6 +122,7 @@ pub(super) fn reject_deployment_fields(view: &ViewSpec, path: &str) -> Result<()
         (!view.hosts.is_empty(), "hosts"),
         (!view.instances.is_empty(), "instances"),
         (!view.instance_connections.is_empty(), "instanceConnections"),
+        (view.derive_connections, "deriveConnections"),
     ]
     .into_iter()
     .find_map(|(given, field)| given.then_some(field))
@@ -131,9 +136,92 @@ pub(super) fn reject_deployment_fields(view: &ViewSpec, path: &str) -> Result<()
     }
 }
 
+/// The hosts around a host, by id, outermost first and ending with it; none for an instance
+/// without one. A host that is not there or nests in a circle ends the chain, which the diagram
+/// of the view reports.
+fn host_chain<'a>(view: &'a ViewSpec, host: Option<&'a str>) -> Vec<&'a str> {
+    let mut chain = Vec::new();
+    let mut at = host;
+    while let Some(id) = at {
+        if chain.contains(&id) || chain.len() > view.hosts.len() {
+            break;
+        }
+        chain.push(id);
+        at = view
+            .hosts
+            .iter()
+            .find(|host| host.id == id)
+            .and_then(|host| host.parent.as_deref());
+    }
+    chain.reverse();
+    chain
+}
+
 impl ArchitectureSpec {
+    /// The connections of a deployment view: those it lists, each with `None`, then, if it
+    /// derives connections, those derived from every model connection whose `id` it does not
+    /// list, each with the place of that connection in the model.
+    ///
+    /// A model connection from A to B joins each instance of A, in the order of the instances,
+    /// to the nearest instances of B: those whose hosts share the most hosts with its own,
+    /// counted from the outermost. At a tie, it joins all of them; an instance is never joined
+    /// to itself. The derived connection is the model connection with the instances as its
+    /// ends.
+    pub(super) fn instance_connections(
+        &self,
+        view: &ViewSpec,
+    ) -> Vec<(ConnectionSpec, Option<usize>)> {
+        let mut connections: Vec<(ConnectionSpec, Option<usize>)> = view
+            .instance_connections
+            .iter()
+            .map(|connection| (connection.clone(), None))
+            .collect();
+        if !view.derive_connections {
+            return connections;
+        }
+        let of = |component: &str| -> Vec<&super::InstanceSpec> {
+            view.instances
+                .iter()
+                .filter(|instance| instance.of == component)
+                .collect()
+        };
+        for (index, model) in self.connections.iter().enumerate() {
+            let listed = model.id.is_some()
+                && view
+                    .instance_connections
+                    .iter()
+                    .any(|connection| connection.id == model.id);
+            if listed {
+                continue;
+            }
+            for from in of(&model.from) {
+                let near = host_chain(view, from.host.as_deref());
+                let shared = |to: &super::InstanceSpec| {
+                    host_chain(view, to.host.as_deref())
+                        .iter()
+                        .zip(&near)
+                        .take_while(|(a, b)| a == b)
+                        .count()
+                };
+                let mut targets = of(&model.to);
+                targets.retain(|to| to.id != from.id);
+                let Some(nearest) = targets.iter().map(|to| shared(to)).max() else {
+                    continue;
+                };
+                for to in targets.into_iter().filter(|to| shared(to) == nearest) {
+                    let mut connection = model.clone();
+                    connection.from.clone_from(&from.id);
+                    connection.to.clone_from(&to.id);
+                    connections.push((connection, Some(index)));
+                }
+            }
+        }
+        connections
+    }
+
     /// What a deployment view shows of the model: the components its instances run and the
-    /// connections its instance connections name, by their places in the model.
+    /// connections its instance connections name or derive from, by their places in the
+    /// model.
     pub(super) fn deployment_selection(
         &self,
         view: &ViewSpec,
@@ -145,13 +233,19 @@ impl ArchitectureSpec {
                     .any(|instance| instance.of == self.components[index].id)
             })
             .collect();
+        let derived: Vec<usize> = self
+            .instance_connections(view)
+            .into_iter()
+            .filter_map(|(_, of)| of)
+            .collect();
         let connections = (0..self.connections.len())
             .filter(|&index| {
-                self.connections[index].id.is_some()
-                    && view
-                        .instance_connections
-                        .iter()
-                        .any(|connection| connection.id == self.connections[index].id)
+                derived.contains(&index)
+                    || (self.connections[index].id.is_some()
+                        && view
+                            .instance_connections
+                            .iter()
+                            .any(|connection| connection.id == self.connections[index].id))
             })
             .collect();
         (components, connections, Vec::new())
@@ -469,6 +563,150 @@ mod tests {
         let production = view(&json, "production");
         let trust = &production.architecture.as_ref().unwrap().perspectives[0];
         assert_eq!(trust.categories[0].connections, ["query"]);
+    }
+
+    /// The ends of the connections of a resolved view, as `from>to`.
+    fn ends(spec: &ChartSpec) -> String {
+        spec.architecture
+            .as_ref()
+            .unwrap()
+            .connections
+            .iter()
+            .map(|connection| format!("{}>{}", connection.from, connection.to))
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// The model with one more deployment view, `derived`, that derives its connections.
+    fn with_derived(view: &str) -> String {
+        edited(
+            r#""views": ["#,
+            &format!(
+                r#""views": [{{"key": "derived", "title": "Derived", "environment": "Production",
+                   "deriveConnections": true, {view}}},"#
+            ),
+        )
+    }
+
+    #[test]
+    fn derived_connections_join_the_nearest_instances() {
+        // The production view without its connections derives the ones it lists.
+        let start = MODEL
+            .find(
+                r#""hosts": [
+          { "id": "region""#,
+            )
+            .unwrap();
+        let end = MODEL[start..].find(r#""instanceConnections""#).unwrap() + start;
+        let json = with_derived(MODEL[start..end].trim_end().trim_end_matches(','));
+        let derived = view(&json, "derived");
+        assert_eq!(
+            ends(&derived),
+            "lb-prod>api-1 lb-prod>api-2 api-1>db-prod api-2>db-prod"
+        );
+        let production = view(&json, "production");
+        assert_eq!(
+            serde_json::to_string(&derived.architecture.as_ref().unwrap().connections).unwrap(),
+            serde_json::to_string(&production.architecture.as_ref().unwrap().connections).unwrap()
+        );
+
+        // Replicas on two nodes join the database on their own node; the load balancer, on no
+        // host, is as near to both.
+        let json = with_derived(
+            r#""hosts": [{ "id": "node-a", "label": "Node A" }, { "id": "node-b", "label": "Node B" }],
+               "instances": [
+                 { "id": "lb-1", "of": "lb" },
+                 { "id": "api-a", "of": "api", "in": "node-a" },
+                 { "id": "api-b", "of": "api", "in": "node-b" },
+                 { "id": "db-a", "of": "db", "in": "node-a" },
+                 { "id": "db-b", "of": "db", "in": "node-b" }
+               ]"#,
+        );
+        assert_eq!(
+            ends(&view(&json, "derived")),
+            "lb-1>api-a lb-1>api-b api-a>db-a api-b>db-b"
+        );
+
+        // A model connection that the view lists is not derived; the others still are.
+        let json = with_derived(
+            r#""instances": [
+                 { "id": "lb-1", "of": "lb" },
+                 { "id": "api-1", "of": "api" },
+                 { "id": "api-2", "of": "api" },
+                 { "id": "db-1", "of": "db" }
+               ],
+               "instanceConnections": [{ "id": "route", "from": "lb-1", "to": "api-2" }]"#,
+        );
+        let derived = view(&json, "derived");
+        assert_eq!(ends(&derived), "lb-1>api-2 api-1>db-1 api-2>db-1");
+        let alternative = text_alternative(&derived).unwrap();
+        assert!(alternative.description.contains("environment Production"));
+        // A diagnostic about a derived connection points to the model connection.
+        let spec = ChartSpec::from_json(&json).unwrap();
+        spec.validate().unwrap();
+        let resolved = spec.resolve_view(Some("derived")).unwrap().unwrap();
+        assert_eq!(
+            resolved.model_path("/architecture/connections/1/label"),
+            "/architecture/connections/2/label"
+        );
+        assert_eq!(
+            resolved.model_path("/architecture/connections/0/to"),
+            "/architecture/views/0/instanceConnections/0/to"
+        );
+    }
+
+    #[test]
+    fn derived_connections_are_counted_and_only_in_deployment_views() {
+        let replicas = |component: &str, count: usize| {
+            (0..count)
+                .map(|replica| {
+                    format!(r#"{{ "id": "{component}-{replica}", "of": "{component}" }}"#)
+                })
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        // Nine load balancers each join nine replicas: 81 connections.
+        let json = with_derived(&format!(
+            r#""instances": [{}, {}]"#,
+            replicas("lb", 9),
+            replicas("api", 9)
+        ));
+        assert_eq!(
+            error(&json),
+            (
+                "too_many_edges",
+                "/architecture/views/0/deriveConnections".to_owned()
+            )
+        );
+        let json = edited(
+            r#""components": ["client", "lb", "api", "db"]"#,
+            r#""components": ["client", "lb", "api", "db"], "deriveConnections": true"#,
+        );
+        assert_eq!(
+            error(&json),
+            (
+                "option_not_supported",
+                "/architecture/views/0/deriveConnections".to_owned()
+            )
+        );
+        // Without deriving, a deployment view renders the bytes it did.
+        let options = RenderOptions {
+            view: Some("production".to_owned()),
+            id_prefix: Some("orders".to_owned()),
+            ..RenderOptions::default()
+        };
+        let off = edited(
+            r#""environment": "Production","#,
+            r#""environment": "Production", "deriveConnections": false,"#,
+        );
+        assert_eq!(
+            render_json(&off, RenderFormat::Svg, &options)
+                .unwrap()
+                .content,
+            render_json(MODEL, RenderFormat::Svg, &options)
+                .unwrap()
+                .content
+        );
     }
 
     #[test]

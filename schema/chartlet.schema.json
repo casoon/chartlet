@@ -1534,7 +1534,8 @@
                   }
                 }
               },
-              "instanceConnections": { "description": "Deployment view: the connections between instances, from and to naming instance ids; nothing else joins them. One with the id of a model connection must join instances of its ends and takes the label, technology, dash and role it leaves out from it.", "type": "array", "items": { "$ref": "#/$defs/architecture/properties/connections/items" } }
+              "instanceConnections": { "description": "Deployment view: the connections between instances, from and to naming instance ids; nothing else joins them unless deriveConnections is set. One with the id of a model connection must join instances of its ends and takes the label, technology, dash and role it leaves out from it.", "type": "array", "items": { "$ref": "#/$defs/architecture/properties/connections/items" } },
+              "deriveConnections": { "description": "Deployment view: also derive instance connections from every model connection whose id instanceConnections does not name. Each instance of its from component, in the order of the instances, joins the nearest instances of its to component: those whose hosts share the most enclosing hosts with its own, counted from the outermost; at a tie all of them, never itself. Derived connections come after the listed ones and count toward the 80 connections.", "type": "boolean", "default": false }
             }
           }
         },

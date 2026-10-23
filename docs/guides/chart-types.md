@@ -1252,9 +1252,25 @@ them.
   (api-1)`, so replicas stay apart in the drawing, the description and the table. A label changed
   in the model reaches every environment.
 - **Only listed connections.** Nothing joins instances but `instanceConnections`; chartlet never
-  connects replicas by itself. An instance connection with the `id` of a model connection must
+  connects replicas by itself unless the view asks for it with `deriveConnections`. An instance connection with the `id` of a model connection must
   join instances of that connection's ends (`instance_mismatch`) and takes the label, technology,
   dash and role it leaves out from it.
+- **Derived connections.** `"deriveConnections": true` adds instance connections from the model,
+  by one stated rule, after the listed ones:
+  1. Every model connection whose `id` no instance connection names is derived; one the view
+     names is left to its instance connections entirely, so the listed ones take precedence.
+  2. Each instance of its `from` component, in the order of `instances`, joins the nearest
+     instances of its `to` component: those whose hosts share the most enclosing hosts with its
+     own, counted from the outermost (an instance without a host shares none). At a tie it joins
+     all of them, and never itself.
+  3. The derived connection is the model connection — label, technology, dash, role, weight,
+     direction — with the two instances as its ends.
+
+  So two API replicas on their own nodes each join the database on their node, and a load
+  balancer outside the nodes joins both replicas. Derived connections count toward the 80
+  connections of the view (`too_many_edges` at `…/deriveConnections`), and a diagnostic about
+  one points to its model connection. Only a deployment view takes `deriveConnections`
+  (`option_not_supported`).
 - **Hosts** replace the model's boundaries in the view; the model's main path, shared ranks and
   notes stay out of it.
 - **Text.** The description names the environment and how many instances run how many

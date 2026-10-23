@@ -83,6 +83,11 @@ pub struct ViewSpec {
     /// with the `id` of a model connection takes what it leaves out from it.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub instance_connections: Vec<ConnectionSpec>,
+    /// Whether a deployment view also derives instance connections from every model connection
+    /// whose `id` its `instanceConnections` do not name: each instance of its `from` component
+    /// joins the nearest instances of its `to` component, by hosts.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub derive_connections: bool,
 }
 
 /// One running instance of a component in a deployment view.
@@ -139,6 +144,10 @@ pub(crate) struct ResolvedView {
     pub(super) deployment: bool,
     /// The fields of the size the view sets in place of the model's: `width`, `height`, `mobile`.
     pub(super) own_size: Vec<&'static str>,
+    /// How many instance connections a deployment view lists, and the place in the model of the
+    /// connection each derived one after them comes from.
+    pub(super) explicit_connections: usize,
+    pub(super) derived: Vec<usize>,
 }
 
 impl ChartSpec {
@@ -346,6 +355,8 @@ impl ChartSpec {
             own_main_path: !view.main_path.is_empty(),
             deployment: false,
             own_size,
+            explicit_connections: 0,
+            derived: Vec::new(),
         }
     }
 }
@@ -733,6 +744,24 @@ impl ResolvedView {
             return format!("{view}{path}");
         }
         if self.deployment {
+            // A derived connection comes from the model's; too many of them, from deriving.
+            if let Some(rest) = path.strip_prefix("/architecture/connections") {
+                if rest.is_empty() && !self.derived.is_empty() {
+                    return format!("{view}/deriveConnections");
+                }
+                let (number, rest) = rest
+                    .strip_prefix('/')
+                    .map(|rest| rest.split_at(rest.find('/').unwrap_or(rest.len())))
+                    .unwrap_or_default();
+                if let Some(&place) = number
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|at| at.checked_sub(self.explicit_connections))
+                    .and_then(|at| self.derived.get(at))
+                {
+                    return format!("/architecture/connections/{place}{rest}");
+                }
+            }
             // Instances, hosts and instance connections are the view's own lists.
             for (list, own) in [
                 ("components", "instances"),
