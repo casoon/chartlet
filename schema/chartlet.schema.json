@@ -917,7 +917,8 @@
               "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
               "kind": { "enum": ["state", "choice", "composite"], "default": "state" },
               "final": { "type": "boolean", "default": false },
-              "in": { "$ref": "#/$defs/identifier" }
+              "in": { "$ref": "#/$defs/identifier" },
+              "role": { "description": "Not on a composite state, which is a frame.", "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -934,7 +935,8 @@
               "event": { "type": "string", "minLength": 1, "maxLength": 40 },
               "guard": { "type": "string", "minLength": 1, "maxLength": 40 },
               "action": { "type": "string", "minLength": 1, "maxLength": 40 },
-              "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" }
+              "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
+              "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -964,7 +966,8 @@
             "properties": {
               "id": { "$ref": "#/$defs/identifier" },
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
-              "group": { "description": "The group of the node: its color and a legend entry; at most 8 groups.", "type": "string", "minLength": 1, "maxLength": 40 }
+              "group": { "description": "The group of the node: its color and a legend entry; at most 8 groups.", "type": "string", "minLength": 1, "maxLength": 40 },
+              "role": { "description": "Drawn as a ring around the dot, in the role's color and pattern; the dot keeps the color of its group.", "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -979,7 +982,8 @@
               "from": { "$ref": "#/$defs/identifier" },
               "to": { "$ref": "#/$defs/identifier" },
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
-              "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 }
+              "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
+              "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -1009,7 +1013,8 @@
               "kind": { "enum": ["class", "interface", "abstract", "enum", "entity"], "default": "class" },
               "attributes": { "type": "array", "maxItems": 30, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
               "methods": { "type": "array", "maxItems": 30, "items": { "type": "string", "minLength": 1, "maxLength": 100 } },
-              "in": { "description": "The id of the package the class lies in.", "$ref": "#/$defs/identifier" }
+              "in": { "description": "The id of the package the class lies in.", "$ref": "#/$defs/identifier" },
+              "role": { "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -1042,7 +1047,8 @@
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "fromCardinality": { "type": "string", "minLength": 1, "maxLength": 12 },
               "toCardinality": { "type": "string", "minLength": 1, "maxLength": 12 },
-              "direction": { "description": "Associations only: navigable to `to` (forward, an open arrowhead at `to`), both ways (open arrowheads at either end), or not said (none, a plain line).", "enum": ["forward", "both", "none"] }
+              "direction": { "description": "Associations only: navigable to `to` (forward, an open arrowhead at `to`), both ways (open arrowheads at either end), or not said (none, a plain line).", "enum": ["forward", "both", "none"] },
+              "role": { "description": "The marks at the ends keep their form; a hollow mark stays hollow. A realization or a dependency is dashed by its kind and takes only critical: planned and deprecated would draw their own pattern over it (role_conflict).", "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -1375,7 +1381,8 @@
               "partner": { "description": "The id of the node this one is joined to as a couple: they stand side by side and the children of either hang from the middle of the line between them. A partner has no parent, and is not itself named as a partner.", "$ref": "#/$defs/identifier" },
               "collapsed": { "type": "boolean", "default": false, "description": "Draw the node without what hangs below it and below its partner; a small +n says how many nodes are left out. The description and the data table still list them." },
               "value": { "description": "A number that colors the node's fill, from light for the smallest value to dark for the largest.", "type": "number" },
-              "parts": { "description": "The parts of what the node holds, drawn as a stripe inside the bottom of its box; at most 6 per node and 8 names per diagram; a decision takes none.", "type": "array", "maxItems": 6, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "value": { "type": "number", "minimum": 0 } } } }
+              "parts": { "description": "The parts of what the node holds, drawn as a stripe inside the bottom of its box; at most 6 per node and 8 names per diagram; a decision takes none.", "type": "array", "maxItems": 6, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "value": { "type": "number", "minimum": 0 } } } },
+              "role": { "$ref": "#/$defs/diagramRole" }
             }
           }
         },
