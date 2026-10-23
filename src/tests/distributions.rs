@@ -137,6 +137,15 @@ fn error_bars_are_validated_by_name() {
             "invalid_bounds",
             "/data/1/lower",
         ),
+        // A line chart leaves a gap for a missing value; bounds around the gap are refused.
+        (
+            r#""type": "bar", "title": "S", "width": 600, "height": 300,
+            "data": [{"label": "A", "value": 4, "lower": 3.5, "upper": 4.5}, {"label": "B", "value": 2,"#,
+            r#""type": "line", "title": "S", "width": 600, "height": 300,
+            "data": [{"label": "A", "value": 4, "lower": 3.5, "upper": 4.5}, {"label": "B","#,
+            "invalid_bounds",
+            "/data/1/value",
+        ),
     ] {
         let error = render_json(
             &base.replace(from, to),

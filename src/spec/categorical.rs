@@ -214,7 +214,13 @@ impl ChartSpec {
             };
             validate_number(lower, &format!("{path}/lower"))?;
             validate_number(upper, &format!("{path}/upper"))?;
-            let value = point.value.expect("bar points have values");
+            let Some(value) = point.value else {
+                return Err(ChartError::new(
+                    "invalid_bounds",
+                    format!("{path}/value"),
+                    "an error bar needs a value between lower and upper; give the value or remove lower and upper",
+                ));
+            };
             if !(lower..=upper).contains(&value) {
                 return Err(ChartError::new(
                     "invalid_bounds",

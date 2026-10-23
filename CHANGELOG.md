@@ -54,6 +54,8 @@ does.
 
 - Architecture diagrams: in a deployment view, `text_too_long` for an instance whose label `Label (id)` exceeds 60 characters points to the instance's `id` (`/architecture/views/1/instances/0/id`), not to a `label` field instances do not have, and the message names the label and says to shorten the id or the component's label.
 - Flow charts, architecture diagrams and class diagrams: a layer listed with a step between the members of a group no longer keeps that order when it has no crossings; the frame used to take the step in, or push frames apart until the canvas grew many times its width.
+- Trees: a distance matrix with a row shorter than the others is refused with `invalid_matrix` at that row instead of stopping the render.
+- Line charts: `lower` and `upper` on a point without a value are refused with `invalid_bounds` at `/data/i/value` instead of stopping the render.
 
 ## [0.19.0] - 2026-10-12
 
