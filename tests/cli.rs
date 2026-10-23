@@ -24,7 +24,8 @@ const TRUNCATED: &str = r#"{"schemaVersion": 1, "type": "bar", "title": "Quarter
         {"label": "B", "value": 2}, {"label": "C", "value": 3}, {"label": "D", "value": 4}
     ]}"#;
 
-/// Runs the CLI with `args`, passing `input` on standard input.
+/// Runs the CLI with `args`, passing `input` on standard input. A CLI that refuses its arguments
+/// exits before reading the input; the broken pipe that leaves is not an error of the test.
 fn run_with_stdin(args: &[&str], input: &str) -> std::process::Output {
     let mut child = Command::new(env!("CARGO_BIN_EXE_chartlet"))
         .args(args)
@@ -33,12 +34,18 @@ fn run_with_stdin(args: &[&str], input: &str) -> std::process::Output {
         .stderr(Stdio::piped())
         .spawn()
         .expect("chartlet CLI should start");
-    child
+    let written = child
         .stdin
         .take()
         .expect("stdin should be piped")
-        .write_all(input.as_bytes())
-        .expect("stdin should accept the specification");
+        .write_all(input.as_bytes());
+    if let Err(error) = written {
+        assert_eq!(
+            error.kind(),
+            std::io::ErrorKind::BrokenPipe,
+            "stdin should accept the specification"
+        );
+    }
     child.wait_with_output().expect("chartlet should finish")
 }
 
