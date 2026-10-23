@@ -318,6 +318,12 @@
           }
         },
         {
+          "description": "Small multiples of bars: panels over shared categories.",
+          "required": ["panes", "categories"],
+          "properties": { "type": { "const": "multiples" } },
+          "not": { "anyOf": [{ "required": ["data"] }, { "required": ["series"] }] }
+        },
+        {
           "required": ["topicmap"],
           "not": {
             "anyOf": [
@@ -742,7 +748,7 @@
     },
     {
       "if": { "properties": { "type": { "const": "line" } } },
-      "then": { "not": { "anyOf": [{ "required": ["orientation"] }, { "required": ["series"] }] } }
+      "then": { "not": { "required": ["orientation"] } }
     },
     {
       "if": { "properties": { "type": { "const": "time" } } },
@@ -1855,9 +1861,10 @@
       }
     },
     "timeValue": {
-      "description": "Unix seconds between 1700-01-01 and 2200-01-01, an ISO 8601 date such as 2026-03-01 or 2026-03-01T12:00:00Z, or a year such as 1850 (January 1st).",
+      "description": "Unix seconds between 1700-01-01 and 2200-01-01, an ISO 8601 date such as 2026-03-01 or 2026-03-01T12:00:00Z, or a year such as 1850 (January 1st); on a numeric time axis (timeAxis kind number) any number up to 1e9 either way.",
       "anyOf": [
         { "type": "integer", "minimum": -8520336000, "maximum": 7258118399 },
+        { "type": "number", "minimum": -1000000000, "maximum": 1000000000 },
         { "type": "string", "pattern": "^[0-9]{4}$" },
         { "type": "string", "minLength": 10, "maxLength": 25 }
       ]
