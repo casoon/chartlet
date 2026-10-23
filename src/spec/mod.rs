@@ -744,44 +744,31 @@ impl ChartSpec {
         self.validate_theme()?;
         self.validate_value_axes()?;
         match self.chart_type {
-            ChartType::Time => return self.validate_time(),
-            ChartType::Multiples => return self.validate_multiples(),
-            ChartType::Topicmap => return self.validate_topicmap(),
-            ChartType::Atlas => return self.validate_atlas(),
-            ChartType::Stripes => return self.validate_stripes(),
-            ChartType::Calendar => return self.validate_calendar(),
-            ChartType::Rangebar => return self.validate_rangebar(),
-            ChartType::Sequence => return self.validate_sequence(),
-            ChartType::Flow => return self.validate_flow(),
-            ChartType::State => return self.validate_state(),
-            ChartType::Architecture => return self.validate_architecture(),
-            ChartType::Tree => return self.validate_tree(),
-            ChartType::Boxplot => return self.validate_boxplot(),
-            ChartType::Timeline => return self.validate_timeline(),
-            ChartType::Classes => return self.validate_classes(),
-            ChartType::Scatter => return self.validate_scatter(),
-            ChartType::Survival => return self.validate_survival(),
-            ChartType::Sankey => return self.validate_sankey(),
-            ChartType::Treemap => return self.validate_treemap(),
-            ChartType::Parliament => return self.validate_parliament(),
-            ChartType::Waffle => return self.validate_waffle(),
-            ChartType::Waterfall => return self.validate_waterfall(),
-            ChartType::Network => return self.validate_network(),
-            ChartType::Bar | ChartType::Line => {}
+            ChartType::Time => self.validate_time(),
+            ChartType::Multiples => self.validate_multiples(),
+            ChartType::Topicmap => self.validate_topicmap(),
+            ChartType::Atlas => self.validate_atlas(),
+            ChartType::Stripes => self.validate_stripes(),
+            ChartType::Calendar => self.validate_calendar(),
+            ChartType::Rangebar => self.validate_rangebar(),
+            ChartType::Sequence => self.validate_sequence(),
+            ChartType::Flow => self.validate_flow(),
+            ChartType::State => self.validate_state(),
+            ChartType::Architecture => self.validate_architecture(),
+            ChartType::Tree => self.validate_tree(),
+            ChartType::Boxplot => self.validate_boxplot(),
+            ChartType::Timeline => self.validate_timeline(),
+            ChartType::Classes => self.validate_classes(),
+            ChartType::Scatter => self.validate_scatter(),
+            ChartType::Survival => self.validate_survival(),
+            ChartType::Sankey => self.validate_sankey(),
+            ChartType::Treemap => self.validate_treemap(),
+            ChartType::Parliament => self.validate_parliament(),
+            ChartType::Waffle => self.validate_waffle(),
+            ChartType::Waterfall => self.validate_waterfall(),
+            ChartType::Network => self.validate_network(),
+            ChartType::Bar | ChartType::Line => self.validate_bar_and_line(),
         }
-        let warnings = self.validate_data()?;
-        self.validate_references()?;
-        if self.chart_type == ChartType::Line
-            && self.series.is_empty()
-            && self.data.iter().all(|point| point.value.is_none())
-        {
-            return Err(ChartError::new(
-                "empty_series",
-                "/data",
-                "line charts require at least one numeric value",
-            ));
-        }
-        Ok(warnings)
     }
 
     /// Every value a value axis has to place, with its path: the values, band and zone edges,
@@ -1055,22 +1042,6 @@ impl ChartSpec {
         Ok(())
     }
 
-    /// Every reference line has a usable value and a label; a chart takes at most four.
-    pub(super) fn validate_references(&self) -> Result<(), ChartError> {
-        if self.references.len() > MAX_REFERENCES {
-            return Err(ChartError::new(
-                "too_many_references",
-                "/references",
-                format!("use at most {MAX_REFERENCES} reference lines"),
-            ));
-        }
-        for (index, reference) in self.references.iter().enumerate() {
-            validate_number(reference.value, &format!("/references/{index}/value"))?;
-            validate_text(&reference.label, &format!("/references/{index}/label"), 60)?;
-        }
-        Ok(())
-    }
-
     /// Fixed decimals stay in a readable range; a declared axis range is finite and ordered.
     fn validate_decimals(&self) -> Result<(), ChartError> {
         let axes = std::iter::once(("/valueAxis/decimals".to_owned(), &self.value_axis)).chain(
@@ -1203,59 +1174,7 @@ impl ChartSpec {
         if check_size {
             self.validate_size()?;
         }
-        // Zoom steps slice `data` or `categories`, which only bar and line charts have; every
-        // other type rejects the field by name.
-        if !matches!(self.chart_type, ChartType::Bar | ChartType::Line) {
-            return Ok(());
-        }
-        if self.zoom_steps.len() == 1 {
-            return Err(ChartError::new(
-                "not_enough_zoom_steps",
-                "/zoomSteps",
-                "provide at least 2 zoom steps so the view can be switched",
-            ));
-        }
-        for (i, step) in self.zoom_steps.iter().enumerate() {
-            validate_text(&step.label, &format!("/zoomSteps/{i}/label"), 40)?;
-            let index = |field: &str, bound: &ZoomBound| {
-                bound.index().ok_or_else(|| {
-                    ChartError::new(
-                        "invalid_spec",
-                        format!("/zoomSteps/{i}/{field}"),
-                        "expected a category index, a whole number from 0",
-                    )
-                })
-            };
-            let from = index("from", &step.from)?;
-            let to = index("to", &step.to)?;
-            if from > to {
-                return Err(ChartError::new(
-                    "invalid_zoom_step",
-                    format!("/zoomSteps/{i}/from"),
-                    "from must not be greater than to",
-                ));
-            }
-            let count = if self.data.is_empty() {
-                self.categories.len()
-            } else {
-                self.data.len()
-            };
-            if to >= count {
-                return Err(ChartError::new(
-                    "zoom_out_of_range",
-                    format!("/zoomSteps/{i}/to"),
-                    format!("to must be less than the number of categories ({count})"),
-                ));
-            }
-        }
-        if self.zoom_steps.len() > 4 {
-            return Err(ChartError::new(
-                "too_many_zoom_steps",
-                "/zoomSteps",
-                "at most 4 zoom steps are supported",
-            ));
-        }
-        Ok(())
+        self.validate_zoom_steps()
     }
 
     /// Rejects the fields that only a bar or line chart has, naming the field and the fix. Small

@@ -3,7 +3,8 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, ChartType, MAX_DATA_POINTS, MAX_SERIES, Stack, validate_number, validate_text,
+    ChartSpec, ChartType, MAX_DATA_POINTS, MAX_REFERENCES, MAX_SERIES, Stack, ZoomBound,
+    validate_number, validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -260,6 +261,94 @@ impl ChartSpec {
                     format!("at most {MAX_SERIES} groups are supported, one per palette color"),
                 ));
             }
+        }
+        Ok(())
+    }
+
+    pub(super) fn validate_bar_and_line(&self) -> Result<Vec<ChartWarning>, ChartError> {
+        let warnings = self.validate_data()?;
+        self.validate_references()?;
+        if self.chart_type == ChartType::Line
+            && self.series.is_empty()
+            && self.data.iter().all(|point| point.value.is_none())
+        {
+            return Err(ChartError::new(
+                "empty_series",
+                "/data",
+                "line charts require at least one numeric value",
+            ));
+        }
+        Ok(warnings)
+    }
+
+    /// Every reference line has a usable value and a label; a chart takes at most four.
+    pub(super) fn validate_references(&self) -> Result<(), ChartError> {
+        if self.references.len() > MAX_REFERENCES {
+            return Err(ChartError::new(
+                "too_many_references",
+                "/references",
+                format!("use at most {MAX_REFERENCES} reference lines"),
+            ));
+        }
+        for (index, reference) in self.references.iter().enumerate() {
+            validate_number(reference.value, &format!("/references/{index}/value"))?;
+            validate_text(&reference.label, &format!("/references/{index}/label"), 60)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn validate_zoom_steps(&self) -> Result<(), ChartError> {
+        // Zoom steps slice `data` or `categories`, which only bar and line charts have; every
+        // other type rejects the field by name.
+        if !matches!(self.chart_type, ChartType::Bar | ChartType::Line) {
+            return Ok(());
+        }
+        if self.zoom_steps.len() == 1 {
+            return Err(ChartError::new(
+                "not_enough_zoom_steps",
+                "/zoomSteps",
+                "provide at least 2 zoom steps so the view can be switched",
+            ));
+        }
+        for (i, step) in self.zoom_steps.iter().enumerate() {
+            validate_text(&step.label, &format!("/zoomSteps/{i}/label"), 40)?;
+            let index = |field: &str, bound: &ZoomBound| {
+                bound.index().ok_or_else(|| {
+                    ChartError::new(
+                        "invalid_spec",
+                        format!("/zoomSteps/{i}/{field}"),
+                        "expected a category index, a whole number from 0",
+                    )
+                })
+            };
+            let from = index("from", &step.from)?;
+            let to = index("to", &step.to)?;
+            if from > to {
+                return Err(ChartError::new(
+                    "invalid_zoom_step",
+                    format!("/zoomSteps/{i}/from"),
+                    "from must not be greater than to",
+                ));
+            }
+            let count = if self.data.is_empty() {
+                self.categories.len()
+            } else {
+                self.data.len()
+            };
+            if to >= count {
+                return Err(ChartError::new(
+                    "zoom_out_of_range",
+                    format!("/zoomSteps/{i}/to"),
+                    format!("to must be less than the number of categories ({count})"),
+                ));
+            }
+        }
+        if self.zoom_steps.len() > 4 {
+            return Err(ChartError::new(
+                "too_many_zoom_steps",
+                "/zoomSteps",
+                "at most 4 zoom steps are supported",
+            ));
         }
         Ok(())
     }
