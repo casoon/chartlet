@@ -58,6 +58,32 @@ Pass `--strict` to fail on any warning, for example in CI. To accept a warning y
 reviewed, such as `dense_chart` on a chart that really has 20 categories, let its code through
 with `--allow-warning dense_chart` (npm: `allowWarnings: ["dense_chart"]`); it is still reported.
 
+## Inspections
+
+`chartlet inspect model.json` checks an architecture model for gaps in its documentation — a
+separate, explicitly requested profile, apart from errors and warnings. A specification that
+renders keeps rendering: no inspection becomes a warning, and `--strict` and `--allow-warning` of
+`chartlet render` do not see them. Each finding has a stable code, a severity, a JSON Pointer to
+the component, connection or view, a message and a hint. A `gap` is documentation the
+specification has a field for; a `hint` is something to review that may well be intended.
+Findings only restate what the model says; they judge neither the architecture nor its
+security.
+
+| Code | Severity | Reported for | Not reported for |
+| --- | --- | --- | --- |
+| `unlabelled_connection` | gap | A connection without `label`. | — |
+| `connection_without_technology` | hint | A connection without `technology`. | — |
+| `component_without_sublabel` | gap | A component without `sublabel` (its technology or host). | A `person`, which has neither. |
+| `isolated_component` | hint | A component without any connection. | A model of a single component. |
+| `component_in_no_view` | gap | A component of a model with `views` that no view shows, so it is never drawn. | A model without views, which shows every component. |
+| `view_adds_nothing` | hint | A view whose components and connections another view shows as well; of two equal views the later one. | A dynamic view: the order of its steps is what it adds. |
+
+A rule that does not fit a model is left out with `--disable <code>`, for example
+`--disable connection_without_technology` for a model that leaves protocols to its components,
+or `--disable isolated_component` when a component stands apart on purpose. `chartlet inspect
+--strict` fails only on gaps. Inspections are part of the CLI and of the Rust crate
+(`chartlet::inspect_json`); the npm package and the MCP server do not run them.
+
 ## Provenance
 
 `--manifest <path>` writes, next to the chart, a JSON record of how it was made, for example to

@@ -730,3 +730,83 @@ fn preview_shows_the_chart_and_marks_it_stale_after_an_error() {
     drop(watcher);
     std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
 }
+
+/// An architecture model with one unlabelled connection and one isolated component.
+const UNDOCUMENTED: &str = r#"{"schemaVersion": 1, "type": "architecture", "title": "Shop",
+    "architecture": {
+        "components": [
+            {"id": "user", "label": "Customer", "kind": "person"},
+            {"id": "web", "label": "Web shop", "sublabel": "Astro"},
+            {"id": "audit", "label": "Audit log", "sublabel": "S3"}
+        ],
+        "connections": [{"from": "user", "to": "web", "technology": "HTTPS"}]
+    }}"#;
+
+#[test]
+fn inspect_reports_findings_without_failing() {
+    let output = run_with_stdin(&["inspect", "-"], UNDOCUMENTED);
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("findings should be UTF-8");
+    assert_eq!(
+        stdout,
+        "gap[unlabelled_connection] at /architecture/connections/0: the connection from \"Customer\" to \"Web shop\" has no label; add a label that says what it does, such as \"reads orders\"\n\
+         hint[isolated_component] at /architecture/components/2: \"Audit log\" has no connection to any other component; connect it, or keep it if it stands apart on purpose\n"
+    );
+    assert!(output.stderr.is_empty());
+}
+
+#[test]
+fn inspect_strict_fails_on_gaps_and_disabled_inspections_disappear() {
+    let output = run_with_stdin(&["inspect", "-", "--strict"], UNDOCUMENTED);
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).expect("errors should be UTF-8");
+    assert!(stderr.contains("strict mode rejected 1 gap(s)"));
+
+    // A hint alone does not fail strict mode.
+    let output = run_with_stdin(
+        &[
+            "inspect",
+            "-",
+            "--strict",
+            "--disable",
+            "unlabelled_connection",
+            "--format",
+            "json",
+        ],
+        UNDOCUMENTED,
+    );
+    assert!(output.status.success());
+    let report: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("one JSON document");
+    let findings = report["findings"].as_array().expect("a list of findings");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0]["code"], "isolated_component");
+    assert_eq!(findings[0]["severity"], "hint");
+    assert_eq!(findings[0]["path"], "/architecture/components/2");
+}
+
+#[test]
+fn inspect_rejects_unknown_codes_and_keeps_specification_errors() {
+    let output = run_with_stdin(&["inspect", "-", "--disable", "nonsense"], UNDOCUMENTED);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unknown inspection"));
+
+    let broken = UNDOCUMENTED.replace(r#""to": "web""#, r#""to": "nowhere""#);
+    let output = run_with_stdin(&["inspect", "-", "--diagnostics", "json"], &broken);
+    assert!(!output.status.success());
+    let report: serde_json::Value =
+        serde_json::from_slice(&output.stderr).expect("one JSON report");
+    assert_eq!(report["ok"], false);
+    assert_eq!(report["error"]["path"], "/architecture/connections/0/to");
+}
+
+#[test]
+fn render_ignores_inspections() {
+    let output = run_with_stdin(
+        &["render", "-", "--strict", "--format", "svg"],
+        UNDOCUMENTED,
+    );
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+}
