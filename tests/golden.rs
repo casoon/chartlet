@@ -598,7 +598,7 @@ const SOCIAL_EXAMPLES: [(&str, &str, &str); 1] = [(
 )];
 
 /// Views of an architecture model besides its default view, and their reviewed SVGs.
-const VIEW_EXAMPLES: [(&str, &str, &str, &str); 3] = [
+const VIEW_EXAMPLES: [(&str, &str, &str, &str); 4] = [
     (
         "shop-views",
         "checkout",
@@ -616,6 +616,12 @@ const VIEW_EXAMPLES: [(&str, &str, &str, &str); 3] = [
         "production",
         include_str!("../examples/api-environments.json"),
         include_str!("../examples/api-environments.production.svg"),
+    ),
+    (
+        "booking-deployment",
+        "logical",
+        include_str!("../examples/booking-deployment.json"),
+        include_str!("../examples/booking-deployment.logical.svg"),
     ),
 ];
 
