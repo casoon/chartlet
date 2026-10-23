@@ -3,8 +3,8 @@
 ## Reviewing changes to the rendered examples
 
 `tests/golden.rs` checks that every example in `examples/` renders to exactly its committed SVG,
-for the desktop, mobile, print and social variants it lists. When a change moves pixels, those
-tests fail; to see what changed, write the visual report:
+for the desktop, mobile, print and social variants it lists, and to its committed HTML. When a
+change moves pixels, those tests fail; to see what changed, write the visual report:
 
 ```sh
 cargo test --test golden visual_report -- --ignored --nocapture
@@ -24,7 +24,8 @@ cargo run -- render examples/release-flow.json -o examples/release-flow.svg
 cargo run -- render examples/tenant-architecture.json --variant mobile -o examples/tenant-architecture.mobile.svg
 ```
 
-and commit the SVG with the change that caused it.
+and commit the SVG with the change that caused it, together with the HTML
+(`cargo run -- render examples/release-flow.json --format html -o examples/release-flow.html`).
 
 `tests/generated.rs` renders diagrams generated from fixed seeds — long labels, cycles, nested
 boundaries, narrow canvases — and checks that each renders, renders the same twice and is

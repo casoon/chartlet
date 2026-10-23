@@ -104,7 +104,8 @@ the page itself is never part of the output. It shows SVG and HTML, not `--forma
 chartlet inspect <spec.json | -> [--disable <code>]... [--strict] [--format text|json]
 ```
 
-Checks an architecture model for gaps in its documentation, without rendering it; see
+Checks an architecture model, a flow chart or a class diagram for gaps in its documentation,
+without rendering it; see
 [Inspections](../../guides/warnings-and-errors/#inspections) for the rules. The findings go to
 standard output, one line each, or with `--format json` as one document:
 
@@ -127,7 +128,8 @@ hint[isolated_component] at /architecture/components/2: "Audit log" has no conne
 Findings alone leave the exit code at 0. An invalid specification fails exactly as with
 `chartlet render`, with its code and path, and any other chart type with
 `inspections_unavailable` at `/type`. `chartlet render` never runs inspections: its output,
-warnings, `--strict` and `--allow-warning` stay as they are.
+warnings, `--strict` and `--allow-warning` stay as they are. The npm package runs the same
+inspections with `inspectChart`, the MCP server with the tool `chartlet_inspect`.
 
 ## chartlet stylesheet
 

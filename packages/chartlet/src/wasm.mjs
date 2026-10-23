@@ -84,5 +84,15 @@ export function createRenderer(module) {
       }
       return response.stylesheet;
     },
+
+    // The findings of the inspections of a model, as data: `{ ok: true, findings }`, or
+    // `{ ok: false, error }` for an invalid specification or one without inspections.
+    inspectChart(spec, options = {}) {
+      return send({
+        inspect: true,
+        spec: typeof spec === "string" ? spec : JSON.stringify(spec),
+        disable: options.disable ?? [],
+      });
+    },
   };
 }

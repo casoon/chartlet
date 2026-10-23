@@ -1302,7 +1302,7 @@ render without `symbol` and carry their meaning in labels, sublabels and the dat
 | --- | --- | --- | --- |
 | `context` | Who uses the system, and which other systems does it depend on? | The system in scope as one component, people (`person`) and external systems (`external`). No boundary, nothing inside the system. | `booking-context` |
 | `containers` | Which applications and data stores make up the system, and how do they talk to each other? | One boundary for the system around its separately running or deployable parts — web app, API, worker, queue, database, file store — with people and external systems outside it. | `booking-containers` |
-| `deployment` | Where does each part run, and which managed services does it use? | One environment: region, cluster and node pools as nested boundaries, the deployed images (`artifact`), and the managed queue, database and object storage; the web tier hands work to workers through the queue. | `booking-deployment` |
+| `deployment` | Where does each part run, and how many instances of it run there? | A logical model of the deployable parts — the images (`artifact`), the managed queue, database and object storage — and a [deployment view](#environments-and-instances) of production: region, cluster, two nodes and a worker pool as hosts, two instances of the API behind the ingress. The production view renders by default, the view `logical` shows the model. | `booking-deployment` |
 
 The terms map onto chartlet like this, and must not be read as one another:
 
@@ -1316,9 +1316,8 @@ The terms map onto chartlet like this, and must not be read as one another:
   specification is a C4 component only in a diagram of one container's inside; no starter
   covers that level.
 - **Deployment node** — where something runs: a region, a cluster, a node pool. The starter
-  draws nodes as boundaries (boundaries are hosts in a deployment) and what runs on them as
-  `artifact`; `kind: "node"` draws a single machine as a component. Replica counts are text in
-  the sublabel.
+  lists them as `hosts` of its production view and places `instances` of the model's components
+  on them, one per replica; `kind: "node"` draws a single machine as a component instead.
 
 Where the starters stop short of a full C4 model:
 
@@ -1329,8 +1328,8 @@ Where the starters stop short of a full C4 model:
 - Technology and responsibility are free text: `sublabel` on a component, `technology` on a
   connection. There are no separate fields for them, and no element types for system, container
   or component beyond the `kind` shapes.
-- The deployment starter describes one environment. Several environments of one model, with
-  instances of its components, are deployment views; see
+- The deployment starter describes one environment. Another one, such as staging, is another
+  view with an `environment` on the same model; see
   [Environments and instances](#environments-and-instances).
 
 ## Trees
