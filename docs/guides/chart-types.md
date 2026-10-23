@@ -1178,8 +1178,15 @@ model, or on a view, which takes the place of the model's, or at render time
 - **Not stated.** A component that no category of the shown perspective lists is drawn with an
   outlined stripe and named “not stated” — never as the lowest category. A component lies in at
   most one category of a perspective. A view keeps in each category only the components it shows.
-- **Legend.** Below the diagram, after the perspective's title: the categories used, in their
-  order, and “not stated” when it occurs.
+- **Connections.** A category may also list `connections` by their `id`. Such a line is drawn in
+  the category's color, arrowheads too, and carries the category's name after its label (`reads ·
+  Data`, or the name alone) so the meaning does not rest on color; a role keeps its own color.
+  A connection no category lists is drawn as without the perspective, never as not stated. A
+  view keeps the categories of the connections it shows; every occurrence of a step and every
+  instance connection that carries a listed model connection lies in its category. The description names them after the
+  components of their category (`Data: Posts, API → Posts`), the table after the connection.
+- **Legend.** Below the diagram, after the perspective's title: the categories used by components
+  or connections, in their order, and “not stated” when it occurs.
 - **Text.** The description ends with the perspective: each category with the components that
   have it, then the perspective's own description. The data table has a column named after the
   perspective. The manifest names it in `perspective`.

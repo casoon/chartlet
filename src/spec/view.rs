@@ -244,7 +244,7 @@ impl ChartSpec {
                     }
                     // A connection that occurs again keeps its id only the first time.
                     if connections[..occurrence].contains(&index) {
-                        connection.id = None;
+                        connection.model_id = connection.id.take();
                     }
                 }
                 connection
@@ -288,10 +288,15 @@ impl ChartSpec {
         architecture.views = Vec::new();
         architecture.default_view = None;
         architecture.perspective = view.perspective.clone().or(architecture.perspective);
-        // A category keeps the components the view shows.
+        // A category keeps the components and connections the view shows.
         for perspective in &mut architecture.perspectives {
             for category in &mut perspective.categories {
                 category.components.retain(|id| is_shown(id));
+                category.connections.retain(|id| {
+                    connections
+                        .iter()
+                        .any(|&index| model.connections[index].id.as_ref() == Some(id))
+                });
             }
         }
         let mut distinct = connections.clone();
@@ -1249,6 +1254,39 @@ mod tests {
             error
                 .message
                 .contains("the specification has no perspectives")
+        );
+    }
+
+    #[test]
+    fn a_view_keeps_the_categories_of_the_connections_it_shows() {
+        let json = edited(
+            r#""mainPath": ["#,
+            r#""perspectives": [
+                {"key": "team", "title": "Team", "categories": [
+                    {"label": "Web", "connections": ["read", "store"]},
+                    {"label": "Data", "components": ["db"], "connections": ["query"]}]}
+               ], "perspective": "team", "mainPath": ["#,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        let media = spec.view(Some("media")).unwrap();
+        let team = &architecture(&media).perspectives[0];
+        assert_eq!(team.categories[0].connections, ["store"]);
+        assert!(team.categories[1].connections.is_empty());
+        // Every occurrence of a connection in a dynamic view is in its category.
+        let svg = render_json(&json, RenderFormat::Svg, &with(Some("comment")))
+            .unwrap()
+            .content;
+        assert!(svg.contains(">2. reads post · Data</text>"), "{svg}");
+        assert!(svg.contains(">3. saves comment · Data</text>"));
+        assert_eq!(svg.matches(" chartlet-flow-part-2\"").count(), 2);
+        assert!(!svg.contains(">Web</text>"));
+        let alternative = text_alternative(&spec.view(Some("comment")).unwrap()).unwrap();
+        assert!(
+            alternative
+                .description
+                .contains("Data: Posts, API → Posts;"),
+            "{}",
+            alternative.description
         );
     }
 

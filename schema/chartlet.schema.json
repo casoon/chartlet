@@ -1545,17 +1545,18 @@
               "title": { "description": "What the perspective is called in the legend, the description and the table, such as Team.", "type": "string", "minLength": 1, "maxLength": 40 },
               "description": { "description": "A sentence that says what the perspective means, added to the description.", "type": "string", "minLength": 1, "maxLength": 200 },
               "categories": {
-                "description": "The categories in their order, which fixes their colors in every view. A component lies in at most one category of a perspective.",
+                "description": "The categories in their order, which fixes their colors in every view. A component or a connection lies in at most one category of a perspective.",
                 "type": "array",
                 "minItems": 1,
                 "maxItems": 8,
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["label", "components"],
+                  "required": ["label"],
                   "properties": {
                     "label": { "description": "The name of the category, unique in the perspective, such as a team.", "type": "string", "minLength": 1, "maxLength": 40 },
-                    "components": { "description": "The ids of the components in the category.", "type": "array", "items": { "$ref": "#/$defs/identifier" } }
+                    "components": { "description": "The ids of the components in the category.", "type": "array", "items": { "$ref": "#/$defs/identifier" } },
+                    "connections": { "description": "The ids of the connections in the category: drawn in its color with its name after the label, and named in the description and the table. A connection no category lists is drawn as without the perspective.", "type": "array", "items": { "$ref": "#/$defs/identifier" } }
                   }
                 }
               }

@@ -138,6 +138,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
                 sign: relation.direction.map_or("→", ConnectionDirection::sign),
                 weight: None,
                 role: None,
+                category: None,
             }
         })
         .collect();

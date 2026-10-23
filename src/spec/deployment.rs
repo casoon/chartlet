@@ -54,7 +54,7 @@ impl ChartSpec {
                         .iter()
                         .any(|earlier| earlier.id == connection.id)
                     {
-                        connection.id = None;
+                        connection.model_id = connection.id.take();
                     }
                 }
                 connection
@@ -67,7 +67,8 @@ impl ChartSpec {
         architecture.views = Vec::new();
         architecture.default_view = None;
         architecture.perspective = view.perspective.clone().or(architecture.perspective);
-        // A category holds the instances of its components.
+        // A category holds the instances of its components, and the model connections that
+        // instance connections carry.
         for perspective in &mut architecture.perspectives {
             for category in &mut perspective.categories {
                 category.components = view
@@ -76,6 +77,11 @@ impl ChartSpec {
                     .filter(|instance| category.components.contains(&instance.of))
                     .map(|instance| instance.id.clone())
                     .collect();
+                category.connections.retain(|id| {
+                    view.instance_connections
+                        .iter()
+                        .any(|connection| connection.id.as_ref() == Some(id))
+                });
             }
         }
         let (components, connections, _) = model.deployment_selection(view);
@@ -425,6 +431,32 @@ mod tests {
         // One character less fits.
         let fits = json.replace(&id, &id[1..]);
         ChartSpec::from_json(&fits).unwrap().view(None).unwrap();
+    }
+
+    #[test]
+    fn every_instance_connection_carries_the_category_of_its_model_connection() {
+        let json = edited(
+            r#""views": ["#,
+            r#""perspectives": [{ "key": "trust", "title": "Trust", "categories": [
+                { "label": "internal", "connections": ["query"] }] }],
+               "perspective": "trust",
+               "views": ["#,
+        );
+        let svg = render_json(
+            &json,
+            RenderFormat::Svg,
+            &RenderOptions {
+                view: Some("production".to_owned()),
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap()
+        .content;
+        assert_eq!(svg.matches(" chartlet-flow-part-1\"").count(), 2);
+        assert_eq!(svg.matches(">reads, writes · internal</text>").count(), 2);
+        let production = view(&json, "production");
+        let trust = &production.architecture.as_ref().unwrap().perspectives[0];
+        assert_eq!(trust.categories[0].connections, ["query"]);
     }
 
     #[test]

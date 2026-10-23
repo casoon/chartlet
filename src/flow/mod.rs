@@ -294,6 +294,9 @@ pub(crate) struct Edge {
     pub weight: Option<f64>,
     /// What the edge means beyond its kind: the color and pattern of its line.
     pub role: Option<DiagramRole>,
+    /// The class its group gains for the category of a perspective it is in: the color of its
+    /// line and arrowheads.
+    pub category: Option<&'static str>,
 }
 
 /// What an edge has at one of its ends.
@@ -438,6 +441,7 @@ impl Diagram {
                     sign: "→",
                     weight: edge.weight,
                     role: edge.role,
+                    category: None,
                 })
                 .collect(),
             lanes: flow.lanes.iter().map(|lane| lane.label.clone()).collect(),
@@ -498,6 +502,7 @@ impl Diagram {
             sign: "—",
             weight: None,
             role: None,
+            category: None,
         });
         self.nodes.push(Node {
             label: text.to_owned(),
@@ -2433,6 +2438,9 @@ impl Plan {
             let mut classes = model.edge_classes(edge);
             if let Some(width) = width {
                 write!(classes, " chartlet-flow-w{width}").expect("writing to String cannot fail");
+            }
+            if let Some(category) = model.diagram.edges[edge].category {
+                classes.push_str(category);
             }
             if let Some(role) = model.diagram.edges[edge].role {
                 classes.push_str(roles::class(role));

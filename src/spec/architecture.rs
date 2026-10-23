@@ -109,12 +109,18 @@ pub struct PerspectiveSpec {
     pub categories: Vec<CategorySpec>,
 }
 
-/// A category of a perspective, such as a team, and the ids of the components in it.
+/// A category of a perspective, such as a team, and the ids of the components and of the
+/// connections in it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CategorySpec {
     pub label: String,
+    #[serde(default)]
     pub components: Vec<String>,
+    /// The `id`s of the connections in the category; a connection that no category lists is
+    /// drawn as without the perspective.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub connections: Vec<String>,
 }
 
 /// What a component is; every kind has its own shape.
@@ -185,6 +191,10 @@ pub struct ConnectionSpec {
     /// Which way the connection runs; `forward`, from `from` to `to`, when absent.
     #[serde(default, skip_serializing_if = "ConnectionDirection::is_forward")]
     pub direction: ConnectionDirection,
+    /// In a resolved view, the `id` of the model connection that a repeated occurrence stands
+    /// for, which keeps its id only the first time.
+    #[serde(skip)]
+    pub(crate) model_id: Option<String>,
 }
 
 /// Which way a connection runs. A connection both ways stays one connection: one relationship
@@ -248,6 +258,17 @@ impl ArchitectureSpec {
         self.perspectives
             .iter()
             .find(|perspective| perspective.key == key)
+    }
+
+    /// The category of the shown perspective that connection `index` is in, by its place among
+    /// the perspective's categories.
+    pub(crate) fn connection_category(&self, index: usize) -> Option<usize> {
+        let connection = &self.connections[index];
+        let id = connection.id.as_ref().or(connection.model_id.as_ref())?;
+        self.shown_perspective()?
+            .categories
+            .iter()
+            .position(|category| category.connections.contains(id))
     }
 
     /// The perspective `key`, named at `path`: one the model has.
@@ -362,6 +383,19 @@ impl ChartSpec {
         self.architecture
             .as_ref()
             .is_some_and(|architecture| architecture.perspective.is_some())
+    }
+
+    /// Whether an architecture diagram shows a perspective with a category of connections.
+    pub(crate) fn has_connection_categories(&self) -> bool {
+        self.architecture
+            .as_ref()
+            .and_then(ArchitectureSpec::shown_perspective)
+            .is_some_and(|perspective| {
+                perspective
+                    .categories
+                    .iter()
+                    .any(|category| !category.connections.is_empty())
+            })
     }
 
     /// Whether an architecture diagram has a component with a symbol.
@@ -634,8 +668,8 @@ impl ArchitectureSpec {
     }
 
     /// Perspectives with well-formed keys used once, a title and one to eight distinct
-    /// categories, each listing existing components, none of them twice in one perspective; and
-    /// a shown perspective the model has.
+    /// categories, each listing existing components and connections, none of them twice in one
+    /// perspective; and a shown perspective the model has.
     fn validate_perspectives(&self) -> Result<(), ChartError> {
         if self.perspectives.len() > MAX_PERSPECTIVES {
             return Err(ChartError::new(
@@ -670,6 +704,7 @@ impl ArchitectureSpec {
                 ));
             }
             let mut listed: Vec<&str> = Vec::new();
+            let mut connections: Vec<&str> = Vec::new();
             for (at, category) in categories.iter().enumerate() {
                 let path = format!("{path}/categories/{at}");
                 validate_text(&category.label, &format!("{path}/label"), 40)?;
@@ -700,6 +735,30 @@ impl ArchitectureSpec {
                         ));
                     }
                     listed.push(id);
+                }
+                for (member, id) in category.connections.iter().enumerate() {
+                    let path = format!("{path}/connections/{member}");
+                    if !self
+                        .connections
+                        .iter()
+                        .any(|connection| connection.id.as_ref() == Some(id))
+                    {
+                        return Err(ChartError::new(
+                            "unknown_connection",
+                            path,
+                            format!("no connection has the id \"{id}\""),
+                        ));
+                    }
+                    if connections.contains(&id.as_str()) {
+                        return Err(ChartError::new(
+                            "duplicate_member",
+                            path,
+                            format!(
+                                "the connection \"{id}\" already has a category in this perspective"
+                            ),
+                        ));
+                    }
+                    connections.push(id);
                 }
             }
         }

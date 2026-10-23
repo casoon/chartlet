@@ -98,6 +98,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             sign: "→",
             weight: None,
             role: None,
+            category: None,
         });
     }
     let mut groups = Vec::new();
@@ -143,6 +144,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             sign: "→",
             weight: None,
             role: None,
+            category: None,
         });
     }
     Diagram {
