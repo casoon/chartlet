@@ -1075,12 +1075,23 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
 - **Roles.** `role` on a component or a connection says what it means in this picture, beyond its
   kind: `critical` (a strong red outline or line, badge `!`), `planned` (dashed and violet, badge
   `+`) or `deprecated` (dotted and gray, badge `−`). Flow charts take the same roles on steps and
-  edges. Shape and fill stay those of the kind, so a role adds meaning rather than replacing it;
-  `external` stays a kind. The colors are the theme's role colors in light, dark, blueprint and
-  print, and the line or badge carries the role without color. A legend below the diagram names
-  only the roles used, the description lists what has each role, and the table gains a Role
-  column. A planned or deprecated connection takes no `dash` (`role_conflict`). Example
-  `billing-migration` shows a migration: the old path deprecated, the new one planned.
+  edges, state diagrams on states and transitions, trees on nodes, networks on nodes and edges,
+  and class diagrams on classes and relations. Shape and fill stay those of the kind, so a role
+  adds meaning rather than replacing it; `external` stays a kind. The colors are the theme's role
+  colors in light, dark, blueprint and print, and the line or badge carries the role without
+  color. A legend below the diagram names only the roles used, the description lists what has
+  each role, and the table gains a Role column. A planned or deprecated connection, edge or
+  transition takes no `dash` (`role_conflict`). Example `billing-migration` shows a migration: the
+  old path deprecated, the new one planned.
+  - A network's dot is too small for a badge: a ring around it, solid, dashed or dotted in the
+    role's color, says the role, and the dot keeps the color of its group.
+  - A composite state is a frame and takes no role (`option_not_supported`); give the states
+    inside it one.
+  - A relation keeps the marks of its kind: a hollow triangle or diamond stays hollow, and only
+    its outline and the line take the role's color. A realization or a dependency is dashed by
+    its kind, so it takes `critical` only; `planned` or `deprecated` would draw their own pattern
+    over it (`role_conflict`). Example `payment-redesign`: a planned payment class, a deprecated
+    invoice and the critical dependency of the order on payment.
 - **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
   classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
   (`option_not_supported`).
@@ -1164,6 +1175,29 @@ first — and never the whole model, so a view never passes for the complete sys
 
 Up to 20 views and 99 steps per view. Example `shop-views` (overview, and checkout as
 `shop-views.checkout.svg`).
+
+#### All views on one page
+
+`--all-views` (`allViews: true` in npm and MCP, `RenderOptions::all_views`) renders every view
+of a model as one HTML page, without a script: the model's title as an `h2`, a navigation
+of links to the views, and each view as a section headed by its title as an `h3`, with the figure,
+description and data table of its own export — the default view first, then the others in
+the order of `views`. The links are ordinary in-page links, reachable with the keyboard; in
+print every view after the first starts a new page.
+
+- **IDs.** The page takes the ID prefix (`--id-prefix`, or one derived from the model); the
+  views take that prefix followed by `-v1`, `-v2`, … in the order of the page, their sections
+  `<prefix>-v1-view`, …, which the navigation links to. Every ID on the page is unique.
+- **Only HTML.** The SVG format, the mobile, print and social variants, `--view`, a
+  specification without views and PNG are refused (`option_not_supported` at
+  `/render/allViews`); each view as SVG stays a file of its own. A single view's export is
+  unchanged by this option.
+- **Size and perspective.** Each section has the `width`, `height` and `mobile` of its view,
+  or the model's. `--perspective` shows the perspective asked for in every section.
+- **Provenance.** The manifest lists the views in `views`, in the order of the page, and the
+  perspective asked for in `perspective`.
+
+Example `shop-views.all.html`.
 
 ### Perspectives
 
@@ -1299,7 +1333,7 @@ render without `symbol` and carry their meaning in labels, sublabels and the dat
 | --- | --- | --- | --- |
 | `context` | Who uses the system, and which other systems does it depend on? | The system in scope as one component, people (`person`) and external systems (`external`). No boundary, nothing inside the system. | `booking-context` |
 | `containers` | Which applications and data stores make up the system, and how do they talk to each other? | One boundary for the system around its separately running or deployable parts — web app, API, worker, queue, database, file store — with people and external systems outside it. | `booking-containers` |
-| `deployment` | Where does each part run, and which managed services does it use? | One environment: region, cluster and node pools as nested boundaries, the deployed images (`artifact`), and the managed queue, database and object storage; the web tier hands work to workers through the queue. | `booking-deployment` |
+| `deployment` | Where does each part run, and how many instances of it run there? | A logical model of the deployable parts — the images (`artifact`), the managed queue, database and object storage — and a [deployment view](#environments-and-instances) of production: region, cluster, two nodes and a worker pool as hosts, two instances of the API behind the ingress. The production view renders by default, the view `logical` shows the model. | `booking-deployment` |
 
 The terms map onto chartlet like this, and must not be read as one another:
 
@@ -1313,9 +1347,8 @@ The terms map onto chartlet like this, and must not be read as one another:
   specification is a C4 component only in a diagram of one container's inside; no starter
   covers that level.
 - **Deployment node** — where something runs: a region, a cluster, a node pool. The starter
-  draws nodes as boundaries (boundaries are hosts in a deployment) and what runs on them as
-  `artifact`; `kind: "node"` draws a single machine as a component. Replica counts are text in
-  the sublabel.
+  lists them as `hosts` of its production view and places `instances` of the model's components
+  on them, one per replica; `kind: "node"` draws a single machine as a component instead.
 
 Where the starters stop short of a full C4 model:
 
@@ -1326,8 +1359,8 @@ Where the starters stop short of a full C4 model:
 - Technology and responsibility are free text: `sublabel` on a component, `technology` on a
   connection. There are no separate fields for them, and no element types for system, container
   or component beyond the `kind` shapes.
-- The deployment starter describes one environment. Several environments of one model, with
-  instances of its components, are deployment views; see
+- The deployment starter describes one environment. Another one, such as staging, is another
+  view with an `environment` on the same model; see
   [Environments and instances](#environments-and-instances).
 
 ## Trees

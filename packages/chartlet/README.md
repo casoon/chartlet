@@ -46,6 +46,12 @@ specification: it returns `{ ok, error?, warnings }` with `{ code, path, message
 plus `content`, `styleHashes` and `manifest` when rendering succeeded. `spec` may also be JSON
 text.
 
+`inspectChart(spec, { disable })` runs the [inspections](https://github.com/casoon/chartlet/blob/main/docs/guides/warnings-and-errors.md#inspections)
+of a model without rendering it, as `chartlet inspect` does: `{ ok: true, findings }` with
+`{ code, severity, path, message, hint }` per finding (`severity` is `gap` or `hint`), or
+`{ ok: false, error }` for an invalid specification, a type without inspections or an unknown
+code in `disable`.
+
 To render with an installed CLI instead of WebAssembly, set `CHARTLET_BIN` to its absolute path
 or pass `binary`.
 
@@ -98,7 +104,8 @@ a.connect(api, db, { label: 'reads, writes' });
 const spec = a.spec({ title: 'Orders' });
 ```
 
-See [JavaScript runtimes](https://github.com/casoon/chartlet/blob/main/docs/guides/javascript.md#architecture-builder).
+`flow()` builds a flow chart the same way, with `lane`, `node`, `group`, the same edge calls,
+`mainPath` and `sameRank`. See [JavaScript runtimes](https://github.com/casoon/chartlet/blob/main/docs/guides/javascript.md#architecture-builder).
 
 ## Cloudflare Workers and Vite
 

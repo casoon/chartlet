@@ -8,7 +8,7 @@ import test from "node:test";
 
 import { createRenderer } from "@casoon/chartlet/wasm";
 
-import { renderChart, renderChartDetailed, stylesheet } from "../src/render.mjs";
+import { inspectChart, renderChart, renderChartDetailed, stylesheet } from "../src/render.mjs";
 
 // Without a CLI configured, renderChart uses the bundled WebAssembly build.
 delete process.env.CHARTLET_BIN;
@@ -304,6 +304,31 @@ test("shows the perspective it is asked for, alike from WebAssembly and the CLI"
   assert.equal(unknown.error.path, "/render/perspective");
 });
 
+test("renders all views on one page, alike from WebAssembly and the CLI", () => {
+  const spec = JSON.parse(readExample("shop-views.json"));
+  const all = { format: "html", allViews: true, manifest: true };
+  const fromWasm = renderChart(spec, all);
+  const fromCli = renderChart(spec, { ...all, binary });
+  assert.equal(fromWasm.content, readExample("shop-views.all.html"));
+  assert.equal(fromCli.content, fromWasm.content);
+  assert.deepEqual(fromCli.manifest, fromWasm.manifest);
+  assert.deepEqual(fromWasm.manifest.views, ["overview", "checkout"]);
+  assert.equal(fromWasm.manifest.view, undefined);
+
+  // The text alternative of every view, in the order of the page; `alternative` is the default's.
+  const texts = renderChart(spec, { ...all, alternative: true });
+  assert.deepEqual(renderChart(spec, { ...all, alternative: true, binary }).alternatives, texts.alternatives);
+  assert.deepEqual(texts.alternatives.map(({ view }) => view), ["overview", "checkout"]);
+  const { view, ...checkout } = texts.alternatives[1];
+  assert.deepEqual(checkout, renderChart(spec, { view: "checkout", alternative: true }).alternative);
+  assert.deepEqual(texts.alternative, renderChart(spec, { alternative: true }).alternative);
+  assert.equal(renderChart(spec, { alternative: true }).alternatives, undefined);
+
+  const svg = renderChartDetailed(spec, { format: "svg", allViews: true });
+  assert.equal(svg.ok, false);
+  assert.deepEqual([svg.error.code, svg.error.path], ["option_not_supported", "/render/allViews"]);
+});
+
 test("hooks are written alike by the WebAssembly build and the CLI, and only on request", () => {
   const spec = JSON.parse(readExample("sensor-readings.json"));
   for (const format of ["svg", "html"]) {
@@ -312,5 +337,47 @@ test("hooks are written alike by the WebAssembly build and the CLI, and only on 
     assert.match(hooked, /data-chartlet-type="time"/);
     assert.match(hooked, /<g data-chartlet-plot="" data-pane="0"/);
     assert.doesNotMatch(renderChart(spec, { format }).content, /data-chartlet-/);
+  }
+});
+
+test("inspects a model alike from WebAssembly and the CLI", () => {
+  const spec = readExample("shop-architecture.json");
+  const fromWasm = inspectChart(spec);
+  assert.equal(fromWasm.ok, true);
+  assert.deepEqual(inspectChart(JSON.parse(spec), { binary }), fromWasm);
+  assert.deepEqual(Object.keys(fromWasm.findings[0]).sort(), ["code", "hint", "message", "path", "severity"]);
+  assert.ok(fromWasm.findings.some(({ code }) => code === "connection_without_technology"));
+
+  const disable = ["connection_without_technology"];
+  const fewer = inspectChart(spec, { disable });
+  assert.deepEqual(inspectChart(spec, { disable, binary }), fewer);
+  assert.ok(fewer.findings.every(({ code }) => code !== "connection_without_technology"));
+
+  // Flow charts and class diagrams, from WebAssembly and the CLI alike.
+  const orderFlow = JSON.parse(readExample("order-flow.json"));
+  delete orderFlow.flow.edges[1].label;
+  const classes = JSON.parse(readExample("order-model.json"));
+  classes.classes.relations = [];
+  for (const [spec, code, path] of [
+    [orderFlow, "unlabelled_decision_branch", "/flow/edges/1"],
+    [classes, "isolated_class", "/classes/classes/0"],
+  ]) {
+    const found = inspectChart(spec);
+    assert.equal(found.ok, true);
+    assert.deepEqual(inspectChart(spec, { binary }), found);
+    assert.ok(found.findings.some((finding) => finding.code === code && finding.path === path), code);
+    assert.ok(
+      inspectChart(spec, { disable: [code] }).findings.every((finding) => finding.code !== code),
+      code,
+    );
+  }
+  assert.deepEqual(inspectChart(readExample("order-flow.json")), { ok: true, findings: [] });
+
+  const bar = readExample("monthly-trend.json");
+  for (const options of [{}, { binary }]) {
+    const unavailable = inspectChart(bar, options);
+    assert.equal(unavailable.ok, false);
+    assert.equal(unavailable.error.code, "inspections_unavailable");
+    assert.equal(inspectChart(spec, { ...options, disable: ["nonsense"] }).ok, false);
   }
 });

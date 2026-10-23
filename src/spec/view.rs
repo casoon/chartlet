@@ -1379,6 +1379,22 @@ mod tests {
         assert_eq!(manifest.view.as_deref(), Some("owners"));
         // The hash is that of the model as given.
         assert_eq!(manifest.spec_hash, debt.manifest.unwrap().spec_hash);
+        // On the page of all views, every view shows the perspective asked for.
+        let page = render_json(
+            json,
+            RenderFormat::Html,
+            &RenderOptions {
+                perspective: Some("debt".to_owned()),
+                all_views: true,
+                manifest: true,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(page.content.matches(">Technical debt:</text>").count() >= 2);
+        assert!(!page.content.contains(">Team:</text>"));
+        let manifest = page.manifest.unwrap();
+        assert_eq!(manifest.perspective.as_deref(), Some("debt"));
         // The same perspective asked for again changes nothing.
         let same = render_json(json, RenderFormat::Svg, &options("debt", Some("debt"))).unwrap();
         assert_eq!(same.content, debt.content);
@@ -1491,6 +1507,19 @@ mod tests {
         .unwrap()
         .content;
         assert!(mobile.contains(r#"viewBox="0 0 340 "#));
+        // On the page of all views, each section has the size of its view.
+        let page = render_json(
+            &json,
+            RenderFormat::Html,
+            &RenderOptions {
+                all_views: true,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap()
+        .content;
+        assert!(page.contains(r#"viewBox="0 0 720 "#) && page.contains(r#"viewBox="0 0 1000 "#));
+        assert!(page.contains(r#"viewBox="0 0 340 "#) && page.contains(r#"viewBox="0 0 360 "#));
         // Without a size of its own, a view renders the bytes it did.
         assert_eq!(
             render(&json, Some("overview")).unwrap().content,

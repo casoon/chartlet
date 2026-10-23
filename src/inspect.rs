@@ -1,25 +1,32 @@
-//! Inspections of an architecture model for gaps in its documentation: connections without a
-//! label, components without a second line, components no view shows. They are asked for on
-//! their own, apart from rendering; a specification that renders keeps rendering, and nothing
-//! here becomes a warning of a render.
+//! Inspections of a model for gaps in its documentation: in an architecture model connections
+//! without a label, components without a second line, components no view shows; in a flow chart
+//! unlabelled branches of a decision and steps no start leads to; in a class diagram classes
+//! without members. They are asked for on their own, apart from rendering; a specification that
+//! renders keeps rendering, and nothing here becomes a warning of a render.
 //!
 //! Every finding is limited to what the model states. An isolated component or a view that adds
 //! nothing is a hint to review, never a judgement of the architecture.
 
 use crate::{
-    ChartError, ChartSpec, ChartType, ComponentKind,
-    spec::{ArchitectureSpec, ViewSpec},
+    ChartError, ChartSpec, ChartType, ComponentKind, NodeKind,
+    spec::{ArchitectureSpec, ClassesSpec, FlowSpec, ViewSpec},
     structure,
 };
 
-/// The codes of every inspection, in the order findings are reported.
-pub const INSPECTIONS: [&str; 6] = [
+/// The codes of every inspection, in the order findings are reported: those of architecture
+/// models, of flow charts, then of class diagrams.
+pub const INSPECTIONS: [&str; 11] = [
     UNLABELLED_CONNECTION,
     CONNECTION_WITHOUT_TECHNOLOGY,
     COMPONENT_WITHOUT_SUBLABEL,
     ISOLATED_COMPONENT,
     COMPONENT_IN_NO_VIEW,
     VIEW_ADDS_NOTHING,
+    UNLABELLED_DECISION_BRANCH,
+    UNREACHABLE_STEP,
+    FLOW_WITHOUT_END,
+    CLASS_WITHOUT_MEMBERS,
+    ISOLATED_CLASS,
 ];
 
 const UNLABELLED_CONNECTION: &str = "unlabelled_connection";
@@ -28,6 +35,11 @@ const COMPONENT_WITHOUT_SUBLABEL: &str = "component_without_sublabel";
 const ISOLATED_COMPONENT: &str = "isolated_component";
 const COMPONENT_IN_NO_VIEW: &str = "component_in_no_view";
 const VIEW_ADDS_NOTHING: &str = "view_adds_nothing";
+const UNLABELLED_DECISION_BRANCH: &str = "unlabelled_decision_branch";
+const UNREACHABLE_STEP: &str = "unreachable_step";
+const FLOW_WITHOUT_END: &str = "flow_without_end";
+const CLASS_WITHOUT_MEMBERS: &str = "class_without_members";
+const ISOLATED_CLASS: &str = "isolated_class";
 
 /// How much a finding weighs: a `Gap` is missing documentation the specification has a field
 /// for; a `Hint` is something to look at, which may well be intended.
@@ -58,36 +70,74 @@ pub struct Inspection {
     pub hint: String,
 }
 
-/// Inspects the architecture model `input`, leaving out the inspections whose codes are in
-/// `disabled`. Findings follow the order of [`INSPECTIONS`], and within one inspection the order
-/// of the specification.
+/// What is inspected: an architecture model, a flow chart or a class diagram.
+#[derive(Clone, Copy)]
+enum Model<'a> {
+    Architecture(&'a ArchitectureSpec),
+    Flow(&'a FlowSpec),
+    Classes(&'a ClassesSpec),
+}
+
+/// Inspects the architecture model, flow chart or class diagram `input`, leaving out the
+/// inspections whose codes are in `disabled`. Findings follow the order of [`INSPECTIONS`], and
+/// within one inspection the order of the specification.
 ///
 /// # Errors
 ///
 /// Returns the structured error of an invalid specification, as rendering would, and
-/// `inspections_unavailable` for a specification that is not an architecture diagram.
+/// `inspections_unavailable` for a specification of another type.
 pub fn inspect_json(input: &str, disabled: &[&str]) -> Result<Vec<Inspection>, ChartError> {
     let spec = ChartSpec::from_json(input)?;
     spec.validate()?;
-    let (ChartType::Architecture, Some(model)) = (spec.chart_type, &spec.architecture) else {
-        return Err(ChartError::new(
-            "inspections_unavailable",
-            "/type",
-            "inspections are available for architecture diagrams",
-        ));
+    let model = match (
+        spec.chart_type,
+        &spec.architecture,
+        &spec.flow,
+        &spec.classes,
+    ) {
+        (ChartType::Architecture, Some(model), _, _) => Model::Architecture(model),
+        (ChartType::Flow, _, Some(flow), _) => Model::Flow(flow),
+        (ChartType::Classes, _, _, Some(diagram)) => Model::Classes(diagram),
+        _ => {
+            return Err(ChartError::new(
+                "inspections_unavailable",
+                "/type",
+                "inspections are available for architecture, flow and class diagrams",
+            ));
+        }
     };
     let mut findings = Vec::new();
     for code in INSPECTIONS {
         if disabled.contains(&code) {
             continue;
         }
-        match code {
-            UNLABELLED_CONNECTION => unlabelled_connections(model, &mut findings),
-            CONNECTION_WITHOUT_TECHNOLOGY => connections_without_technology(model, &mut findings),
-            COMPONENT_WITHOUT_SUBLABEL => components_without_sublabel(model, &mut findings),
-            ISOLATED_COMPONENT => isolated_components(model, &mut findings),
-            COMPONENT_IN_NO_VIEW => components_in_no_view(model, &mut findings),
-            _ => views_adding_nothing(model, &mut findings),
+        let found = &mut findings;
+        match (code, model) {
+            (UNLABELLED_CONNECTION, Model::Architecture(model)) => {
+                unlabelled_connections(model, found);
+            }
+            (CONNECTION_WITHOUT_TECHNOLOGY, Model::Architecture(model)) => {
+                connections_without_technology(model, found);
+            }
+            (COMPONENT_WITHOUT_SUBLABEL, Model::Architecture(model)) => {
+                components_without_sublabel(model, found);
+            }
+            (ISOLATED_COMPONENT, Model::Architecture(model)) => isolated_components(model, found),
+            (COMPONENT_IN_NO_VIEW, Model::Architecture(model)) => {
+                components_in_no_view(model, found);
+            }
+            (VIEW_ADDS_NOTHING, Model::Architecture(model)) => views_adding_nothing(model, found),
+            (UNLABELLED_DECISION_BRANCH, Model::Flow(flow)) => {
+                unlabelled_decision_branches(flow, found);
+            }
+            (UNREACHABLE_STEP, Model::Flow(flow)) => unreachable_steps(flow, found),
+            (FLOW_WITHOUT_END, Model::Flow(flow)) => flow_without_end(flow, found),
+            (CLASS_WITHOUT_MEMBERS, Model::Classes(diagram)) => {
+                classes_without_members(diagram, found);
+            }
+            (ISOLATED_CLASS, Model::Classes(diagram)) => isolated_classes(diagram, found),
+            // An inspection of another type of model.
+            _ => {}
         }
     }
     Ok(findings)
@@ -252,6 +302,148 @@ fn views_adding_nothing(model: &ArchitectureSpec, findings: &mut Vec<Inspection>
                     view.key, other.key
                 ),
                 hint: "keep it if it tells the same from another angle, or remove it".to_owned(),
+            });
+        }
+    }
+}
+
+fn step_label<'a>(flow: &'a FlowSpec, id: &'a str) -> &'a str {
+    flow.nodes
+        .iter()
+        .find(|node| node.id == id)
+        .map_or(id, |node| node.label.as_str())
+}
+
+/// An edge out of a decision is one of its answers; without a label the reader cannot tell which.
+/// A decision with a single way on has no branches to tell apart, and is not reported.
+fn unlabelled_decision_branches(flow: &FlowSpec, findings: &mut Vec<Inspection>) {
+    for decision in flow
+        .nodes
+        .iter()
+        .filter(|node| node.kind == NodeKind::Decision)
+    {
+        let branches: Vec<usize> = (0..flow.edges.len())
+            .filter(|&index| flow.edges[index].from == decision.id)
+            .collect();
+        if branches.len() < 2 {
+            continue;
+        }
+        for index in branches {
+            let edge = &flow.edges[index];
+            if edge.label.is_none() {
+                findings.push(Inspection {
+                    code: UNLABELLED_DECISION_BRANCH,
+                    severity: Severity::Gap,
+                    path: format!("/flow/edges/{index}"),
+                    message: format!(
+                        "the branch from \"{}\" to \"{}\" has no label",
+                        decision.label,
+                        step_label(flow, &edge.to)
+                    ),
+                    hint: "label it with the answer it stands for, such as \"yes\" or \"no\""
+                        .to_owned(),
+                });
+            }
+        }
+    }
+}
+
+/// A step that no edge leads to from a start step. Only a flow with a start step says where it
+/// begins; data stores and external steps feed into a flow from outside, and are not reported.
+fn unreachable_steps(flow: &FlowSpec, findings: &mut Vec<Inspection>) {
+    let mut reached: Vec<bool> = flow
+        .nodes
+        .iter()
+        .map(|node| node.kind == NodeKind::Start)
+        .collect();
+    let mut queue: Vec<usize> = (0..reached.len()).filter(|&index| reached[index]).collect();
+    if queue.is_empty() {
+        return;
+    }
+    while let Some(node) = queue.pop() {
+        for edge in flow
+            .edges
+            .iter()
+            .filter(|edge| edge.from == flow.nodes[node].id)
+        {
+            if let Some(next) = flow.nodes.iter().position(|node| node.id == edge.to)
+                && !reached[next]
+            {
+                reached[next] = true;
+                queue.push(next);
+            }
+        }
+    }
+    for (index, node) in flow.nodes.iter().enumerate() {
+        if !reached[index] && !matches!(node.kind, NodeKind::Store | NodeKind::External) {
+            findings.push(Inspection {
+                code: UNREACHABLE_STEP,
+                severity: Severity::Hint,
+                path: format!("/flow/nodes/{index}"),
+                message: format!("no start step leads to \"{}\"", node.label),
+                hint: "add the edge that leads to it, or keep it if it is a way in of its own"
+                    .to_owned(),
+            });
+        }
+    }
+}
+
+/// A flow that marks where it begins but not where it ends. A flow with neither start nor end
+/// step is a part of a larger one, and is not reported.
+fn flow_without_end(flow: &FlowSpec, findings: &mut Vec<Inspection>) {
+    let has = |kind: NodeKind| flow.nodes.iter().any(|node| node.kind == kind);
+    if has(NodeKind::Start) && !has(NodeKind::End) {
+        findings.push(Inspection {
+            code: FLOW_WITHOUT_END,
+            severity: Severity::Hint,
+            path: "/flow/nodes".to_owned(),
+            message: "the flow has a start step but no end step".to_owned(),
+            hint: "add a step of kind \"end\" where the flow finishes".to_owned(),
+        });
+    }
+}
+
+/// A class without attributes or methods shows only its name. A diagram in which no class has
+/// members is an overview of names on purpose, and is not reported.
+fn classes_without_members(diagram: &ClassesSpec, findings: &mut Vec<Inspection>) {
+    let empty: Vec<bool> = diagram
+        .classes
+        .iter()
+        .map(|class| class.attributes.is_empty() && class.methods.is_empty())
+        .collect();
+    if empty.iter().all(|&empty| empty) {
+        return;
+    }
+    for (index, class) in diagram.classes.iter().enumerate() {
+        if empty[index] {
+            findings.push(Inspection {
+                code: CLASS_WITHOUT_MEMBERS,
+                severity: Severity::Gap,
+                path: format!("/classes/classes/{index}"),
+                message: format!("\"{}\" has no attributes or methods", class.label),
+                hint: "add the attributes or methods that matter here".to_owned(),
+            });
+        }
+    }
+}
+
+/// A class without a relation to another class, in a diagram with others it could be related
+/// to. Notes are no relations, nor is a relation of a class to itself.
+fn isolated_classes(diagram: &ClassesSpec, findings: &mut Vec<Inspection>) {
+    if diagram.classes.len() < 2 {
+        return;
+    }
+    for (index, class) in diagram.classes.iter().enumerate() {
+        let related = diagram.relations.iter().any(|relation| {
+            relation.from != relation.to && (relation.from == class.id || relation.to == class.id)
+        });
+        if !related {
+            findings.push(Inspection {
+                code: ISOLATED_CLASS,
+                severity: Severity::Hint,
+                path: format!("/classes/classes/{index}"),
+                message: format!("\"{}\" has no relation to any other class", class.label),
+                hint: "relate it, or keep it if it stands apart on purpose".to_owned(),
             });
         }
     }
@@ -446,6 +638,141 @@ mod tests {
         architecture["connections"][0]["to"] = json!("nowhere");
         let error = inspect_json(&model(&architecture), &[]).unwrap_err();
         assert_ne!(error.code, "inspections_unavailable");
+    }
+
+    /// The findings of `code` alone in a specification of `chart_type` with `body` under the
+    /// field of that name, as their paths.
+    fn found_in(chart_type: &str, body: &Value, code: &str) -> Vec<String> {
+        let spec =
+            json!({ "schemaVersion": 1, "type": chart_type, "title": "Order", chart_type: body });
+        let disabled: Vec<&str> = INSPECTIONS.into_iter().filter(|&c| c != code).collect();
+        inspect_json(&spec.to_string(), &disabled)
+            .expect("a valid specification")
+            .into_iter()
+            .map(|finding| {
+                assert_eq!(finding.code, code);
+                finding.path
+            })
+            .collect()
+    }
+
+    fn order_flow() -> Value {
+        json!({
+            "nodes": [
+                { "id": "start", "label": "Order received", "kind": "start" },
+                { "id": "paid", "label": "Paid?", "kind": "decision" },
+                { "id": "ship", "label": "Ship" },
+                { "id": "remind", "label": "Send reminder" },
+                { "id": "done", "label": "Done", "kind": "end" },
+                { "id": "stock", "label": "Stock", "kind": "store" }
+            ],
+            "edges": [
+                { "from": "start", "to": "paid" },
+                { "from": "paid", "to": "ship", "label": "yes" },
+                { "from": "paid", "to": "remind", "label": "no" },
+                { "from": "stock", "to": "ship" },
+                { "from": "ship", "to": "done" },
+                { "from": "remind", "to": "done" }
+            ]
+        })
+    }
+
+    #[test]
+    fn a_documented_flow_has_no_findings() {
+        let spec =
+            json!({ "schemaVersion": 1, "type": "flow", "title": "Order", "flow": order_flow() });
+        assert_eq!(inspect_json(&spec.to_string(), &[]), Ok(Vec::new()));
+    }
+
+    #[test]
+    fn an_unlabelled_branch_of_a_decision_is_a_gap_unless_it_is_the_only_way_on() {
+        let mut flow = order_flow();
+        flow["edges"][2].as_object_mut().unwrap().remove("label");
+        assert_eq!(
+            found_in("flow", &flow, "unlabelled_decision_branch"),
+            ["/flow/edges/2"]
+        );
+        // A decision with one way on has nothing to tell apart.
+        flow["edges"].as_array_mut().unwrap().remove(1);
+        assert!(found_in("flow", &flow, "unlabelled_decision_branch").is_empty());
+        assert!(found_in("flow", &order_flow(), "unlabelled_decision_branch").is_empty());
+    }
+
+    #[test]
+    fn a_step_no_start_leads_to_is_a_hint_except_a_store_or_without_a_start() {
+        let mut flow = order_flow();
+        flow["edges"][0]["to"] = json!("ship");
+        // Neither the decision nor the reminder can be reached now; the store never could.
+        assert_eq!(
+            found_in("flow", &flow, "unreachable_step"),
+            ["/flow/nodes/1", "/flow/nodes/3"]
+        );
+        assert!(found_in("flow", &order_flow(), "unreachable_step").is_empty());
+        flow["nodes"][0]["kind"] = json!("process");
+        assert!(found_in("flow", &flow, "unreachable_step").is_empty());
+    }
+
+    #[test]
+    fn a_flow_with_a_start_but_no_end_is_a_hint() {
+        let mut flow = order_flow();
+        flow["nodes"][4]["kind"] = json!("process");
+        assert_eq!(found_in("flow", &flow, "flow_without_end"), ["/flow/nodes"]);
+        assert!(found_in("flow", &order_flow(), "flow_without_end").is_empty());
+        // Without a start either, the flow is a part of a larger one.
+        flow["nodes"][0]["kind"] = json!("process");
+        assert!(found_in("flow", &flow, "flow_without_end").is_empty());
+    }
+
+    fn shop_classes() -> Value {
+        json!({
+            "classes": [
+                { "id": "order", "label": "Order", "attributes": ["id: Int"] },
+                { "id": "line", "label": "Line", "attributes": ["quantity: Int"] },
+                { "id": "product", "label": "Product", "methods": ["price(): Money"] }
+            ],
+            "relations": [
+                { "from": "order", "to": "line", "kind": "composition" },
+                { "from": "line", "to": "product" }
+            ]
+        })
+    }
+
+    #[test]
+    fn a_documented_class_diagram_has_no_findings() {
+        let spec = json!({ "schemaVersion": 1, "type": "classes", "title": "Shop", "classes": shop_classes() });
+        assert_eq!(inspect_json(&spec.to_string(), &[]), Ok(Vec::new()));
+    }
+
+    #[test]
+    fn a_class_without_members_is_a_gap_unless_no_class_has_any() {
+        let mut classes = shop_classes();
+        classes["classes"][2]
+            .as_object_mut()
+            .unwrap()
+            .remove("methods");
+        assert_eq!(
+            found_in("classes", &classes, "class_without_members"),
+            ["/classes/classes/2"]
+        );
+        assert!(found_in("classes", &shop_classes(), "class_without_members").is_empty());
+        for class in classes["classes"].as_array_mut().unwrap() {
+            class.as_object_mut().unwrap().remove("attributes");
+        }
+        assert!(found_in("classes", &classes, "class_without_members").is_empty());
+    }
+
+    #[test]
+    fn an_isolated_class_is_a_hint_in_a_diagram_with_others() {
+        let mut classes = shop_classes();
+        classes["relations"][1]["to"] = json!("line");
+        // A relation of a class to itself relates it to no other.
+        assert_eq!(
+            found_in("classes", &classes, "isolated_class"),
+            ["/classes/classes/2"]
+        );
+        assert!(found_in("classes", &shop_classes(), "isolated_class").is_empty());
+        let alone = json!({ "classes": [{ "id": "order", "label": "Order" }] });
+        assert!(found_in("classes", &alone, "isolated_class").is_empty());
     }
 
     #[test]

@@ -567,6 +567,76 @@ fn manifest_records_the_view() {
     std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
 }
 
+#[test]
+fn cli_renders_all_views_on_one_page_and_refuses_them_as_svg() {
+    let render = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_chartlet"))
+            .args(["render", "examples/shop-views.json", "--all-views"])
+            .args(args)
+            .output()
+            .expect("chartlet CLI should start")
+    };
+
+    let page = render(&["--format", "html"]);
+    assert!(page.status.success(), "{page:?}");
+    assert_eq!(
+        String::from_utf8(page.stdout).expect("HTML output should be UTF-8"),
+        format!("{}\n", include_str!("../examples/shop-views.all.html"))
+    );
+
+    for (args, expected) in [
+        (
+            &["--format", "svg"][..],
+            "option_not_supported at /render/allViews",
+        ),
+        (
+            &["--format", "png"][..],
+            "--all-views requires --format html",
+        ),
+        (
+            &["--format", "html", "--view", "checkout"][..],
+            "option_not_supported at /render/allViews",
+        ),
+    ] {
+        let refused = render(args);
+        assert!(!refused.status.success());
+        let stderr = String::from_utf8(refused.stderr).expect("errors should be UTF-8");
+        assert!(stderr.contains(expected), "{args:?}: {stderr}");
+    }
+}
+
+#[test]
+fn manifest_lists_all_views_shown() {
+    let directory =
+        std::env::temp_dir().join(format!("chartlet-cli-all-views-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory should be writable");
+    let manifest = directory.join("manifest.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+        .args([
+            "render",
+            "examples/shop-views.json",
+            "--format",
+            "html",
+            "--all-views",
+            "-o",
+            directory.join("views.html").to_str().expect("UTF-8 path"),
+            "--manifest",
+            manifest.to_str().expect("UTF-8 path"),
+        ])
+        .output()
+        .expect("chartlet CLI should start");
+    assert!(output.status.success(), "{output:?}");
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&manifest).expect("the manifest should be written"))
+            .expect("the manifest should be JSON");
+    assert_eq!(
+        manifest["views"],
+        serde_json::json!(["overview", "checkout"])
+    );
+    assert!(manifest.get("view").is_none());
+    std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
+}
+
 /// The CLI writes the same bytes as the library: the reviewed SVG of an architecture diagram
 /// with symbols.
 #[test]

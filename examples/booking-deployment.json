@@ -4,31 +4,65 @@
   "title": "Course booking: deployment",
   "height": 1000,
   "architecture": {
-    "boundaries": [
-      { "id": "region", "label": "Cloud region" },
-      { "id": "cluster", "label": "Container cluster", "in": "region" },
-      { "id": "webPool", "label": "Node pool: web", "in": "cluster" },
-      { "id": "workerPool", "label": "Node pool: workers", "in": "cluster" }
-    ],
     "components": [
       { "id": "learner", "label": "Learner", "kind": "person" },
-      { "id": "ingress", "label": "Ingress", "sublabel": "load balancer", "in": "cluster" },
-      { "id": "web", "label": "Web app and API", "sublabel": "image, 3 replicas", "kind": "artifact", "in": "webPool" },
-      { "id": "worker", "label": "Worker", "sublabel": "image, 2 replicas", "kind": "artifact", "in": "workerPool" },
-      { "id": "jobs", "label": "Job queue", "sublabel": "managed queue", "kind": "queue", "in": "region" },
-      { "id": "db", "label": "Bookings", "sublabel": "managed database", "kind": "database", "in": "region" },
-      { "id": "files", "label": "Certificates", "sublabel": "object storage", "kind": "storage", "in": "region" }
+      { "id": "ingress", "label": "Ingress", "sublabel": "load balancer" },
+      { "id": "api", "label": "Booking API", "sublabel": "image: web app and API", "kind": "artifact" },
+      { "id": "worker", "label": "Worker", "sublabel": "image: background jobs", "kind": "artifact" },
+      { "id": "jobs", "label": "Job queue", "sublabel": "managed queue", "kind": "queue" },
+      { "id": "db", "label": "Bookings", "sublabel": "managed database", "kind": "database" },
+      { "id": "files", "label": "Certificates", "sublabel": "object storage", "kind": "storage" }
     ],
     "connections": [
-      { "from": "learner", "to": "ingress", "label": "opens", "technology": "HTTPS" },
-      { "from": "ingress", "to": "web", "label": "routes" },
-      { "from": "web", "to": "db", "label": "reads, writes", "technology": "SQL/TLS" },
-      { "from": "web", "to": "jobs", "label": "queues jobs" },
-      { "from": "jobs", "to": "worker", "label": "delivers" },
-      { "from": "worker", "to": "files", "label": "stores certificates" },
-      { "from": "worker", "to": "db", "label": "updates", "technology": "SQL/TLS" }
+      { "id": "open", "from": "learner", "to": "ingress", "label": "opens", "technology": "HTTPS" },
+      { "id": "route", "from": "ingress", "to": "api", "label": "routes", "technology": "HTTP" },
+      { "id": "query", "from": "api", "to": "db", "label": "reads, writes", "technology": "SQL/TLS" },
+      { "id": "enqueue", "from": "api", "to": "jobs", "label": "queues jobs" },
+      { "id": "deliver", "from": "jobs", "to": "worker", "label": "delivers" },
+      { "id": "store", "from": "worker", "to": "files", "label": "stores certificates" },
+      { "id": "update", "from": "worker", "to": "db", "label": "updates", "technology": "SQL/TLS" }
     ],
-    "mainPath": ["learner", "ingress", "web", "jobs", "worker", "files"],
-    "sameRank": [["db", "files"]]
+    "mainPath": ["learner", "ingress", "api", "jobs", "worker", "files"],
+    "sameRank": [["db", "files"]],
+    "defaultView": "production",
+    "views": [
+      {
+        "key": "logical",
+        "title": "Course booking: deployable parts",
+        "components": ["learner", "ingress", "api", "worker", "jobs", "db", "files"]
+      },
+      {
+        "key": "production",
+        "title": "Course booking in production",
+        "environment": "Production",
+        "hosts": [
+          { "id": "region", "label": "Cloud region" },
+          { "id": "cluster", "label": "Container cluster", "in": "region" },
+          { "id": "nodeA", "label": "Node A", "in": "cluster" },
+          { "id": "nodeB", "label": "Node B", "in": "cluster" },
+          { "id": "workerPool", "label": "Node pool: workers", "in": "cluster" }
+        ],
+        "instances": [
+          { "id": "ingress-prod", "of": "ingress", "in": "cluster" },
+          { "id": "api-1", "of": "api", "in": "nodeA" },
+          { "id": "api-2", "of": "api", "in": "nodeB" },
+          { "id": "worker-1", "of": "worker", "in": "workerPool" },
+          { "id": "jobs-prod", "of": "jobs", "in": "region" },
+          { "id": "db-prod", "of": "db", "in": "region" },
+          { "id": "files-prod", "of": "files", "in": "region" }
+        ],
+        "instanceConnections": [
+          { "id": "route", "from": "ingress-prod", "to": "api-1" },
+          { "id": "route", "from": "ingress-prod", "to": "api-2" },
+          { "id": "query", "from": "api-1", "to": "db-prod" },
+          { "id": "query", "from": "api-2", "to": "db-prod" },
+          { "id": "enqueue", "from": "api-1", "to": "jobs-prod" },
+          { "id": "enqueue", "from": "api-2", "to": "jobs-prod" },
+          { "id": "deliver", "from": "jobs-prod", "to": "worker-1" },
+          { "id": "store", "from": "worker-1", "to": "files-prod" },
+          { "id": "update", "from": "worker-1", "to": "db-prod" }
+        ]
+      }
+    ]
   }
 }

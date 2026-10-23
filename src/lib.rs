@@ -101,6 +101,11 @@ pub struct RenderOptions {
     /// The `key` of the perspective of an architecture diagram to show, in place of the one the
     /// model or the rendered view selects. Every variant shows the same perspective.
     pub perspective: Option<String>,
+    /// Renders every view of an architecture model on one HTML page instead of one view: a list
+    /// of links to the views, the default view first, and each view as a section of its own
+    /// with its figure, description and data table. Only for the HTML profile and the desktop
+    /// variant, and not together with `view`.
+    pub all_views: bool,
 }
 
 /// Where a chart's styles live.
@@ -200,6 +205,9 @@ pub struct Manifest {
     /// The `key` of the view of an architecture model that was rendered; `None` for a
     /// specification without views. `spec_hash` is the hash of the whole model.
     pub view: Option<String>,
+    /// The keys of the views of an architecture model shown on one page with
+    /// [`RenderOptions::all_views`], in the order of the page; empty otherwise.
+    pub views: Vec<String>,
     /// The `key` of the perspective of an architecture diagram that was shown; `None` without
     /// one.
     pub perspective: Option<String>,
@@ -209,7 +217,8 @@ pub struct Manifest {
 impl Manifest {
     /// The manifest as a pretty-printed JSON object, its keys in a fixed order:
     /// `chartlet`, `schemaVersion`, `specHash`, `outputHash`, `format`, `variant`, `idPrefix`,
-    /// `view` (only when a view was rendered), `perspective` (only when one was shown),
+    /// `view` (only when a view was rendered), `views` (only when all views were rendered on one
+    /// page), `perspective` (only when one was shown),
     /// `warnings` (each with `code`, `path`, `message`).
     ///
     /// # Panics
@@ -229,6 +238,8 @@ impl Manifest {
             id_prefix: &'a str,
             #[serde(skip_serializing_if = "Option::is_none")]
             view: Option<&'a str>,
+            #[serde(skip_serializing_if = "<[String]>::is_empty")]
+            views: &'a [String],
             #[serde(skip_serializing_if = "Option::is_none")]
             perspective: Option<&'a str>,
             warnings: Vec<Warning<'a>>,
@@ -256,6 +267,7 @@ impl Manifest {
             },
             id_prefix: &self.id_prefix,
             view: self.view.as_deref(),
+            views: &self.views,
             perspective: self.perspective.as_deref(),
             warnings: self
                 .warnings
@@ -358,6 +370,9 @@ pub fn render_with_metrics(
         }
         None => spec,
     };
+    if options.all_views {
+        return render_all_views((model, spec), format, options, metrics);
+    }
     // A model with views renders one of them, resolved to a diagram of its own; diagnostics
     // point into the model.
     let view = if spec.has_views() || options.view.is_some() {
@@ -387,16 +402,112 @@ pub fn render_with_metrics(
             .as_ref()
             .and_then(|architecture| architecture.perspective.clone());
         output.manifest = Some(Manifest {
-            chartlet: env!("CARGO_PKG_VERSION"),
-            schema_version: spec.schema_version,
-            spec_hash: format!("sha256:{}", sha256::hex(&sha256(&canonical_json(model)?))),
-            output_hash: format!("sha256:{}", sha256::hex(&sha256(output.content.as_bytes()))),
-            format,
-            variant: options.variant,
-            id_prefix,
             view: view.map(|view| view.key),
             perspective,
-            warnings: output.warnings.clone(),
+            ..manifest(model, format, options, &output, id_prefix)?
+        });
+    }
+    Ok(output)
+}
+
+/// The manifest of `output`, rendered from `spec`, without a view or perspective.
+fn manifest(
+    spec: &ChartSpec,
+    format: RenderFormat,
+    options: &RenderOptions,
+    output: &RenderOutput,
+    id_prefix: String,
+) -> Result<Manifest, ChartError> {
+    Ok(Manifest {
+        chartlet: env!("CARGO_PKG_VERSION"),
+        schema_version: spec.schema_version,
+        spec_hash: format!("sha256:{}", sha256::hex(&sha256(&canonical_json(spec)?))),
+        output_hash: format!("sha256:{}", sha256::hex(&sha256(output.content.as_bytes()))),
+        format,
+        variant: options.variant,
+        id_prefix,
+        view: None,
+        views: Vec::new(),
+        perspective: None,
+        warnings: output.warnings.clone(),
+    })
+}
+
+/// Every view of an architecture model on one HTML page, the default view first. Each view is a
+/// section with the figure of its own HTML export, under the ID prefix of the page followed by
+/// `-v` and the view's place on the page from 1; diagnostics point into the model. The model is
+/// given as it came, whose hash the manifest carries, and as rendered, with the perspective
+/// asked for.
+fn render_all_views(
+    (model, spec): (&ChartSpec, &ChartSpec),
+    format: RenderFormat,
+    options: &RenderOptions,
+    metrics: &impl TextMetrics,
+) -> Result<RenderOutput, ChartError> {
+    let refuse = |message: &str| {
+        Err(ChartError::new(
+            "option_not_supported",
+            "/render/allViews",
+            message,
+        ))
+    };
+    if format == RenderFormat::Svg {
+        return refuse(
+            "all views share one HTML page; render each view as an SVG of its own by its key",
+        );
+    }
+    if options.view.is_some() {
+        return refuse("all views are shown; leave out the view");
+    }
+    if options.variant != Variant::Desktop {
+        return refuse("the page of all views carries the desktop and mobile variants of each");
+    }
+    spec.validate()?;
+    if !spec.has_views() {
+        return refuse("the specification has no views");
+    }
+    let page_prefix = resolve_id_prefix(spec, options)?;
+    let mut views = vec![
+        spec.resolve_view(None)?
+            .expect("a model with views has a default"),
+    ];
+    for key in spec.view_keys() {
+        if key != views[0].key {
+            views.push(
+                spec.resolve_view(Some(key))?
+                    .expect("the key is that of a view"),
+            );
+        }
+    }
+    let mut warnings = Vec::new();
+    let mut sections = Vec::new();
+    for (number, view) in views.iter().enumerate() {
+        let id = format!("{page_prefix}-v{}", number + 1);
+        let output =
+            render_content_as(&view.spec, format, options, &id, metrics).map_err(|error| {
+                ChartError::new(error.code, view.model_path(&error.path), error.message)
+            })?;
+        warnings.extend(output.warnings.into_iter().map(|warning| ChartWarning {
+            path: view.model_path(&warning.path),
+            ..warning
+        }));
+        sections.push(render::ViewSection {
+            id,
+            title: view.spec.title.clone(),
+            content: output.content,
+        });
+    }
+    dedupe_warnings(&mut warnings);
+    let mut output = RenderOutput {
+        content: render::html_views(&sections, spec, &page_prefix),
+        warnings,
+        manifest: None,
+    };
+    if options.manifest {
+        output.manifest = Some(Manifest {
+            views: views.into_iter().map(|view| view.key).collect(),
+            perspective: options.perspective.clone(),
+            ..manifest(model, format, options, &output, page_prefix)?
         });
     }
     Ok(output)
@@ -408,8 +519,20 @@ fn render_content(
     options: &RenderOptions,
     metrics: &impl TextMetrics,
 ) -> Result<RenderOutput, ChartError> {
-    let mut warnings = spec.validate()?;
     let id_prefix = resolve_id_prefix(spec, options)?;
+    render_content_as(spec, format, options, &id_prefix, metrics)
+}
+
+/// Renders `spec` with its IDs under `id_prefix`.
+fn render_content_as(
+    spec: &ChartSpec,
+    format: RenderFormat,
+    options: &RenderOptions,
+    id_prefix: &str,
+    metrics: &impl TextMetrics,
+) -> Result<RenderOutput, ChartError> {
+    let mut warnings = spec.validate()?;
+    let id_prefix = id_prefix.to_owned();
 
     let mobile = spec.mobile_variant();
     let mobile_prefix = |prefix: &str| format!("{prefix}-m");

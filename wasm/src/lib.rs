@@ -5,16 +5,20 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "view", "perspective", "strict", "allowWarnings", "manifest", "alternative",
-//! "styles", "hooks" } }`, or
+//! "variant", "view", "allViews", "perspective", "strict", "allowWarnings", "manifest",
+//! "alternative", "styles", "hooks" } }`, or
 //! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
-//! `"styles": "external"`, for every chart type when `types` is absent. Response: `{ "ok": true, "content", "styleHashes",
+//! `"styles": "external"`, for every chart type when `types` is absent, or
+//! `{ "inspect": true, "spec", "disable": ["code", …] }` for the inspections of a model, answered
+//! with `{ "ok": true, "findings": [{ "code", "severity", "path", "message", "hint" }] }`. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
 //! `{ "ok": false, "error": { "code", "path", "message" }, "warnings" }`, the same diagnostics
 //! the CLI reports with `--diagnostics json`. `styleHashes` are the CSP source expressions of the
 //! inline styles in `content`, see [`csp::style_hashes`]; `manifest` is the object the CLI writes
 //! with `--manifest`; `alternative`, when asked for, is the chart's text alternative,
-//! `{ "description", "table": { "caption", "columns", "rows" } }`.
+//! `{ "description", "table": { "caption", "columns", "rows" } }`; with `allViews` that of the
+//! default view, and `alternatives` lists that of every view on the page, in its order, each with
+//! its `view` key.
 
 mod csp;
 
@@ -24,9 +28,9 @@ use std::{
 };
 
 use chartlet::{
-    ChartSpec, ChartType, ChartWarning, Manifest, RenderFormat, RenderOptions, Styles, TableMode,
-    TextAlternative, Variant, render_json, stylesheet, stylesheet_for, stylesheet_types,
-    text_alternative,
+    ChartSpec, ChartType, ChartWarning, INSPECTIONS, Manifest, RenderFormat, RenderOptions, Styles,
+    TableMode, TextAlternative, Variant, inspect_json, render_json, stylesheet, stylesheet_for,
+    stylesheet_types, text_alternative,
 };
 use serde_json::{Value, json};
 
@@ -74,6 +78,11 @@ fn respond(request: &[u8]) -> Value {
     {
         return shared_stylesheet(&request["types"], request["common"] != false);
     }
+    if let Ok(request) = serde_json::from_slice::<Value>(request)
+        && request["inspect"] == true
+    {
+        return inspections(&request["spec"], &request["disable"]);
+    }
     let mut warnings = Vec::new();
     let result = run(request, &mut warnings);
     let warnings: Vec<Value> = warnings.iter().map(warning_json).collect();
@@ -82,6 +91,7 @@ fn respond(request: &[u8]) -> Value {
             content,
             manifest,
             alternative,
+            alternatives,
         }) => {
             let mut response = json!({
                 "ok": true,
@@ -93,15 +103,23 @@ fn respond(request: &[u8]) -> Value {
                 response["manifest"] =
                     serde_json::from_str(&manifest.to_json()).expect("a manifest is valid JSON");
             }
-            if let Some(TextAlternative { description, table }) = alternative {
-                response["alternative"] = json!({
-                    "description": description,
-                    "table": {
-                        "caption": table.caption,
-                        "columns": table.columns,
-                        "rows": table.rows,
-                    },
-                });
+            if let Some(alternative) = alternative {
+                response["alternative"] = alternative_json(alternative);
+            }
+            if !alternatives.is_empty() {
+                response["alternatives"] = alternatives
+                    .into_iter()
+                    .map(|(view, alternative)| {
+                        let mut entry = json!({ "view": view });
+                        entry.as_object_mut().expect("an object").extend(
+                            alternative_json(alternative)
+                                .as_object()
+                                .cloned()
+                                .expect("an object"),
+                        );
+                        entry
+                    })
+                    .collect();
             }
             response
         }
@@ -109,11 +127,24 @@ fn respond(request: &[u8]) -> Value {
     }
 }
 
-/// A successful render: the content, and the manifest and text alternative when asked for.
+fn alternative_json(TextAlternative { description, table }: TextAlternative) -> Value {
+    json!({
+        "description": description,
+        "table": {
+            "caption": table.caption,
+            "columns": table.columns,
+            "rows": table.rows,
+        },
+    })
+}
+
+/// A successful render: the content, and the manifest and text alternative when asked for; with
+/// all views, the text alternative of each view by its key, in the order of the page.
 struct Rendered {
     content: String,
     manifest: Option<Manifest>,
     alternative: Option<TextAlternative>,
+    alternatives: Vec<(String, TextAlternative)>,
 }
 
 fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Value> {
@@ -158,6 +189,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
             hooks: options["hooks"].as_bool() == Some(true),
             view: options["view"].as_str().map(str::to_owned),
             perspective: options["perspective"].as_str().map(str::to_owned),
+            all_views: options["allViews"].as_bool() == Some(true),
         },
     )
     .map_err(|error| error_json(&error))?;
@@ -191,11 +223,41 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
     } else {
         None
     };
+    let alternatives = if alternative.is_some() && options["allViews"].as_bool() == Some(true) {
+        view_alternatives(&spec, options["perspective"].as_str())
+            .map_err(|error| error_json(&error))?
+    } else {
+        Vec::new()
+    };
     Ok(Rendered {
         content: rendered.content,
         manifest: rendered.manifest,
         alternative,
+        alternatives,
     })
+}
+
+/// The text alternative of every view of a model, by its key, in the order of the page of all
+/// views: the default view first; each with the perspective asked for, if any.
+fn view_alternatives(
+    spec: &str,
+    perspective: Option<&str>,
+) -> Result<Vec<(String, TextAlternative)>, chartlet::ChartError> {
+    let mut spec = ChartSpec::from_json(spec)?;
+    if let Some(key) = perspective {
+        spec = spec.with_perspective(key)?;
+    }
+    let mut keys: Vec<&str> = spec.view_keys();
+    let default = spec
+        .architecture
+        .as_ref()
+        .and_then(|architecture| architecture.default_view.as_deref())
+        .unwrap_or(keys[0]);
+    keys.retain(|key| *key != default);
+    keys.insert(0, default);
+    keys.into_iter()
+        .map(|key| Ok((key.to_owned(), text_alternative(&spec.view(Some(key))?)?)))
+        .collect()
 }
 
 fn error_json(error: &chartlet::ChartError) -> Value {
@@ -231,6 +293,47 @@ fn shared_stylesheet(types: &Value, common: bool) -> Value {
         stylesheet_types(&chart_types)
     };
     json!({ "ok": true, "stylesheet": stylesheet })
+}
+
+/// The findings of the inspections of `spec`, leaving out those whose codes are in `disable`.
+fn inspections(spec: &Value, disable: &Value) -> Value {
+    let mut disabled = Vec::new();
+    for code in disable.as_array().into_iter().flatten() {
+        match code.as_str().filter(|code| INSPECTIONS.contains(code)) {
+            Some(code) => disabled.push(code),
+            None => {
+                return json!({
+                    "ok": false,
+                    "error": failure(&format!(
+                        "unknown inspection {code}; the inspections are {}",
+                        INSPECTIONS.join(", ")
+                    )),
+                });
+            }
+        }
+    }
+    let spec = match spec {
+        Value::String(spec) => Cow::Borrowed(spec.as_str()),
+        spec => Cow::Owned(spec.to_string()),
+    };
+    match inspect_json(&spec, &disabled) {
+        Ok(findings) => {
+            let findings: Vec<Value> = findings
+                .iter()
+                .map(|finding| {
+                    json!({
+                        "code": finding.code,
+                        "severity": finding.severity.name(),
+                        "path": finding.path,
+                        "message": finding.message,
+                        "hint": finding.hint,
+                    })
+                })
+                .collect();
+            json!({ "ok": true, "findings": findings })
+        }
+        Err(error) => json!({ "ok": false, "error": error_json(&error) }),
+    }
 }
 
 fn failure(message: &str) -> Value {

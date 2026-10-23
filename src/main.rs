@@ -96,7 +96,9 @@ type Rendered = (Content, Vec<ChartWarning>, Option<chartlet::Manifest>);
 
 /// Renders the specification `input` as `job` asks.
 fn render_job(job: &Job, input: &str) -> Result<Rendered, Failure> {
-    if job.png {
+    if job.png && job.options.all_views {
+        Err("--all-views requires --format html".to_owned().into())
+    } else if job.png {
         let (png, warnings) = render_png(
             input,
             job.options.view.as_deref(),
@@ -150,6 +152,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut scale = None;
     let mut view = None;
     let mut perspective = None;
+    let mut all_views = false;
     let mut watch = false;
     let mut preview = false;
     let mut port = None;
@@ -193,6 +196,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                         "--perspective requires the key of a perspective".to_owned()
                     })?);
             }
+            "--all-views" => all_views = true,
             "--styles" => styles = parse_styles(arguments.next().as_deref())?,
             "--hooks" => hooks = true,
             "--manifest" => manifest = Some(path_after(&mut arguments, "--manifest")?),
@@ -224,6 +228,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             hooks,
             view,
             perspective,
+            all_views,
         },
         manifest,
         strict: strict.then_some(allowed),
@@ -450,7 +455,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key>] [--perspective <key>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
+    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
        chartlet inspect <spec.json|-> [--disable <code>]... [--strict] [--format text|json] [--diagnostics text|json]
        chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
 }
