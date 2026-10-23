@@ -40,6 +40,9 @@ for (const [renderer, chartletBin] of [
     // `hooks` adds the data-* hooks for the optional module, and still no script.
     assert.match(html, /data-chartlet-type="line" data-chartlet-id="hooked-chart"/);
     assert.match(html, /<table data-chartlet-table="hooked-chart">/);
+    // `allViews` puts every view of the model on the page, under the chart's id.
+    assert.match(html, /<div class="chartlet-views" id="shop">/);
+    assert.match(html, /<a href="#shop-v2-view">Web shop: checkout<\/a>/);
     assert.doesNotMatch(html, /<script/);
   });
 }

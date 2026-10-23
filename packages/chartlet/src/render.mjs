@@ -28,11 +28,16 @@ function wasmRenderer() {
 // The CLI writes no text alternative; the bundled WebAssembly build derives the same one.
 function withAlternative(rendered, spec, options) {
   if (options.alternative) {
-    rendered.alternative = wasmRenderer().renderChartDetailed(spec, {
-      format: "svg",
+    const { alternative, alternatives } = wasmRenderer().renderChartDetailed(spec, {
+      format: options.allViews ? "html" : "svg",
       view: options.view,
+      allViews: options.allViews,
       alternative: true,
-    }).alternative;
+    });
+    rendered.alternative = alternative;
+    if (alternatives) {
+      rendered.alternatives = alternatives;
+    }
   }
   return rendered;
 }
