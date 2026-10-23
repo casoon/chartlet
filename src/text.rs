@@ -4,7 +4,8 @@
 use std::fmt::Write as _;
 
 use crate::spec::{
-    ComponentKind, FragmentSpec, Linkage, Locale, MessageKind, NodeKind, ParticipantKind, Quadrant,
+    ComponentKind, DiagramRole, FragmentSpec, Linkage, Locale, MessageKind, NodeKind,
+    ParticipantKind, Quadrant,
 };
 
 pub(crate) struct Words {
@@ -132,6 +133,8 @@ pub(crate) struct Words {
     pub ring: &'static str,
     /// The column of the parts of a node.
     pub parts: &'static str,
+    /// The column of the role of a node.
+    pub role: &'static str,
     /// The columns of a dendrogram's table.
     pub joins: &'static str,
     pub distance: &'static str,
@@ -251,6 +254,7 @@ const EN: Words = Words {
     show_all: "Show all",
     ring: "Ring",
     parts: "Parts",
+    role: "Role",
     joins: "Joins",
     distance: "Distance",
     items: "Items",
@@ -371,6 +375,7 @@ const DE: Words = Words {
     show_all: "Alle zeigen",
     ring: "Ring",
     parts: "Anteile",
+    role: "Rolle",
     joins: "Verbindet",
     distance: "Abstand",
     items: "Elemente",
@@ -1358,6 +1363,27 @@ pub(crate) fn node_parts(locale: Locale, nodes: &[String]) -> String {
     match locale {
         Locale::En => format!("Parts: {nodes}."),
         Locale::De => format!("Anteile: {nodes}."),
+    }
+}
+
+/// The name of a role of a diagram's nodes and edges.
+pub(crate) const fn role(locale: Locale, role: DiagramRole) -> &'static str {
+    match (locale, role) {
+        (Locale::En, DiagramRole::Critical) => "critical",
+        (Locale::En, DiagramRole::Planned) => "planned",
+        (Locale::En, DiagramRole::Deprecated) => "deprecated",
+        (Locale::De, DiagramRole::Critical) => "kritisch",
+        (Locale::De, DiagramRole::Planned) => "geplant",
+        (Locale::De, DiagramRole::Deprecated) => "veraltet",
+    }
+}
+
+/// The sentence with the roles of a diagram, each as `role: what has it`.
+pub(crate) fn roles(locale: Locale, roles: &[String]) -> String {
+    let roles = roles.join("; ");
+    match locale {
+        Locale::En => format!("Roles: {roles}."),
+        Locale::De => format!("Rollen: {roles}."),
     }
 }
 

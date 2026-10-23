@@ -21,16 +21,18 @@ use crate::{
     heat,
     layout::{NARROW, count, format_value, push_title, title_extra},
     metrics::TextMetrics,
-    parts,
+    parts, roles,
     scene::{Circle, Element, Hotspot, Line, Rect, Scene, SymbolUse, Text, TextAnchor},
-    spec::{ChartSpec, Dash, DiagramOrientation, FlowSpec, NodeKind, NumberStyle, PartSpec},
+    spec::{
+        ChartSpec, Dash, DiagramOrientation, DiagramRole, FlowSpec, NodeKind, NumberStyle, PartSpec,
+    },
     structure::{Facts, Structure},
     symbols::{self, Symbol},
     text,
 };
 use graph::{Graph, settle};
 
-const MARGIN: f64 = 24.0;
+pub(crate) const MARGIN: f64 = 24.0;
 const BOTTOM: f64 = 16.0;
 const LABEL_SIZE: f64 = 13.0;
 const SUBLABEL_SIZE: f64 = 11.0;
@@ -126,6 +128,11 @@ pub(crate) fn layout(
     );
     let names = parts::names(flow.nodes.iter().map(|node| node.parts.as_slice()));
     parts::push_legend(&mut scene, &names, MARGIN, metrics);
+    let used = roles::used(
+        flow.nodes.iter().map(|node| node.role),
+        flow.edges.iter().map(|edge| edge.role),
+    );
+    roles::push_legend(&mut scene, spec.locale, &used, MARGIN, metrics);
     scene
 }
 
@@ -233,6 +240,8 @@ pub(crate) struct Node {
     pub parts: Vec<PartSpec>,
     /// The symbol drawn above the label.
     pub symbol: Option<&'static Symbol>,
+    /// What the node means beyond its kind: its outline and a badge on its corner.
+    pub role: Option<DiagramRole>,
 }
 
 pub(crate) struct Edge {
@@ -250,6 +259,8 @@ pub(crate) struct Edge {
     pub ends: Ends,
     /// How much the edge carries; the line is drawn stronger the more.
     pub weight: Option<f64>,
+    /// What the edge means beyond its kind: the color and pattern of its line.
+    pub role: Option<DiagramRole>,
 }
 
 /// What an edge has at one of its ends.
@@ -370,6 +381,7 @@ impl Diagram {
                     value: node.value,
                     parts: node.parts.clone(),
                     symbol: None,
+                    role: node.role,
                 })
                 .collect(),
             edges: flow
@@ -387,6 +399,7 @@ impl Diagram {
                     label_path: format!("/flow/edges/{index}/label"),
                     ends: Ends::arrow(),
                     weight: edge.weight,
+                    role: edge.role,
                 })
                 .collect(),
             lanes: flow.lanes.iter().map(|lane| lane.label.clone()).collect(),
@@ -2203,6 +2216,9 @@ impl Plan {
             if let Some(width) = width {
                 write!(classes, " chartlet-flow-w{width}").expect("writing to String cannot fail");
             }
+            if let Some(role) = model.diagram.edges[edge].role {
+                classes.push_str(roles::class(role));
+            }
             elements.push(Element::Group(classes));
             self.draw_edge(model, edge, elements, &mut labels);
             elements.push(Element::GroupEnd);
@@ -2226,13 +2242,20 @@ impl Plan {
             if let Some(step) = step {
                 classes.push_str(&heat::class(step));
             }
-            elements.push(match &model.diagram.nodes[node].id {
+            let spec = &model.diagram.nodes[node];
+            if let Some(role) = spec.role {
+                classes.push_str(roles::class(role));
+            }
+            elements.push(match &spec.id {
                 Some(id) => Element::NodeGroup(classes, id.clone()),
                 None => Element::Group(classes),
             });
             self.draw_node(model, node, elements);
+            if let Some(role) = spec.role {
+                let (x, y, _, _) = self.node_box(model, node);
+                roles::push_badge(role, (x, y), elements);
+            }
             elements.push(Element::GroupEnd);
-            let spec = &model.diagram.nodes[node];
             if spec.shape != Shape::Initial {
                 let (x, y, width, height) = self.node_box(model, node);
                 elements.push(Element::Hotspot(Hotspot {
@@ -3299,7 +3322,12 @@ pub(crate) fn reading_order(diagram: &Diagram) -> Vec<usize> {
 }
 
 /// Where each step leads, as `label` or `label (edge label, weight)`, in the order of the edges.
-fn next_steps(spec: &ChartSpec, ends: &[(usize, usize)], node: usize) -> Vec<String> {
+fn next_steps(
+    spec: &ChartSpec,
+    ends: &[(usize, usize)],
+    node: usize,
+    with_roles: bool,
+) -> Vec<String> {
     let flow = flow(spec);
     flow.edges
         .iter()
@@ -3313,6 +3341,11 @@ fn next_steps(spec: &ChartSpec, ends: &[(usize, usize)], node: usize) -> Vec<Str
                 .chain(edge.weight.map(|weight| {
                     text::edge_weight(spec.locale, &format_value(weight, spec.number_style()))
                 }))
+                .chain(
+                    edge.role
+                        .filter(|_| with_roles)
+                        .map(|role| text::role(spec.locale, role).to_owned()),
+                )
                 .collect();
             let target = &flow.nodes[*to].label;
             if notes.is_empty() {
@@ -3402,7 +3435,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
                 &step.label,
                 step.kind,
                 lane,
-                &next_steps(spec, &ends, node)
+                &next_steps(spec, &ends, node, false)
             )
         )
         .expect("writing to String cannot fail");
@@ -3441,7 +3474,35 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&text::flow_group(locale, &group.label, &members));
     }
+    if let Some(sentence) = roles::sentence(locale, &with_roles(flow, &ends)) {
+        description.push(' ');
+        description.push_str(&sentence);
+    }
     description
+}
+
+/// Every step with a role, in reading order, then every edge with one, as `From → To`.
+fn with_roles(flow: &FlowSpec, ends: &[(usize, usize)]) -> Vec<(DiagramRole, String)> {
+    reading_order(&Diagram::from_flow(flow))
+        .into_iter()
+        .filter_map(|node| {
+            let step = &flow.nodes[node];
+            step.role.map(|role| (role, step.label.clone()))
+        })
+        .chain(
+            flow.edges
+                .iter()
+                .zip(ends)
+                .filter_map(|(edge, (from, to))| {
+                    edge.role.map(|role| {
+                        (
+                            role,
+                            format!("{} → {}", flow.nodes[*from].label, flow.nodes[*to].label),
+                        )
+                    })
+                }),
+        )
+        .collect()
 }
 
 /// One row per step in reading order: its label, kind, lane and group where the chart has them,
@@ -3465,6 +3526,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let with_parts = flow.nodes.iter().any(|node| !node.parts.is_empty());
     if with_parts {
         columns.push(words.parts.to_owned());
+    }
+    let with_roles = flow.nodes.iter().any(|node| node.role.is_some());
+    if with_roles {
+        columns.push(words.role.to_owned());
     }
     columns.push(words.leads_to.to_owned());
     let rows = reading_order(&Diagram::from_flow(flow))
@@ -3495,7 +3560,13 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             if with_parts {
                 row.push(parts::listed(spec.number_style(), &step.parts));
             }
-            row.push(next_steps(spec, &ends, node).join(", "));
+            if with_roles {
+                row.push(
+                    step.role
+                        .map_or_else(String::new, |role| text::role(spec.locale, role).to_owned()),
+                );
+            }
+            row.push(next_steps(spec, &ends, node, true).join(", "));
             row
         })
         .collect();

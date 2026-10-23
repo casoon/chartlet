@@ -86,6 +86,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             value: None,
             parts: Vec::new(),
             symbol: None,
+            role: None,
         })
         .collect();
     let edges = classes
@@ -112,6 +113,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
                 label_path: format!("/classes/relations/{index}/label"),
                 ends: ends(relation),
                 weight: None,
+                role: None,
             }
         })
         .collect();

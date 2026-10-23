@@ -357,6 +357,13 @@ const catalogue = [
       'Three services, each with its own database. Left to itself, every database follows its service, so they land at three depths and the Data tier boundary around them stretches over the queue and the worker. `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` puts the three at one position along the flow: the frame is one layer deep and the main path stays straight. A layout hint, not an edge; laid out again for the phone, where the tier is a row at the bottom. Illustrative values.',
   },
   {
+    slug: 'billing-migration',
+    chart: 'Architecture diagram with roles',
+    useCase: 'Show what changes in a migration',
+    blurb:
+      'Billing moves out of a monolith. The old path is `deprecated` (dotted, gray), the new service and its connections are `planned` (dashed, violet), the gateway, the accounts database and the payment call are `critical` (strong red). Each role also carries a badge or a line pattern, so it reads without color; the legend names only the roles used, and the description and the table name every role. Illustrative values.',
+  },
+  {
     slug: 'department-budgets',
     chart: 'Tree with boxes colored by value',
     useCase: 'Show where the money goes in an organization',
