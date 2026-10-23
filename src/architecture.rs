@@ -189,6 +189,7 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
             .map(|(index, connection)| Edge {
                 from: architecture.component(&connection.from).expect("validated"),
                 to: architecture.component(&connection.to).expect("validated"),
+                id: connection.id.clone(),
                 label: step_label(connection.step, connection.label.as_deref()),
                 technology: connection.technology.clone(),
                 dash: connection.dash,
@@ -207,6 +208,7 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
             .enumerate()
             .map(|(index, group)| Group {
                 label: group.label.clone(),
+                id: Some(group.id.clone()),
                 path: format!("/architecture/boundaries/{index}"),
                 parent: boundary(&group.parent),
             })

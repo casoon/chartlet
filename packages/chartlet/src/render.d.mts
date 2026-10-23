@@ -17,6 +17,12 @@ export interface RenderChartOptions {
    * view. Every variant renders the same view.
    */
   view?: string;
+  /**
+   * Render every view of an architecture model on one HTML page instead of one view: a
+   * navigation of links to the views, the default view first, and each view as a section with
+   * its own figure and data table. HTML and the desktop variant only; not together with `view`.
+   */
+  allViews?: boolean;
   /** Fail on any warning, except those whose code is listed in `allowWarnings`. */
   strict?: boolean;
   /** Warning codes that `strict` lets through, such as `"dense_chart"`. They are still reported. */
@@ -28,11 +34,15 @@ export interface RenderChartOptions {
    * `@casoon/chartlet/chartlet.css` once, and a chart carries only its own declared colors.
    */
   styles?: "inline" | "external";
-  /** Also return the chart's text alternative in `alternative`. */
+  /**
+   * Also return the chart's text alternative in `alternative`; with `allViews`, that of the
+   * default view, and that of every view on the page in `alternatives`.
+   */
   alternative?: boolean;
   /**
    * Add the `data-*` hooks that `@casoon/chartlet/interactive` reads: plot geometry, layer
-   * groups, the spec ID of each diagram node (`data-chartlet-node`) and unformatted values on
+   * groups, the spec ID of each diagram node, connection, frame and lane (`data-chartlet-node`,
+   * `data-chartlet-edge`, `data-chartlet-frame`, `data-chartlet-lane`) and unformatted values on
    * the data table (or in a JSON data block in the SVG profile). Off by default; without it the
    * output is unchanged.
    */
@@ -65,6 +75,8 @@ export interface ChartManifest {
   idPrefix: string;
   /** The key of the view of an architecture model that was rendered; absent without views. */
   view?: string;
+  /** The keys of the views shown on one page with `allViews`, in page order; absent otherwise. */
+  views?: string[];
   /** The key of the perspective an architecture diagram showed; absent without one. */
   perspective?: string;
   warnings: ChartManifestWarning[];
@@ -82,6 +94,11 @@ export interface RenderChartResult {
   manifest?: ChartManifest;
   /** Present when `options.alternative` is set. */
   alternative?: ChartTextAlternative;
+  /**
+   * Present when `options.alternative` and `options.allViews` are set: the text alternative of
+   * every view on the page, in its order (the default view first), each with its `view` key.
+   */
+  alternatives?: ChartViewTextAlternative[];
 }
 
 /**
@@ -97,6 +114,11 @@ export interface ChartTextAlternative {
     /** One row per category, starting with the category; values as the chart writes them. */
     rows: string[][];
   };
+}
+
+/** The text alternative of one view of an architecture model, with the view's key. */
+export interface ChartViewTextAlternative extends ChartTextAlternative {
+  view: string;
 }
 
 export interface StylesheetOptions {
@@ -138,6 +160,11 @@ export interface RenderChartDetailedSuccess {
   manifest?: ChartManifest;
   /** Present when `options.alternative` is set. */
   alternative?: ChartTextAlternative;
+  /**
+   * Present when `options.alternative` and `options.allViews` are set: the text alternative of
+   * every view on the page, in its order (the default view first), each with its `view` key.
+   */
+  alternatives?: ChartViewTextAlternative[];
 }
 
 export interface RenderChartDetailedFailure {

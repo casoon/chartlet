@@ -78,6 +78,16 @@ test("renders the view of an architecture model it is asked for", () => {
   assert.deepEqual([unknown.error.code, unknown.error.path], ["unknown_view", "/render/view"]);
 });
 
+test("renders all views of an architecture model on one page", () => {
+  const spec = example("shop-views");
+  const page = renderSpec({ spec, allViews: true });
+  assert.equal(page.ok, true);
+  assert.equal(page.content, renderChart(spec, { allViews: true }).content);
+  assert.deepEqual(page.manifest.views, ["overview", "checkout"]);
+  const svg = renderSpec({ spec, format: "svg", allViews: true });
+  assert.deepEqual([svg.error.code, svg.error.path], ["option_not_supported", "/render/allViews"]);
+});
+
 test("writes to outputPath inside the root and returns path and size", () => {
   const root = mkdtempSync(join(tmpdir(), "chartlet-mcp-"));
   try {

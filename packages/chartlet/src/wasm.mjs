@@ -32,6 +32,7 @@ export function createRenderer(module) {
         idPrefix: options.idPrefix || undefined,
         variant: options.variant,
         view: options.view || undefined,
+        allViews: options.allViews ?? false,
         strict: options.strict ?? false,
         allowWarnings: options.allowWarnings ?? [],
         manifest: options.manifest ?? false,
@@ -62,11 +63,14 @@ export function createRenderer(module) {
       if (response.alternative) {
         result.alternative = response.alternative;
       }
+      if (response.alternatives) {
+        result.alternatives = response.alternatives;
+      }
       return result;
     },
 
     // The renderer's response as it is: `ok`, `error` or `content`, `styleHashes`, `manifest`
-    // and `alternative`, and the warnings as `{ code, path, message }`. A string is taken as JSON text.
+    // and `alternative` (and `alternatives` with `allViews`), and the warnings as `{ code, path, message }`. A string is taken as JSON text.
     renderChartDetailed(spec, options = {}) {
       return respond(typeof spec === "string" ? spec : JSON.stringify(spec), options);
     },

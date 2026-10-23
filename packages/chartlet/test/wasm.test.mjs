@@ -286,6 +286,31 @@ test("renders the view it is asked for, alike from WebAssembly and the CLI", () 
   assert.equal(unknown.error.path, "/render/view");
 });
 
+test("renders all views on one page, alike from WebAssembly and the CLI", () => {
+  const spec = JSON.parse(readExample("shop-views.json"));
+  const all = { format: "html", allViews: true, manifest: true };
+  const fromWasm = renderChart(spec, all);
+  const fromCli = renderChart(spec, { ...all, binary });
+  assert.equal(fromWasm.content, readExample("shop-views.all.html"));
+  assert.equal(fromCli.content, fromWasm.content);
+  assert.deepEqual(fromCli.manifest, fromWasm.manifest);
+  assert.deepEqual(fromWasm.manifest.views, ["overview", "checkout"]);
+  assert.equal(fromWasm.manifest.view, undefined);
+
+  // The text alternative of every view, in the order of the page; `alternative` is the default's.
+  const texts = renderChart(spec, { ...all, alternative: true });
+  assert.deepEqual(renderChart(spec, { ...all, alternative: true, binary }).alternatives, texts.alternatives);
+  assert.deepEqual(texts.alternatives.map(({ view }) => view), ["overview", "checkout"]);
+  const { view, ...checkout } = texts.alternatives[1];
+  assert.deepEqual(checkout, renderChart(spec, { view: "checkout", alternative: true }).alternative);
+  assert.deepEqual(texts.alternative, renderChart(spec, { alternative: true }).alternative);
+  assert.equal(renderChart(spec, { alternative: true }).alternatives, undefined);
+
+  const svg = renderChartDetailed(spec, { format: "svg", allViews: true });
+  assert.equal(svg.ok, false);
+  assert.deepEqual([svg.error.code, svg.error.path], ["option_not_supported", "/render/allViews"]);
+});
+
 test("hooks are written alike by the WebAssembly build and the CLI, and only on request", () => {
   const spec = JSON.parse(readExample("sensor-readings.json"));
   for (const format of ["svg", "html"]) {

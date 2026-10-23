@@ -41,6 +41,7 @@ const manifest = z
     variant: z.string(),
     idPrefix: z.string(),
     view: z.string().optional().describe("The key of the view of an architecture model that was rendered."),
+    views: z.array(z.string()).optional().describe("The keys of the views shown on one page with allViews, in page order."),
     perspective: z.string().optional().describe("The key of the perspective an architecture diagram showed."),
     warnings: z.array(diagnostic),
   })
@@ -185,6 +186,10 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
           .string()
           .optional()
           .describe("The key of a view of an architecture model (architecture.views) to render; its default view when omitted. Each view is a diagram of its own with its own title, description and table; the manifest names the view."),
+        allViews: z
+          .boolean()
+          .optional()
+          .describe("HTML only, without view: every view of an architecture model on one page, the default view first, with a navigation of links to the views and each view as a section with its own figure and table; the manifest lists the views."),
         idPrefix: z
           .string()
           .optional()

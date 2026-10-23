@@ -39,6 +39,14 @@ Each row starts with its category; values are written as the chart writes them, 
 declared `decimals` or `thousandsSeparator`. From Rust, `chartlet::text_alternative(&spec)`
 returns the same.
 
+With `allViews: true`, `alternative` is that of the model's default view, and `alternatives`
+lists that of every view on the page, in its order, each with its `view` key:
+
+```js
+const { alternatives } = renderChart(model, { allViews: true, alternative: true });
+alternatives.map(({ view, description }) => `${view}: ${description}`);
+```
+
 ## Structured diagnostics
 
 `renderChart` throws on an invalid specification. `renderChartDetailed` takes the same arguments

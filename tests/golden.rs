@@ -1,4 +1,4 @@
-use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
+use chartlet::{ChartSpec, RenderFormat, RenderOptions, Variant, render_json};
 
 mod report;
 
@@ -758,6 +758,93 @@ fn every_view_matches_its_reviewed_svg() {
             "{name} drifted from its reviewed SVG of the view {view}"
         );
     }
+}
+
+fn all_views(id_prefix: Option<&str>) -> RenderOptions {
+    RenderOptions {
+        all_views: true,
+        id_prefix: id_prefix.map(str::to_owned),
+        ..RenderOptions::default()
+    }
+}
+
+/// The page of all views of a model is reference output too.
+#[test]
+fn the_page_of_all_views_matches_its_reviewed_html() {
+    let actual = render_json(
+        include_str!("../examples/shop-views.json"),
+        RenderFormat::Html,
+        &all_views(None),
+    )
+    .expect("shop-views should render all its views");
+    assert_eq!(
+        actual.content,
+        include_str!("../examples/shop-views.all.html"),
+        "shop-views drifted from its reviewed page of all views"
+    );
+}
+
+/// The values of every `name="…"` attribute in `html`.
+fn attributes<'a>(html: &'a str, name: &str) -> Vec<&'a str> {
+    let marker = format!(" {name}=\"");
+    html.split(&marker)
+        .skip(1)
+        .map(|rest| &rest[..rest.find('"').expect("a closed attribute")])
+        .collect()
+}
+
+/// On the page of all views every ID is unique, every link of the navigation leads to a section
+/// on the page, the default view comes first, and the page renders the same bytes again.
+#[test]
+fn the_page_of_all_views_has_unique_ids_and_working_links() {
+    for (_, _, specification, _) in VIEW_EXAMPLES {
+        for prefix in [None, Some("arch")] {
+            let render = || {
+                render_json(specification, RenderFormat::Html, &all_views(prefix))
+                    .expect("every view should render")
+                    .content
+            };
+            let page = render();
+            assert_eq!(page, render(), "the page renders the same bytes again");
+            let ids = attributes(&page, "id");
+            let mut unique = ids.clone();
+            unique.sort_unstable();
+            unique.dedup();
+            assert_eq!(unique.len(), ids.len(), "an ID occurs twice");
+            let nav = &page[..page.find("</nav>").expect("a navigation")];
+            let links = attributes(nav, "href");
+            let views = ChartSpec::from_json(specification)
+                .expect("the example parses")
+                .view_keys()
+                .len();
+            assert_eq!(links.len(), views, "one link per view");
+            for link in links {
+                let target = link.strip_prefix('#').expect("an in-page link");
+                assert!(ids.contains(&target), "{target} is not on the page");
+                assert!(
+                    page.contains(&format!("<section class=\"chartlet-view\" id=\"{target}\""))
+                );
+            }
+            if let Some(prefix) = prefix {
+                assert!(
+                    page.starts_with(&format!("<div class=\"chartlet-views\" id=\"{prefix}\""))
+                );
+            }
+        }
+    }
+    let default = render_json(
+        include_str!("../examples/shop-views.json"),
+        RenderFormat::Html,
+        &RenderOptions::default(),
+    )
+    .expect("the default view renders")
+    .content;
+    let page = include_str!("../examples/shop-views.all.html");
+    let first = page.find("<figcaption>").expect("a figure");
+    assert_eq!(
+        &page[first..first + 40],
+        &default[default.find("<figcaption>").expect("a figure")..][..40]
+    );
 }
 
 fn print_options() -> RenderOptions {
