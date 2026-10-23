@@ -91,12 +91,14 @@ jobs:
           npm run build:wasm
           npm test
 
-      # Runs against the published @casoon/chartlet; the view test needs a browser.
+      # Runs against packages/chartlet as built above, so the server is tested with the compiler
+      # of the same commit; the view test needs a browser.
       - name: MCP server
         if: matrix.os == 'ubuntu-latest'
         working-directory: packages/chartlet-mcp
         run: |
           npm ci
+          npm install --no-save ../chartlet
           npx playwright install --with-deps chromium
           npm test
 
