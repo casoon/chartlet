@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Course booking: containers",
+  "height": 940,
+  "architecture": {
+    "boundaries": [{ "id": "system", "label": "Course booking (software system)" }],
+    "components": [
+      { "id": "learner", "label": "Learner", "kind": "person" },
+      { "id": "web", "label": "Web app", "sublabel": "single-page app", "kind": "frontend", "in": "system" },
+      { "id": "api", "label": "Booking API", "sublabel": "API application", "in": "system" },
+      { "id": "jobs", "label": "Job queue", "sublabel": "message queue", "kind": "queue", "in": "system" },
+      { "id": "worker", "label": "Worker", "sublabel": "background jobs", "in": "system" },
+      { "id": "db", "label": "Bookings", "sublabel": "relational database", "kind": "database", "in": "system" },
+      { "id": "files", "label": "Certificates", "sublabel": "file store", "kind": "storage", "in": "system" },
+      { "id": "payment", "label": "Payment provider", "kind": "external" },
+      { "id": "mail", "label": "E-mail service", "kind": "external" }
+    ],
+    "connections": [
+      { "from": "learner", "to": "web", "label": "books a course", "technology": "HTTPS" },
+      { "from": "web", "to": "api", "label": "calls", "technology": "JSON/HTTPS" },
+      { "from": "api", "to": "db", "label": "reads, writes", "technology": "SQL" },
+      { "from": "api", "to": "payment", "label": "takes payment", "technology": "HTTPS" },
+      { "from": "api", "to": "jobs", "label": "queues jobs" },
+      { "from": "jobs", "to": "worker", "label": "delivers" },
+      { "from": "worker", "to": "files", "label": "stores certificates" },
+      { "from": "worker", "to": "mail", "label": "sends confirmations", "technology": "SMTP" }
+    ],
+    "mainPath": ["learner", "web", "api", "db"]
+  }
+}

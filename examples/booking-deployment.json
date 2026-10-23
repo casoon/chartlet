@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Course booking: deployment",
+  "height": 1000,
+  "architecture": {
+    "boundaries": [
+      { "id": "region", "label": "Cloud region" },
+      { "id": "cluster", "label": "Container cluster", "in": "region" },
+      { "id": "webPool", "label": "Node pool: web", "in": "cluster" },
+      { "id": "workerPool", "label": "Node pool: workers", "in": "cluster" }
+    ],
+    "components": [
+      { "id": "learner", "label": "Learner", "kind": "person" },
+      { "id": "ingress", "label": "Ingress", "sublabel": "load balancer", "in": "cluster" },
+      { "id": "web", "label": "Web app and API", "sublabel": "image, 3 replicas", "kind": "artifact", "in": "webPool" },
+      { "id": "worker", "label": "Worker", "sublabel": "image, 2 replicas", "kind": "artifact", "in": "workerPool" },
+      { "id": "jobs", "label": "Job queue", "sublabel": "managed queue", "kind": "queue", "in": "region" },
+      { "id": "db", "label": "Bookings", "sublabel": "managed database", "kind": "database", "in": "region" },
+      { "id": "files", "label": "Certificates", "sublabel": "object storage", "kind": "storage", "in": "region" }
+    ],
+    "connections": [
+      { "from": "learner", "to": "ingress", "label": "opens", "technology": "HTTPS" },
+      { "from": "ingress", "to": "web", "label": "routes" },
+      { "from": "web", "to": "db", "label": "reads, writes", "technology": "SQL/TLS" },
+      { "from": "web", "to": "jobs", "label": "queues jobs" },
+      { "from": "jobs", "to": "worker", "label": "delivers" },
+      { "from": "worker", "to": "files", "label": "stores certificates" },
+      { "from": "worker", "to": "db", "label": "updates", "technology": "SQL/TLS" }
+    ],
+    "mainPath": ["learner", "ingress", "web", "jobs", "worker", "files"],
+    "sameRank": [["db", "files"]]
+  }
+}

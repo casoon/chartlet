@@ -2,17 +2,20 @@
 //! methods, joined by relations with the marks of their kind and their cardinalities, laid out
 //! by the layered layout of flow charts. A relation that makes one class the parent of another
 //! (inheritance, realization) is laid out from the parent, so that the parent stands first.
-//! The description and the data table give every class with its members and its relations.
+//! Packages frame the classes that name them, nested like the boundaries of an architecture.
+//! Notes stand beside the classes they explain, joined by a dotted line that is no relation.
+//! The description and the data table give every class with its package, its members, its
+//! relations and its notes.
 
 use std::fmt::Write as _;
 
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, End, Ends, Node, Shape, layout_diagram},
+    flow::{Diagram, Edge, End, Ends, Group, Node, Shape, layout_diagram},
     metrics::TextMetrics,
     scene::Scene,
-    spec::{ChartSpec, ClassesSpec, RelationKind, RelationSpec},
+    spec::{ChartSpec, ClassesSpec, ConnectionDirection, RelationKind, RelationSpec},
     structure::{Facts, Structure},
     text,
 };
@@ -45,7 +48,11 @@ fn ends(relation: &RelationSpec) -> Ends {
         relation.to_cardinality.clone(),
     );
     let (tail, head) = match relation.kind {
-        RelationKind::Association => (End::None, End::None),
+        RelationKind::Association => match relation.direction {
+            Some(ConnectionDirection::Forward) => (End::None, End::Open),
+            Some(ConnectionDirection::Both) => (End::Open, End::Open),
+            Some(ConnectionDirection::None) | None => (End::None, End::None),
+        },
         RelationKind::Inheritance | RelationKind::Realization => (End::Triangle, End::None),
         RelationKind::Composition => (End::DiamondFilled, End::None),
         RelationKind::Aggregation => (End::DiamondHollow, End::None),
@@ -70,6 +77,21 @@ fn ends(relation: &RelationSpec) -> Ends {
 
 fn diagram(spec: &ChartSpec) -> Diagram {
     let classes = classes(spec);
+    let mut diagram = model_diagram(spec);
+    for (index, note) in classes.notes.iter().enumerate() {
+        let target = classes.class(&note.on).expect("validated");
+        diagram.push_note(target, &note.text, format!("/classes/notes/{index}"));
+    }
+    diagram
+}
+
+/// The diagram of the classes and their relations, without notes.
+fn model_diagram(spec: &ChartSpec) -> Diagram {
+    let classes = classes(spec);
+    let package = |id: &Option<String>| {
+        id.as_deref()
+            .map(|id| classes.package(id).expect("validated"))
+    };
     let nodes = classes
         .classes
         .iter()
@@ -79,7 +101,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             sublabel: class.kind.stereotype().map(str::to_owned),
             shape: Shape::Class,
             lane: None,
-            group: None,
+            group: package(&class.package),
             id: Some(class.id.clone()),
             path: format!("/classes/classes/{index}"),
             compartments: vec![class.attributes.clone(), class.methods.clone()],
@@ -113,6 +135,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
                 main: false,
                 label_path: format!("/classes/relations/{index}/label"),
                 ends: ends(relation),
+                sign: relation.direction.map_or("→", ConnectionDirection::sign),
                 weight: None,
                 role: None,
             }
@@ -122,7 +145,16 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         nodes,
         edges,
         lanes: Vec::new(),
-        groups: Vec::new(),
+        groups: classes
+            .packages
+            .iter()
+            .enumerate()
+            .map(|(index, group)| Group {
+                label: group.label.clone(),
+                path: format!("/classes/packages/{index}"),
+                parent: package(&group.parent),
+            })
+            .collect(),
         ranks: Vec::new(),
         orientation: classes.orientation,
     }
@@ -147,21 +179,64 @@ fn relation_sentence(spec: &ChartSpec, relation: &RelationSpec, from_side: bool)
         (Some(one), None) | (None, Some(one)) => Some(one.clone()),
         (None, None) => None,
     };
-    text::relation_phrase(
+    let mut phrase = text::relation_phrase(
         spec.locale,
         (relation.kind, from_side),
         label(other),
         cardinality.as_deref(),
         relation.label.as_deref(),
-    )
+    );
+    if let Some(navigable) = relation
+        .direction
+        .and_then(|direction| text::navigable(spec.locale, direction, label(&relation.to)))
+    {
+        write!(phrase, ", {navigable}").expect("writing to String cannot fail");
+    }
+    phrase
 }
 
-/// The diagram in sentences: how many classes and relations, then every class with its members
-/// and its relations.
+/// The packages around a class, outermost first, by label: `Shop › Ordering`.
+fn package_path(classes: &ClassesSpec, class: usize) -> String {
+    classes
+        .packages_of(class)
+        .iter()
+        .map(|index| classes.packages[*index].label.as_str())
+        .collect::<Vec<_>>()
+        .join(" › ")
+}
+
+/// The diagram in sentences: how many classes and relations, the packages and what each holds,
+/// then every class with its members and its relations.
 pub(crate) fn description(spec: &ChartSpec) -> String {
     let classes = classes(spec);
-    let mut description =
-        text::classes_opening(spec.locale, classes.classes.len(), classes.relations.len());
+    let mut description = text::classes_opening(
+        spec.locale,
+        classes.classes.len(),
+        classes.relations.len(),
+        classes.packages.len(),
+    );
+    for package in &classes.packages {
+        let parent = package
+            .parent
+            .as_deref()
+            .and_then(|id| classes.package(id))
+            .map(|parent| classes.packages[parent].label.as_str());
+        let held: Vec<&str> = classes
+            .classes
+            .iter()
+            .filter(|class| class.package.as_deref() == Some(package.id.as_str()))
+            .map(|class| class.label.as_str())
+            .chain(
+                classes
+                    .packages
+                    .iter()
+                    .filter(|inner| inner.parent.as_deref() == Some(package.id.as_str()))
+                    .map(|inner| inner.label.as_str()),
+            )
+            .collect();
+        description.push(' ');
+        description.push_str(&text::boundary(&package.label, parent, &held));
+    }
     let ends: Vec<(usize, usize)> = classes
         .relations
         .iter()
@@ -195,41 +270,187 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         )
         .expect("writing to String cannot fail");
     }
+    let notes: Vec<(&str, &str)> = classes
+        .notes
+        .iter()
+        .map(|note| {
+            let target = classes.class(&note.on).expect("validated");
+            (classes.classes[target].label.as_str(), note.text.as_str())
+        })
+        .collect();
+    if !notes.is_empty() {
+        description.push(' ');
+        description.push_str(&text::notes(spec.locale, &notes));
+    }
     description
 }
 
-/// One row per class: its kind, attributes, methods and the relations it starts.
+/// One row per class: its kind, its packages when there are any, attributes, methods and the
+/// relations it starts.
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let classes = classes(spec);
     let words = spec.locale.words();
+    let packaged = !classes.packages.is_empty();
+    let with_notes = !classes.notes.is_empty();
     let rows = classes
         .classes
         .iter()
-        .map(|class| {
+        .enumerate()
+        .map(|(index, class)| {
             let relations: Vec<String> = classes
                 .relations
                 .iter()
                 .filter(|relation| relation.from == class.id)
                 .map(|relation| relation_sentence(spec, relation, true))
                 .collect();
-            vec![
+            let mut row = vec![
                 class.label.clone(),
                 text::class_kind(spec.locale, class.kind).to_owned(),
+            ];
+            if packaged {
+                row.push(package_path(classes, index));
+            }
+            row.extend([
                 class.attributes.join("; "),
                 class.methods.join("; "),
                 relations.join("; "),
-            ]
+            ]);
+            if with_notes {
+                let notes: Vec<&str> = classes
+                    .notes
+                    .iter()
+                    .filter(|note| note.on == class.id)
+                    .map(|note| note.text.as_str())
+                    .collect();
+                row.push(notes.join("; "));
+            }
+            row
         })
         .collect();
+    let mut columns = vec![words.item.to_owned(), words.message_kind.to_owned()];
+    if packaged {
+        columns.push(words.package.to_owned());
+    }
+    columns.extend([
+        words.attributes.to_owned(),
+        words.methods.to_owned(),
+        words.relations.to_owned(),
+    ]);
+    if with_notes {
+        columns.push(words.notes.to_owned());
+    }
     DataTable {
         caption: format!("{} {}", words.data_for, spec.title),
-        columns: vec![
-            words.item.to_owned(),
-            words.message_kind.to_owned(),
-            words.attributes.to_owned(),
-            words.methods.to_owned(),
-            words.relations.to_owned(),
-        ],
+        columns,
         rows,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{ChartSpec, RenderFormat, RenderOptions, render_json, text_alternative};
+
+    const SPEC: &str = r#"{"schemaVersion": 1, "type": "classes", "title": "Orders",
+        "classes": {"classes": [
+            {"id": "customer", "label": "Customer"},
+            {"id": "order", "label": "Order"}
+        ], "relations": [
+            {"from": "customer", "to": "order", "label": "places", "toCardinality": "0..*"}
+        ]}}"#;
+
+    fn svg(json: &str) -> Result<String, (&'static str, String)> {
+        render_json(json, RenderFormat::Svg, &RenderOptions::default())
+            .map(|output| output.content)
+            .map_err(|error| (error.code, error.path))
+    }
+
+    fn with(direction: &str) -> String {
+        SPEC.replace(
+            r#""label": "places","#,
+            &format!(r#""label": "places", "direction": "{direction}","#),
+        )
+    }
+
+    #[test]
+    fn an_association_is_navigable_across_packages() {
+        let json = with("forward")
+            .replace(
+                r#""classes": {"classes": ["#,
+                r#""classes": {"packages": [
+                    {"id": "crm", "label": "CRM"}, {"id": "sales", "label": "Sales"}
+                ], "classes": ["#,
+            )
+            .replace(
+                r#"{"id": "customer", "label": "Customer"}"#,
+                r#"{"id": "customer", "label": "Customer", "in": "crm"}"#,
+            )
+            .replace(
+                r#"{"id": "order", "label": "Order"}"#,
+                r#"{"id": "order", "label": "Order", "in": "sales"}"#,
+            );
+        let output =
+            render_json(&json, RenderFormat::Svg, &RenderOptions::default()).expect("renders");
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert_eq!(
+            output
+                .content
+                .matches("class=\"chartlet-flow-open\"")
+                .count(),
+            1
+        );
+        assert_eq!(
+            output
+                .content
+                .matches("class=\"chartlet-flow-group\"")
+                .count(),
+            2
+        );
+        let description = text_alternative(&ChartSpec::from_json(&json).expect("parses"))
+            .expect("valid")
+            .description;
+        assert!(
+            description.contains("[places], navigable to Order"),
+            "{description}"
+        );
+    }
+
+    #[test]
+    fn an_association_is_navigable_one_way_both_ways_or_not_said() {
+        let plain = svg(SPEC).expect("renders");
+        // The drawing after the stylesheet; the id before it follows the specification.
+        let drawing =
+            |content: &str| content[content.find("</style>").expect("styled")..].to_owned();
+        assert_eq!(
+            drawing(&svg(&with("none")).expect("renders")),
+            drawing(&plain).replace("→", "—")
+        );
+        let open = |content: &str| content.matches("class=\"chartlet-flow-open\"").count();
+        assert_eq!(open(&plain), 0);
+        assert_eq!(open(&svg(&with("forward")).expect("renders")), 1);
+        let both = svg(&with("both")).expect("renders");
+        assert_eq!(open(&both), 2);
+        assert!(both.contains("<title>Customer ↔ Order: places</title>"));
+        let sentence = |json: &str| {
+            text_alternative(&ChartSpec::from_json(json).expect("parses"))
+                .expect("valid")
+                .description
+        };
+        assert!(
+            sentence(&with("forward"))
+                .contains("is associated with Order (0..*) [places], navigable to Order")
+        );
+        assert!(sentence(&with("both")).contains("[places], navigable both ways"));
+        assert_eq!(sentence(&with("none")), sentence(SPEC));
+        let dependency = with("forward").replace(
+            r#""label": "places","#,
+            r#""label": "places", "kind": "dependency","#,
+        );
+        assert_eq!(
+            svg(&dependency),
+            Err((
+                "option_not_supported",
+                "/classes/relations/0/direction".to_owned()
+            ))
+        );
     }
 }

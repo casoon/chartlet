@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Course booking: system context",
+  "height": 480,
+  "architecture": {
+    "components": [
+      { "id": "learner", "label": "Learner", "sublabel": "books and attends courses", "kind": "person" },
+      { "id": "trainer", "label": "Trainer", "sublabel": "runs courses", "kind": "person" },
+      { "id": "booking", "label": "Course booking", "sublabel": "the system in scope" },
+      { "id": "payment", "label": "Payment provider", "sublabel": "external system", "kind": "external" },
+      { "id": "mail", "label": "E-mail service", "sublabel": "external system", "kind": "external" },
+      { "id": "directory", "label": "Staff directory", "sublabel": "external system", "kind": "external" }
+    ],
+    "connections": [
+      { "from": "learner", "to": "booking", "label": "books a course" },
+      { "from": "trainer", "to": "booking", "label": "plans dates" },
+      { "from": "booking", "to": "payment", "label": "takes payment" },
+      { "from": "booking", "to": "mail", "label": "sends confirmations" },
+      { "from": "booking", "to": "directory", "label": "looks up trainers" }
+    ],
+    "mainPath": ["learner", "booking", "payment"]
+  }
+}

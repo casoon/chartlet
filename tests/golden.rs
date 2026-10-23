@@ -3,7 +3,7 @@ use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 75] = [
+const EXAMPLES: [(&str, &str, &str); 81] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -160,6 +160,21 @@ const EXAMPLES: [(&str, &str, &str); 75] = [
         include_str!("../examples/shop-symbols.svg"),
     ),
     (
+        "booking-context",
+        include_str!("../examples/booking-context.json"),
+        include_str!("../examples/booking-context.svg"),
+    ),
+    (
+        "booking-containers",
+        include_str!("../examples/booking-containers.json"),
+        include_str!("../examples/booking-containers.svg"),
+    ),
+    (
+        "booking-deployment",
+        include_str!("../examples/booking-deployment.json"),
+        include_str!("../examples/booking-deployment.svg"),
+    ),
+    (
         "billing-migration",
         include_str!("../examples/billing-migration.json"),
         include_str!("../examples/billing-migration.svg"),
@@ -203,6 +218,11 @@ const EXAMPLES: [(&str, &str, &str); 75] = [
         "climate-similarity",
         include_str!("../examples/climate-similarity.json"),
         include_str!("../examples/climate-similarity.svg"),
+    ),
+    (
+        "service-fan-out",
+        include_str!("../examples/service-fan-out.json"),
+        include_str!("../examples/service-fan-out.svg"),
     ),
     (
         "tenant-architecture",
@@ -333,6 +353,16 @@ const EXAMPLES: [(&str, &str, &str); 75] = [
         "shop-schema",
         include_str!("../examples/shop-schema.json"),
         include_str!("../examples/shop-schema.svg"),
+    ),
+    (
+        "shop-modules",
+        include_str!("../examples/shop-modules.json"),
+        include_str!("../examples/shop-modules.svg"),
+    ),
+    (
+        "subscription-model",
+        include_str!("../examples/subscription-model.json"),
+        include_str!("../examples/subscription-model.svg"),
     ),
     (
         "satisfaction-by-quarter",

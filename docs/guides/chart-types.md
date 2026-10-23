@@ -634,13 +634,34 @@ related.
   `dependency` a dashed line with an open arrowhead at `to`. A relation may have a `label`,
   and `fromCardinality` and `toCardinality` (such as `1` or `0..*`) stand at its ends. The parent
   of an inheritance is laid out before its child.
+- **Navigability.** An association may say which way it can be navigated: `"direction":
+  "forward"` draws an open arrowhead at `to` (`from` knows `to`), `"both"` one at either end,
+  and `"none"` a plain line. The description adds “navigable to Order” or “navigable both ways”.
+  The other kinds keep their fixed ends and refuse a `direction` (`option_not_supported`).
+- **Packages** group classes into modules: `"packages": [{ "id": "ordering", "label": "Ordering",
+  "in": "shop" }]` draws a frame named `Ordering` inside the frame of `shop`, and a class lies in
+  it with `"in": "ordering"`. Packages nest up to four deep, at most 12; every package holds a
+  class, directly or in a package inside it, and classes outside every package stay free.
+  Relations still join classes, also across package borders; a relation that names a package is
+  `unknown_node`. Example `shop-modules`.
+- **Notes** explain a class: `"notes": [{ "on": "card", "text": "Stores only a token" }]`
+  draws a pale box with a folded corner beside the class, joined to it by a dotted line without
+  marks. The line only says “explains”: it is no relation, so the most connected classes,
+  bottlenecks and relations read the same with and without notes. The text (up to 160
+  characters) wraps onto as many lines as it needs; up to 12 notes, each on an existing class
+  (`unknown_node`). Architecture diagrams take the same `notes` on components. Example
+  `subscription-model`.
 - **Layout.** The layered layout and the canvas rules of flow charts apply: `orientation`
   (`auto`, `portrait`, `landscape`) and the warning `canvas_too_small` when the diagram needs a
   bigger canvas.
 - **Text alternative.** The description gives every class with the number of its attributes and
   methods and the relations it starts, in words (`Dog inherits from Animal`), after the most
   connected classes and the bottlenecks (see [Graph structure](#graph-structure)); the data table
-  has one row per class with its kind, attributes, methods and relations.
+  has one row per class with its kind, attributes, methods and relations. With packages, the
+  description names every package with what it holds (`Ordering (in Shop): Order, OrderLine.`)
+  and the table gains a Package column with the path of packages (`Shop › Ordering`). Notes
+  follow the classes in the description (`Note on Card: Stores only a token.`) and fill a Notes
+  column of the table.
 
 ## Reference lines
 
@@ -1034,6 +1055,23 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   brackets on a line below it. A `step` from 1 to 99 numbers the connection in a sequence of
   calls; the number is written before the label, every number is used once (`duplicate_step`,
   `invalid_step`), and the description lists the steps in order.
+- **Direction.** A connection runs from `from` to `to`, with an arrowhead at `to`. With
+  `"direction": "both"` it runs both ways — an arrowhead at either end, such as a socket or a
+  synchronisation — and with `"direction": "none"` it has no direction and no arrowhead, such as
+  replication between peers or a shared link. Either stays one connection: it is listed once, under
+  its `from` component, as “both ways” or “without direction”, and the tooltip joins its ends with
+  `↔` or `—`. Once a connection has no single direction, the description no longer names where
+  nothing leads in or out, nor loops.
+- **Shared trunks.** With `"sharedTrunks": true`, connections that leave one component for
+  components of the next layer, or reach one from components of the layer before, are drawn on
+  one line that branches on a track of its own, with a dot at every branch — a gateway that
+  calls many services, services that all log to one store. Only connections that read the same on
+  the shared part share it: no `label`, `technology` or `step`, the usual direction, the same
+  `dash`, `weight` and `role`, off the main path, and their other ends in the same boundary, so that they
+  cross the same frames. Anything else, such as a second connection between the same two
+  components, keeps a line of its own. Every connection is still drawn from end to end with its
+  tooltip, and the description and the table list every one as before. Example
+  `service-fan-out`.
 - **Roles.** `role` on a component or a connection says what it means in this picture, beyond its
   kind: `critical` (a strong red outline or line, badge `!`), `planned` (dashed and violet, badge
   `+`) or `deprecated` (dotted and gray, badge `−`). Flow charts take the same roles on steps and
@@ -1150,6 +1188,48 @@ model, or on a view, which takes the place of the model's.
 
 Up to 8 perspectives with 1–8 categories each. Example `service-perspectives` (who runs what,
 and technical debt as `service-perspectives.debt.svg`).
+
+### Context, containers and deployment
+
+Three starters (MCP: `chartlet_diagram_starter` with `type: "architecture"` and `template`)
+describe one system, a course booking service, at three levels of abstraction in the C4 sense.
+Each answers one question and stays at its level; all use the ordinary `architecture` fields,
+render without `symbol` and carry their meaning in labels, sublabels and the data table.
+
+| Template | Question | Shows | Example |
+| --- | --- | --- | --- |
+| `context` | Who uses the system, and which other systems does it depend on? | The system in scope as one component, people (`person`) and external systems (`external`). No boundary, nothing inside the system. | `booking-context` |
+| `containers` | Which applications and data stores make up the system, and how do they talk to each other? | One boundary for the system around its separately running or deployable parts — web app, API, worker, queue, database, file store — with people and external systems outside it. | `booking-containers` |
+| `deployment` | Where does each part run, and which managed services does it use? | One environment: region, cluster and node pools as nested boundaries, the deployed images (`artifact`), and the managed queue, database and object storage; the web tier hands work to workers through the queue. | `booking-deployment` |
+
+The terms map onto chartlet like this, and must not be read as one another:
+
+- **Software system** — the thing the team builds and owns. At context level it is one
+  component; at container level it is a boundary.
+- **Container** — a separately running or deployable part of a system: an application, a
+  database, a queue, a file store. It is not a container image or a container process; whether
+  it is shipped as an image is a deployment fact.
+- **Component** — a part inside one container, such as a module of the API. chartlet's
+  `components` array holds whatever the diagram shows at its level, so a component in the
+  specification is a C4 component only in a diagram of one container's inside; no starter
+  covers that level.
+- **Deployment node** — where something runs: a region, a cluster, a node pool. The starter
+  draws nodes as boundaries (boundaries are hosts in a deployment) and what runs on them as
+  `artifact`; `kind: "node"` draws a single machine as a component. Replica counts are text in
+  the sublabel.
+
+Where the starters stop short of a full C4 model:
+
+- Each starter is a separate specification. An element that appears at two levels — the course
+  booking system as a box and as a boundary — is written twice, and nothing checks that the two
+  agree. One model with several `views` can show different selections of the same elements, but a
+  view does not merge containers into a system or open a container into components.
+- Technology and responsibility are free text: `sublabel` on a component, `technology` on a
+  connection. There are no separate fields for them, and no element types for system, container
+  or component beyond the `kind` shapes.
+- The deployment starter describes one environment. It does not model several environments
+  (development, staging, production) or instances of a container across them; that semantics is
+  not promised.
 
 ## Trees
 

@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { explainSpec, validateSpec } from "../src/charts.mjs";
-import { DIAGRAM_TYPES, diagramStarter } from "../src/diagrams.mjs";
+import { ARCHITECTURE_TEMPLATES, DIAGRAM_TYPES, diagramStarter } from "../src/diagrams.mjs";
 
 test("every diagram starter is a valid specification without warnings", () => {
   for (const type of DIAGRAM_TYPES) {
@@ -13,6 +14,23 @@ test("every diagram starter is a valid specification without warnings", () => {
     assert.deepEqual(result.warnings, [], type);
     assert.ok(Object.keys(starter.kinds).length > 0, type);
   }
+});
+
+test("every architecture template is a valid specification without symbols, equal to its example", () => {
+  for (const template of ARCHITECTURE_TEMPLATES) {
+    const starter = diagramStarter("architecture", template);
+    assert.equal(starter.template, template);
+    assert.ok(starter.question.endsWith("?"), template);
+    assert.ok(starter.level.length > 0, template);
+    const result = validateSpec(starter.spec);
+    assert.equal(result.ok, true, `${template}: ${JSON.stringify(result)}`);
+    assert.deepEqual(result.warnings, [], template);
+    assert.ok(starter.spec.architecture.components.every((component) => !("symbol" in component)), template);
+    const example = JSON.parse(readFileSync(new URL(`../../../examples/booking-${template}.json`, import.meta.url), "utf8"));
+    assert.deepEqual(starter.spec, example, template);
+  }
+  assert.equal(diagramStarter("architecture").template, undefined);
+  assert.equal(diagramStarter("architecture").spec.title, "Blog");
 });
 
 test("a starter is a copy, so changing it leaves the next one alone", () => {

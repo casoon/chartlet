@@ -260,12 +260,15 @@ const KINDS = {
       label: "what it does",
       technology: "how, in brackets below the label",
       step: "1-99, each once: numbers the connection in a sequence of calls, written before the label",
+      direction: "forward (default, arrowhead at to), both (one connection both ways, arrowheads at either end) or none (no direction, no arrowhead)",
+      sharedTrunks: "on architecture: true draws connections that leave or reach one component together on one branching line; only unlabeled ones with the same dash, weight and role whose other ends share a boundary",
       id: "optional stable name by which views select the connection",
     },
     view: {
       components: "architecture.views[]: a key, a title and the components shown; connections between them come along, or only the listed connections",
       steps: "a dynamic view: connection ids in the order they occur, each with optional step text, numbered from 1; a connection may occur again",
     },
+    note: { note: "on a component id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no connection; up to 12" },
   },
   tree: {
     node: {
@@ -291,7 +294,10 @@ const KINDS = {
       composition: "filled diamond at from, the whole",
       aggregation: "hollow diamond at from",
       dependency: "dashed line with an open arrowhead at to",
+      direction: "on an association only: forward (navigable to to, open arrowhead there), both or none (plain line)",
     },
+    package: { package: "frame around the classes that name it with in; packages nest with in, up to four deep; relations join classes, never packages" },
+    note: { note: "on a class id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no relation; up to 12" },
   },
 };
 
@@ -311,19 +317,135 @@ const NOTES = [
   'A tree takes "layout": "radial" for a mind map (root in the middle, subtrees in sectors); it refuses orientation, partner and link. "collapsed": true on a node hides what hangs below it.',
 ];
 
+/** The architecture templates chartlet_diagram_starter knows besides the plain architecture starter. */
+export const ARCHITECTURE_TEMPLATES = /** @type {const} */ (["context", "containers", "deployment"]);
+
+/** @type {Record<string, { question: string, level: string, spec: Record<string, unknown> }>} */
+const TEMPLATES = {
+  context: {
+    question: "Who uses the system, and which other systems does it depend on?",
+    level:
+      "System context: the one software system in scope as a single box, the people who use it and the external systems it calls. Nothing inside the system is shown.",
+    spec: {
+      schemaVersion: 1,
+      type: "architecture",
+      title: "Course booking: system context",
+      height: 480,
+      architecture: {
+        components: [
+          { id: "learner", label: "Learner", sublabel: "books and attends courses", kind: "person" },
+          { id: "trainer", label: "Trainer", sublabel: "runs courses", kind: "person" },
+          { id: "booking", label: "Course booking", sublabel: "the system in scope" },
+          { id: "payment", label: "Payment provider", sublabel: "external system", kind: "external" },
+          { id: "mail", label: "E-mail service", sublabel: "external system", kind: "external" },
+          { id: "directory", label: "Staff directory", sublabel: "external system", kind: "external" },
+        ],
+        connections: [
+          { from: "learner", to: "booking", label: "books a course" },
+          { from: "trainer", to: "booking", label: "plans dates" },
+          { from: "booking", to: "payment", label: "takes payment" },
+          { from: "booking", to: "mail", label: "sends confirmations" },
+          { from: "booking", to: "directory", label: "looks up trainers" },
+        ],
+        mainPath: ["learner", "booking", "payment"],
+      },
+    },
+  },
+  containers: {
+    question: "Which applications and data stores make up the system, and how do they talk to each other?",
+    level:
+      "Containers: the system as one boundary around its separately running or deployable parts (applications, databases, queues, file stores), with the people and external systems around it. A container here is such a part, not a container image or process; components inside one container belong in a diagram of their own.",
+    spec: {
+      schemaVersion: 1,
+      type: "architecture",
+      title: "Course booking: containers",
+      height: 940,
+      architecture: {
+        boundaries: [{ id: "system", label: "Course booking (software system)" }],
+        components: [
+          { id: "learner", label: "Learner", kind: "person" },
+          { id: "web", label: "Web app", sublabel: "single-page app", kind: "frontend", in: "system" },
+          { id: "api", label: "Booking API", sublabel: "API application", in: "system" },
+          { id: "jobs", label: "Job queue", sublabel: "message queue", kind: "queue", in: "system" },
+          { id: "worker", label: "Worker", sublabel: "background jobs", in: "system" },
+          { id: "db", label: "Bookings", sublabel: "relational database", kind: "database", in: "system" },
+          { id: "files", label: "Certificates", sublabel: "file store", kind: "storage", in: "system" },
+          { id: "payment", label: "Payment provider", kind: "external" },
+          { id: "mail", label: "E-mail service", kind: "external" },
+        ],
+        connections: [
+          { from: "learner", to: "web", label: "books a course", technology: "HTTPS" },
+          { from: "web", to: "api", label: "calls", technology: "JSON/HTTPS" },
+          { from: "api", to: "db", label: "reads, writes", technology: "SQL" },
+          { from: "api", to: "payment", label: "takes payment", technology: "HTTPS" },
+          { from: "api", to: "jobs", label: "queues jobs" },
+          { from: "jobs", to: "worker", label: "delivers" },
+          { from: "worker", to: "files", label: "stores certificates" },
+          { from: "worker", to: "mail", label: "sends confirmations", technology: "SMTP" },
+        ],
+        mainPath: ["learner", "web", "api", "db"],
+      },
+    },
+  },
+  deployment: {
+    question: "Where does each part run, and which managed services does it use?",
+    level:
+      "Deployment: one environment drawn as nested boundaries (region, cluster, node pools) with what is deployed in them (kind artifact) and the managed services beside them; a web tier hands work to workers through a queue, and the workers write to storage. Boundaries are hosts, not systems; the diagram describes one environment and does not model several environments or instances of one deployment.",
+    spec: {
+      schemaVersion: 1,
+      type: "architecture",
+      title: "Course booking: deployment",
+      height: 1000,
+      architecture: {
+        boundaries: [
+          { id: "region", label: "Cloud region" },
+          { id: "cluster", label: "Container cluster", in: "region" },
+          { id: "webPool", label: "Node pool: web", in: "cluster" },
+          { id: "workerPool", label: "Node pool: workers", in: "cluster" },
+        ],
+        components: [
+          { id: "learner", label: "Learner", kind: "person" },
+          { id: "ingress", label: "Ingress", sublabel: "load balancer", in: "cluster" },
+          { id: "web", label: "Web app and API", sublabel: "image, 3 replicas", kind: "artifact", in: "webPool" },
+          { id: "worker", label: "Worker", sublabel: "image, 2 replicas", kind: "artifact", in: "workerPool" },
+          { id: "jobs", label: "Job queue", sublabel: "managed queue", kind: "queue", in: "region" },
+          { id: "db", label: "Bookings", sublabel: "managed database", kind: "database", in: "region" },
+          { id: "files", label: "Certificates", sublabel: "object storage", kind: "storage", in: "region" },
+        ],
+        connections: [
+          { from: "learner", to: "ingress", label: "opens", technology: "HTTPS" },
+          { from: "ingress", to: "web", label: "routes" },
+          { from: "web", to: "db", label: "reads, writes", technology: "SQL/TLS" },
+          { from: "web", to: "jobs", label: "queues jobs" },
+          { from: "jobs", to: "worker", label: "delivers" },
+          { from: "worker", to: "files", label: "stores certificates" },
+          { from: "worker", to: "db", label: "updates", technology: "SQL/TLS" },
+        ],
+        mainPath: ["learner", "ingress", "web", "jobs", "worker", "files"],
+        sameRank: [["db", "files"]],
+      },
+    },
+  },
+};
+
 /**
- * A valid starting specification for `type`, the kinds of its elements, and notes.
+ * A valid starting specification for `type`, the kinds of its elements, and notes. With an
+ * architecture `template`, the template's specification, the question it answers and its level.
  *
  * @param {string} type
+ * @param {string} [template]
  */
-export function diagramStarter(type) {
-  return {
+export function diagramStarter(type, template) {
+  const starter = {
     ok: /** @type {const} */ (true),
     type,
-    spec: structuredClone(STARTERS[type]),
+    spec: structuredClone(template ? TEMPLATES[template].spec : STARTERS[type]),
     kinds: KINDS[/** @type {keyof typeof KINDS} */ (type)],
     notes: NOTES,
   };
+  if (!template) return starter;
+  const { question, level } = TEMPLATES[template];
+  return { ...starter, template, question, level };
 }
 
 /**
@@ -362,6 +484,7 @@ export function diagramCounts(spec) {
         components: length(spec.architecture?.components),
         connections: length(spec.architecture?.connections),
         boundaries: length(spec.architecture?.boundaries),
+        notes: length(spec.architecture?.notes),
       };
     case "tree":
       return { nodes: length(spec.tree?.nodes) };
@@ -369,6 +492,8 @@ export function diagramCounts(spec) {
       return {
         classes: length(spec.classes?.classes),
         relations: length(spec.classes?.relations),
+        packages: length(spec.classes?.packages),
+        notes: length(spec.classes?.notes),
       };
     default:
       return null;

@@ -333,6 +333,50 @@ pub(crate) fn validate_weight(weight: Option<f64>, path: &str) -> Result<(), Cha
     }
 }
 
+/// Notes of one diagram, and the characters of one note.
+pub(crate) const MAX_NOTES: usize = 12;
+const MAX_NOTE_TEXT: usize = 160;
+
+/// A note on an element of a class or architecture diagram, such as an assumption or a
+/// limitation: a box beside the element, joined to it by a dotted line that only says the note
+/// explains it. The line is no relation or connection of the model.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct NoteSpec {
+    /// The `id` of the element the note explains.
+    pub on: String,
+    pub text: String,
+}
+
+/// Checks the notes of `block`: at most [`MAX_NOTES`], each with a text of at most
+/// [`MAX_NOTE_TEXT`] characters on an element that `exists`, named `element` in the message.
+pub(crate) fn validate_notes(
+    notes: &[NoteSpec],
+    block: &str,
+    exists: impl Fn(&str) -> bool,
+    element: &str,
+) -> Result<(), ChartError> {
+    if notes.len() > MAX_NOTES {
+        return Err(ChartError::new(
+            "too_many_notes",
+            format!("/{block}/notes"),
+            format!("at most {MAX_NOTES} notes are supported"),
+        ));
+    }
+    for (index, note) in notes.iter().enumerate() {
+        let path = format!("/{block}/notes/{index}");
+        if !exists(&note.on) {
+            return Err(ChartError::new(
+                "unknown_node",
+                format!("{path}/on"),
+                format!("no {element} has the id \"{}\"", note.on),
+            ));
+        }
+        validate_text(&note.text, &format!("{path}/text"), MAX_NOTE_TEXT)?;
+    }
+    Ok(())
+}
+
 /// Checks the `sameRank` sets of a diagram whose nodes `known` recognizes and whose edges join the
 /// pairs of ids in `edges`; `section` is the block in the JSON path and `noun` names a node in
 /// messages. Every set names at least two known nodes, no node lies in two sets or twice in one,

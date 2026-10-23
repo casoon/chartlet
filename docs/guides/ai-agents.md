@@ -74,7 +74,11 @@ For Claude Desktop and project configuration, see the
 - `chartlet_diagram_starter` returns, for `sequence`, `flow`, `state`, `architecture`, `tree` or `classes`, a valid
   starting specification, the kinds every element can take with the shape each is drawn in, and
   notes on ids, layout and orientation. For a diagram, `chartlet_explain` adds its structure:
-  the counts of its elements and every row of its data table.
+  the counts of its elements and every row of its data table. With `type: "architecture"`,
+  `template` picks a starter at one level of abstraction — `context`, `containers` or
+  `deployment` — and the result adds the `question` it answers and its `level`; see
+  [Context, containers and deployment](../../guides/chart-types/#context-containers-and-deployment)
+  for what each level shows and where it stops short of a full C4 model.
 - `chartlet_chart_starter` returns a valid starting specification and notes for the charts that
   are drawn from a block of their own: `waterfall`, `waffle`, `parliament`, `treemap`, `sankey`,
   `survival`, `scatter`, `timeline`, `forest` (a range bar chart), `violin` (a box plot) and the

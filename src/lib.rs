@@ -12,6 +12,7 @@ mod diverging;
 mod error;
 mod flow;
 mod heat;
+mod inspect;
 mod layout;
 mod metrics;
 mod network;
@@ -49,26 +50,28 @@ mod waterfall;
 
 use describe::automatic_description;
 pub use error::{ChartError, ChartWarning};
+pub use inspect::{INSPECTIONS, Inspection, Severity, inspect_json};
 pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
     CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, CategorySpec, ChartSpec,
-    ChartType, ClassKind, ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionSpec,
-    Corner, Curve, Dash, DataPoint, DiagramOrientation, DiagramRole, DistancesSpec, FlowEdgeSpec,
-    FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec,
-    LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec,
-    NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind,
-    OhlcPoint, Orientation, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
-    PartySpec, PerspectiveSpec, RangeSpec, ReferenceSpec, RelationKind, RelationSpec,
-    SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec,
-    ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec,
-    SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind,
-    StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme,
-    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
-    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec,
-    TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec,
-    ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    ChartType, ClassKind, ClassSpec, ClassesSpec, ComponentKind, ComponentSpec,
+    ConnectionDirection, ConnectionSpec, Corner, Curve, Dash, DataPoint, DiagramOrientation,
+    DiagramRole, DistancesSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec,
+    Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage, MainPath, Mark, MarkerSpec,
+    MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec,
+    NetworkOrder, NetworkSpec, NodeKind, NoteSpec, OhlcPoint, Orientation, PackageSpec, PaneSpec,
+    ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec, PerspectiveSpec,
+    RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec,
+    SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
+    ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack,
+    StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke,
+    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
+    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
+    TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec,
+    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec, ViolinScale,
+    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -5272,6 +5275,246 @@ mod tests {
             .unwrap_err();
             assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
         }
+    }
+
+    /// [`CLASSES`] with Animal and Dog in a package Pets inside a package Model.
+    fn packaged_classes() -> String {
+        CLASSES
+            .replace(
+                r#""classes": {"classes": ["#,
+                r#""classes": {"packages": [
+                    {"id": "model", "label": "Model"},
+                    {"id": "pets", "label": "Pets", "in": "model"}
+                ], "classes": ["#,
+            )
+            .replace(
+                r#"{"id": "dog", "label": "Dog","#,
+                r#"{"id": "dog", "label": "Dog", "in": "pets","#,
+            )
+            .replace(
+                r#"{"id": "animal", "label": "Animal","#,
+                r#"{"id": "animal", "label": "Animal", "in": "pets","#,
+            )
+    }
+
+    #[test]
+    fn packages_frame_their_classes_and_name_them_in_the_text() {
+        let spec = packaged_classes();
+        for orientation in ["portrait", "landscape"] {
+            let json = spec.replace(
+                r#""relations": ["#,
+                &format!(r#""orientation": "{orientation}", "relations": ["#),
+            );
+            let output = render_ok(&json);
+            assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+            assert_eq!(output.content.matches("chartlet-flow-group\"").count(), 2);
+            assert!(output.content.contains(">Pets</text>"));
+        }
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&spec).expect("parses")).expect("valid");
+        assert!(
+            alternative.description.starts_with(
+                "Class diagram with 3 classes and 2 relations in 2 packages. Model: Pets. Pets (in Model): Animal, Dog."
+            ),
+            "{}",
+            alternative.description
+        );
+        assert_eq!(
+            alternative.table.columns,
+            [
+                "Item",
+                "Kind",
+                "Package",
+                "Attributes",
+                "Methods",
+                "Relations"
+            ]
+        );
+        assert_eq!(alternative.table.rows[1][2], "Model › Pets");
+        assert_eq!(alternative.table.rows[2][2], "");
+        let german = spec.replace(
+            r#""type": "classes""#,
+            r#""type": "classes", "locale": "de""#,
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .starts_with("Klassendiagramm mit 3 Klassen und 2 Beziehungen in 2 Paketen.")
+        );
+        assert_eq!(alternative.table.columns[2], "Paket");
+    }
+
+    #[test]
+    fn packages_are_validated_by_name() {
+        let spec = packaged_classes();
+        for (from, to, code, path) in [
+            (
+                r#""in": "pets","#,
+                r#""in": "toys","#,
+                "unknown_package",
+                "/classes/classes/0/in",
+            ),
+            (
+                r#"{"id": "model", "label": "Model"}"#,
+                r#"{"id": "model", "label": "Model", "in": "zoo"}"#,
+                "unknown_package",
+                "/classes/packages/0/in",
+            ),
+            (
+                r#"{"id": "model", "label": "Model"}"#,
+                r#"{"id": "model", "label": "Model", "in": "pets"}"#,
+                "package_cycle",
+                "/classes/packages/0/in",
+            ),
+            (
+                r#"{"id": "model", "label": "Model"}"#,
+                r#"{"id": "model", "label": "Model"}, {"id": "empty", "label": "Empty"}"#,
+                "empty_package",
+                "/classes/packages/1",
+            ),
+            (
+                r#"{"id": "pets", "label": "Pets", "in": "model"}"#,
+                r#"{"id": "model", "label": "Pets", "in": "model"}"#,
+                "duplicate_id",
+                "/classes/packages/1/id",
+            ),
+            (
+                r#"{"id": "owner""#,
+                r#"{"id": "pets""#,
+                "duplicate_id",
+                "/classes/classes/2/id",
+            ),
+            (
+                r#""to": "animal""#,
+                r#""to": "pets""#,
+                "unknown_node",
+                "/classes/relations/0/to",
+            ),
+        ] {
+            assert!(spec.contains(from), "{from}");
+            let error = render_json(
+                &spec.replacen(from, to, 1),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{to}");
+        }
+        let deep = spec
+            .replace(
+                r#"{"id": "model", "label": "Model"}"#,
+                r#"{"id": "a", "label": "A"}, {"id": "b", "label": "B", "in": "a"},
+                   {"id": "c", "label": "C", "in": "b"}, {"id": "model", "label": "Model", "in": "c"}"#,
+            );
+        let error = render_json(&deep, RenderFormat::Svg, &RenderOptions::default()).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("packages_too_deep", "/classes/packages/4/in")
+        );
+    }
+
+    /// [`CLASSES`] with a note on Dog, inside the package of Dog when `packaged`.
+    fn noted_classes(packaged: bool) -> String {
+        let spec = if packaged {
+            packaged_classes()
+        } else {
+            CLASSES.to_owned()
+        };
+        spec.replace(
+            r#""relations": ["#,
+            r#""notes": [{"on": "dog", "text": "Only dogs that live in the household"}], "relations": ["#,
+        )
+    }
+
+    #[test]
+    fn a_note_stands_beside_its_class_and_is_no_relation() {
+        for packaged in [false, true] {
+            let output = render_ok(&noted_classes(packaged));
+            assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+            let svg = &output.content;
+            assert!(svg.contains("<title>Only dogs that live in the household</title>"));
+            assert!(svg.contains(">Only dogs that live in the household<"));
+            assert_eq!(
+                svg.matches("chartlet-flow-edge chartlet-flow-dotted")
+                    .count(),
+                1
+            );
+            assert!(!svg.contains("Dog → Only dogs"));
+        }
+        let plain =
+            text_alternative(&ChartSpec::from_json(CLASSES).expect("parses")).expect("valid");
+        let with_notes =
+            text_alternative(&ChartSpec::from_json(&noted_classes(false)).expect("parses"))
+                .expect("valid");
+        // The structure and every class read as before; the note follows them.
+        assert_eq!(
+            with_notes.description,
+            format!(
+                "{} Note on Dog: Only dogs that live in the household.",
+                plain.description
+            )
+        );
+        assert_eq!(
+            with_notes.table.columns.last().map(String::as_str),
+            Some("Notes")
+        );
+        assert_eq!(with_notes.table.rows.len(), 3);
+        assert_eq!(
+            with_notes.table.rows[1][5],
+            "Only dogs that live in the household"
+        );
+        assert_eq!(with_notes.table.rows[0][5], "");
+        let german = noted_classes(false).replace(
+            r#""type": "classes""#,
+            r#""type": "classes", "locale": "de""#,
+        );
+        let german =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            german
+                .description
+                .ends_with("Notiz zu Dog: Only dogs that live in the household.")
+        );
+        assert_eq!(german.table.columns[5], "Notizen");
+    }
+
+    #[test]
+    fn notes_are_validated_by_name() {
+        let spec = noted_classes(false);
+        let note = r#"{"on": "dog", "text": "Only dogs that live in the household"}"#;
+        let long = format!(r#"{{"on": "dog", "text": "{}"}}"#, "x".repeat(161));
+        let many = vec![note; 13].join(", ");
+        for (to, code, path) in [
+            (
+                r#"{"on": "cat", "text": "Only dogs"}"#.to_owned(),
+                "unknown_node",
+                "/classes/notes/0/on",
+            ),
+            (long, "text_too_long", "/classes/notes/0/text"),
+            (
+                r#"{"on": "dog", "text": " "}"#.to_owned(),
+                "empty_text",
+                "/classes/notes/0/text",
+            ),
+            (many, "too_many_notes", "/classes/notes"),
+        ] {
+            let error = render_json(
+                &spec.replace(note, &to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{to}");
+        }
+        // A long note wraps onto lines of its own instead of being shortened.
+        let long = spec.replace(
+            "Only dogs that live in the household",
+            "Only dogs that live in the household and have been registered with the town for at least a year",
+        );
+        let output = render_ok(&long);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
     }
 
     const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,

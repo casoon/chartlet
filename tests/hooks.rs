@@ -355,3 +355,19 @@ fn node_hooks_repeat_across_variants_and_embeds_without_dom_id_collisions() {
     ids.dedup();
     assert_eq!(ids.len(), all, "a DOM ID repeats");
 }
+
+#[test]
+fn a_class_in_a_package_keeps_its_hook_and_a_note_has_none() {
+    let classes = r#"{"schemaVersion": 1, "type": "classes", "title": "Packaged",
+        "classes": {"packages": [{"id": "sales", "label": "Sales"}], "classes": [
+            {"id": "sales-order", "label": "Order", "attributes": ["+ total: Money"], "in": "sales"},
+            {"id": "stock_order", "label": "Order", "attributes": ["+ items: Int"]}
+        ], "relations": [{"from": "sales-order", "to": "stock_order"}],
+        "notes": [{"on": "sales-order", "text": "Only paid orders"}]}}"#;
+    let svg = render(classes, RenderFormat::Svg, true);
+    assert_eq!(svg.matches("data-chartlet-node=").count(), 2);
+    assert!(node_group(&svg, "sales-order").contains("+ total: Money"));
+    let note = svg.find(">Only paid orders<").expect("the note is drawn");
+    let group = &svg[svg[..note].rfind("<g").expect("the note's group")..note];
+    assert!(!group.contains("data-chartlet-node"), "{group}");
+}

@@ -32,8 +32,8 @@ use crate::{
     time::TimeValue,
 };
 pub use architecture::{
-    ArchitectureSpec, BoundarySpec, CategorySpec, ComponentKind, ComponentSpec, ConnectionSpec,
-    PerspectiveSpec,
+    ArchitectureSpec, BoundarySpec, CategorySpec, ComponentKind, ComponentSpec,
+    ConnectionDirection, ConnectionSpec, PerspectiveSpec,
 };
 pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
 pub(crate) use boxplot::BoxSummary;
@@ -41,10 +41,10 @@ pub use boxplot::{BoxDisplay, BoxSpec, ViolinScale};
 pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
-pub use classes::{ClassKind, ClassSpec, ClassesSpec, RelationKind, RelationSpec};
+pub use classes::{ClassKind, ClassSpec, ClassesSpec, PackageSpec, RelationKind, RelationSpec};
 pub use flow::{
     DiagramRole, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, MainPath, NodeKind,
-    PartSpec,
+    NoteSpec, PartSpec,
 };
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
