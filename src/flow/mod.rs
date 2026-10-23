@@ -356,6 +356,9 @@ pub(crate) struct Edge {
     pub weight: Option<f64>,
     /// What the edge means beyond its kind: the color and pattern of its line.
     pub role: Option<DiagramRole>,
+    /// The class its group gains for the category of a perspective it is in: the color of its
+    /// line and arrowheads.
+    pub category: Option<&'static str>,
     /// The sides of its steps the edge is asked to leave and reach.
     pub sides: Sides,
 }
@@ -538,6 +541,7 @@ impl Diagram {
                     sign: "→",
                     weight: edge.weight,
                     role: edge.role,
+                    category: None,
                     sides: Sides {
                         from: edge.from_side,
                         to: edge.to_side,
@@ -614,6 +618,7 @@ impl Diagram {
             sign: "—",
             weight: None,
             role: None,
+            category: None,
             sides: Sides::default(),
         });
         self.nodes.push(Node {
@@ -2950,6 +2955,9 @@ impl Plan {
             let mut classes = model.edge_classes(edge);
             if let Some(width) = width {
                 write!(classes, " chartlet-flow-w{width}").expect("writing to String cannot fail");
+            }
+            if let Some(category) = model.diagram.edges[edge].category {
+                classes.push_str(category);
             }
             if let Some(role) = model.diagram.edges[edge].role {
                 classes.push_str(roles::class(role));

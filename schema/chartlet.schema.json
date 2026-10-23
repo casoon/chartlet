@@ -1442,7 +1442,8 @@
                 "enum": ["browser", "mobile", "api-gateway", "load-balancer", "cdn", "firewall", "identity", "container", "orchestrator", "function", "cloud", "cache", "object-storage", "message-broker", "search-index", "monitoring"]
               },
               "in": { "$ref": "#/$defs/identifier" },
-              "role": { "$ref": "#/$defs/diagramRole" }
+              "role": { "$ref": "#/$defs/diagramRole" },
+              "tags": { "description": "Names of groups the component belongs to, such as public or payments, by which views include or exclude it; not drawn.", "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } }
             }
           }
         },
@@ -1464,6 +1465,7 @@
               "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
               "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
               "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" },
+              "tags": { "description": "Names of groups the connection belongs to, by which views include or exclude it; not drawn.", "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } },
               "fromSide": { "description": "The side of `from` the connection leaves.", "$ref": "#/$defs/portSide" },
               "toSide": { "description": "The side of `to` the connection reaches.", "$ref": "#/$defs/portSide" }
             }
@@ -1526,6 +1528,11 @@
                 }
               },
               "perspective": { "description": "The key of the perspective the view shows, in place of the model's.", "$ref": "#/$defs/identifier" },
+              "width": { "description": "The width of the diagram the view renders, in place of the model's; checked like it.", "$ref": "#/properties/width" },
+              "height": { "description": "The height of the diagram the view renders, in place of the model's; checked like it.", "$ref": "#/properties/height" },
+              "mobile": { "description": "The mobile layout of the diagram the view renders, in place of the model's; checked like it.", "$ref": "#/properties/mobile" },
+              "include": { "description": "Tags that select more components: the view shows its listed components and every component carrying one of these tags and none of exclude. With connections, also the connections between shown components that carry one. Not with steps.", "type": "array", "items": { "$ref": "#/$defs/identifier" } },
+              "exclude": { "description": "Tags that leave out components and connections carrying one, unless the view lists them. A view with exclude but neither components nor include starts from every component. Not with steps.", "type": "array", "items": { "$ref": "#/$defs/identifier" } },
               "environment": { "description": "Makes the view a deployment view of this environment, such as Production: it shows instances on hosts joined by instance connections, in place of components, connections, steps and mainPath.", "type": "string", "minLength": 1, "maxLength": 60 },
               "hosts": { "description": "Deployment view: machines, clusters or zones, nested like boundaries; each holds an instance.", "type": "array", "items": { "$ref": "#/$defs/architecture/properties/boundaries/items" } },
               "instances": {
@@ -1542,13 +1549,14 @@
                   }
                 }
               },
-              "instanceConnections": { "description": "Deployment view: the connections between instances, from and to naming instance ids; nothing else joins them. One with the id of a model connection must join instances of its ends and takes the label, technology, dash and role it leaves out from it.", "type": "array", "items": { "$ref": "#/$defs/architecture/properties/connections/items" } }
+              "instanceConnections": { "description": "Deployment view: the connections between instances, from and to naming instance ids; nothing else joins them unless deriveConnections is set. One with the id of a model connection must join instances of its ends and takes the label, technology, dash, role, fromSide and toSide it leaves out from it.", "type": "array", "items": { "$ref": "#/$defs/architecture/properties/connections/items" } },
+              "deriveConnections": { "description": "Deployment view: also derive instance connections from every model connection whose id instanceConnections does not name. Each instance of its from component, in the order of the instances, joins the nearest instances of its to component: those whose hosts share the most enclosing hosts with its own, counted from the outermost; at a tie all of them, never itself. Derived connections come after the listed ones and count toward the 80 connections.", "type": "boolean", "default": false }
             }
           }
         },
         "defaultView": { "description": "The key of the view rendered when none is asked for; without it, the first view.", "$ref": "#/$defs/identifier" },
         "perspectives": {
-          "description": "Questions the model can be seen under, such as which team runs a component or how much technical debt it carries, each with its categories and the components in each. A diagram shows one perspective only when it is selected (perspective here or on a view), with a stripe in the category's color and its name in every box, a legend of the categories used, and the perspective in the description and the table. A component no category lists is shown as not stated. Nothing is derived.",
+          "description": "Questions the model can be seen under, such as which team runs a component or how much technical debt it carries, each with its categories and the components in each. A diagram shows one perspective only when it is selected (perspective here or on a view, or the perspective render option in place of both), with a stripe in the category's color and its name in every box, a legend of the categories used, and the perspective in the description and the table. A component no category lists is shown as not stated. Nothing is derived.",
           "type": "array",
           "maxItems": 8,
           "items": {
@@ -1560,17 +1568,18 @@
               "title": { "description": "What the perspective is called in the legend, the description and the table, such as Team.", "type": "string", "minLength": 1, "maxLength": 40 },
               "description": { "description": "A sentence that says what the perspective means, added to the description.", "type": "string", "minLength": 1, "maxLength": 200 },
               "categories": {
-                "description": "The categories in their order, which fixes their colors in every view. A component lies in at most one category of a perspective.",
+                "description": "The categories in their order, which fixes their colors in every view. A component or a connection lies in at most one category of a perspective.",
                 "type": "array",
                 "minItems": 1,
                 "maxItems": 8,
                 "items": {
                   "type": "object",
                   "additionalProperties": false,
-                  "required": ["label", "components"],
+                  "required": ["label"],
                   "properties": {
                     "label": { "description": "The name of the category, unique in the perspective, such as a team.", "type": "string", "minLength": 1, "maxLength": 40 },
-                    "components": { "description": "The ids of the components in the category.", "type": "array", "items": { "$ref": "#/$defs/identifier" } }
+                    "components": { "description": "The ids of the components in the category.", "type": "array", "items": { "$ref": "#/$defs/identifier" } },
+                    "connections": { "description": "The ids of the connections in the category: drawn in its color with its name after the label, and named in the description and the table. A connection no category lists is drawn as without the perspective.", "type": "array", "items": { "$ref": "#/$defs/identifier" } }
                   }
                 }
               }

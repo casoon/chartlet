@@ -23,6 +23,7 @@ chartlet render <spec.json | -> [options]
 | `--variant social` | Renders the chart on a 1200 × 630 canvas for link previews such as Open Graph images: title drawn large, source below, literal colors, no tooltips; IDs end in `-s`. SVG format only. See [Social images and PNG](../../guides/social-and-png/). |
 | `--view <key>` | Renders this view of an architecture model with `views`; without it, its default view. Every variant and format renders the same view; `unknown_view` at `/render/view` for a key no view has, or a specification without views. See [Views on one model](../../guides/chart-types/#views-on-one-model). |
 | `--all-views` | Renders every view of an architecture model on one HTML page: the model's title, a navigation of links to the views and each view as a section with its own figure, description and data table, the default view first. HTML and the desktop variant only, not together with `--view`; otherwise, and for a specification without views, `option_not_supported` at `/render/allViews`. One SVG per view stays the way to get the views as SVG. See [All views on one page](../../guides/chart-types/#all-views-on-one-page). |
+| `--perspective <key>` | Shows this perspective of an architecture diagram in place of the one the model or the view selects, in every view, variant and format; `unknown_perspective` at `/render/perspective` for a key no perspective has. See [Perspectives](../../guides/chart-types/#perspectives). |
 | `-o <path>` | Writes to a file instead of standard output. |
 | `--manifest <path>` | Also writes a provenance manifest of the render as JSON to `<path>`, see [Provenance](../../guides/warnings-and-errors/#provenance). |
 | `--strict` | Fails on any warning. Useful in CI. |
@@ -71,7 +72,8 @@ chartlet render revenue.json -o revenue.svg --manifest revenue.manifest.json
 }
 ```
 
-A render of a view of an architecture model also records `"view": "<key>"`, after `idPrefix`.
+A render of a view of an architecture model also records `"view": "<key>"`, after `idPrefix`, and
+one that shows a perspective `"perspective": "<key>"` after it.
 The fields are described under [Provenance](../../guides/warnings-and-errors/#provenance).
 
 The SVG scales with its container, uses CSS classes for all styling and embeds no fonts, scripts or

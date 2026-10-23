@@ -71,6 +71,7 @@ fn places(machine: &StateSpec) -> Places {
 /// The diagram the layered layout draws: the initial dot first, when there is one, then every
 /// state that is not composite; the composite states become frames around the states inside
 /// them. The arrow into the initial state comes before the transitions.
+#[allow(clippy::too_many_lines)]
 fn diagram(spec: &ChartSpec) -> Diagram {
     let machine = machine(spec);
     let words = spec.locale.words();
@@ -113,6 +114,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             sign: "→",
             weight: None,
             role: None,
+            category: None,
             sides: Sides::default(),
         });
     }
@@ -161,6 +163,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             sign: "→",
             weight: None,
             role: transition.role,
+            category: None,
             sides: Sides::default(),
         });
     }

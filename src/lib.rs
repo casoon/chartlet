@@ -98,6 +98,9 @@ pub struct RenderOptions {
     /// The `key` of the view of an architecture model to render; without one, its default view.
     /// Every variant renders the same view.
     pub view: Option<String>,
+    /// The `key` of the perspective of an architecture diagram to show, in place of the one the
+    /// model or the rendered view selects. Every variant shows the same perspective.
+    pub perspective: Option<String>,
     /// Renders every view of an architecture model on one HTML page instead of one view: a list
     /// of links to the views, the default view first, and each view as a section of its own
     /// with its figure, description and data table. Only for the HTML profile and the desktop
@@ -356,8 +359,19 @@ pub fn render_with_metrics(
     options: &RenderOptions,
     metrics: &impl TextMetrics,
 ) -> Result<RenderOutput, ChartError> {
+    // A perspective asked for takes the place of the one the model and its views select; the
+    // manifest still hashes the model as given.
+    let model = spec;
+    let selected;
+    let spec = match &options.perspective {
+        Some(key) => {
+            selected = spec.with_perspective(key)?;
+            &selected
+        }
+        None => spec,
+    };
     if options.all_views {
-        return render_all_views(spec, format, options, metrics);
+        return render_all_views((model, spec), format, options, metrics);
     }
     // A model with views renders one of them, resolved to a diagram of its own; diagnostics
     // point into the model.
@@ -390,7 +404,7 @@ pub fn render_with_metrics(
         output.manifest = Some(Manifest {
             view: view.map(|view| view.key),
             perspective,
-            ..manifest(spec, format, options, &output, id_prefix)?
+            ..manifest(model, format, options, &output, id_prefix)?
         });
     }
     Ok(output)
@@ -421,9 +435,11 @@ fn manifest(
 
 /// Every view of an architecture model on one HTML page, the default view first. Each view is a
 /// section with the figure of its own HTML export, under the ID prefix of the page followed by
-/// `-v` and the view's place on the page from 1; diagnostics point into the model.
+/// `-v` and the view's place on the page from 1; diagnostics point into the model. The model is
+/// given as it came, whose hash the manifest carries, and as rendered, with the perspective
+/// asked for.
 fn render_all_views(
-    spec: &ChartSpec,
+    (model, spec): (&ChartSpec, &ChartSpec),
     format: RenderFormat,
     options: &RenderOptions,
     metrics: &impl TextMetrics,
@@ -490,7 +506,8 @@ fn render_all_views(
     if options.manifest {
         output.manifest = Some(Manifest {
             views: views.into_iter().map(|view| view.key).collect(),
-            ..manifest(spec, format, options, &output, page_prefix)?
+            perspective: options.perspective.clone(),
+            ..manifest(model, format, options, &output, page_prefix)?
         });
     }
     Ok(output)

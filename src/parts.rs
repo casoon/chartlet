@@ -26,6 +26,23 @@ pub(crate) const STYLE: &str = ".chartlet-root{--chartlet-part-5:#0f766e;--chart
 pub(crate) const UNSTATED_STYLE: &str = ".chartlet-part-none{fill:none;stroke:var(--chartlet-muted);stroke-width:1;stroke-dasharray:2 2}";
 pub(crate) const UNSTATED: &str = "chartlet-part chartlet-part-none";
 
+/// The line and arrowheads of a connection in a category of a perspective, in the color of the
+/// category's stripe.
+pub(crate) const CONNECTION_STYLE: &str = ".chartlet-flow-part-1 .chartlet-flow-edge{stroke:var(--chartlet-color-1)}.chartlet-flow-part-1 .chartlet-flow-head{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-flow-part-2 .chartlet-flow-edge{stroke:var(--chartlet-color-2)}.chartlet-flow-part-2 .chartlet-flow-head{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-flow-part-3 .chartlet-flow-edge{stroke:var(--chartlet-color-3)}.chartlet-flow-part-3 .chartlet-flow-head{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-flow-part-4 .chartlet-flow-edge{stroke:var(--chartlet-color-4)}.chartlet-flow-part-4 .chartlet-flow-head{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}.chartlet-flow-part-5 .chartlet-flow-edge{stroke:var(--chartlet-part-5)}.chartlet-flow-part-5 .chartlet-flow-head{fill:var(--chartlet-part-5);stroke:var(--chartlet-part-5)}.chartlet-flow-part-6 .chartlet-flow-edge{stroke:var(--chartlet-part-6)}.chartlet-flow-part-6 .chartlet-flow-head{fill:var(--chartlet-part-6);stroke:var(--chartlet-part-6)}.chartlet-flow-part-7 .chartlet-flow-edge{stroke:var(--chartlet-part-7)}.chartlet-flow-part-7 .chartlet-flow-head{fill:var(--chartlet-part-7);stroke:var(--chartlet-part-7)}.chartlet-flow-part-8 .chartlet-flow-edge{stroke:var(--chartlet-part-8)}.chartlet-flow-part-8 .chartlet-flow-head{fill:var(--chartlet-part-8);stroke:var(--chartlet-part-8)}";
+
+/// The class the group of a connection gains for the category it is in, by its place among the
+/// perspective's categories.
+pub(crate) const EDGE_CLASSES: [&str; 8] = [
+    " chartlet-flow-part-1",
+    " chartlet-flow-part-2",
+    " chartlet-flow-part-3",
+    " chartlet-flow-part-4",
+    " chartlet-flow-part-5",
+    " chartlet-flow-part-6",
+    " chartlet-flow-part-7",
+    " chartlet-flow-part-8",
+];
+
 pub(crate) const CLASSES: [&str; 8] = [
     "chartlet-part chartlet-part-1",
     "chartlet-part chartlet-part-2",

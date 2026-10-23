@@ -5,7 +5,8 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "view", "allViews", "strict", "allowWarnings", "manifest", "alternative", "styles", "hooks" } }`, or
+//! "variant", "view", "allViews", "perspective", "strict", "allowWarnings", "manifest",
+//! "alternative", "styles", "hooks" } }`, or
 //! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
 //! `"styles": "external"`, for every chart type when `types` is absent, or
 //! `{ "inspect": true, "spec", "disable": ["code", …] }` for the inspections of a model, answered
@@ -187,6 +188,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
             styles,
             hooks: options["hooks"].as_bool() == Some(true),
             view: options["view"].as_str().map(str::to_owned),
+            perspective: options["perspective"].as_str().map(str::to_owned),
             all_views: options["allViews"].as_bool() == Some(true),
         },
     )
@@ -211,6 +213,10 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
     }
     let alternative = if options["alternative"].as_bool() == Some(true) {
         let spec = ChartSpec::from_json(&spec)
+            .and_then(|spec| match options["perspective"].as_str() {
+                Some(key) => spec.with_perspective(key),
+                None => Ok(spec),
+            })
             .and_then(|spec| spec.view(options["view"].as_str()))
             .map_err(|error| error_json(&error))?;
         Some(text_alternative(&spec).map_err(|error| error_json(&error))?)
@@ -218,7 +224,8 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
         None
     };
     let alternatives = if alternative.is_some() && options["allViews"].as_bool() == Some(true) {
-        view_alternatives(&spec).map_err(|error| error_json(&error))?
+        view_alternatives(&spec, options["perspective"].as_str())
+            .map_err(|error| error_json(&error))?
     } else {
         Vec::new()
     };
@@ -231,9 +238,15 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
 }
 
 /// The text alternative of every view of a model, by its key, in the order of the page of all
-/// views: the default view first.
-fn view_alternatives(spec: &str) -> Result<Vec<(String, TextAlternative)>, chartlet::ChartError> {
-    let spec = ChartSpec::from_json(spec)?;
+/// views: the default view first; each with the perspective asked for, if any.
+fn view_alternatives(
+    spec: &str,
+    perspective: Option<&str>,
+) -> Result<Vec<(String, TextAlternative)>, chartlet::ChartError> {
+    let mut spec = ChartSpec::from_json(spec)?;
+    if let Some(key) = perspective {
+        spec = spec.with_perspective(key)?;
+    }
     let mut keys: Vec<&str> = spec.view_keys();
     let default = spec
         .architecture
