@@ -160,6 +160,21 @@ const EXAMPLES: [(&str, &str, &str); 77] = [
         include_str!("../examples/shop-symbols.svg"),
     ),
     (
+        "booking-context",
+        include_str!("../examples/booking-context.json"),
+        include_str!("../examples/booking-context.svg"),
+    ),
+    (
+        "booking-containers",
+        include_str!("../examples/booking-containers.json"),
+        include_str!("../examples/booking-containers.svg"),
+    ),
+    (
+        "booking-deployment",
+        include_str!("../examples/booking-deployment.json"),
+        include_str!("../examples/booking-deployment.svg"),
+    ),
+    (
         "billing-migration",
         include_str!("../examples/billing-migration.json"),
         include_str!("../examples/billing-migration.svg"),

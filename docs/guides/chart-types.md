@@ -1147,6 +1147,48 @@ first — and never the whole model, so a view never passes for the complete sys
 Up to 20 views and 99 steps per view. Example `shop-views` (overview, and checkout as
 `shop-views.checkout.svg`).
 
+### Context, containers and deployment
+
+Three starters (MCP: `chartlet_diagram_starter` with `type: "architecture"` and `template`)
+describe one system, a course booking service, at three levels of abstraction in the C4 sense.
+Each answers one question and stays at its level; all use the ordinary `architecture` fields,
+render without `symbol` and carry their meaning in labels, sublabels and the data table.
+
+| Template | Question | Shows | Example |
+| --- | --- | --- | --- |
+| `context` | Who uses the system, and which other systems does it depend on? | The system in scope as one component, people (`person`) and external systems (`external`). No boundary, nothing inside the system. | `booking-context` |
+| `containers` | Which applications and data stores make up the system, and how do they talk to each other? | One boundary for the system around its separately running or deployable parts — web app, API, worker, queue, database, file store — with people and external systems outside it. | `booking-containers` |
+| `deployment` | Where does each part run, and which managed services does it use? | One environment: region, cluster and node pools as nested boundaries, the deployed images (`artifact`), and the managed queue, database and object storage; the web tier hands work to workers through the queue. | `booking-deployment` |
+
+The terms map onto chartlet like this, and must not be read as one another:
+
+- **Software system** — the thing the team builds and owns. At context level it is one
+  component; at container level it is a boundary.
+- **Container** — a separately running or deployable part of a system: an application, a
+  database, a queue, a file store. It is not a container image or a container process; whether
+  it is shipped as an image is a deployment fact.
+- **Component** — a part inside one container, such as a module of the API. chartlet's
+  `components` array holds whatever the diagram shows at its level, so a component in the
+  specification is a C4 component only in a diagram of one container's inside; no starter
+  covers that level.
+- **Deployment node** — where something runs: a region, a cluster, a node pool. The starter
+  draws nodes as boundaries (boundaries are hosts in a deployment) and what runs on them as
+  `artifact`; `kind: "node"` draws a single machine as a component. Replica counts are text in
+  the sublabel.
+
+Where the starters stop short of a full C4 model:
+
+- Each starter is a separate specification. An element that appears at two levels — the course
+  booking system as a box and as a boundary — is written twice, and nothing checks that the two
+  agree. One model with several `views` can show different selections of the same elements, but a
+  view does not merge containers into a system or open a container into components.
+- Technology and responsibility are free text: `sublabel` on a component, `technology` on a
+  connection. There are no separate fields for them, and no element types for system, container
+  or component beyond the `kind` shapes.
+- The deployment starter describes one environment. It does not model several environments
+  (development, staging, production) or instances of a container across them; that semantics is
+  not promised.
+
 ## Trees
 
 A tree (`"type": "tree"`) draws a root and the nodes below it: an organization chart, an
