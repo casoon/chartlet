@@ -894,6 +894,7 @@
           "$ref": "#/$defs/sameRank"
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "spacing": { "$ref": "#/$defs/diagramSpacing" },
         "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
       }
     },
@@ -944,7 +945,8 @@
           "type": "array",
           "items": { "$ref": "#/$defs/identifier" }
         },
-        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "spacing": { "$ref": "#/$defs/diagramSpacing" }
       }
     },
     "network": {
@@ -1047,7 +1049,8 @@
           }
         },
         "notes": { "$ref": "#/$defs/notes" },
-        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "spacing": { "$ref": "#/$defs/diagramSpacing" }
       }
     },
     "scatter": {
@@ -1482,6 +1485,7 @@
         },
         "notes": { "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "spacing": { "$ref": "#/$defs/diagramSpacing" },
         "sharedTrunks": { "description": "Draws connections that leave a component together, or reach one together, on one shared line that branches with a dot at every branch: only those without label, technology or step, in the usual direction, off the main path, with the same dash, weight and role and their other ends in the same boundary. Every connection is still drawn and listed.", "type": "boolean", "default": false },
         "views": {
           "description": "Views on this model. A specification with views renders one of them, chosen by its key, or the default view; never the whole model. A view resolves to an architecture diagram of its own: the listed components in the order of the model, the connections between them (or only the listed ones), the boundaries that hold at least one of them, and the model's main path when the view shows all of it. Nothing outside the view is drawn or described, and no connection is drawn that the model does not have.",
@@ -1637,6 +1641,11 @@
         "fromSide": { "description": "The side of `from` the edge leaves.", "$ref": "#/$defs/portSide" },
         "toSide": { "description": "The side of `to` the edge reaches.", "$ref": "#/$defs/portSide" }
       }
+    },
+    "diagramSpacing": {
+      "description": "How much room a layered diagram leaves between its layers and between neighbours in a layer: compact (about 70 %, never below what a phone keeps, and not spread over a larger canvas), normal (default) or roomy (150 %). Steps, texts, margins and the distance between parallel lines keep their size.",
+      "enum": ["compact", "normal", "roomy"],
+      "default": "normal"
     },
     "portSide": {
       "description": "A side of a node, named after the flow so that it holds in either orientation: start faces the nodes before, end the nodes after, left and right lie across the flow (left and right in portrait, top and bottom in landscape). Without it the layout chooses. A side along the flow against the edge is ignored (port_side_ignored); an edge from a node to itself takes none. An edge with a side never joins a shared trunk.",

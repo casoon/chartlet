@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, DiagramRole, MainPath, NoteSpec, PortSide,
+    ChartSpec, Dash, DiagramOrientation, DiagramRole, DiagramSpacing, MainPath, NoteSpec, PortSide,
     flow::validate_notes,
     sequence::is_identifier,
     validate_text,
@@ -42,6 +42,8 @@ pub struct ArchitectureSpec {
     pub same_rank: Vec<Vec<String>>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    #[serde(default, skip_serializing_if = "DiagramSpacing::is_normal")]
+    pub spacing: DiagramSpacing,
     /// Whether connections that leave a component together, or reach one together, are drawn on
     /// one shared line that branches; only those that read the same on the shared part.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]

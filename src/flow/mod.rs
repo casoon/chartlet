@@ -25,8 +25,8 @@ use crate::{
     parts, roles,
     scene::{Circle, Element, Hotspot, Line, Rect, Scene, SymbolUse, Text, TextAnchor},
     spec::{
-        ChartSpec, Dash, DiagramOrientation, DiagramRole, FlowSpec, NodeKind, NumberStyle,
-        PartSpec, PortSide,
+        ChartSpec, Dash, DiagramOrientation, DiagramRole, DiagramSpacing, FlowSpec, NodeKind,
+        NumberStyle, PartSpec, PortSide,
     },
     structure::{Facts, Structure},
     symbols::{self, Symbol},
@@ -85,12 +85,15 @@ struct Spacing {
     node_gap: f64,
     passing_gap: f64,
     group_gap: f64,
+    /// The least distance between two layers, and how much it grows when the canvas leaves room.
+    layer_gap: f64,
+    max_stretch: f64,
     edge_label: f64,
 }
 
 impl Spacing {
-    const fn for_width(width: u32) -> Self {
-        if width < NARROW {
+    fn new(width: u32, profile: DiagramSpacing) -> Self {
+        let spacing = if width < NARROW {
             Self {
                 margin: 12.0,
                 min_node: 64.0,
@@ -98,6 +101,8 @@ impl Spacing {
                 node_gap: 16.0,
                 passing_gap: 8.0,
                 group_gap: 20.0,
+                layer_gap: GAP,
+                max_stretch: MAX_STRETCH,
                 edge_label: 96.0,
             }
         } else {
@@ -108,11 +113,43 @@ impl Spacing {
                 node_gap: NODE_GAP,
                 passing_gap: PASSING_GAP,
                 group_gap: GROUP_GAP,
+                layer_gap: GAP,
+                max_stretch: MAX_STRETCH,
                 edge_label: EDGE_LABEL,
             }
+        };
+        spacing.scaled(profile)
+    }
+
+    /// The gaps between layers and between neighbours in a layer, scaled by `profile`: never the
+    /// size of steps or texts, the margins or the distance between two tracks, and a compact gap
+    /// never below the gaps of a narrow canvas between steps, or 20 between layers. A compact
+    /// diagram keeps its gaps on a canvas that leaves room, instead of spreading its layers over
+    /// it.
+    fn scaled(self, profile: DiagramSpacing) -> Self {
+        let (factor, floor) = match profile {
+            DiagramSpacing::Normal => return self,
+            DiagramSpacing::Compact => (COMPACT, true),
+            DiagramSpacing::Roomy => (ROOMY, false),
+        };
+        let scale = |gap: f64, least: f64| {
+            let gap = gap * factor;
+            if floor { gap.max(least) } else { gap }
+        };
+        Self {
+            node_gap: scale(self.node_gap, 16.0),
+            passing_gap: scale(self.passing_gap, 8.0),
+            group_gap: scale(self.group_gap, 20.0),
+            layer_gap: scale(self.layer_gap, 20.0),
+            max_stretch: if floor { 1.0 } else { self.max_stretch },
+            ..self
         }
     }
 }
+
+/// How much the compact and the roomy spacing scale the gaps of a diagram.
+const COMPACT: f64 = 0.7;
+const ROOMY: f64 = 1.5;
 
 /// Growth of the gaps between layers when the canvas leaves room.
 const MAX_STRETCH: f64 = 1.6;
@@ -162,7 +199,7 @@ pub(crate) fn layout_with_trunks(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let width = f64::from(spec.width);
-    let spacing = Spacing::for_width(spec.width);
+    let spacing = Spacing::new(spec.width, diagram.spacing);
     let margin = spacing.margin;
     let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
     let mut model = Model::new(diagram, (spacing, spec.number_style()), metrics, warnings);
@@ -239,6 +276,8 @@ pub(crate) struct Diagram {
     /// Sets of steps that share one layer, by index; no step lies in two.
     pub ranks: Vec<Vec<usize>>,
     pub orientation: DiagramOrientation,
+    /// How much room the diagram leaves between its layers and between neighbours in a layer.
+    pub spacing: DiagramSpacing,
 }
 
 pub(crate) struct Node {
@@ -493,6 +532,7 @@ impl Diagram {
                 })
                 .collect(),
             orientation: flow.orientation,
+            spacing: flow.spacing,
         }
     }
 
@@ -2371,6 +2411,9 @@ struct Gaps {
     tracks: Vec<usize>,
     frame_after: Vec<f64>,
     frame_before: Vec<f64>,
+    /// The least distance between two layers, and how much the gaps grow at most.
+    layer_gap: f64,
+    max_stretch: f64,
 }
 
 impl Gaps {
@@ -2470,13 +2513,15 @@ impl Gaps {
             tracks,
             frame_after,
             frame_before,
+            layer_gap: model.spacing.layer_gap,
+            max_stretch: model.spacing.max_stretch,
         }
     }
 
-    /// How much the gaps grow to fill `room` on the main axis, up to [`MAX_STRETCH`].
+    /// How much the gaps grow to fill `room` on the main axis, up to `max_stretch`.
     fn stretch(&self, natural: f64, room: f64) -> f64 {
         if natural < room && self.total() > 0.0 {
-            (1.0 + (room - natural) / self.total()).min(MAX_STRETCH)
+            (1.0 + (room - natural) / self.total()).min(self.max_stretch)
         } else {
             1.0
         }
@@ -2484,7 +2529,8 @@ impl Gaps {
 
     /// The width of gap `gap` at scale 1.
     fn size(&self, gap: usize) -> f64 {
-        GAP + self.frame_after[gap]
+        self.layer_gap
+            + self.frame_after[gap]
             + self.label_room[gap]
             + count(self.tracks[gap]) * TRACK
             + self.label_room_end[gap]
@@ -2539,7 +2585,10 @@ impl Gaps {
     /// The main position of track `track` in gap `gap`, which begins at `start`.
     fn track(&self, gap: usize, track: usize, start: f64, stretch: f64) -> f64 {
         start
-            + (self.frame_after[gap] + self.label_room[gap] + GAP / 2.0 + count(track) * TRACK)
+            + (self.frame_after[gap]
+                + self.label_room[gap]
+                + self.layer_gap / 2.0
+                + count(track) * TRACK)
                 * stretch
     }
 }

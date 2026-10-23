@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, ConnectionDirection, Dash, DiagramOrientation, NoteSpec, flow::validate_notes,
-    sequence::is_identifier, validate_text,
+    ChartSpec, ConnectionDirection, Dash, DiagramOrientation, DiagramSpacing, NoteSpec,
+    flow::validate_notes, sequence::is_identifier, validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -33,6 +33,8 @@ pub struct ClassesSpec {
     pub notes: Vec<NoteSpec>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    #[serde(default, skip_serializing_if = "DiagramSpacing::is_normal")]
+    pub spacing: DiagramSpacing,
 }
 
 /// A frame around classes that belong together. Packages nest by naming the package they lie

@@ -897,3 +897,103 @@ fn a_loop_takes_no_side() {
         ("invalid_spec", "/flow/edges/4/fromSide".to_owned())
     );
 }
+
+#[test]
+fn spacing_profiles_scale_the_gaps_and_nothing_else() {
+    let profile = |spacing: &str, variant: crate::Variant| {
+        let json = SPEC
+            .replace(
+                r#""mainPath""#,
+                &format!(r#""orientation": "portrait", "spacing": "{spacing}", "mainPath""#),
+            )
+            .replacen('{', r#"{"mobile": {"width": 360, "height": 640},"#, 1);
+        let options = RenderOptions {
+            variant,
+            ..RenderOptions::default()
+        };
+        let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        let again = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        assert_eq!(output.content, again.content, "{spacing} is deterministic");
+        output.content
+    };
+    for variant in [crate::Variant::Desktop, crate::Variant::Mobile] {
+        let measures = |content: &str| {
+            let centers = centers(content);
+            let at = |name: &str| {
+                let (_, x, y) = centers
+                    .iter()
+                    .find(|(title, _, _)| title == name)
+                    .unwrap_or_else(|| panic!("{name} is drawn"));
+                (*x, *y)
+            };
+            // The distance between two layers, and between two neighbours in a layer.
+            (
+                at("Looks good?").1 - at("Draft").1,
+                at("Publish").0 - at("Edit").0,
+            )
+        };
+        let compact = profile("compact", variant);
+        let normal = profile("normal", variant);
+        let roomy = profile("roomy", variant);
+        let (compact, normal, roomy) = (measures(&compact), measures(&normal), measures(&roomy));
+        assert!(compact.0 < normal.0 && normal.0 < roomy.0, "{variant:?}");
+        assert!(normal.1 < roomy.1, "{variant:?}");
+        assert!(compact.1 <= normal.1, "{variant:?}");
+    }
+    // The steps and their texts keep their size.
+    let box_of = |content: &str| {
+        let start = content.find("<title>Edit</title>").expect("Edit is drawn");
+        let rect = &content[..start];
+        let rect = &rect[rect.rfind("<rect").expect("a box")..];
+        rect[rect.find("width").expect("a width")..]
+            .split(' ')
+            .take(2)
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let normal = profile("normal", crate::Variant::Desktop);
+    for spacing in ["compact", "roomy"] {
+        assert_eq!(
+            box_of(&profile(spacing, crate::Variant::Desktop)),
+            box_of(&normal)
+        );
+    }
+    // Normal is the default.
+    let pinned = SPEC.replace(r#""mainPath""#, r#""spacing": "normal", "mainPath""#);
+    let points = |content: &str| edge_points(content, "Edit → Looks good?: again");
+    assert_eq!(points(&svg(&pinned).content), points(&svg(SPEC).content));
+    let json = SPEC.replace(r#""mainPath""#, r#""spacing": "tight", "mainPath""#);
+    assert_eq!(error(&json), ("invalid_spec", "/flow/spacing".to_owned()));
+}
+
+#[test]
+fn class_state_and_architecture_diagrams_take_a_spacing_profile() {
+    for (json, block) in [
+        (include_str!("../../examples/order-model.json"), "classes"),
+        (include_str!("../../examples/ticket-states.json"), "state"),
+        (
+            include_str!("../../examples/shop-architecture.json"),
+            "architecture",
+        ),
+    ] {
+        let with = |spacing: &str| {
+            let open = format!("\"{block}\": {{");
+            assert!(json.contains(&open), "{block}");
+            svg(&json.replacen(&open, &format!("{open} \"spacing\": \"{spacing}\","), 1))
+        };
+        let normal = with("normal");
+        let drawing = |content: &str| {
+            content
+                .split_once("</style>")
+                .map(|(_, rest)| rest.to_owned())
+        };
+        assert_eq!(
+            drawing(&normal.content),
+            drawing(&svg(json).content),
+            "{block}"
+        );
+        for spacing in ["compact", "roomy"] {
+            assert_ne!(with(spacing).content, normal.content, "{block} {spacing}");
+        }
+    }
+}

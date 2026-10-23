@@ -154,6 +154,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         groups,
         ranks: Vec::new(),
         orientation: machine.orientation,
+        spacing: machine.spacing,
     }
 }
 

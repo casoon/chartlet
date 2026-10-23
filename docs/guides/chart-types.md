@@ -912,6 +912,8 @@ releases.
   and `auto` picks by the canvas.
 - **Port sides.** `fromSide` and `toSide` on an edge say which side of its steps it leaves and
   reaches, such as a way back that leaves a decision sideways; see [Port sides](#port-sides).
+- **Spacing.** `"spacing": "compact"` or `"roomy"` tightens or loosens the gaps between the
+  layers and the steps; see [Spacing](#spacing).
 - **Text alternative.** The description names the steps in reading order — layer by layer — and
   where each one leads, with the main path, the lanes and the groups. Before the steps it names
   the shape of the graph where there is one to tell (see [Graph structure](#graph-structure));
@@ -968,6 +970,21 @@ landscape.
   (`option_not_supported`).
 - Architecture diagrams take the same `fromSide` and `toSide` on their connections. Example
   `contract-review`.
+
+### Spacing
+
+`spacing` sets how much room a flow chart, a state diagram, a class diagram or an architecture
+diagram leaves between its layers and between the steps of a layer:
+
+| `spacing` | Gaps |
+| --- | --- |
+| `compact` | about 70 %, and kept at that on a canvas that leaves room, instead of spreading the layers over it; never below 16 px between steps and 20 px between layers |
+| `normal` | the default, unchanged |
+| `roomy` | 150 % |
+
+Only the gaps change. Steps, their texts and where those wrap, the margins, the padding of frames
+and lanes and the distance between two parallel edges keep their size, in every orientation and
+in the mobile variant, which scales its own smaller gaps the same way.
 
 ### Graph structure
 

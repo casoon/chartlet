@@ -226,6 +226,7 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
             })
             .collect(),
         orientation: architecture.orientation,
+        spacing: architecture.spacing,
     }
 }
 

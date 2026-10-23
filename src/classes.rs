@@ -158,6 +158,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             .collect(),
         ranks: Vec::new(),
         orientation: classes.orientation,
+        spacing: classes.spacing,
     }
 }
 

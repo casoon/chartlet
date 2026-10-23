@@ -34,6 +34,8 @@ pub struct FlowSpec {
     /// Which way the flow runs: down in portrait, right in landscape.
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    #[serde(default, skip_serializing_if = "DiagramSpacing::is_normal")]
+    pub spacing: DiagramSpacing,
     /// What the `value` of the steps stands for, such as `Lead time (days)`: the name of the
     /// color key and of the table column.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -223,6 +225,28 @@ pub struct FlowEdgeSpec {
     pub from_side: Option<PortSide>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub to_side: Option<PortSide>,
+}
+
+/// How much room a layered diagram leaves between its layers and between neighbours in a layer.
+/// Only the gaps scale: steps, texts, margins and the distance between two parallel lines keep
+/// their size, and a compact gap stays at least 16 pixels between steps, 20 between layers.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum DiagramSpacing {
+    /// The gaps at about 70 %.
+    Compact,
+    #[default]
+    Normal,
+    /// The gaps at 150 %.
+    Roomy,
+}
+
+impl DiagramSpacing {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub(crate) const fn is_normal(&self) -> bool {
+        matches!(self, Self::Normal)
+    }
 }
 
 /// A side of a node, named after the direction of the flow so that it holds in either
