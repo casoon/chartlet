@@ -335,6 +335,26 @@ test("inspects a model alike from WebAssembly and the CLI", () => {
   assert.deepEqual(inspectChart(spec, { disable, binary }), fewer);
   assert.ok(fewer.findings.every(({ code }) => code !== "connection_without_technology"));
 
+  // Flow charts and class diagrams, from WebAssembly and the CLI alike.
+  const orderFlow = JSON.parse(readExample("order-flow.json"));
+  delete orderFlow.flow.edges[1].label;
+  const classes = JSON.parse(readExample("order-model.json"));
+  classes.classes.relations = [];
+  for (const [spec, code, path] of [
+    [orderFlow, "unlabelled_decision_branch", "/flow/edges/1"],
+    [classes, "isolated_class", "/classes/classes/0"],
+  ]) {
+    const found = inspectChart(spec);
+    assert.equal(found.ok, true);
+    assert.deepEqual(inspectChart(spec, { binary }), found);
+    assert.ok(found.findings.some((finding) => finding.code === code && finding.path === path), code);
+    assert.ok(
+      inspectChart(spec, { disable: [code] }).findings.every((finding) => finding.code !== code),
+      code,
+    );
+  }
+  assert.deepEqual(inspectChart(readExample("order-flow.json")), { ok: true, findings: [] });
+
   const bar = readExample("monthly-trend.json");
   for (const options of [{}, { binary }]) {
     const unavailable = inspectChart(bar, options);
