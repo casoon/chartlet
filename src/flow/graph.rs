@@ -123,6 +123,8 @@ impl Graph {
         for (index, chain) in chains.iter().enumerate() {
             let Some(chain) = chain else { continue };
             let main = diagram.edges[index].main;
+            // A stem holds the ball of an interface at its component.
+            let stem = diagram.nodes[diagram.edges[index].from].shape == Shape::Interface;
             for pair in chain.items.windows(2) {
                 let placeholders = pair
                     .iter()
@@ -130,6 +132,7 @@ impl Graph {
                     .count();
                 // Long edges and the main path should run straight, other links may bend.
                 let weight = match (main, placeholders) {
+                    _ if stem => 12.0,
                     (true, _) => 6.0,
                     (false, 2) => 8.0,
                     (false, 1) => 2.0,
@@ -328,11 +331,56 @@ fn layered(
         .iter()
         .map(|edge| edge.map(|(from, to)| (rank[from], rank[to])))
         .collect();
-    let rank_layers = layers(ranks, &rank_edges);
+    // The ball of an interface lies right before its component, where its stem runs into it.
+    let mut late = vec![false; ranks];
+    for (node, spec) in diagram.nodes.iter().enumerate() {
+        if spec.shape == Shape::Interface {
+            late[rank[node]] = true;
+        }
+    }
+    let rank_layers = layers(ranks, &rank_edges, &late);
     let mut layer: Vec<usize> = rank.iter().map(|rank| rank_layers[*rank]).collect();
     pull_out_of_frames(diagram, &directed, &mut layer);
+    keep_balls_with_components(diagram, &directed, &mut layer);
     place_frame_notes(diagram, ends, &mut layer);
     (reversed, directed, layer)
+}
+
+/// Moves the ball of an interface whose component lies after a frame it does not belong to, but
+/// which still spans the ball's layer, out of that frame's layers: kept out of the frame, it would
+/// stand far beside it, away from its component. The component moves along where it ends the
+/// flow; one that leads on keeps its layer, and so does the ball when that leaves no room.
+fn keep_balls_with_components(
+    diagram: &Diagram,
+    edges: &[Option<(usize, usize)>],
+    layer: &mut [usize],
+) {
+    let leads_on = |node: usize| edges.iter().flatten().any(|(from, _)| *from == node);
+    for &(ball, component) in edges.iter().flatten() {
+        if diagram.nodes[ball].shape != Shape::Interface {
+            continue;
+        }
+        for group in 0..diagram.groups.len() {
+            if diagram.inside(ball, group) {
+                continue;
+            }
+            let span = (0..layer.len())
+                .filter(|&node| diagram.inside(node, group))
+                .map(|node| layer[node]);
+            let (Some(first), Some(last)) = (span.clone().min(), span.max()) else {
+                continue;
+            };
+            if layer[ball] < first || layer[ball] > last || layer[component] <= last {
+                continue;
+            }
+            if layer[component] > last + 1 {
+                layer[ball] = last + 1;
+            } else if !leads_on(component) {
+                layer[ball] = last + 1;
+                layer[component] = last + 2;
+            }
+        }
+    }
 }
 
 /// Moves a note on a frame, a note node in a group without a line, to the first layer of the
@@ -427,8 +475,8 @@ fn feedback_edges(nodes: usize, ends: &[(usize, usize)]) -> Vec<bool> {
 }
 
 /// The layer of every step: one after the latest of the steps before it, and a step that only
-/// leads on placed just before the earliest step it leads to.
-fn layers(nodes: usize, edges: &[Option<(usize, usize)>]) -> Vec<usize> {
+/// leads on, or that is `late`, placed just before the earliest step it leads to.
+fn layers(nodes: usize, edges: &[Option<(usize, usize)>], late: &[bool]) -> Vec<usize> {
     let mut incoming = vec![0; nodes];
     let mut outgoing = vec![Vec::new(); nodes];
     for (from, to) in edges.iter().flatten() {
@@ -453,7 +501,7 @@ fn layers(nodes: usize, edges: &[Option<(usize, usize)>]) -> Vec<usize> {
         }
     }
     for &node in sorted.iter().rev() {
-        if incoming[node] == 0 && !outgoing[node].is_empty() {
+        if (incoming[node] == 0 || late[node]) && !outgoing[node].is_empty() {
             layer[node] = outgoing[node]
                 .iter()
                 .map(|next| layer[*next])
@@ -599,7 +647,7 @@ mod tests {
     fn a_step_lies_one_layer_after_its_latest_predecessor() {
         let edges = [Some((0, 1)), Some((1, 2)), Some((0, 2)), Some((3, 2))];
         // Step 3 only leads on, to step 2 in layer 2, so it sits in layer 1.
-        assert_eq!(layers(4, &edges), [0, 1, 2, 1]);
+        assert_eq!(layers(4, &edges, &[false; 4]), [0, 1, 2, 1]);
     }
 
     #[test]

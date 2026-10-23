@@ -896,7 +896,8 @@
         "notes": { "description": "Notes on steps (on names a step) or on the whole chart (without on).", "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
         "spacing": { "$ref": "#/$defs/diagramSpacing" },
-        "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
+        "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 },
+        "sharedTrunks": { "description": "Draws edges that leave a step together, or reach one together, on one shared line that branches with a dot at every branch: only those without label, off the main path, with the same dash, weight and role and their other ends in the same lane and group; the branches of a decision keep a line each. Every edge is still drawn and listed.", "type": "boolean", "default": false }
       }
     },
     "state": {
@@ -1443,7 +1444,21 @@
               },
               "in": { "$ref": "#/$defs/identifier" },
               "role": { "$ref": "#/$defs/diagramRole" },
-              "tags": { "description": "Names of groups the component belongs to, such as public or payments, by which views include or exclude it; not drawn.", "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } }
+              "tags": { "description": "Names of groups the component belongs to, such as public or payments, by which views include or exclude it; not drawn.", "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } },
+              "provides": {
+                "description": "Interfaces the component provides, each a ball on a stem ahead of its box with the label beside it; connections require one by toInterface. Not on a person or a node.",
+                "type": "array",
+                "maxItems": 4,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "label"],
+                  "properties": {
+                    "id": { "description": "Unique among the interfaces of the component; with the component's id it forms the stable id `component.interface`.", "$ref": "#/$defs/identifier" },
+                    "label": { "type": "string", "minLength": 1, "maxLength": 40 }
+                  }
+                }
+              }
             }
           }
         },
@@ -1466,6 +1481,7 @@
               "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
               "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" },
               "tags": { "description": "Names of groups the connection belongs to, by which views include or exclude it; not drawn.", "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } },
+              "toInterface": { "description": "The id of an interface `to` provides: `from` requires it, and the connection ends in a socket around its ball instead of an arrowhead. Runs forward and never joins a shared trunk.", "$ref": "#/$defs/identifier" },
               "fromSide": { "description": "The side of `from` the connection leaves.", "$ref": "#/$defs/portSide" },
               "toSide": { "description": "The side of `to` the connection reaches.", "$ref": "#/$defs/portSide" }
             }

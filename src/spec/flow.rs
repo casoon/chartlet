@@ -43,6 +43,10 @@ pub struct FlowSpec {
     /// color key and of the table column.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value_label: Option<String>,
+    /// Whether the edges that leave one step together, or reach one together, are drawn on one
+    /// shared line that branches; only those that read the same on the shared part.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub shared_trunks: bool,
 }
 
 /// The main path of a diagram: the ids of its steps in order, each joined to the next by an edge,

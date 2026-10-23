@@ -2,9 +2,11 @@
 //! cloud region, a network or a system, laid out by the layered layout of flow charts. A
 //! connection says what it does and, in brackets below, how. Notes stand beside the components
 //! they explain, joined by a dotted line that is no connection, at the head of a boundary, or
-//! below the diagram when they explain it as a whole. The description and the data table name
-//! every component with its boundaries, where it connects to and its notes; the table's caption
-//! carries the notes no component row does.
+//! below the diagram when they explain it as a whole. An interface a component provides is a
+//! ball on a stem at its box, and a connection that requires it ends in a socket around the
+//! ball. The description and the data table name every component with its boundaries, where it
+//! connects to, the interfaces it provides and its notes; the table's caption carries the notes
+//! no component row does.
 
 use std::fmt::Write as _;
 
@@ -178,7 +180,7 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
             )
         })
     };
-    Diagram {
+    let mut diagram = Diagram {
         nodes: architecture
             .components
             .iter()
@@ -260,6 +262,72 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
         orientation: architecture.orientation,
         spacing: architecture.spacing,
         ..Diagram::default()
+    };
+    push_interfaces(architecture, &mut diagram);
+    diagram
+}
+
+/// Every interface a component provides as a ball in the component's boundary, joined to it by
+/// a stem that leads into the component, so that the ball lies ahead of it along the flow; every
+/// connection that requires an interface then ends in a socket around its ball. The stem is on
+/// the main path where a connection of the main path requires the interface.
+fn push_interfaces(architecture: &ArchitectureSpec, diagram: &mut Diagram) {
+    let mut balls = Vec::new();
+    for (index, component) in architecture.components.iter().enumerate() {
+        for (at, interface) in component.provides.iter().enumerate() {
+            let ball = diagram.nodes.len();
+            let path = format!("/architecture/components/{index}/provides/{at}");
+            let main = architecture
+                .connections
+                .iter()
+                .enumerate()
+                .any(|(edge, connection)| {
+                    architecture.required(connection) == Some((index, at))
+                        && architecture.on_main_path(edge)
+                });
+            diagram.edges.push(Edge {
+                from: ball,
+                to: index,
+                id: None,
+                label: None,
+                technology: None,
+                dash: None,
+                main,
+                label_path: format!("{path}/label"),
+                ends: ends(ConnectionDirection::None),
+                sign: ConnectionDirection::None.sign(),
+                weight: None,
+                role: None,
+                sides: Sides::default(),
+                category: None,
+            });
+            diagram.nodes.push(Node {
+                label: interface.label.clone(),
+                sublabel: None,
+                shape: Shape::Interface,
+                lane: None,
+                group: diagram.nodes[index].group,
+                id: Some(format!("{}.{}", component.id, interface.id)),
+                path,
+                compartments: Vec::new(),
+                value: None,
+                parts: Vec::new(),
+                symbol: None,
+                role: None,
+                category: None,
+            });
+            balls.push(((index, at), ball));
+        }
+    }
+    for (edge, connection) in architecture.connections.iter().enumerate() {
+        if let Some(required) = architecture.required(connection) {
+            let (_, ball) = balls
+                .iter()
+                .find(|(interface, _)| *interface == required)
+                .expect("every provided interface has a ball");
+            diagram.edges[edge].to = *ball;
+            diagram.edges[edge].ends.head = End::Socket;
+        }
     }
 }
 
@@ -365,6 +433,12 @@ fn connects_to(spec: &ChartSpec, component: usize, in_table: bool) -> Vec<String
             let notes: Vec<String> = text::connection_direction(locale, connection.direction)
                 .map(str::to_owned)
                 .into_iter()
+                .chain(architecture.required(connection).map(|(component, at)| {
+                    text::requires_interface(
+                        locale,
+                        &architecture.components[component].provides[at].label,
+                    )
+                }))
                 .chain(connection.step.map(|step| text::step_number(locale, step)))
                 .chain(note)
                 .chain(connection.weight.map(|weight| {
@@ -563,6 +637,16 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         )
         .expect("writing to String cannot fail");
     }
+    let provided: Vec<(&str, Vec<String>)> = components_in_order(architecture)
+        .into_iter()
+        .map(|component| &architecture.components[component])
+        .filter(|component| !component.provides.is_empty())
+        .map(|component| (component.label.as_str(), provided_labels(component)))
+        .collect();
+    if !provided.is_empty() {
+        description.push(' ');
+        description.push_str(&text::interfaces(locale, &provided));
+    }
     if let Some(sentence) = roles::sentence(locale, &with_roles(architecture)) {
         description.push(' ');
         description.push_str(&sentence);
@@ -608,6 +692,15 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     }
     description.push_str(&notes_sentences(spec));
     description
+}
+
+/// The labels of the interfaces `component` provides, in their order.
+fn provided_labels(component: &ComponentSpec) -> Vec<String> {
+    component
+        .provides
+        .iter()
+        .map(|interface| interface.label.clone())
+        .collect()
 }
 
 /// Every component with a role, in reading order, then every connection with one, as
@@ -663,6 +756,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             .as_deref()
             .is_some_and(|on| architecture.component(on).is_some())
     });
+    let with_interfaces = architecture
+        .components
+        .iter()
+        .any(|component| !component.provides.is_empty());
     let with_roles = architecture
         .components
         .iter()
@@ -681,6 +778,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let categories = categories(architecture);
     if let Some((perspective, _)) = &categories {
         columns.push(perspective.title.clone());
+    }
+    if with_interfaces {
+        columns.push(words.provides.to_owned());
     }
     columns.push(words.connects_to.to_owned());
     if with_notes {
@@ -705,6 +805,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             }
             if let Some((perspective, categories)) = &categories {
                 row.push(category_name(spec.locale, perspective, categories[component]).to_owned());
+            }
+            if with_interfaces {
+                row.push(provided_labels(&architecture.components[component]).join(", "));
             }
             row.push(connects_to(spec, component, true).join(", "));
             if with_notes {
@@ -1864,5 +1967,379 @@ mod tests {
         for (json, code, path) in cases {
             assert_eq!(error(&json), (code, path.to_owned()));
         }
+    }
+
+    const INTERFACES: &str = include_str!("../examples/payment-interfaces.json");
+
+    fn count(content: &str, class: &str) -> usize {
+        content.matches(&format!("class=\"{class}\"")).count()
+            + content.matches(&format!("class=\"{class} ")).count()
+    }
+
+    #[test]
+    fn provided_interfaces_are_balls_and_required_ones_sockets() {
+        for orientation in ["portrait", "landscape"] {
+            let json = INTERFACES.replace("\"portrait\"", &format!("\"{orientation}\""));
+            let output = svg(&json);
+            assert_eq!(
+                count(&output.content, "chartlet-arch-ball"),
+                4,
+                "{orientation}"
+            );
+            assert_eq!(
+                count(&output.content, "chartlet-arch-socket"),
+                4,
+                "{orientation}"
+            );
+            // The socket of the main path takes its color.
+            assert_eq!(
+                output
+                    .content
+                    .matches("class=\"chartlet-arch-socket chartlet-arch-socket-main\"")
+                    .count(),
+                2,
+                "{orientation}"
+            );
+            assert!(output.content.contains(">Refunds API</text>"));
+            assert!(
+                output
+                    .content
+                    .contains("<title>Checkout → Payments API: charges</title>")
+            );
+            // A stem is no connection: no tooltip, no arrowhead.
+            assert_eq!(output.content.matches("<title>Payments API").count(), 1);
+            assert_eq!(svg(&json).content, output.content);
+        }
+        let alternative =
+            text_alternative(&ChartSpec::from_json(INTERFACES).expect("parses")).expect("valid");
+        assert!(alternative.description.contains(
+            "Checkout (service): connects to Orders (requires Orders API, places) and Payments (requires Payments API, charges)."
+        ));
+        assert!(alternative.description.ends_with(
+            "Payments provides Payments API and Refunds API. Card processor provides Card API."
+        ));
+        assert_eq!(alternative.table.columns[3], "Provides");
+        let payments = alternative
+            .table
+            .rows
+            .iter()
+            .find(|row| row[0] == "Payments")
+            .expect("a row");
+        assert_eq!(payments[3], "Payments API, Refunds API");
+        let german = INTERFACES.replace("\"source\"", "\"locale\": \"de\", \"source\"");
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .contains("Payments stellt Payments API und Refunds API bereit.")
+        );
+        assert!(alternative.description.contains("benötigt Orders API"));
+        assert_eq!(alternative.table.columns[3], "Stellt bereit");
+    }
+
+    #[test]
+    fn without_interfaces_nothing_changes() {
+        let plain = INTERFACES
+            .replace(r#", "toInterface": "orders-api""#, "")
+            .replace(r#", "toInterface": "payments-api""#, "")
+            .replace(r#", "toInterface": "refunds-api""#, "")
+            .replace(r#", "toInterface": "card-api""#, "");
+        let bare = plain
+            .replace(
+                r#",
+        "provides": [{ "id": "orders-api", "label": "Orders API" }]"#,
+                "",
+            )
+            .replace(
+                r#",
+        "provides": [
+          { "id": "payments-api", "label": "Payments API" },
+          { "id": "refunds-api", "label": "Refunds API" }
+        ]"#,
+                "",
+            )
+            .replace(
+                r#",
+        "provides": [{ "id": "card-api", "label": "Card API" }]"#,
+                "",
+            );
+        assert!(!bare.contains("provides"));
+        let output = svg(&bare);
+        assert!(!output.content.contains("chartlet-arch-ball"));
+        assert!(!output.content.contains("chartlet-arch-socket"));
+        // Provided but not required: the balls stand, without sockets.
+        let provided = svg(&plain);
+        assert_eq!(count(&provided.content, "chartlet-arch-ball"), 4);
+        assert_eq!(count(&provided.content, "chartlet-arch-socket"), 0);
+    }
+
+    #[test]
+    fn interfaces_are_checked() {
+        let cases = [
+            (
+                INTERFACES.replace(r#""toInterface": "refunds-api""#, r#""toInterface": "invoices""#),
+                "unknown_interface",
+                "/architecture/connections/4/toInterface",
+            ),
+            (
+                INTERFACES.replace(
+                    r#""toInterface": "orders-api""#,
+                    r#""toInterface": "payments-api""#,
+                ),
+                "unknown_interface",
+                "/architecture/connections/2/toInterface",
+            ),
+            (
+                INTERFACES.replace(
+                    r#"{ "id": "refunds-api", "label": "Refunds API" }"#,
+                    r#"{ "id": "payments-api", "label": "Refunds API" }"#,
+                ),
+                "duplicate_id",
+                "/architecture/components/5/provides/1/id",
+            ),
+            (
+                INTERFACES.replace(
+                    r#"{ "id": "refunds-api", "label": "Refunds API" }"#,
+                    r#"{ "id": "refunds-api", "label": "Refunds API" }, { "id": "a", "label": "A" }, { "id": "b", "label": "B" }, { "id": "c", "label": "C" }"#,
+                ),
+                "too_many_interfaces",
+                "/architecture/components/5/provides",
+            ),
+            (
+                INTERFACES.replace(
+                    r#""kind": "person" }"#,
+                    r#""kind": "person", "provides": [{ "id": "help", "label": "Help" }] }"#,
+                ),
+                "option_not_supported",
+                "/architecture/components/0/provides",
+            ),
+            (
+                INTERFACES.replace(
+                    r#""toInterface": "refunds-api", "label": "refunds""#,
+                    r#""toInterface": "refunds-api", "label": "refunds", "direction": "both""#,
+                ),
+                "option_not_supported",
+                "/architecture/connections/4/direction",
+            ),
+            (
+                INTERFACES.replace(
+                    r#""toInterface": "refunds-api", "label": "refunds""#,
+                    r#""toInterface": "refunds-api", "label": "refunds", "toSide": "left""#,
+                ),
+                "option_not_supported",
+                "/architecture/connections/4/toSide",
+            ),
+            (
+                INTERFACES.replace(r#""id": "orders-api""#, r#""id": "orders api""#),
+                "invalid_id",
+                "/architecture/components/4/provides/0/id",
+            ),
+        ];
+        for (json, code, path) in cases {
+            assert_eq!(error(&json), (code, path.to_owned()), "{code} {path}");
+        }
+    }
+
+    #[test]
+    fn an_interface_follows_its_component_into_views_and_hooks() {
+        let json = INTERFACES.replace(
+            "\"orientation\"",
+            r#""views": [{"key": "pay", "title": "Paying", "components": ["checkout", "payments"]}], "orientation""#,
+        );
+        let options = RenderOptions {
+            view: Some("pay".to_owned()),
+            hooks: true,
+            ..RenderOptions::default()
+        };
+        let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        // Both interfaces of Payments, one of them required in the view.
+        assert_eq!(count(&output.content, "chartlet-arch-ball"), 2);
+        assert_eq!(count(&output.content, "chartlet-arch-socket"), 1);
+        assert!(
+            output
+                .content
+                .contains("data-chartlet-node=\"payments.refunds-api\"")
+        );
+        assert!(!output.content.contains(">Orders API</text>"));
+    }
+
+    #[test]
+    fn an_instance_connection_takes_the_interface_of_its_model_connection() {
+        let json = INTERFACES
+            .replace(
+                r#"{ "from": "checkout", "to": "payments","#,
+                r#"{ "id": "charge", "from": "checkout", "to": "payments","#,
+            )
+            .replace(
+                "\"orientation\"",
+                r#""views": [{"key": "prod", "title": "Production", "environment": "Production",
+                    "hosts": [{"id": "node", "label": "Cluster"}],
+                    "instances": [{"id": "checkout-1", "of": "checkout", "in": "node"}, {"id": "payments-1", "of": "payments", "in": "node"}],
+                    "instanceConnections": [{"id": "charge", "from": "checkout-1", "to": "payments-1"}]}],
+                "orientation""#,
+            );
+        let options = RenderOptions {
+            view: Some("prod".to_owned()),
+            ..RenderOptions::default()
+        };
+        let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        assert_eq!(count(&output.content, "chartlet-arch-ball"), 2);
+        assert_eq!(count(&output.content, "chartlet-arch-socket"), 1);
+        assert!(
+            output
+                .content
+                .contains("<title>Checkout (checkout-1) → Payments API: charges</title>")
+        );
+    }
+
+    #[test]
+    fn interface_connections_never_join_a_shared_trunk() {
+        let json = FAN_OUT
+            .replace(
+                r#"{ "id": "catalog", "label": "Catalog", "in": "services" }"#,
+                r#"{ "id": "catalog", "label": "Catalog", "in": "services", "provides": [{"id": "api", "label": "Catalog API"}] }"#,
+            )
+            .replace(
+                r#"{ "from": "gateway", "to": "catalog" }"#,
+                r#"{ "from": "gateway", "to": "catalog", "toInterface": "api" }"#,
+            );
+        let output = svg(&json);
+        let start = |title: &str| {
+            output
+                .content
+                .split("<polyline points=\"")
+                .find(|line| line.contains(&format!("<title>{title}</title>")))
+                .and_then(|line| line.split(' ').next())
+                .expect("drawn")
+                .to_owned()
+        };
+        assert_ne!(start("Gateway → Catalog API"), start("Gateway → Search"));
+        assert_eq!(start("Gateway → Search"), start("Gateway → Cart"));
+        assert_eq!(count(&output.content, "chartlet-arch-socket"), 1);
+        // Search and Cart still share the gateway's trunk, which branches.
+        assert!(branches(&output.content) > 0);
+    }
+
+    #[test]
+    fn interfaces_work_on_a_phone_and_in_print() {
+        let mobile = RenderOptions {
+            variant: crate::Variant::Mobile,
+            ..RenderOptions::default()
+        };
+        let output = render_json(INTERFACES, RenderFormat::Svg, &mobile).expect("renders");
+        assert_eq!(count(&output.content, "chartlet-arch-ball"), 4);
+        // On a phone the names stand on chips below the balls, and the diagram fits.
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(svg(INTERFACES).warnings.is_empty());
+        let print = RenderOptions {
+            variant: crate::Variant::Print,
+            ..RenderOptions::default()
+        };
+        let output = render_json(INTERFACES, RenderFormat::Svg, &print).expect("renders");
+        assert!(!output.content.contains("var("));
+        assert!(output.content.contains(".chartlet-arch-socket{"));
+    }
+
+    #[test]
+    fn a_component_that_requires_its_own_interface_still_renders() {
+        let json = INTERFACES.replace(
+            r#"{ "from": "orders", "to": "db", "technology": "SQL" }"#,
+            r#"{ "from": "orders", "to": "db", "technology": "SQL" }, { "from": "orders", "to": "orders", "toInterface": "orders-api" }"#,
+        );
+        let output = svg(&json);
+        assert_eq!(count(&output.content, "chartlet-arch-socket"), 5);
+        assert_eq!(svg(&json).content, output.content);
+    }
+
+    #[test]
+    fn notes_and_interfaces_share_a_diagram() {
+        let json = INTERFACES.replace(
+            "\"orientation\"",
+            r#""notes": [
+                {"on": "payments", "text": "Runs in two regions"},
+                {"on": "shop", "text": "One deployment per country"},
+                {"text": "Prices include tax"}
+            ],
+            "orientation""#,
+        );
+        for orientation in ["portrait", "landscape"] {
+            let json = json.replace("\"portrait\"", &format!("\"{orientation}\""));
+            let output = svg(&json);
+            assert_eq!(
+                count(&output.content, "chartlet-arch-ball"),
+                4,
+                "{orientation}"
+            );
+            assert_eq!(
+                count(&output.content, "chartlet-arch-socket"),
+                4,
+                "{orientation}"
+            );
+            assert!(output.content.contains(">Runs in two regions</text>"));
+            assert!(output.content.contains(">Prices include tax</text>"));
+            assert_eq!(svg(&json).content, output.content);
+        }
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .contains("Note on Payments: Runs in two regions.")
+        );
+        assert!(
+            alternative
+                .description
+                .contains("Payments provides Payments API")
+        );
+    }
+
+    #[test]
+    fn an_interface_connection_keeps_its_category_and_is_derived_with_its_interface() {
+        let charge = INTERFACES.replace(
+            r#"{ "from": "checkout", "to": "payments","#,
+            r#"{ "id": "charge", "from": "checkout", "to": "payments","#,
+        );
+        let json = charge.replace(
+            "\"orientation\"",
+            r#""perspectives": [{"key": "team", "title": "Team", "categories": [
+                {"label": "Payments team", "components": ["payments"], "connections": ["charge"]}
+            ]}],
+            "perspective": "team",
+            "orientation""#,
+        );
+        let output = svg(&json);
+        let socket = output
+            .content
+            .split("<g class=\"")
+            .find(|group| group.contains("<title>Checkout → Payments API: charges · Payments team"))
+            .expect("drawn");
+        assert!(socket.contains("chartlet-flow-part-1"), "{socket}");
+        assert!(socket.contains("chartlet-arch-socket"));
+        assert!(
+            output
+                .content
+                .contains(".chartlet-flow-part-1 .chartlet-arch-socket{")
+        );
+        // A deployment view that derives its connections keeps the interface.
+        let json = INTERFACES.replace(
+            "\"orientation\"",
+            r#""views": [{"key": "prod", "title": "Production", "environment": "Production",
+                "hosts": [{"id": "node", "label": "Cluster"}],
+                "instances": [{"id": "checkout-1", "of": "checkout", "in": "node"}, {"id": "payments-1", "of": "payments", "in": "node"}],
+                "deriveConnections": true}],
+            "orientation""#,
+        );
+        let options = RenderOptions {
+            view: Some("prod".to_owned()),
+            ..RenderOptions::default()
+        };
+        let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        assert_eq!(count(&output.content, "chartlet-arch-socket"), 1);
+        assert!(
+            output
+                .content
+                .contains("<title>Checkout (checkout-1) → Payments API: charges</title>")
+        );
     }
 }

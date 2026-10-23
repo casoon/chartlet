@@ -3,7 +3,7 @@ use chartlet::{ChartSpec, RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 98] = [
+const EXAMPLES: [(&str, &str, &str); 100] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -238,6 +238,16 @@ const EXAMPLES: [(&str, &str, &str); 98] = [
         "service-fan-out",
         include_str!("../examples/service-fan-out.json"),
         include_str!("../examples/service-fan-out.svg"),
+    ),
+    (
+        "order-fulfilment",
+        include_str!("../examples/order-fulfilment.json"),
+        include_str!("../examples/order-fulfilment.svg"),
+    ),
+    (
+        "payment-interfaces",
+        include_str!("../examples/payment-interfaces.json"),
+        include_str!("../examples/payment-interfaces.svg"),
     ),
     (
         "tenant-architecture",
@@ -497,7 +507,7 @@ const EXAMPLES: [(&str, &str, &str); 98] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 32] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 33] = [
     (
         "co-authors",
         include_str!("../examples/co-authors.json"),
@@ -657,6 +667,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 32] = [
         "payment-notes",
         include_str!("../examples/payment-notes.json"),
         include_str!("../examples/payment-notes.mobile.svg"),
+    ),
+    (
+        "payment-interfaces",
+        include_str!("../examples/payment-interfaces.json"),
+        include_str!("../examples/payment-interfaces.mobile.svg"),
     ),
 ];
 

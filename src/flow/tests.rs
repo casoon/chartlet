@@ -769,6 +769,23 @@ fn a_group_split_by_the_order_of_the_specification_stays_together() {
     assert!(output.warnings.is_empty(), "{:?}", output.warnings);
 }
 
+const FULFILMENT: &str = include_str!("../../examples/order-fulfilment.json");
+
+fn branches(content: &str) -> usize {
+    content
+        .matches("r=\"3\" class=\"chartlet-flow-head\"")
+        .count()
+}
+
+/// Where each edge whose tooltip starts with `from` leaves its step.
+fn starts(content: &str, from: &str) -> Vec<String> {
+    content
+        .split("<polyline points=\"")
+        .filter(|line| line.contains(&format!("<title>{from} → ")))
+        .map(|line| line.split(' ').next().expect("a point").to_owned())
+        .collect()
+}
+
 /// The points of the line of the edge with `title`, from where it starts.
 fn edge_points(svg: &str, title: &str) -> Vec<(f64, f64)> {
     let chunks: Vec<&str> = svg.split('<').collect();
@@ -788,6 +805,91 @@ fn edge_points(svg: &str, title: &str) -> Vec<(f64, f64)> {
             (x.parse().expect("x"), y.parse().expect("y"))
         })
         .collect()
+}
+
+#[test]
+fn shared_trunks_in_a_flow_chart_branch_and_keep_every_edge() {
+    let separate = FULFILMENT.replace("\"sharedTrunks\": true", "\"sharedTrunks\": false");
+    let unset = FULFILMENT.replace(",\n    \"sharedTrunks\": true", "");
+    assert_ne!(unset, FULFILMENT);
+    assert!(svg(FULFILMENT).warnings.is_empty());
+    assert_eq!(svg(&separate).content, svg(&unset).content);
+    assert_eq!(branches(&svg(&unset).content), 0);
+    for orientation in ["portrait", "landscape"] {
+        let json = FULFILMENT.replace(
+            "\"sharedTrunks\"",
+            &format!("\"orientation\": \"{orientation}\", \"sharedTrunks\""),
+        );
+        let output = svg(&json);
+        // Out of the split: the trunk turns to either side; into packing likewise.
+        assert_eq!(branches(&output.content), 4, "{orientation}");
+        assert_eq!(svg(&json).content, output.content);
+        for title in [
+            "<title>Split into tasks → Reserve stock</title>",
+            "<title>Check fraud score → Pack parcel</title>",
+            "<title>Express? → Send by post: no</title>",
+            "<title>Send by post → Shipped</title>",
+        ] {
+            assert_eq!(output.content.matches(title).count(), 1, "{title}");
+        }
+    }
+    let shared =
+        text_alternative(&ChartSpec::from_json(FULFILMENT).expect("parses")).expect("valid");
+    let own = text_alternative(&ChartSpec::from_json(&unset).expect("parses")).expect("valid");
+    assert_eq!(shared.description, own.description);
+    assert_eq!(shared.table.rows, own.table.rows);
+}
+
+#[test]
+fn decision_branches_labels_and_lanes_keep_a_line_of_their_own() {
+    // Without their labels and off the main path, the branches of a decision still keep a line
+    // each.
+    let unlabeled = FULFILMENT
+        .replace(r#", "label": "yes""#, "")
+        .replace(r#", "label": "no""#, "")
+        .replace(r#", "courier", "shipped"]"#, "]");
+    let content = svg(&unlabeled).content;
+    assert!(content.contains("<title>Express? → Hand to courier</title>"));
+    let decision = starts(&content, "Express?");
+    assert_eq!(decision.len(), 2);
+    assert_ne!(decision[0], decision[1]);
+    // A label takes an edge off the trunk; the others keep sharing theirs.
+    let labeled = FULFILMENT.replace(
+        r#"{ "from": "split", "to": "stock" }"#,
+        r#"{ "from": "split", "to": "stock", "label": "first" }"#,
+    );
+    let split = starts(&svg(&labeled).content, "Split into tasks");
+    assert_ne!(split[0], split[2]);
+    assert_eq!(split[2], split[3]);
+    // Steps in another lane do not share a trunk with the rest.
+    let mut lanes = FULFILMENT.replace(
+        r#""groups": [{ "label": "Checks", "nodes": ["stock", "payment", "fraud", "address"] }]"#,
+        r#""lanes": [{"id": "a", "label": "Warehouse"}, {"id": "b", "label": "Finance"}]"#,
+    );
+    for id in [
+        "received", "split", "stock", "payment", "fraud", "address", "pack", "express", "courier",
+        "post", "shipped",
+    ] {
+        let lane = if matches!(id, "fraud" | "address") {
+            "b"
+        } else {
+            "a"
+        };
+        lanes = lanes.replace(
+            &format!(r#"{{ "id": "{id}", "#),
+            &format!(r#"{{ "id": "{id}", "lane": "{lane}", "#),
+        );
+    }
+    let output = svg(&lanes);
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    // Payment is on the main path; the two Finance checks share a trunk, stock goes alone.
+    let split = starts(&output.content, "Split into tasks");
+    assert_eq!(split.len(), 4);
+    assert_eq!(split[2], split[3]);
+    assert_ne!(split[0], split[2]);
+    let unlaned = starts(&svg(FULFILMENT).content, "Split into tasks");
+    assert_eq!(unlaned[0], unlaned[2]);
+    assert_eq!(svg(&lanes).content, output.content);
 }
 
 #[test]
@@ -1054,4 +1156,33 @@ fn notes_explain_a_step_or_the_whole_chart_without_adding_an_edge() {
         error(&unknown),
         ("unknown_node", "/flow/notes/0/on".to_owned())
     );
+}
+
+#[test]
+fn note_lines_never_join_a_shared_trunk_in_a_flow_chart() {
+    let json = FULFILMENT.replace(
+        "\"sharedTrunks\"",
+        r#""notes": [
+            {"on": "split", "text": "One task per team"},
+            {"on": "split", "text": "Started at once"},
+            {"text": "Same day for orders before noon"}
+        ],
+        "sharedTrunks""#,
+    );
+    let output = svg(&json);
+    assert_eq!(
+        branches(&output.content),
+        branches(&svg(FULFILMENT).content)
+    );
+    let start = |line: &str| line.split(' ').next().expect("a point").to_owned();
+    let notes: Vec<String> = output
+        .content
+        .split("<polyline points=\"")
+        .filter(|line| line.contains("chartlet-flow-dotted\"/>"))
+        .map(start)
+        .collect();
+    assert_eq!(notes.len(), 2);
+    let trunk = starts(&output.content, "Split into tasks")[0].clone();
+    assert!(notes.iter().all(|note| *note != trunk));
+    assert_eq!(svg(&json).content, output.content);
 }

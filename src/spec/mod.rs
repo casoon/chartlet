@@ -34,7 +34,7 @@ use crate::{
 };
 pub use architecture::{
     ArchitectureSpec, BoundarySpec, CategorySpec, ComponentKind, ComponentSpec,
-    ConnectionDirection, ConnectionSpec, PerspectiveSpec,
+    ConnectionDirection, ConnectionSpec, InterfaceSpec, PerspectiveSpec,
 };
 pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
 pub(crate) use boxplot::BoxSummary;

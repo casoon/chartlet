@@ -928,6 +928,15 @@ releases.
   landscape. Once a chart has `lanes`, every step names its `lane` (`missing_lane`).
 - **Groups** frame steps of one lane under a name (`group_spans_lanes` otherwise). A step outside
   a group that ends up inside its frame is reported as `group_overlap`.
+- **Shared trunks.** With `"sharedTrunks": true`, edges that leave one step for steps of the next
+  layer, or reach one from steps of the layer before — a step that splits into parallel tasks, the
+  tasks that all lead to one step — are drawn on one line that branches on a track of its own,
+  with a dot at every branch, as in architecture diagrams. Only edges that read the same on the
+  shared part share it: no `label`, the same `dash`, `weight` and `role`, off the main path, and
+  their other ends in the same lane and group. The branches of a decision keep a line each, even
+  without a label, and so does a second edge between the same two steps. Every edge is still drawn
+  from end to end with its tooltip, and the description and the table are as before. Example
+  `order-fulfilment`.
 - **Orientation** works as for sequence diagrams: portrait runs the flow down, landscape right,
   and `auto` picks by the canvas.
 - **Port sides.** `fromSide` and `toSide` on an edge say which side of its steps it leaves and
@@ -1145,6 +1154,21 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   components, keeps a line of its own. Every connection is still drawn from end to end with its
   tooltip, and the description and the table list every one as before. Example
   `service-fan-out`.
+- **Interfaces.** A component lists the interfaces it `provides`, such as
+  `"provides": [{ "id": "payments-api", "label": "Payments API" }]`; each is drawn as a ball on a
+  stem ahead of the component's box, with its label beside it (on a narrow canvas, on a chip
+  below it). A connection with
+  `"toInterface": "payments-api"` says that `from` requires that interface of `to`: it ends in a
+  socket around the ball instead of an arrowhead, and every connection that requires the same
+  interface meets the same ball. The description and the table say it in words — “Checkout
+  (service): connects to Payments (requires Payments API, charges)”, “Payments provides Payments
+  API and Refunds API” — and the table gains a Provides column. An interface's id is unique within
+  its component; with the component's id it forms the stable id `payments.payments-api`, which the
+  hooks carry. A component provides at most four (`too_many_interfaces`); a `person` or a `node`
+  provides none, and a connection to an interface runs forward (`option_not_supported`); an id
+  that `to` does not provide is `unknown_interface`. An interface follows its component into every
+  view and environment, and a connection to an interface never joins a shared trunk. Without
+  `provides` and `toInterface`, nothing changes. Example `payment-interfaces`.
 - **Roles.** `role` on a component or a connection says what it means in this picture, beyond its
   kind: `critical` (a strong red outline or line, badge `!`), `planned` (dashed and violet, badge
   `+`) or `deprecated` (dotted and gray, badge `−`). Flow charts take the same roles on steps and
