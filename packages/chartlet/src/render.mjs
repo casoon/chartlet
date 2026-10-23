@@ -126,6 +126,9 @@ function runCli(binary, input, options, extraArgs) {
   if (options.view) {
     args.push("--view", options.view);
   }
+  if (options.allViews) {
+    args.push("--all-views");
+  }
   if (options.styles) {
     args.push("--styles", options.styles);
   }

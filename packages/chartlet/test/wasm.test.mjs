@@ -286,6 +286,22 @@ test("renders the view it is asked for, alike from WebAssembly and the CLI", () 
   assert.equal(unknown.error.path, "/render/view");
 });
 
+test("renders all views on one page, alike from WebAssembly and the CLI", () => {
+  const spec = JSON.parse(readExample("shop-views.json"));
+  const all = { format: "html", allViews: true, manifest: true };
+  const fromWasm = renderChart(spec, all);
+  const fromCli = renderChart(spec, { ...all, binary });
+  assert.equal(fromWasm.content, readExample("shop-views.all.html"));
+  assert.equal(fromCli.content, fromWasm.content);
+  assert.deepEqual(fromCli.manifest, fromWasm.manifest);
+  assert.deepEqual(fromWasm.manifest.views, ["overview", "checkout"]);
+  assert.equal(fromWasm.manifest.view, undefined);
+
+  const svg = renderChartDetailed(spec, { format: "svg", allViews: true });
+  assert.equal(svg.ok, false);
+  assert.deepEqual([svg.error.code, svg.error.path], ["option_not_supported", "/render/allViews"]);
+});
+
 test("hooks are written alike by the WebAssembly build and the CLI, and only on request", () => {
   const spec = JSON.parse(readExample("sensor-readings.json"));
   for (const format of ["svg", "html"]) {

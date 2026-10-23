@@ -17,6 +17,12 @@ export interface RenderChartOptions {
    * view. Every variant renders the same view.
    */
   view?: string;
+  /**
+   * Render every view of an architecture model on one HTML page instead of one view: a
+   * navigation of links to the views, the default view first, and each view as a section with
+   * its own figure and data table. HTML and the desktop variant only; not together with `view`.
+   */
+  allViews?: boolean;
   /** Fail on any warning, except those whose code is listed in `allowWarnings`. */
   strict?: boolean;
   /** Warning codes that `strict` lets through, such as `"dense_chart"`. They are still reported. */
@@ -66,6 +72,8 @@ export interface ChartManifest {
   idPrefix: string;
   /** The key of the view of an architecture model that was rendered; absent without views. */
   view?: string;
+  /** The keys of the views shown on one page with `allViews`, in page order; absent otherwise. */
+  views?: string[];
   /** The key of the perspective an architecture diagram showed; absent without one. */
   perspective?: string;
   warnings: ChartManifestWarning[];
