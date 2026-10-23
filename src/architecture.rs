@@ -9,7 +9,8 @@ use crate::{
     DataTable,
     error::ChartWarning,
     flow::{
-        Diagram, Edge, End, Ends, Group, Node, Shape, heaviest_edge, layout_diagram, reading_order,
+        Diagram, Edge, End, Ends, Group, Node, Shape, heaviest_edge, layout_with_trunks,
+        reading_order,
     },
     layout::format_value,
     metrics::TextMetrics,
@@ -24,7 +25,14 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
-    layout_diagram(spec, &diagram(architecture(spec)), warnings, metrics)
+    let architecture = architecture(spec);
+    layout_with_trunks(
+        spec,
+        &diagram(architecture),
+        architecture.shared_trunks,
+        warnings,
+        metrics,
+    )
 }
 
 fn architecture(spec: &ChartSpec) -> &ArchitectureSpec {
@@ -684,6 +692,105 @@ mod tests {
             r#""label": "stores", "direction": "forward"}"#,
         );
         assert_eq!(svg(&forward).content, svg(SPEC).content);
+    }
+
+    const FAN_OUT: &str = include_str!("../examples/service-fan-out.json");
+
+    fn branches(content: &str) -> usize {
+        content
+            .matches("r=\"3\" class=\"chartlet-flow-head\"")
+            .count()
+    }
+
+    #[test]
+    fn shared_trunks_branch_with_dots_and_keep_every_connection() {
+        let separate = FAN_OUT.replace("\"sharedTrunks\": true", "\"sharedTrunks\": false");
+        let unset = FAN_OUT.replace(",\n    \"sharedTrunks\": true", "");
+        assert_ne!(unset, FAN_OUT);
+        assert_eq!(svg(&separate).content, svg(&unset).content);
+        assert_eq!(branches(&svg(&unset).content), 0);
+        for orientation in ["portrait", "landscape"] {
+            let json = FAN_OUT.replace(
+                "\"sharedTrunks\"",
+                &format!("\"orientation\": \"{orientation}\", \"sharedTrunks\""),
+            );
+            let output = svg(&json);
+            assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+            // Out of the gateway: two inner branches on one side; into the log store: two inner
+            // branches and the trunk, where the edges come from both sides.
+            assert_eq!(branches(&output.content), 5, "{orientation}");
+            assert_eq!(svg(&json).content, output.content);
+            // Every connection is still drawn on its own, with its tooltip.
+            for title in [
+                "<title>Gateway → Catalog</title>",
+                "<title>Gateway → Cart</title>",
+                "<title>Cart → Log store</title>",
+                "<title>Orders → Log store</title>",
+                "<title>Gateway → Sign-in: checks token</title>",
+            ] {
+                assert_eq!(output.content.matches(title).count(), 1, "{title}");
+            }
+        }
+        let shared =
+            text_alternative(&ChartSpec::from_json(FAN_OUT).expect("parses")).expect("valid");
+        let own = text_alternative(&ChartSpec::from_json(&unset).expect("parses")).expect("valid");
+        assert_eq!(shared.description, own.description);
+        assert_eq!(shared.table.rows, own.table.rows);
+    }
+
+    #[test]
+    fn only_connections_that_read_the_same_share_a_trunk() {
+        let separate = FAN_OUT.replace("\"sharedTrunks\": true", "\"sharedTrunks\": false");
+        // Labels, a second pattern, a weight, a direction or a second connection between the
+        // same two components each keep a line of their own; what is left shares no trunk.
+        for (from, to) in [
+            (
+                r#""to": "search" }"#,
+                r#""to": "search", "label": "finds" }"#,
+            ),
+            (
+                r#""to": "search" }"#,
+                r#""to": "search", "dash": "dotted" }"#,
+            ),
+            (r#""to": "search" }"#, r#""to": "search", "weight": 3 }"#),
+            (
+                r#""to": "search" }"#,
+                r#""to": "search", "direction": "both" }"#,
+            ),
+            (
+                r#"{ "from": "gateway", "to": "cart" },"#,
+                r#"{ "from": "gateway", "to": "catalog" },"#,
+            ),
+        ] {
+            assert!(FAN_OUT.contains(from), "{from}");
+            let fan = |json: &str| {
+                let content = svg(&json.replace(from, to)).content;
+                // The way out of the gateway, without the log store's trunk.
+                content[..content.find("<title>Catalog → Log store").expect("drawn")].to_owned()
+            };
+            assert!(branches(&fan(FAN_OUT)) < 2, "{to}");
+            assert_eq!(branches(&fan(&separate)), 0, "{to}");
+        }
+    }
+
+    #[test]
+    fn shared_trunks_work_on_a_phone() {
+        let json = FAN_OUT.replace(
+            "\"source\"",
+            "\"mobile\": { \"width\": 360, \"height\": 900 }, \"source\"",
+        );
+        let options = RenderOptions {
+            variant: crate::Variant::Mobile,
+            ..RenderOptions::default()
+        };
+        let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        assert_eq!(branches(&output.content), 5);
+        assert_eq!(
+            output.content,
+            render_json(&json, RenderFormat::Svg, &options)
+                .expect("renders")
+                .content
+        );
     }
 
     #[test]

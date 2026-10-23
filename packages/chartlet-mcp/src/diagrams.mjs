@@ -261,6 +261,7 @@ const KINDS = {
       technology: "how, in brackets below the label",
       step: "1-99, each once: numbers the connection in a sequence of calls, written before the label",
       direction: "forward (default, arrowhead at to), both (one connection both ways, arrowheads at either end) or none (no direction, no arrowhead)",
+      sharedTrunks: "on architecture: true draws connections that leave or reach one component together on one branching line; only unlabeled ones with the same dash and weight whose other ends share a boundary",
     },
   },
   tree: {

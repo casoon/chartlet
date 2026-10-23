@@ -28,6 +28,10 @@ pub struct ArchitectureSpec {
     pub main_path: MainPath,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    /// Whether connections that leave a component together, or reach one together, are drawn on
+    /// one shared line that branches; only those that read the same on the shared part.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub shared_trunks: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

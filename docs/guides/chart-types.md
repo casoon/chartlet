@@ -1028,6 +1028,16 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   its `from` component, as “both ways” or “without direction”, and the tooltip joins its ends with
   `↔` or `—`. Once a connection has no single direction, the description no longer names where
   nothing leads in or out, nor loops.
+- **Shared trunks.** With `"sharedTrunks": true`, connections that leave one component for
+  components of the next layer, or reach one from components of the layer before, are drawn on
+  one line that branches on a track of its own, with a dot at every branch — a gateway that
+  calls many services, services that all log to one store. Only connections that read the same on
+  the shared part share it: no `label`, `technology` or `step`, the usual direction, the same
+  `dash` and `weight`, off the main path, and their other ends in the same boundary, so that they
+  cross the same frames. Anything else, such as a second connection between the same two
+  components, keeps a line of its own. Every connection is still drawn from end to end with its
+  tooltip, and the description and the table list every one as before. Example
+  `service-fan-out`.
 - **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
   classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
   (`option_not_supported`).

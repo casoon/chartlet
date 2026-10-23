@@ -1445,7 +1445,8 @@
           "description": "The usual way a request takes, as component ids joined by connections, or as {from, to}: the shortest way along the connections between two components (at a tie the first in the order of the connections). Kept in line and drawn stronger.",
           "$ref": "#/$defs/mainPath"
         },
-        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "sharedTrunks": { "description": "Draws connections that leave a component together, or reach one together, on one shared line that branches with a dot at every branch: only those without label, technology or step, in the usual direction, off the main path, with the same dash and weight and their other ends in the same boundary. Every connection is still drawn and listed.", "type": "boolean", "default": false }
       }
     },
     "mainPath": {
