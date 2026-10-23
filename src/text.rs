@@ -86,6 +86,8 @@ pub(crate) struct Words {
     pub package: &'static str,
     /// The notes column of a class or architecture diagram's table.
     pub notes: &'static str,
+    /// The column of an architecture diagram's table with the interfaces a component provides.
+    pub provides: &'static str,
     /// The columns of a tree's table.
     pub node: &'static str,
     pub level: &'static str,
@@ -259,6 +261,7 @@ const EN: Words = Words {
     instance: "Instance",
     package: "Package",
     notes: "Notes",
+    provides: "Provides",
     focus: "Focus",
     show_all: "Show all",
     ring: "Ring",
@@ -383,6 +386,7 @@ const DE: Words = Words {
     instance: "Instanz",
     package: "Paket",
     notes: "Notizen",
+    provides: "Stellt bereit",
     focus: "Fokus",
     show_all: "Alle zeigen",
     ring: "Ring",
@@ -1802,6 +1806,30 @@ pub(crate) fn connection_note(
         (None, Some(technology)) => Some(format!("{via} {technology}")),
         (Some(label), Some(technology)) => Some(format!("{label}, {via} {technology}")),
     }
+}
+
+/// What a connection to an interface says: which interface it requires.
+pub(crate) fn requires_interface(locale: Locale, interface: &str) -> String {
+    match locale {
+        Locale::En => format!("requires {interface}"),
+        Locale::De => format!("benötigt {interface}"),
+    }
+}
+
+/// The interfaces each component provides, one sentence per component, as `Orders provides
+/// Payments API and Refunds API.`
+pub(crate) fn interfaces(locale: Locale, provided: &[(&str, Vec<String>)]) -> String {
+    provided
+        .iter()
+        .map(|(component, interfaces)| {
+            let interfaces = listed(locale, interfaces);
+            match locale {
+                Locale::En => format!("{component} provides {interfaces}."),
+                Locale::De => format!("{component} stellt {interfaces} bereit."),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// A component as a sentence: its label and kind, and where it connects to.

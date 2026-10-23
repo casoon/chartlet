@@ -268,6 +268,10 @@ const KINDS = {
       direction: "forward (default, arrowhead at to), both (one connection both ways, arrowheads at either end) or none (no direction, no arrowhead)",
       sharedTrunks: "on architecture: true draws connections that leave or reach one component together on one branching line; only unlabeled ones with the same dash, weight and role whose other ends share a boundary",
       id: "optional stable name by which views select the connection",
+      toInterface: "id of an interface the to component provides: from requires it; ends in a socket around its ball, runs forward, never joins a shared trunk",
+    },
+    interface: {
+      provides: "components[].provides: up to 4 { id, label } interfaces, each a ball on a stem ahead of the box (not on person or node); id unique within the component",
     },
     view: {
       components: "architecture.views[]: a key, a title and the components shown; connections between them come along, or only the listed connections",

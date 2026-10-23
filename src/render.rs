@@ -129,6 +129,9 @@ const STATE_STYLE: &str = ".chartlet-state{rx:14px}.chartlet-state-inner{fill:no
 
 /// Architecture diagrams, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: the head of a person
 /// and the dots of a window bar.
+/// Provided and required interfaces of architecture diagrams: the ball, its name, and the socket
+/// in the color of its connection.
+const INTERFACE_STYLE: &str = ".chartlet-arch-ball{fill:var(--chartlet-background);stroke:var(--chartlet-role-blue);stroke-width:1.5}.chartlet-arch-interface{font-size:11px;fill:var(--chartlet-text)}.chartlet-arch-socket{fill:none;stroke:var(--chartlet-zero);stroke-width:1.5;stroke-linecap:round}.chartlet-arch-socket-main{stroke:var(--chartlet-accent)}.chartlet-flow-role-critical .chartlet-arch-socket{stroke:var(--chartlet-role-red)}.chartlet-flow-role-planned .chartlet-arch-socket{stroke:var(--chartlet-role-violet)}.chartlet-flow-role-deprecated .chartlet-arch-socket{stroke:var(--chartlet-role-gray)}";
 const ARCHITECTURE_STYLE: &str = ".chartlet-arch-head{fill:var(--chartlet-role-violet-fill);stroke:var(--chartlet-role-violet);stroke-width:1.5}.chartlet-arch-dot{fill:var(--chartlet-role-blue);stroke:none}";
 
 const FILTER_STYLE: &str = ".chartlet-wrapper{display:inline-block;max-width:100%}.chartlet-filter{border:none;padding:0;margin:0 0 12px 0}.chartlet-filter legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-filter label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-filter input{margin-right:4px}.chartlet-filter input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-wrapper:has(.chartlet-filter input.series-0:not(:checked)) .chartlet-root [data-series=\"0\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-2:not(:checked)) .chartlet-root [data-series=\"2\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-3:not(:checked)) .chartlet-root [data-series=\"3\"]{display:none}";
@@ -385,7 +388,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = matches!(spec.theme, Theme::Dark | Theme::Blueprint);
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -486,6 +489,11 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         } else {
             ""
         },
+        if spec.has_interfaces() {
+            INTERFACE_STYLE
+        } else {
+            ""
+        },
         if spec.theme == Theme::Blueprint {
             BLUEPRINT_STYLE
         } else {
@@ -512,7 +520,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
         Topicmap, Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 45] = [
+    let groups: [(&str, &[ChartType]); 46] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -555,6 +563,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (crate::parts::STYLE, &[Flow, Tree, Architecture]),
         (crate::parts::UNSTATED_STYLE, &[Architecture]),
         (crate::symbols::STYLE, &[Architecture]),
+        (INTERFACE_STYLE, &[Architecture]),
         (
             BLUEPRINT_STYLE,
             &[Sequence, Flow, State, Architecture, Tree, Classes, Network],

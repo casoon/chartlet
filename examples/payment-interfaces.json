@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Checkout and the interfaces it relies on",
+  "source": "Platform handbook, payment path",
+  "width": 960,
+  "height": 760,
+  "mobile": { "width": 360, "height": 1000 },
+  "architecture": {
+    "boundaries": [{ "id": "shop", "label": "Shop platform" }],
+    "components": [
+      { "id": "shopper", "label": "Shopper", "kind": "person" },
+      { "id": "web", "label": "Web shop", "kind": "frontend" },
+      { "id": "checkout", "label": "Checkout", "in": "shop" },
+      { "id": "support", "label": "Support", "in": "shop" },
+      {
+        "id": "orders",
+        "label": "Orders",
+        "in": "shop",
+        "provides": [{ "id": "orders-api", "label": "Orders API" }]
+      },
+      {
+        "id": "payments",
+        "label": "Payments",
+        "in": "shop",
+        "provides": [
+          { "id": "payments-api", "label": "Payments API" },
+          { "id": "refunds-api", "label": "Refunds API" }
+        ]
+      },
+      { "id": "db", "label": "Order store", "kind": "database", "in": "shop" },
+      { "id": "psp", "label": "Card processor", "kind": "external" }
+    ],
+    "connections": [
+      { "from": "shopper", "to": "web", "label": "buys" },
+      { "from": "web", "to": "checkout", "label": "submits", "technology": "HTTPS" },
+      { "from": "checkout", "to": "orders", "toInterface": "orders-api", "label": "places" },
+      { "from": "checkout", "to": "payments", "toInterface": "payments-api", "label": "charges" },
+      { "from": "support", "to": "payments", "toInterface": "refunds-api", "label": "refunds" },
+      { "from": "payments", "to": "psp", "technology": "HTTPS" },
+      { "from": "orders", "to": "db", "technology": "SQL" }
+    ],
+    "mainPath": ["shopper", "web", "checkout", "payments", "psp"],
+    "orientation": "portrait"
+  }
+}

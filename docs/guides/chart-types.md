@@ -1081,6 +1081,20 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   components, keeps a line of its own. Every connection is still drawn from end to end with its
   tooltip, and the description and the table list every one as before. Example
   `service-fan-out`.
+- **Interfaces.** A component lists the interfaces it `provides`, such as
+  `"provides": [{ "id": "payments-api", "label": "Payments API" }]`; each is drawn as a ball on a
+  stem ahead of the component's box, with its label beside it. A connection with
+  `"toInterface": "payments-api"` says that `from` requires that interface of `to`: it ends in a
+  socket around the ball instead of an arrowhead, and every connection that requires the same
+  interface meets the same ball. The description and the table say it in words — “Checkout
+  (service): connects to Payments (requires Payments API, charges)”, “Payments provides Payments
+  API and Refunds API” — and the table gains a Provides column. An interface's id is unique within
+  its component; with the component's id it forms the stable id `payments.payments-api`, which the
+  hooks carry. A component provides at most four (`too_many_interfaces`); a `person` or a `node`
+  provides none, and a connection to an interface runs forward (`option_not_supported`); an id
+  that `to` does not provide is `unknown_interface`. An interface follows its component into every
+  view and environment, and a connection to an interface never joins a shared trunk. Without
+  `provides` and `toInterface`, nothing changes. Example `payment-interfaces`.
 - **Roles.** `role` on a component or a connection says what it means in this picture, beyond its
   kind: `critical` (a strong red outline or line, badge `!`), `planned` (dashed and violet, badge
   `+`) or `deprecated` (dotted and gray, badge `−`). Flow charts take the same roles on steps and

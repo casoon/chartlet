@@ -72,6 +72,13 @@ const INITIAL: f64 = 20.0;
 const LOOP: f64 = 22.0;
 /// Radius of the dot where a shared trunk branches.
 const BRANCH: f64 = 3.0;
+/// The ball of a provided interface, the socket around it, the gap to its label, and the size
+/// and line height of the label.
+const BALL: f64 = 6.0;
+const SOCKET: f64 = 10.0;
+const INTERFACE_GAP: f64 = 6.0;
+const INTERFACE_SIZE: f64 = 11.0;
+const INTERFACE_LINE: f64 = 13.0;
 
 /// The spacing of a diagram: roomy on a wide canvas, compact below [`NARROW`] pixels, such as a
 /// mobile variant, where steps get narrower and wrap their labels sooner, and the space around
@@ -318,6 +325,8 @@ pub(crate) enum End {
     DiamondFilled,
     /// A hollow diamond: aggregation.
     DiamondHollow,
+    /// A half circle around the ball of an interface: the interface is required.
+    Socket,
 }
 
 /// Both ends of an edge, with the text each carries, such as a cardinality.
@@ -386,6 +395,9 @@ pub(crate) enum Shape {
     /// A note that explains another node: a pale box with a folded corner and its text set left,
     /// joined to that node by a dotted line without marks.
     Note,
+    /// An interface a component provides: a ball with its name beside it, joined to the
+    /// component by a stem, a line without marks.
+    Interface,
 }
 
 impl From<NodeKind> for Shape {
@@ -651,6 +663,13 @@ fn node_boxes(
             sizes.push(size);
             continue;
         }
+        if node.shape == Shape::Interface {
+            let (lines, size) = interface_box(node, spacing, metrics, warnings);
+            labels.push(lines);
+            sublabels.push(Vec::new());
+            sizes.push(size);
+            continue;
+        }
         let (extra_width, extra_height) = match node.shape {
             Shape::Decision => (48.0, 24.0),
             Shape::Io => (20.0, 0.0),
@@ -723,6 +742,34 @@ fn node_boxes(
         sizes.push((width, height));
     }
     (labels, sublabels, sizes)
+}
+
+/// The name of an interface on one or two lines, and its box in portrait: the ball in the
+/// middle, the name on one side and as much room on the other.
+fn interface_box(
+    node: &Node,
+    spacing: &Spacing,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) -> (Vec<String>, (f64, f64)) {
+    let path = format!("{}/label", node.path);
+    let lines = wrap(
+        &node.label,
+        spacing.min_node,
+        INTERFACE_SIZE,
+        metrics,
+        warnings,
+        &path,
+    );
+    let text = lines
+        .iter()
+        .map(|line| metrics.width(line, INTERFACE_SIZE))
+        .fold(0.0, f64::max);
+    let size = (
+        2.0 * (BALL + INTERFACE_GAP + text),
+        (2.0 * BALL).max(INTERFACE_LINE * count(lines.len())),
+    );
+    (lines, size)
 }
 
 /// The text of a note, its padding above and below, and the most lines it takes before the rest
@@ -816,7 +863,7 @@ fn push_ends(
 /// How far a mark at the end of an edge reaches back along the line.
 fn end_length(end: End) -> f64 {
     match end {
-        End::None => 0.0,
+        End::None | End::Socket => 0.0,
         End::Arrow | End::Open => HEAD,
         End::Triangle => 12.0,
         End::DiamondFilled | End::DiamondHollow => 16.0,
@@ -848,6 +895,26 @@ fn end_marker(
     };
     let points = match end {
         End::None => return None,
+        End::Socket => {
+            // A half circle around the ball ahead of the tip, open towards it.
+            let center = (tip.0 + direction.0 * SOCKET, tip.1 + direction.1 * SOCKET);
+            let back = (-direction.1).atan2(-direction.0);
+            let points = (0..=12)
+                .map(|step| {
+                    let angle = back + std::f64::consts::PI * (f64::from(step) / 12.0 - 0.5);
+                    (
+                        center.0 + SOCKET * angle.cos(),
+                        center.1 + SOCKET * angle.sin(),
+                    )
+                })
+                .collect();
+            let class = if arrow_class.ends_with("main-head") {
+                "chartlet-arch-socket chartlet-arch-socket-main"
+            } else {
+                "chartlet-arch-socket"
+            };
+            return Some(diagram::polyline(points, class, None));
+        }
         End::Arrow => return Some(arrowhead(tip, direction, true, arrow_class)),
         End::Open => return Some(arrowhead(tip, direction, false, "chartlet-flow-open")),
         End::Triangle => vec![tip, back(12.0, 6.0), back(12.0, -6.0), tip],
@@ -1327,6 +1394,16 @@ fn step_sizes(model: &Model, landscape: bool) -> Vec<(f64, f64)> {
     let mut sizes = model.sizes.clone();
     if landscape {
         for (node, size) in sizes.iter_mut().enumerate() {
+            // The name of an interface stands below its ball rather than beside it.
+            if model.diagram.nodes[node].shape == Shape::Interface {
+                let text = size.0 / 2.0 - BALL - INTERFACE_GAP;
+                let lines = count(model.labels[node].len());
+                *size = (
+                    text.max(2.0 * BALL),
+                    2.0 * (BALL + INTERFACE_GAP + INTERFACE_LINE * lines),
+                );
+                continue;
+            }
             let labelled = model
                 .graph
                 .chains
@@ -1918,7 +1995,7 @@ impl Ports {
                     .collect();
                 crate::sort::by(&mut edges, |a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
                 let ports = count(edges.len());
-                if edges.len() < 2 {
+                if edges.len() < 2 || model.diagram.nodes[node].shape == Shape::Interface {
                     continue;
                 }
                 let size = cross_size(node);
@@ -1951,9 +2028,17 @@ impl Ports {
     }
 }
 
-/// How far the edge of step `node` lies from its middle on the main axis, at `offset` across:
-/// half its depth, less towards the corners of a diamond.
-fn edge_depth(plan: &Plan, model: &Model, node: usize, offset: f64) -> f64 {
+/// How far edge `edge` of step `node` ends from its middle on the main axis, at `offset` across:
+/// half its depth, less towards the corners of a diamond; at an interface, its socket or its
+/// ball.
+fn edge_depth(plan: &Plan, model: &Model, (node, edge): (usize, usize), offset: f64) -> f64 {
+    if model.diagram.nodes[node].shape == Shape::Interface {
+        return if model.diagram.edges[edge].ends.head == End::Socket {
+            SOCKET
+        } else {
+            BALL
+        };
+    }
     let (width, height) = plan.sizes[node];
     let (main, cross) = if plan.landscape {
         (width, height)
@@ -2342,7 +2427,7 @@ fn route(
             let first = items[0];
             let last = items[items.len() - 1];
             let start = (
-                middle(first) + edge_depth(plan, model, first, ports.leave[edge]),
+                middle(first) + edge_depth(plan, model, (first, edge), ports.leave[edge]),
                 plan.cross[first] + ports.leave[edge],
             );
             let mut points = vec![start];
@@ -2354,7 +2439,7 @@ fn route(
                 }
             }
             points.push((
-                middle(last) - edge_depth(plan, model, last, ports.reach[edge]),
+                middle(last) - edge_depth(plan, model, (last, edge), ports.reach[edge]),
                 plan.cross[last] + ports.reach[edge],
             ));
             let end = points[points.len() - 1];
@@ -2796,6 +2881,8 @@ impl Plan {
         // The line to a note only points at it; the note carries its own text.
         let tooltip = match note {
             _ if diagram.nodes[to].shape == Shape::Note => None,
+            // A stem belongs to its component; it is no connection.
+            _ if diagram.nodes[from].shape == Shape::Interface => None,
             Some(note) => Some(format!("{from_label} {} {to_label}: {note}", spec.sign)),
             None => Some(format!("{from_label} {} {to_label}", spec.sign)),
         };
@@ -3029,6 +3116,10 @@ impl Plan {
             Self::class_text(model, node, (x, y, width), elements);
             return;
         }
+        if spec.shape == Shape::Interface {
+            self.interface_text(model, node, (x, y, width, height), elements);
+            return;
+        }
         if spec.shape == Shape::Note {
             for (index, line) in model.labels[node].iter().enumerate() {
                 elements.push(Element::Text(Text {
@@ -3055,6 +3146,40 @@ impl Plan {
                 lift,
                 elements,
             );
+        }
+    }
+
+    /// The name of an interface: beside its ball in portrait, below it in landscape.
+    fn interface_text(
+        &self,
+        model: &Model,
+        node: usize,
+        (x, y, width, height): (f64, f64, f64, f64),
+        elements: &mut Vec<Element>,
+    ) {
+        let lines = &model.labels[node];
+        let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
+        for (index, line) in lines.iter().enumerate() {
+            let (x, y, anchor) = if self.landscape {
+                (
+                    middle_x,
+                    middle_y + BALL + INTERFACE_GAP + 9.0 + INTERFACE_LINE * count(index),
+                    TextAnchor::Middle,
+                )
+            } else {
+                (
+                    middle_x + BALL + INTERFACE_GAP,
+                    middle_y + 4.0 + INTERFACE_LINE * (count(index) - count(lines.len() - 1) / 2.0),
+                    TextAnchor::Start,
+                )
+            };
+            elements.push(Element::Text(Text {
+                x,
+                y,
+                class: "chartlet-arch-interface",
+                anchor,
+                content: line.clone(),
+            }));
         }
     }
 
@@ -3285,6 +3410,16 @@ pub(crate) fn shape(
         Shape::State | Shape::Final | Shape::Initial => {
             state_shape(kind, (x, y, width, height), tooltip, elements);
         }
+        Shape::Interface => elements.push(Element::Circle(Circle {
+            cx: x + width / 2.0,
+            cy: y + height / 2.0,
+            radius: BALL,
+            class: "chartlet-arch-ball",
+            topic: None,
+            series_index: None,
+            style_index: None,
+            tooltip,
+        })),
         Shape::Note => {
             // A sheet without a shadow, its top right corner folded over.
             elements.push(shape(

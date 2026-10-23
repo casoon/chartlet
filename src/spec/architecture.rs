@@ -18,6 +18,8 @@ pub(crate) const MAX_BOUNDARY_DEPTH: usize = 4;
 /// Perspectives of one model, and categories of one perspective: one color each.
 const MAX_PERSPECTIVES: usize = 8;
 const MAX_CATEGORIES: usize = 8;
+/// Interfaces one component provides: each takes a ball on a stem at its box.
+const MAX_INTERFACES: usize = 4;
 
 /// An architecture diagram: components joined by connections, inside nested boundaries such as
 /// a cloud region, a network or a system, laid out like a flow chart.
@@ -89,6 +91,19 @@ pub struct ComponentSpec {
     pub boundary: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<DiagramRole>,
+    /// The interfaces the component provides, each drawn as a ball on a stem at its box, which
+    /// connections can require by `toInterface`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provides: Vec<InterfaceSpec>,
+}
+
+/// An interface a component provides, such as an API: an `id` unique within the component and
+/// the `label` written beside its ball.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InterfaceSpec {
+    pub id: String,
+    pub label: String,
 }
 
 /// A question the model can be seen under, such as who runs a component or how much technical
@@ -185,6 +200,10 @@ pub struct ConnectionSpec {
     /// Which way the connection runs; `forward`, from `from` to `to`, when absent.
     #[serde(default, skip_serializing_if = "ConnectionDirection::is_forward")]
     pub direction: ConnectionDirection,
+    /// The `id` of an interface `to` provides: `from` requires that interface, and the
+    /// connection ends in a socket around its ball.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_interface: Option<String>,
 }
 
 /// Which way a connection runs. A connection both ways stays one connection: one relationship
@@ -234,6 +253,18 @@ impl ArchitectureSpec {
         self.components
             .iter()
             .position(|component| component.id == id)
+    }
+
+    /// The interface a connection requires: the index of the component that provides it and
+    /// its place among that component's interfaces.
+    pub(crate) fn required(&self, connection: &ConnectionSpec) -> Option<(usize, usize)> {
+        let id = connection.to_interface.as_deref()?;
+        let component = self.component(&connection.to)?;
+        let interface = self.components[component]
+            .provides
+            .iter()
+            .position(|interface| interface.id == id)?;
+        Some((component, interface))
     }
 
     pub(crate) fn boundary(&self, id: &str) -> Option<usize> {
@@ -319,6 +350,16 @@ impl ChartSpec {
             .is_some_and(|architecture| architecture.perspective.is_some())
     }
 
+    /// Whether an architecture diagram has a component that provides an interface.
+    pub(crate) fn has_interfaces(&self) -> bool {
+        self.architecture.as_ref().is_some_and(|architecture| {
+            architecture
+                .components
+                .iter()
+                .any(|component| !component.provides.is_empty())
+        })
+    }
+
     /// Whether an architecture diagram has a component with a symbol.
     pub(crate) fn has_component_symbols(&self) -> bool {
         self.architecture.as_ref().is_some_and(|architecture| {
@@ -376,6 +417,53 @@ fn validate_id<'a>(
             format!("{path}/id"),
             format!("the id \"{id}\" is already taken by an earlier component or boundary"),
         ));
+    }
+    Ok(())
+}
+
+/// The interfaces a component provides: at most [`MAX_INTERFACES`], each with a well-formed id
+/// of its own and a label, and none on a person or a node, which are no software components.
+fn validate_interfaces(component: &ComponentSpec, path: &str) -> Result<(), ChartError> {
+    if component.provides.is_empty() {
+        return Ok(());
+    }
+    if matches!(component.kind, ComponentKind::Person | ComponentKind::Node) {
+        return Err(ChartError::new(
+            "option_not_supported",
+            format!("{path}/provides"),
+            "a person or a node provides no interface; give it to the component that implements it",
+        ));
+    }
+    if component.provides.len() > MAX_INTERFACES {
+        return Err(ChartError::new(
+            "too_many_interfaces",
+            format!("{path}/provides"),
+            format!("a component provides at most {MAX_INTERFACES} interfaces"),
+        ));
+    }
+    for (index, interface) in component.provides.iter().enumerate() {
+        let path = format!("{path}/provides/{index}");
+        if !is_identifier(&interface.id) {
+            return Err(ChartError::new(
+                "invalid_id",
+                format!("{path}/id"),
+                "use 1–64 ASCII letters, digits, hyphens, or underscores, starting with a letter",
+            ));
+        }
+        if component.provides[..index]
+            .iter()
+            .any(|other| other.id == interface.id)
+        {
+            return Err(ChartError::new(
+                "duplicate_id",
+                format!("{path}/id"),
+                format!(
+                    "the id \"{}\" is already taken by an earlier interface of this component",
+                    interface.id
+                ),
+            ));
+        }
+        validate_text(&interface.label, &format!("{path}/label"), 40)?;
     }
     Ok(())
 }
@@ -501,6 +589,7 @@ impl ArchitectureSpec {
                     ),
                 ));
             }
+            validate_interfaces(component, &path)?;
         }
         for (index, boundary) in self.boundaries.iter().enumerate() {
             let holds = self.components.iter().any(|component| {
@@ -546,6 +635,25 @@ impl ArchitectureSpec {
             }
             if let Some(label) = &connection.label {
                 validate_text(label, &format!("{path}/label"), 60)?;
+            }
+            if let Some(interface) = &connection.to_interface {
+                if self.required(connection).is_none() {
+                    return Err(ChartError::new(
+                        "unknown_interface",
+                        format!("{path}/toInterface"),
+                        format!(
+                            "\"{}\" provides no interface with the id \"{interface}\"",
+                            connection.to
+                        ),
+                    ));
+                }
+                if !connection.direction.is_forward() {
+                    return Err(ChartError::new(
+                        "option_not_supported",
+                        format!("{path}/direction"),
+                        "a connection that requires an interface runs forward, from the component that requires it",
+                    ));
+                }
             }
             super::flow::validate_weight(connection.weight, &path)?;
             super::flow::validate_role(connection.role, connection.dash, &path)?;

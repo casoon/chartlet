@@ -1431,7 +1431,21 @@
                 "enum": ["browser", "mobile", "api-gateway", "load-balancer", "cdn", "firewall", "identity", "container", "orchestrator", "function", "cloud", "cache", "object-storage", "message-broker", "search-index", "monitoring"]
               },
               "in": { "$ref": "#/$defs/identifier" },
-              "role": { "$ref": "#/$defs/diagramRole" }
+              "role": { "$ref": "#/$defs/diagramRole" },
+              "provides": {
+                "description": "Interfaces the component provides, each a ball on a stem ahead of its box with the label beside it; connections require one by toInterface. Not on a person or a node.",
+                "type": "array",
+                "maxItems": 4,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "label"],
+                  "properties": {
+                    "id": { "description": "Unique among the interfaces of the component; with the component's id it forms the stable id `component.interface`.", "$ref": "#/$defs/identifier" },
+                    "label": { "type": "string", "minLength": 1, "maxLength": 40 }
+                  }
+                }
+              }
             }
           }
         },
@@ -1452,7 +1466,8 @@
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
               "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
               "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
-              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" }
+              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" },
+              "toInterface": { "description": "The id of an interface `to` provides: `from` requires it, and the connection ends in a socket around its ball instead of an arrowhead. Runs forward and never joins a shared trunk.", "$ref": "#/$defs/identifier" }
             }
           }
         },

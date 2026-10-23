@@ -6,7 +6,7 @@
 
 use std::{cmp::Reverse, collections::BinaryHeap};
 
-use super::Diagram;
+use super::{Diagram, Shape};
 
 /// An item of a layer: a step, or a placeholder that carries an edge through the layer.
 pub(super) struct Item {
@@ -123,6 +123,8 @@ impl Graph {
         for (index, chain) in chains.iter().enumerate() {
             let Some(chain) = chain else { continue };
             let main = diagram.edges[index].main;
+            // A stem holds the ball of an interface at its component.
+            let stem = diagram.nodes[diagram.edges[index].from].shape == Shape::Interface;
             for pair in chain.items.windows(2) {
                 let placeholders = pair
                     .iter()
@@ -130,6 +132,7 @@ impl Graph {
                     .count();
                 // Long edges and the main path should run straight, other links may bend.
                 let weight = match (main, placeholders) {
+                    _ if stem => 12.0,
                     (true, _) => 6.0,
                     (false, 2) => 8.0,
                     (false, 1) => 2.0,
@@ -328,7 +331,14 @@ fn layered(
         .iter()
         .map(|edge| edge.map(|(from, to)| (rank[from], rank[to])))
         .collect();
-    let rank_layers = layers(ranks, &rank_edges);
+    // The ball of an interface lies right before its component, where its stem runs into it.
+    let mut late = vec![false; ranks];
+    for (node, spec) in diagram.nodes.iter().enumerate() {
+        if spec.shape == Shape::Interface {
+            late[rank[node]] = true;
+        }
+    }
+    let rank_layers = layers(ranks, &rank_edges, &late);
     let mut layer: Vec<usize> = rank.iter().map(|rank| rank_layers[*rank]).collect();
     pull_out_of_frames(diagram, &directed, &mut layer);
     (reversed, directed, layer)
@@ -403,8 +413,8 @@ fn feedback_edges(nodes: usize, ends: &[(usize, usize)]) -> Vec<bool> {
 }
 
 /// The layer of every step: one after the latest of the steps before it, and a step that only
-/// leads on placed just before the earliest step it leads to.
-fn layers(nodes: usize, edges: &[Option<(usize, usize)>]) -> Vec<usize> {
+/// leads on, or that is `late`, placed just before the earliest step it leads to.
+fn layers(nodes: usize, edges: &[Option<(usize, usize)>], late: &[bool]) -> Vec<usize> {
     let mut incoming = vec![0; nodes];
     let mut outgoing = vec![Vec::new(); nodes];
     for (from, to) in edges.iter().flatten() {
@@ -429,7 +439,7 @@ fn layers(nodes: usize, edges: &[Option<(usize, usize)>]) -> Vec<usize> {
         }
     }
     for &node in sorted.iter().rev() {
-        if incoming[node] == 0 && !outgoing[node].is_empty() {
+        if (incoming[node] == 0 || late[node]) && !outgoing[node].is_empty() {
             layer[node] = outgoing[node]
                 .iter()
                 .map(|next| layer[*next])
@@ -575,7 +585,7 @@ mod tests {
     fn a_step_lies_one_layer_after_its_latest_predecessor() {
         let edges = [Some((0, 1)), Some((1, 2)), Some((0, 2)), Some((3, 2))];
         // Step 3 only leads on, to step 2 in layer 2, so it sits in layer 1.
-        assert_eq!(layers(4, &edges), [0, 1, 2, 1]);
+        assert_eq!(layers(4, &edges, &[false; 4]), [0, 1, 2, 1]);
     }
 
     #[test]

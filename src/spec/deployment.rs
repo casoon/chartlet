@@ -46,6 +46,8 @@ impl ChartSpec {
                     connection.technology = connection.technology.or_else(|| of.technology.clone());
                     connection.dash = connection.dash.or(of.dash);
                     connection.role = connection.role.or(of.role);
+                    connection.to_interface =
+                        connection.to_interface.or_else(|| of.to_interface.clone());
                     // A model connection carried by several instances keeps its id once.
                     if view.instance_connections[..at]
                         .iter()
