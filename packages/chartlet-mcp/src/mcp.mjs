@@ -9,7 +9,7 @@ import { CLIENT_CAPABILITIES_META_KEY, McpServer } from "@modelcontextprotocol/s
 import { z } from "zod";
 
 import { explainSpec, renderSpec, validateSpec } from "./charts.mjs";
-import { DIAGRAM_TYPES, diagramStarter } from "./diagrams.mjs";
+import { ARCHITECTURE_TEMPLATES, DIAGRAM_TYPES, diagramStarter } from "./diagrams.mjs";
 import { CHART_STARTER_TYPES, chartStarter } from "./starters.mjs";
 import { DISTINCT_CAP, inspectData } from "./inspect.mjs";
 import { supportsView, VIEW_META_KEY, VIEW_RESOURCE_META, VIEW_URI, viewHtml, viewPayload } from "./view.mjs";
@@ -288,9 +288,15 @@ For ohlc layers min is the lowest low, max the highest high, first the first ope
       title: "Start a software diagram",
       description: `Return a valid starting specification for a chartlet software diagram, the kinds its elements can take with the shape each is drawn in, and notes on ids, layout and orientation. Diagrams are drawn from structure, not data: sequence (participants exchanging messages, with fragments), flow (steps and edges, with lanes, groups and a main path), state (states and transitions event [guard] / action, with choices, composite and final states), architecture (components and connections inside nested boundaries), tree (an organization or ownership structure, or a radial mind map) and classes (class and entity-relationship diagrams: classes with attribute and method compartments, joined by relations with cardinalities).
 
+For an architecture diagram, template picks a starter at one level of abstraction, modeled in the usual architecture fields: context (the system as one box, its users and the external systems it calls), containers (the separately running or deployable parts inside the system boundary; a container is such a part, not a container image) or deployment (one environment: region, cluster and node pools as boundaries, deployed artifacts, managed queue, database and storage). The result names the question the template answers and its level. These are C4-like starting points, not a full C4 model: each is one diagram, and elements are not kept in sync across levels.
+
 chartlet lays a diagram out itself; the specification only says what is connected. Adapt the starter, then check it with chartlet_validate_spec and render it with chartlet_render.`,
       inputSchema: z.object({
         type: z.enum(DIAGRAM_TYPES).describe("The diagram type to start from."),
+        template: z
+          .enum(ARCHITECTURE_TEMPLATES)
+          .optional()
+          .describe("Only with type architecture: a starter at one level of abstraction (context, containers, deployment)."),
       }),
       outputSchema: z.object({
         ok: z.literal(true),
@@ -298,10 +304,16 @@ chartlet lays a diagram out itself; the specification only says what is connecte
         spec: z.record(z.string(), z.unknown()),
         kinds: z.record(z.string(), z.record(z.string(), z.string())),
         notes: z.array(z.string()),
+        template: z.string().optional(),
+        question: z.string().optional(),
+        level: z.string().optional(),
       }),
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async ({ type }) => success(diagramStarter(type)),
+    async ({ type, template }) =>
+      template && type !== "architecture"
+        ? failure(`template ${template} is an architecture template; use it with type architecture.`)
+        : success(diagramStarter(type, template)),
   );
 
   server.registerTool(

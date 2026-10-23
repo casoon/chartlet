@@ -113,6 +113,18 @@ test("serves the tools and the schema over stdio", async (t) => {
   const explained = await client.callTool({ name: "chartlet_explain", arguments: { spec } });
   assert.deepEqual(explained.structuredContent.series[0].max, { value: 15, at: ["Q2"] });
 
+  const context = await client.callTool({
+    name: "chartlet_diagram_starter",
+    arguments: { type: "architecture", template: "context" },
+  });
+  assert.equal(context.structuredContent.template, "context");
+  assert.equal(context.structuredContent.spec.title, "Course booking: system context");
+  const misplaced = await client.callTool({
+    name: "chartlet_diagram_starter",
+    arguments: { type: "flow", template: "context" },
+  });
+  assert.equal(misplaced.isError, true);
+
   const { contents } = await client.readResource({ uri: "chartlet://schema" });
   assert.equal(contents[0].text, schema);
 });
