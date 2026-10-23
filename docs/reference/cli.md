@@ -126,7 +126,8 @@ hint[isolated_component] at /architecture/components/2: "Audit log" has no conne
 Findings alone leave the exit code at 0. An invalid specification fails exactly as with
 `chartlet render`, with its code and path, and any other chart type with
 `inspections_unavailable` at `/type`. `chartlet render` never runs inspections: its output,
-warnings, `--strict` and `--allow-warning` stay as they are.
+warnings, `--strict` and `--allow-warning` stay as they are. The npm package runs the same
+inspections with `inspectChart`, the MCP server with the tool `chartlet_inspect`.
 
 ## chartlet stylesheet
 

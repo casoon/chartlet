@@ -1,4 +1,4 @@
-// The MCP server: six tools, the specification schema as a resource, and the MCP App view of
+// The MCP server: seven tools, the specification schema as a resource, and the MCP App view of
 // chartlet_render. The tools only read data, call the chartlet compiler and compute; there is no
 // model and no interpretation here.
 
@@ -7,6 +7,8 @@ import { readFileSync } from "node:fs";
 import { registerAppResource, registerAppTool, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { CLIENT_CAPABILITIES_META_KEY, McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
+
+import { inspectChart } from "@casoon/chartlet";
 
 import { explainSpec, renderSpec, validateSpec } from "./charts.mjs";
 import { ARCHITECTURE_TEMPLATES, DIAGRAM_TYPES, diagramStarter } from "./diagrams.mjs";
@@ -280,6 +282,42 @@ For ohlc layers min is the lowest low, max the highest high, first the first ope
     async ({ spec }) => {
       const result = explainSpec(spec);
       return "error" in result ? specFailure(result) : success(result);
+    },
+  );
+
+  server.registerTool(
+    "chartlet_inspect",
+    {
+      title: "Inspect a model for gaps",
+      description: `Run chartlet's inspections of a model for gaps in its documentation, without rendering it — the same findings as \`chartlet inspect\`. Available for architecture diagrams: connections without a label or technology, components without a sublabel, isolated components, components no view shows and views that add nothing.
+
+Each finding has a stable code, a severity, the JSON Pointer of the part it is about, what was found and how to improve it. A gap is missing documentation the specification has a field for; a hint is something to look at, which may well be intended — never treat a hint as an error. Findings never stop a render. Pass the codes of inspections that do not apply in disable.
+
+An invalid specification, or a type without inspections (inspections_unavailable), returns a tool error with code, path and message.`,
+      inputSchema: z.object({
+        spec,
+        disable: z
+          .array(z.string())
+          .optional()
+          .describe('Inspection codes to leave out, as findings report them, e.g. ["connection_without_technology"].'),
+      }),
+      outputSchema: z.object({
+        ok: z.literal(true),
+        findings: z.array(
+          z.object({
+            code: z.string().describe("Stable inspection code, e.g. unlabelled_connection."),
+            severity: z.enum(["gap", "hint"]),
+            path: z.string().describe("JSON Pointer into the specification."),
+            message: z.string(),
+            hint: z.string().describe("How to improve it."),
+          }),
+        ),
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ spec, disable }) => {
+      const result = inspectChart(spec, { disable });
+      return result.ok ? success(result) : specFailure({ error: result.error, warnings: [] });
     },
   );
 

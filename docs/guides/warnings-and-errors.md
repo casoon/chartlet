@@ -81,8 +81,9 @@ security.
 A rule that does not fit a model is left out with `--disable <code>`, for example
 `--disable connection_without_technology` for a model that leaves protocols to its components,
 or `--disable isolated_component` when a component stands apart on purpose. `chartlet inspect
---strict` fails only on gaps. Inspections are part of the CLI and of the Rust crate
-(`chartlet::inspect_json`); the npm package and the MCP server do not run them.
+--strict` fails only on gaps. The Rust crate runs them with `chartlet::inspect_json`, the npm
+package with `inspectChart(spec, { disable })` and the MCP server with the tool
+`chartlet_inspect`, all with the same findings.
 
 ## Provenance
 
