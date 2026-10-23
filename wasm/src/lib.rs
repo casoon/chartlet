@@ -5,7 +5,7 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "strict", "allowWarnings", "manifest", "alternative", "styles", "hooks" } }`, or
+//! "variant", "view", "strict", "allowWarnings", "manifest", "alternative", "styles", "hooks" } }`, or
 //! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
 //! `"styles": "external"`, for every chart type when `types` is absent. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
@@ -155,6 +155,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
             manifest: options["manifest"].as_bool() == Some(true),
             styles,
             hooks: options["hooks"].as_bool() == Some(true),
+            view: options["view"].as_str().map(str::to_owned),
         },
     )
     .map_err(|error| error_json(&error))?;
@@ -177,7 +178,9 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
         }));
     }
     let alternative = if options["alternative"].as_bool() == Some(true) {
-        let spec = ChartSpec::from_json(&spec).map_err(|error| error_json(&error))?;
+        let spec = ChartSpec::from_json(&spec)
+            .and_then(|spec| spec.view(options["view"].as_str()))
+            .map_err(|error| error_json(&error))?;
         Some(text_alternative(&spec).map_err(|error| error_json(&error))?)
     } else {
         None

@@ -33,6 +33,7 @@ export function validateSpec(spec) {
  *   spec: SpecInput,
  *   format?: "svg" | "html",
  *   variant?: "desktop" | "mobile" | "print" | "social",
+ *   view?: string,
  *   idPrefix?: string,
  *   table?: "details" | "visible",
  *   outputPath?: string,
@@ -52,6 +53,7 @@ export function renderSpec(input, root) {
   const result = renderChartDetailed(input.spec, {
     format: input.format ?? "html",
     variant: input.variant,
+    view: input.view,
     idPrefix: input.idPrefix,
     table: input.table,
     manifest: true,

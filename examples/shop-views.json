@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Web shop on one cloud region",
+  "source": "Architecture handbook, shop model",
+  "width": 1900,
+  "height": 540,
+  "architecture": {
+    "boundaries": [
+      { "id": "region", "label": "Cloud region eu-central-1" },
+      { "id": "network", "label": "Private network", "in": "region" },
+      { "id": "data", "label": "Data zone", "in": "network" }
+    ],
+    "components": [
+      { "id": "customer", "label": "Customer", "kind": "person" },
+      { "id": "web", "label": "Web shop", "sublabel": "browser", "kind": "frontend" },
+      { "id": "cdn", "label": "Content network", "kind": "external" },
+      { "id": "api", "label": "Shop API", "sublabel": "Node.js", "in": "network" },
+      { "id": "cache", "label": "Session cache", "sublabel": "Redis", "kind": "cache", "in": "network" },
+      { "id": "events", "label": "Order events", "kind": "queue", "in": "network" },
+      { "id": "worker", "label": "Order worker", "in": "network" },
+      { "id": "db", "label": "Orders", "sublabel": "Postgres", "kind": "database", "in": "data" },
+      { "id": "files", "label": "Invoices", "sublabel": "object storage", "kind": "storage", "in": "region" },
+      { "id": "pay", "label": "Payment provider", "kind": "external" },
+      { "id": "auth", "label": "Sign-in", "sublabel": "identity provider", "kind": "security", "in": "network" }
+    ],
+    "connections": [
+      { "id": "browse", "from": "customer", "to": "web", "label": "browses" },
+      { "id": "assets", "from": "web", "to": "cdn", "label": "loads assets", "technology": "HTTPS", "dash": "dashed" },
+      { "id": "call", "from": "web", "to": "api", "label": "calls", "technology": "HTTPS/JSON" },
+      { "id": "session", "from": "api", "to": "cache", "label": "sessions", "technology": "RESP" },
+      { "id": "token", "from": "api", "to": "auth", "label": "checks token", "technology": "OIDC" },
+      { "id": "orders", "from": "api", "to": "db", "label": "reads, writes", "technology": "SQL/TLS" },
+      { "id": "publish", "from": "api", "to": "events", "label": "publishes", "technology": "AMQP" },
+      { "id": "deliver", "from": "events", "to": "worker", "label": "delivers" },
+      { "id": "charge", "from": "worker", "to": "pay", "label": "charges", "technology": "HTTPS" },
+      { "id": "invoice", "from": "worker", "to": "files", "label": "stores PDF", "technology": "S3 API" },
+      { "id": "update", "from": "worker", "to": "db", "label": "updates", "technology": "SQL/TLS" }
+    ],
+    "mainPath": ["customer", "web", "api", "events", "worker", "pay"],
+    "views": [
+      {
+        "key": "overview",
+        "title": "Web shop: overview",
+        "components": ["customer", "web", "api", "events", "worker", "db", "files", "pay"]
+      },
+      {
+        "key": "checkout",
+        "title": "Web shop: checkout",
+        "steps": [
+          { "connection": "browse", "label": "places order" },
+          { "connection": "call", "label": "submits order" },
+          { "connection": "token" },
+          { "connection": "orders", "label": "reserves stock" },
+          { "connection": "orders", "label": "saves order" },
+          { "connection": "publish", "label": "order placed" },
+          { "connection": "deliver" },
+          { "connection": "charge", "label": "charges card" },
+          { "connection": "update", "label": "marks paid" },
+          { "connection": "invoice" }
+        ]
+      }
+    ]
+  }
+}

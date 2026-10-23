@@ -20,6 +20,7 @@ mod timeline;
 mod topicmap;
 mod tree;
 mod treemap;
+mod view;
 mod waffle;
 mod waterfall;
 
@@ -74,6 +75,7 @@ pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec
 pub use tree::{DistancesSpec, Linkage, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec};
 pub(crate) use treemap::{TmNode, TmTree};
 pub use treemap::{TreemapItemSpec, TreemapSpec};
+pub use view::{ViewSpec, ViewStepSpec};
 pub use waffle::{WafflePartSpec, WaffleSpec};
 pub(crate) use waterfall::WaterfallBar;
 pub use waterfall::{StepKind, StepSpec, WaterfallSpec};

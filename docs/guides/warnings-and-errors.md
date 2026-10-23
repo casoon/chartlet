@@ -72,6 +72,7 @@ check in CI that a committed chart still matches its specification and the chart
 | `format` | `svg` or `html`. |
 | `variant` | `desktop`, `mobile` or `print`. |
 | `idPrefix` | The ID prefix the chart was rendered with: `--id-prefix`, or the one derived from the specification. The mobile variant appends `-m` to it, the print variant `-p`. |
+| `view` | Only for an architecture model with `views`: the key of the view that was rendered (`--view`, or the default view). `specHash` stays the hash of the whole model. |
 | `warnings` | The warnings of the render, each with `code`, `path` and `message`. |
 
 The canonical specification is the parsed form, serialized again: key order, whitespace and
