@@ -64,18 +64,7 @@ impl Graph {
     pub(super) fn new(diagram: &Diagram) -> Self {
         let nodes = diagram.nodes.len();
         let ends = &diagram.ends();
-        let reversed = feedback_edges(nodes, ends);
-        let directed: Vec<Option<(usize, usize)>> = ends
-            .iter()
-            .zip(&reversed)
-            .map(|(&(from, to), &reversed)| match (from == to, reversed) {
-                (true, _) => None,
-                (false, false) => Some((from, to)),
-                (false, true) => Some((to, from)),
-            })
-            .collect();
-        let mut node_layers = layers(nodes, &directed);
-        pull_out_of_frames(diagram, &directed, &mut node_layers);
+        let (reversed, directed, node_layers) = layered(diagram, ends);
         let mut items: Vec<Item> = (0..nodes)
             .map(|node| Item {
                 node: Some(node),
@@ -311,6 +300,68 @@ impl Graph {
     }
 }
 
+/// Breaks the cycles of the diagram and assigns every step its layer. Returns which edges were
+/// turned around, every edge as it runs in the layout (`None` for an edge from a step to
+/// itself), and the layer of every step. Steps that share a rank are layered as one: cycles are
+/// broken and layers assigned between ranks, and every step takes the layer of its rank.
+#[allow(clippy::type_complexity)]
+fn layered(
+    diagram: &Diagram,
+    ends: &[(usize, usize)],
+) -> (Vec<bool>, Vec<Option<(usize, usize)>>, Vec<usize>) {
+    let (rank, ranks) = ranks_of(diagram.nodes.len(), &diagram.ranks);
+    let rank_ends: Vec<(usize, usize)> = ends
+        .iter()
+        .map(|&(from, to)| (rank[from], rank[to]))
+        .collect();
+    let reversed = feedback_edges(ranks, &rank_ends);
+    let directed: Vec<Option<(usize, usize)>> = ends
+        .iter()
+        .zip(&reversed)
+        .map(|(&(from, to), &reversed)| match (from == to, reversed) {
+            (true, _) => None,
+            (false, false) => Some((from, to)),
+            (false, true) => Some((to, from)),
+        })
+        .collect();
+    let rank_edges: Vec<Option<(usize, usize)>> = directed
+        .iter()
+        .map(|edge| edge.map(|(from, to)| (rank[from], rank[to])))
+        .collect();
+    let rank_layers = layers(ranks, &rank_edges);
+    let mut layer: Vec<usize> = rank.iter().map(|rank| rank_layers[*rank]).collect();
+    pull_out_of_frames(diagram, &directed, &mut layer);
+    (reversed, directed, layer)
+}
+
+/// The rank of every step, and how many ranks there are: a step on its own is a rank, and so is
+/// every set of `sets`. Ranks are numbered in the order of the first step of each, so that
+/// without sets every step is its own rank under its own index.
+fn ranks_of(nodes: usize, sets: &[Vec<usize>]) -> (Vec<usize>, usize) {
+    let mut rank = vec![None; nodes];
+    let mut count = 0;
+    for node in 0..nodes {
+        if rank[node].is_some() {
+            continue;
+        }
+        match sets.iter().find(|set| set.contains(&node)) {
+            Some(set) => {
+                for member in set {
+                    rank[*member] = Some(count);
+                }
+            }
+            None => rank[node] = Some(count),
+        }
+        count += 1;
+    }
+    (
+        rank.into_iter()
+            .map(|rank| rank.expect("every step has a rank"))
+            .collect(),
+        count,
+    )
+}
+
 /// The edges a depth-first search from every step in turn finds leading back to a step still on
 /// its path: turning them around leaves no cycle.
 fn feedback_edges(nodes: usize, ends: &[(usize, usize)]) -> Vec<bool> {
@@ -393,7 +444,7 @@ fn layers(nodes: usize, edges: &[Option<(usize, usize)>]) -> Vec<usize> {
 /// Moves a step that hangs off a group from outside — its edges all lead into the group, or all
 /// come from it, and only on one side — out of the layers the group spans, when that costs its
 /// edges at most two layers: placed beside a wide frame, it would stand far from everything
-/// else. Any other step stays where the layering put it.
+/// else. Any other step stays where the layering put it, and so does a step that shares its rank.
 fn pull_out_of_frames(diagram: &Diagram, edges: &[Option<(usize, usize)>], layer: &mut [usize]) {
     const MOST: usize = 2;
     let nodes = layer.len();
@@ -417,7 +468,11 @@ fn pull_out_of_frames(diagram: &Diagram, edges: &[Option<(usize, usize)>], layer
                 continue;
             };
             for node in 0..nodes {
-                if inside.contains(&node) || layer[node] < first || layer[node] > last {
+                if inside.contains(&node)
+                    || layer[node] < first
+                    || layer[node] > last
+                    || diagram.ranks.iter().any(|set| set.contains(&node))
+                {
                     continue;
                 }
                 let all_inside = |others: &[usize]| {
@@ -498,7 +553,14 @@ pub(super) fn settle(
 
 #[cfg(test)]
 mod tests {
-    use super::{feedback_edges, layers, settle};
+    use super::{feedback_edges, layers, ranks_of, settle};
+
+    #[test]
+    fn steps_that_share_a_rank_count_as_one() {
+        assert_eq!(ranks_of(3, &[]), (vec![0, 1, 2], 3));
+        // Steps 3 and 1 share rank 1, numbered by step 1, the first of them.
+        assert_eq!(ranks_of(4, &[vec![3, 1]]), (vec![0, 1, 2, 1], 3));
+    }
 
     #[test]
     fn a_cycle_loses_the_edge_that_closes_it() {

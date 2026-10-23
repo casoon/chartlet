@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, MainPath, NoteSpec, flow::validate_notes,
+    ChartSpec, Dash, DiagramOrientation, DiagramRole, MainPath, NoteSpec, flow::validate_notes,
     sequence::is_identifier, validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
@@ -30,6 +30,10 @@ pub struct ArchitectureSpec {
     /// Notes beside components, such as an assumption or a limitation.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<NoteSpec>,
+    /// Sets of component ids that share one rank: each set lies at one position along the flow.
+    /// A layout hint only; it adds no connection.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub same_rank: Vec<Vec<String>>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
 }
@@ -44,9 +48,15 @@ pub struct ComponentSpec {
     pub sublabel: Option<String>,
     #[serde(default, skip_serializing_if = "ComponentKind::is_service")]
     pub kind: ComponentKind,
+    /// The name of a symbol drawn above the label, which names the component's technology
+    /// category, such as `cache` or `load-balancer`; the kind keeps its shape.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
     /// The `id` of the boundary the component lies in.
     #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
     pub boundary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// What a component is; every kind has its own shape.
@@ -109,6 +119,8 @@ pub struct ConnectionSpec {
     /// stronger as it carries more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// A frame around components, such as a cloud region, a network, a zone or a system. Boundaries
@@ -174,6 +186,16 @@ impl ArchitectureSpec {
 }
 
 impl ChartSpec {
+    /// Whether an architecture diagram has a component with a symbol.
+    pub(crate) fn has_component_symbols(&self) -> bool {
+        self.architecture.as_ref().is_some_and(|architecture| {
+            architecture
+                .components
+                .iter()
+                .any(|component| component.symbol.is_some())
+        })
+    }
+
     /// An architecture diagram: components and boundaries with identifiers unique among both,
     /// connections between components, boundaries that nest without a circle and each hold at
     /// least one component, and a main path along connections.
@@ -308,6 +330,18 @@ impl ArchitectureSpec {
                     format!("no boundary has the id \"{boundary}\""),
                 ));
             }
+            if let Some(symbol) = &component.symbol
+                && crate::symbols::find(symbol).is_none()
+            {
+                return Err(ChartError::new(
+                    "unknown_symbol",
+                    format!("{path}/symbol"),
+                    format!(
+                        "no symbol is named \"{symbol}\"; use one of {}",
+                        crate::symbols::names()
+                    ),
+                ));
+            }
         }
         for (index, boundary) in self.boundaries.iter().enumerate() {
             let holds = self.components.iter().any(|component| {
@@ -352,6 +386,7 @@ impl ArchitectureSpec {
                 validate_text(label, &format!("{path}/label"), 60)?;
             }
             super::flow::validate_weight(connection.weight, &path)?;
+            super::flow::validate_role(connection.role, connection.dash, &path)?;
             if let Some(technology) = &connection.technology {
                 validate_text(technology, &format!("{path}/technology"), 40)?;
             }
@@ -380,6 +415,13 @@ impl ArchitectureSpec {
             |id| self.component(id).is_some(),
             &self.connection_ids(),
             ("component", "connection"),
+        )?;
+        super::flow::validate_same_rank(
+            &self.same_rank,
+            "architecture",
+            |id| self.component(id).is_some(),
+            &self.connection_ids(),
+            "component",
         )?;
         Ok(())
     }

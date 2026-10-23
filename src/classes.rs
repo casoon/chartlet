@@ -98,10 +98,13 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             shape: Shape::Class,
             lane: None,
             group: package(&class.package),
+            id: Some(class.id.clone()),
             path: format!("/classes/classes/{index}"),
             compartments: vec![class.attributes.clone(), class.methods.clone()],
             value: None,
             parts: Vec::new(),
+            symbol: None,
+            role: None,
         })
         .collect();
     let edges = classes
@@ -128,6 +131,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
                 label_path: format!("/classes/relations/{index}/label"),
                 ends: ends(relation),
                 weight: None,
+                role: None,
             }
         })
         .collect();
@@ -145,6 +149,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
                 parent: package(&group.parent),
             })
             .collect(),
+        ranks: Vec::new(),
         orientation: classes.orientation,
     }
 }

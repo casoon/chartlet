@@ -77,10 +77,13 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             shape: Shape::Initial,
             lane: None,
             group: None,
+            id: None,
             path: "/state/initial".to_owned(),
             compartments: Vec::new(),
             value: None,
             parts: Vec::new(),
+            symbol: None,
+            role: None,
         });
         edges.push(Edge {
             from: 0,
@@ -92,6 +95,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             label_path: "/state/initial".to_owned(),
             ends: Ends::arrow(),
             weight: None,
+            role: None,
         });
     }
     let mut groups = Vec::new();
@@ -114,10 +118,13 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             },
             lane: None,
             group: frame(state),
+            id: Some(state.id.clone()),
             path: format!("/state/states/{index}"),
             compartments: Vec::new(),
             value: None,
             parts: Vec::new(),
+            symbol: None,
+            role: None,
         });
     }
     for (index, transition) in machine.transitions.iter().enumerate() {
@@ -131,6 +138,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             label_path: format!("/state/transitions/{index}"),
             ends: Ends::arrow(),
             weight: None,
+            role: None,
         });
     }
     Diagram {
@@ -138,6 +146,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         edges,
         lanes: Vec::new(),
         groups,
+        ranks: Vec::new(),
         orientation: machine.orientation,
     }
 }

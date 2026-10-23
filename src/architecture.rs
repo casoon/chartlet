@@ -9,13 +9,17 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, Ends, Group, Node, Shape, heaviest_edge, layout_diagram, reading_order},
+    flow::{
+        Diagram, Edge, Ends, Group, MARGIN, Node, Shape, heaviest_edge, layout_diagram,
+        reading_order,
+    },
     layout::format_value,
     metrics::TextMetrics,
+    roles,
     scene::Scene,
-    spec::{ArchitectureSpec, ChartSpec, ComponentKind},
+    spec::{ArchitectureSpec, ChartSpec, ComponentKind, ComponentSpec, DiagramRole, Locale},
     structure::{Facts, Structure},
-    text,
+    symbols, text,
 };
 
 pub(crate) fn layout(
@@ -23,7 +27,20 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
-    layout_diagram(spec, &diagram(architecture(spec)), warnings, metrics)
+    let architecture = architecture(spec);
+    let mut scene = layout_diagram(spec, &diagram(architecture), warnings, metrics);
+    let used = roles::used(
+        architecture
+            .components
+            .iter()
+            .map(|component| component.role),
+        architecture
+            .connections
+            .iter()
+            .map(|connection| connection.role),
+    );
+    roles::push_legend(&mut scene, spec.locale, &used, MARGIN, metrics);
+    scene
 }
 
 fn architecture(spec: &ChartSpec) -> &ArchitectureSpec {
@@ -82,10 +99,16 @@ fn model_diagram(architecture: &ArchitectureSpec) -> Diagram {
                 shape: shape(component.kind),
                 lane: None,
                 group: boundary(&component.boundary),
+                id: Some(component.id.clone()),
                 path: format!("/architecture/components/{index}"),
                 compartments: Vec::new(),
                 value: None,
                 parts: Vec::new(),
+                symbol: component
+                    .symbol
+                    .as_deref()
+                    .map(|name| symbols::find(name).expect("validated")),
+                role: component.role,
             })
             .collect(),
         edges: architecture
@@ -102,6 +125,7 @@ fn model_diagram(architecture: &ArchitectureSpec) -> Diagram {
                 label_path: format!("/architecture/connections/{index}/label"),
                 ends: Ends::arrow(),
                 weight: connection.weight,
+                role: connection.role,
             })
             .collect(),
         lanes: Vec::new(),
@@ -115,6 +139,15 @@ fn model_diagram(architecture: &ArchitectureSpec) -> Diagram {
                 parent: boundary(&group.parent),
             })
             .collect(),
+        ranks: architecture
+            .same_rank
+            .iter()
+            .map(|set| {
+                set.iter()
+                    .map(|id| architecture.component(id).expect("validated"))
+                    .collect()
+            })
+            .collect(),
         orientation: architecture.orientation,
     }
 }
@@ -125,6 +158,25 @@ fn step_label(step: Option<u8>, label: Option<&str>) -> Option<String> {
         (Some(step), Some(label)) => Some(format!("{step}. {label}")),
         (Some(step), None) => Some(format!("{step}.")),
         (None, label) => label.map(str::to_owned),
+    }
+}
+
+/// What a component is: its kind, and after it the technology category of its symbol, as
+/// `database, search index`; a category that names the kind stands alone, as `object storage`.
+/// The sublabel is not repeated.
+fn kind(locale: Locale, component: &ComponentSpec) -> String {
+    let kind = text::component_kind(locale, component.kind);
+    match component
+        .symbol
+        .as_deref()
+        .and_then(symbols::find)
+        .map(|symbol| symbol.category(locale))
+    {
+        Some(category) if category.to_lowercase().contains(&kind.to_lowercase()) => {
+            category.to_owned()
+        }
+        Some(category) => format!("{kind}, {category}"),
+        None => kind.to_owned(),
     }
 }
 
@@ -142,9 +194,9 @@ fn boundaries_of(architecture: &ArchitectureSpec, component: usize) -> String {
         .join(" › ")
 }
 
-/// Where a component connects to, as `label (step, what, how, weight)`, in the order of the
-/// connections.
-fn connects_to(spec: &ChartSpec, component: usize) -> Vec<String> {
+/// Where a component connects to, as `label (step, what, how, weight, role)`, in the order of
+/// the connections; the role only `with_roles`.
+fn connects_to(spec: &ChartSpec, component: usize, with_roles: bool) -> Vec<String> {
     let (locale, architecture) = (spec.locale, architecture(spec));
     let id = &architecture.components[component].id;
     architecture
@@ -168,6 +220,12 @@ fn connects_to(spec: &ChartSpec, component: usize) -> Vec<String> {
                 .chain(connection.weight.map(|weight| {
                     text::edge_weight(locale, &format_value(weight, spec.number_style()))
                 }))
+                .chain(
+                    connection
+                        .role
+                        .filter(|_| with_roles)
+                        .map(|role| text::role(locale, role).to_owned()),
+                )
                 .collect();
             if notes.is_empty() {
                 target.clone()
@@ -205,6 +263,7 @@ fn steps_in_order(architecture: &ArchitectureSpec) -> Vec<String> {
 
 /// The diagram in sentences: its size, the boundaries and what each holds, the main path, and
 /// every component in reading order with where it connects to.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn description(spec: &ChartSpec) -> String {
     let architecture = architecture(spec);
     let locale = spec.locale;
@@ -298,14 +357,43 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             text::component(
                 locale,
                 &spec_component.label,
-                spec_component.kind,
-                &connects_to(spec, component),
+                &kind(locale, spec_component),
+                &connects_to(spec, component, false),
             )
         )
         .expect("writing to String cannot fail");
     }
+    if let Some(sentence) = roles::sentence(locale, &with_roles(architecture)) {
+        description.push(' ');
+        description.push_str(&sentence);
+    }
     description.push_str(&notes_sentences(spec));
     description
+}
+
+/// Every component with a role, in reading order, then every connection with one, as
+/// `From → To`.
+fn with_roles(architecture: &ArchitectureSpec) -> Vec<(DiagramRole, String)> {
+    let label = |id: &str| {
+        architecture.components[architecture.component(id).expect("validated")]
+            .label
+            .as_str()
+    };
+    components_in_order(architecture)
+        .into_iter()
+        .filter_map(|component| {
+            let component = &architecture.components[component];
+            component.role.map(|role| (role, component.label.clone()))
+        })
+        .chain(architecture.connections.iter().filter_map(|connection| {
+            connection.role.map(|role| {
+                (
+                    role,
+                    format!("{} → {}", label(&connection.from), label(&connection.to)),
+                )
+            })
+        }))
+        .collect()
 }
 
 /// Every note with the component it explains, one sentence each after a space; nothing without
@@ -329,15 +417,23 @@ fn notes_sentences(spec: &ChartSpec) -> String {
     format!(" {}", text::notes(spec.locale, &notes))
 }
 
-/// One row per component in reading order: its label, kind, boundaries and where it connects to.
+/// One row per component in reading order: its label, kind, boundaries, role and where it
+/// connects to.
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let architecture = architecture(spec);
     let words = spec.locale.words();
     let bounded = !architecture.boundaries.is_empty();
     let with_notes = !architecture.notes.is_empty();
+    let with_roles = architecture
+        .components
+        .iter()
+        .any(|component| component.role.is_some());
     let mut columns = vec![words.component.to_owned(), words.message_kind.to_owned()];
     if bounded {
         columns.push(words.boundary.to_owned());
+    }
+    if with_roles {
+        columns.push(words.role.to_owned());
     }
     columns.push(words.connects_to.to_owned());
     if with_notes {
@@ -348,13 +444,19 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         .map(|component| {
             let mut row = vec![
                 architecture.components[component].label.clone(),
-                text::component_kind(spec.locale, architecture.components[component].kind)
-                    .to_owned(),
+                kind(spec.locale, &architecture.components[component]),
             ];
             if bounded {
                 row.push(boundaries_of(architecture, component));
             }
-            row.push(connects_to(spec, component).join(", "));
+            if with_roles {
+                row.push(
+                    architecture.components[component]
+                        .role
+                        .map_or_else(String::new, |role| text::role(spec.locale, role).to_owned()),
+                );
+            }
+            row.push(connects_to(spec, component, true).join(", "));
             if with_notes {
                 let id = &architecture.components[component].id;
                 let notes: Vec<&str> = architecture
@@ -694,6 +796,227 @@ mod tests {
             text.contains("Images is a node") || text.contains("Images (node)"),
             "{text}"
         );
+    }
+
+    /// The blog with the API critical, the mail service planned, and the connections to both.
+    fn with_roles() -> String {
+        SPEC.replace(
+            r#"{"id": "api", "label": "API", "in": "private"}"#,
+            r#"{"id": "api", "label": "API", "in": "private", "role": "critical"}"#,
+        )
+        .replace(
+            r#""kind": "external"}"#,
+            r#""kind": "external", "role": "planned"}"#,
+        )
+        .replace(
+            r#"{"from": "api", "to": "db", "technology": "SQL"}"#,
+            r#"{"from": "api", "to": "db", "technology": "SQL", "role": "critical"}"#,
+        )
+        .replace(
+            r#"{"from": "api", "to": "mail", "label": "notifies"}"#,
+            r#"{"from": "api", "to": "mail", "label": "notifies", "role": "planned"}"#,
+        )
+    }
+
+    #[test]
+    fn roles_mark_outlines_lines_and_badges_and_the_legend_names_only_those_used() {
+        let output = svg(&with_roles());
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let content = &output.content;
+        assert!(content.contains("chartlet-flow-role-critical"));
+        assert!(content.contains("chartlet-flow-role-planned"));
+        assert!(!content.contains("chartlet-flow-role-deprecated\""));
+        assert!(content.contains(">!</text>") && content.contains(">+</text>"));
+        assert!(content.contains(">Critical</text>") && content.contains(">Planned</text>"));
+        assert!(!content.contains(">Deprecated</text>"));
+        // A role outlines a box and draws a line in its color and pattern.
+        assert!(content.contains(
+            ".chartlet-flow-role-planned .chartlet-flow-edge{stroke:var(--chartlet-role-violet);stroke-dasharray:6 4}"
+        ));
+        // Without roles nothing of them is drawn or styled.
+        assert!(!svg(SPEC).content.contains("chartlet-flow-role"));
+        let print = render_json(
+            &with_roles(),
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: crate::Variant::Print,
+                ..RenderOptions::default()
+            },
+        )
+        .expect("renders")
+        .content;
+        assert!(print.contains("chartlet-flow-role-critical .chartlet-flow-node{stroke:#b42318"));
+        let dark = svg(&with_roles().replace("\"width\"", "\"theme\": \"dark\", \"width\""));
+        assert!(dark.content.contains("--chartlet-role-red:#f97066"));
+    }
+
+    #[test]
+    fn the_text_alternative_names_the_roles() {
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&with_roles()).expect("parses")).expect("valid");
+        assert!(
+            alternative.description.ends_with(
+                "Roles: critical: API, API → Posts; planned: Mail service, API → Mail service."
+            ),
+            "{}",
+            alternative.description
+        );
+        // The sentence of roles names them once; the connections keep their usual notes.
+        assert!(
+            !alternative.description.contains("critical)"),
+            "{}",
+            alternative.description
+        );
+        assert_eq!(
+            alternative.table.columns,
+            ["Component", "Kind", "Boundary", "Role", "Connects to"]
+        );
+        let api = alternative
+            .table
+            .rows
+            .iter()
+            .find(|row| row[0] == "API")
+            .expect("a row");
+        assert_eq!(api[3], "critical");
+        assert_eq!(
+            api[4],
+            "Posts (via SQL, critical), Images (stores), Mail service (notifies, planned)"
+        );
+        let german = with_roles().replace(
+            "\"schemaVersion\": 1,",
+            "\"schemaVersion\": 1, \"locale\": \"de\",",
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(alternative.description.contains("Rollen: kritisch: API"));
+    }
+
+    #[test]
+    fn an_unknown_role_and_a_role_with_its_own_pattern_and_a_dash_are_refused() {
+        let unknown = SPEC.replace(
+            r#"{"id": "reader", "label": "Reader", "kind": "person"}"#,
+            r#"{"id": "reader", "label": "Reader", "kind": "person", "role": "urgent"}"#,
+        );
+        let refused = render_json(&unknown, RenderFormat::Svg, &RenderOptions::default())
+            .expect_err("an unknown role");
+        assert_eq!(
+            (refused.code, refused.path.as_str()),
+            ("invalid_spec", "/architecture/components/0/role")
+        );
+        assert!(
+            refused.message.contains("critical") && refused.message.contains("deprecated"),
+            "{}",
+            refused.message
+        );
+        let dashed = SPEC.replace(
+            r#"{"from": "reader", "to": "site", "label": "reads"}"#,
+            r#"{"from": "reader", "to": "site", "label": "reads", "role": "deprecated", "dash": "dashed"}"#,
+        );
+        assert_eq!(
+            error(&dashed),
+            (
+                "role_conflict",
+                "/architecture/connections/0/dash".to_owned()
+            )
+        );
+        let critical = SPEC.replace(
+            r#"{"from": "reader", "to": "site", "label": "reads"}"#,
+            r#"{"from": "reader", "to": "site", "label": "reads", "role": "critical", "dash": "dashed"}"#,
+        );
+        assert!(svg(&critical).content.contains("chartlet-flow-dashed"));
+    }
+
+    #[test]
+    fn a_symbol_is_defined_once_under_the_id_prefix_and_named_in_the_text() {
+        let json = SPEC
+            .replace(
+                r#"{"id": "api", "label": "API", "in": "private"}"#,
+                r#"{"id": "api", "label": "API", "in": "private", "symbol": "container"}"#,
+            )
+            .replace(
+                r#""kind": "frontend"}"#,
+                r#""kind": "frontend", "symbol": "container"}"#,
+            )
+            .replace(
+                r#""kind": "storage", "in": "cloud"}"#,
+                r#""kind": "storage", "in": "cloud", "symbol": "object-storage"}"#,
+            );
+        let render = |prefix: &str| {
+            render_json(
+                &json,
+                RenderFormat::Svg,
+                &RenderOptions {
+                    id_prefix: Some(prefix.to_owned()),
+                    ..RenderOptions::default()
+                },
+            )
+            .expect("renders")
+            .content
+        };
+        let (first, second) = (render("one"), render("two"));
+        assert_eq!(first.matches("<symbol ").count(), 2);
+        assert_eq!(first.matches("id=\"one-symbol-container\"").count(), 1);
+        assert_eq!(first.matches("href=\"#one-symbol-container\"").count(), 2);
+        assert!(first.contains("id=\"one-symbol-object-storage\""));
+        assert!(first.contains(".chartlet-arch-symbol{"));
+        // Two charts on one page share no id.
+        assert!(!second.contains("one-symbol") && second.contains("id=\"two-symbol-container\""));
+        // A chart without symbols carries neither definitions nor their style.
+        let plain = svg(SPEC).content;
+        assert!(!plain.contains("<symbol") && !plain.contains("chartlet-arch-symbol"));
+
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .contains("Site (frontend, container): connects to API"),
+            "{}",
+            alternative.description
+        );
+        let row = |label: &str| {
+            alternative
+                .table
+                .rows
+                .iter()
+                .find(|row| row[0] == label)
+                .expect("a row")
+                .clone()
+        };
+        assert_eq!(row("API")[1], "service, container");
+        assert_eq!(row("Images")[1], "object storage");
+        assert_eq!(row("Posts")[1], "database");
+        // A category that names the kind is not preceded by it.
+        let cache = SPEC.replace(
+            r#""kind": "database", "in": "private"}"#,
+            r#""kind": "cache", "in": "private", "symbol": "cache"}"#,
+        );
+        let table = text_alternative(&ChartSpec::from_json(&cache).expect("parses"))
+            .expect("valid")
+            .table;
+        assert_eq!(
+            table
+                .rows
+                .iter()
+                .find(|row| row[0] == "Posts")
+                .expect("a row")[1],
+            "in-memory cache"
+        );
+    }
+
+    #[test]
+    fn an_unknown_symbol_is_named_with_its_field() {
+        let json = SPEC.replace(
+            r#"{"id": "api", "label": "API", "in": "private"}"#,
+            r#"{"id": "api", "label": "API", "in": "private", "symbol": "teapot"}"#,
+        );
+        let error = render_json(&json, RenderFormat::Svg, &RenderOptions::default())
+            .expect_err("an unknown symbol is refused");
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("unknown_symbol", "/architecture/components/2/symbol")
+        );
+        assert!(error.message.contains("load-balancer"), "{}", error.message);
     }
 
     #[test]

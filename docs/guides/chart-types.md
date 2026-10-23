@@ -59,6 +59,7 @@ order: 1
 | Network on a circle, groups together, edges by weight | `"type": "network"` with `nodes`, `edges`, `group`, `weight` | [Joint papers](../../../showcase/co-authors/) |
 | Network in rings around one node, with arrowheads | `"layout": "rings"`, `center`, `"directed": true` | [What the checkout service depends on](../../../showcase/service-dependencies/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
+| Architecture diagram with its databases on one rank | `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` | [Order platform and its data stores](../../../showcase/data-tier/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
@@ -872,6 +873,14 @@ releases.
   the edges (at a tie the first in the order of the edges). It keeps the path in line where the
   lanes leave room and draws it thicker in the accent color; `main_path_gap` reports two
   consecutive steps no edge joins, `main_path_unreachable` two ends no way joins.
+- **Shared ranks.** chartlet puts every step one layer after the latest step that leads to it, so
+  steps that belong side by side — parallel reviews, the ends of a flow — can land a layer
+  apart. `"sameRank": [["legal", "finance", "security"]]` puts each set at one position along the
+  flow, in portrait and landscape and in the mobile variant; the order within the layer and the
+  lanes stay chartlet's. It is a layout hint and adds no edge. An edge that would have to run
+  against it is drawn back like the edge that closes a loop. A set names at least two steps
+  (`empty_data`), a step lies in one set at most (`duplicate_member`), and no edge joins two steps
+  of one set (`same_rank_edge`), since an edge always crosses from one layer to another.
 - **Values.** A node with a `value` is filled from a scale of six blues, light for the smallest
   value of the diagram and dark for the largest; `valueLabel` names what the values stand for
   (`Budget (m €)`) in the key below the diagram and in the table. Every step fixes its text color,
@@ -1034,10 +1043,23 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   a boundary, and a boundary `in` another one, up to four deep. Every boundary holds at least one
   component (`empty_boundary`), and boundaries cannot lie in each other in a circle
   (`boundary_cycle`). chartlet keeps components that do not belong to a boundary out of its frame.
+- **Shared ranks** work as in flow charts: `"sameRank": [["catalogDb", "ordersDb",
+  "billingDb"]]` puts the databases of a data tier at one position along the flow. Without it,
+  each database follows its own service, and a `Data tier` boundary around them would stretch
+  over three layers and the services between them; with it, the frame is one layer deep.
 - **Connections** carry a `label` for what they do and a `technology` for how, written in
   brackets on a line below it. A `step` from 1 to 99 numbers the connection in a sequence of
   calls; the number is written before the label, every number is used once (`duplicate_step`,
   `invalid_step`), and the description lists the steps in order.
+- **Roles.** `role` on a component or a connection says what it means in this picture, beyond its
+  kind: `critical` (a strong red outline or line, badge `!`), `planned` (dashed and violet, badge
+  `+`) or `deprecated` (dotted and gray, badge `−`). Flow charts take the same roles on steps and
+  edges. Shape and fill stay those of the kind, so a role adds meaning rather than replacing it;
+  `external` stays a kind. The colors are the theme's role colors in light, dark, blueprint and
+  print, and the line or badge carries the role without color. A legend below the diagram names
+  only the roles used, the description lists what has each role, and the table gains a Role
+  column. A planned or deprecated connection takes no `dash` (`role_conflict`). Example
+  `billing-migration` shows a migration: the old path deprecated, the new one planned.
 - **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
   classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
   (`option_not_supported`).

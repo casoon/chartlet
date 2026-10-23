@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Order platform and its data stores",
+  "source": "Illustrative reference architecture",
+  "width": 1520,
+  "height": 560,
+  "architecture": {
+    "boundaries": [
+      { "id": "platform", "label": "Order platform" },
+      { "id": "data", "label": "Data tier", "in": "platform" }
+    ],
+    "components": [
+      { "id": "shopper", "label": "Shopper", "kind": "person" },
+      { "id": "app", "label": "Shop app", "kind": "frontend" },
+      { "id": "gateway", "label": "API gateway", "in": "platform" },
+      { "id": "catalog", "label": "Catalog service", "in": "platform" },
+      { "id": "orders", "label": "Order service", "in": "platform" },
+      { "id": "queue", "label": "Order events", "kind": "queue", "in": "platform" },
+      { "id": "billing", "label": "Billing worker", "in": "platform" },
+      { "id": "catalogDb", "label": "Catalog", "sublabel": "Postgres", "kind": "database", "in": "data" },
+      { "id": "ordersDb", "label": "Orders", "sublabel": "Postgres", "kind": "database", "in": "data" },
+      { "id": "billingDb", "label": "Invoices", "sublabel": "Postgres", "kind": "database", "in": "data" }
+    ],
+    "connections": [
+      { "from": "shopper", "to": "app", "label": "orders" },
+      { "from": "app", "to": "gateway", "technology": "HTTPS" },
+      { "from": "gateway", "to": "catalog", "label": "browse" },
+      { "from": "gateway", "to": "orders", "label": "checkout" },
+      { "from": "catalog", "to": "catalogDb", "technology": "SQL" },
+      { "from": "orders", "to": "ordersDb", "technology": "SQL" },
+      { "from": "orders", "to": "queue", "label": "publishes" },
+      { "from": "queue", "to": "billing", "label": "delivers" },
+      { "from": "billing", "to": "billingDb", "technology": "SQL" }
+    ],
+    "mainPath": ["shopper", "app", "gateway", "orders", "queue", "billing"],
+    "sameRank": [["catalogDb", "ordersDb", "billingDb"]]
+  },
+  "mobile": {
+    "width": 440,
+    "height": 1100
+  }
+}

@@ -127,6 +127,8 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Architecture diagram with numbered steps | `"type": "architecture"`, `connections[].step` | [checkout-calls](examples/checkout-calls.json) |
 | Deployment diagram in the blueprint look | `kind: "node"`, `"artifact"`, `"theme": "blueprint"` | [shop-deployment](examples/shop-deployment.json) |
 | Architecture diagram with weighted connections | `connections[].weight`, `mainPath: {from, to}` | [request-volume](examples/request-volume.json) |
+| Architecture diagram with its databases on one rank, with a phone variant | `sameRank` | [data-tier](examples/data-tier.json) |
+| Architecture diagram with roles: critical, planned, deprecated | `role` on components and connections | [billing-migration](examples/billing-migration.json) |
 | Tree with boxes colored by value | `value`, `valueLabel` on `tree` and `flow` | [department-budgets](examples/department-budgets.json) |
 | Flow chart with the shares of each step as a stripe | `parts` on `flow` and `tree` nodes | [claim-handling](examples/claim-handling.json) |
 | Dendrogram built from a distance matrix | `"type": "tree"` with `distances`, `linkage` | [climate-similarity](examples/climate-similarity.json) |

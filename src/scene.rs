@@ -26,10 +26,24 @@ pub(crate) enum Element {
     /// Opens a group whose classes tie what it holds to the diagram nodes it belongs to, for the
     /// focus of the HTML profile; [`Element::GroupEnd`] closes it.
     Group(String),
+    /// Opens a group like [`Element::Group`] around a diagram node that has an ID in the
+    /// specification: the classes, then that ID, which the `hooks` render option writes out as
+    /// `data-chartlet-node`. [`Element::GroupEnd`] closes it.
+    NodeGroup(String, String),
     GroupEnd,
     /// Draws nothing: where a diagram node stands, for the focus link the HTML profile lays over
     /// it.
     Hotspot(Hotspot),
+    /// A symbol of an architecture component, see [`crate::symbols`].
+    Symbol(SymbolUse),
+}
+
+/// Where a symbol stands: its name and the top left corner of its square.
+#[derive(Debug, Clone)]
+pub(crate) struct SymbolUse {
+    pub name: &'static str,
+    pub x: f64,
+    pub y: f64,
 }
 
 /// A diagram node the HTML profile can focus: its index, its name, and its box.

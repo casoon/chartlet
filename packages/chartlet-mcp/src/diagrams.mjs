@@ -298,9 +298,12 @@ const NOTES = [
   "A tree has exactly one root: the node with neither parent nor partner; every other node names its parent, or its partner.",
   "chartlet lays the diagram out itself; the specification says what is connected, never where it goes.",
   'orientation "auto" (default) takes portrait — time or flow running down — where that fits the canvas, landscape — running right — where only that fits, and otherwise the one that grows the canvas less (warning canvas_too_small names the size needed). "portrait" and "landscape" force one.',
+  'Flow and architecture diagrams take "sameRank": [["a", "b"]]: sets of nodes put at one position along the flow, such as parallel reviews or the databases of a data tier. A layout hint, not an edge; each node in one set at most, and no edge may join two nodes of one set (same_rank_edge).',
   "Every kind has its own shape and a role color; say what an edge means in its label, the line pattern only repeats it.",
   "The description and the data table list every element in reading order; check a spec with chartlet_validate_spec.",
   '"theme": "blueprint" draws a diagram in pale lines on a deep blue ground (diagrams only; charts keep light and dark). A deployment is an architecture diagram: boundaries are the hosts, components of kind node and artifact sit in them.',
+  'An architecture component may take "symbol", a generic symbol above its label that names its technology category (the kind keeps its shape; put a product name in sublabel): browser, mobile, api-gateway, load-balancer, cdn, firewall, identity, container, orchestrator, function, cloud, cache, object-storage, message-broker, search-index, monitoring. Any other name fails with unknown_symbol.',
+  'Flow and architecture diagrams take "role" on nodes and edges: "critical" (strong red outline or line, badge !), "planned" (dashed violet, badge +) or "deprecated" (dotted gray, badge −). The kind keeps its shape and fill; a legend names only the roles used. Use a role for what something means in this picture, not for its kind (external is a kind); planned and deprecated edges take no dash (role_conflict).',
   'A tree takes "layout": "radial" for a mind map (root in the middle, subtrees in sectors); it refuses orientation, partner and link. "collapsed": true on a node hides what hangs below it.',
 ];
 
