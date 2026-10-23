@@ -289,7 +289,7 @@ For ohlc layers min is the lowest low, max the highest high, first the first ope
     "chartlet_inspect",
     {
       title: "Inspect a model for gaps",
-      description: `Run chartlet's inspections of a model for gaps in its documentation, without rendering it — the same findings as \`chartlet inspect\`. Available for architecture diagrams: connections without a label or technology, components without a sublabel, isolated components, components no view shows and views that add nothing.
+      description: `Run chartlet's inspections of a model for gaps in its documentation, without rendering it — the same findings as \`chartlet inspect\`. Available for architecture diagrams (connections without a label or technology, components without a sublabel, isolated components, components no view shows, views that add nothing), flow charts (unlabelled branches of a decision, steps no start leads to, a start without an end) and class diagrams (classes without members, isolated classes).
 
 Each finding has a stable code, a severity, the JSON Pointer of the part it is about, what was found and how to improve it. A gap is missing documentation the specification has a field for; a hint is something to look at, which may well be intended — never treat a hint as an error. Findings never stop a render. Pass the codes of inspections that do not apply in disable.
 
