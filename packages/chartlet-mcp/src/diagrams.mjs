@@ -236,6 +236,7 @@ const KINDS = {
       dotted: "dash",
       sharedTrunks: "on flow: true draws edges that leave or reach one step together on one branching line; only unlabeled ones with the same dash, weight and role whose other ends share lane and group, never out of a decision",
     },
+    note: { note: "on a step id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no edge; without on, it explains the whole chart and stands in a band below it; up to 12" },
   },
   state: {
     state: {
@@ -277,7 +278,7 @@ const KINDS = {
       components: "architecture.views[]: a key, a title and the components shown; connections between them come along, or only the listed connections",
       steps: "a dynamic view: connection ids in the order they occur, each with optional step text, numbered from 1; a connection may occur again",
     },
-    note: { note: "on a component id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no connection; up to 12" },
+    note: { note: "on a component id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no connection; on a boundary id, inside that frame without a line; without on, it explains the whole diagram and stands in a band below it; up to 12" },
   },
   tree: {
     node: {
@@ -306,7 +307,7 @@ const KINDS = {
       direction: "on an association only: forward (navigable to to, open arrowhead there), both or none (plain line)",
     },
     package: { package: "frame around the classes that name it with in; packages nest with in, up to four deep; relations join classes, never packages" },
-    note: { note: "on a class id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no relation; up to 12" },
+    note: { note: "on a class id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no relation; on a package id, inside that frame without a line; without on, it explains the whole diagram and stands in a band below it; up to 12" },
   },
 };
 
@@ -513,6 +514,7 @@ export function diagramCounts(spec) {
         edges: length(spec.flow?.edges),
         lanes: length(spec.flow?.lanes),
         groups: length(spec.flow?.groups),
+        notes: length(spec.flow?.notes),
       };
     case "state": {
       const states = spec.state?.states ?? [];

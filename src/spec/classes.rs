@@ -28,7 +28,8 @@ pub struct ClassesSpec {
     /// Frames that group classes into modules, such as ordering or payment.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub packages: Vec<PackageSpec>,
-    /// Notes beside classes, such as an assumption or a limitation.
+    /// Notes beside classes, inside packages or on the whole diagram, such as an assumption or a
+    /// limitation.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<NoteSpec>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
@@ -229,8 +230,8 @@ impl ChartSpec {
         validate_notes(
             &classes.notes,
             "classes",
-            |id| classes.class(id).is_some(),
-            "class",
+            |id| classes.class(id).is_some() || classes.package(id).is_some(),
+            "class or package",
         )?;
         Ok(Vec::new())
     }

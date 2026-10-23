@@ -341,7 +341,69 @@ fn layered(
     let rank_layers = layers(ranks, &rank_edges, &late);
     let mut layer: Vec<usize> = rank.iter().map(|rank| rank_layers[*rank]).collect();
     pull_out_of_frames(diagram, &directed, &mut layer);
+    keep_balls_with_components(diagram, &directed, &mut layer);
+    place_frame_notes(diagram, ends, &mut layer);
     (reversed, directed, layer)
+}
+
+/// Moves the ball of an interface whose component lies after a frame it does not belong to, but
+/// which still spans the ball's layer, out of that frame's layers: kept out of the frame, it would
+/// stand far beside it, away from its component. The component moves along where it ends the
+/// flow; one that leads on keeps its layer, and so does the ball when that leaves no room.
+fn keep_balls_with_components(
+    diagram: &Diagram,
+    edges: &[Option<(usize, usize)>],
+    layer: &mut [usize],
+) {
+    let leads_on = |node: usize| edges.iter().flatten().any(|(from, _)| *from == node);
+    for &(ball, component) in edges.iter().flatten() {
+        if diagram.nodes[ball].shape != Shape::Interface {
+            continue;
+        }
+        for group in 0..diagram.groups.len() {
+            if diagram.inside(ball, group) {
+                continue;
+            }
+            let span = (0..layer.len())
+                .filter(|&node| diagram.inside(node, group))
+                .map(|node| layer[node]);
+            let (Some(first), Some(last)) = (span.clone().min(), span.max()) else {
+                continue;
+            };
+            if layer[ball] < first || layer[ball] > last || layer[component] <= last {
+                continue;
+            }
+            if layer[component] > last + 1 {
+                layer[ball] = last + 1;
+            } else if !leads_on(component) {
+                layer[ball] = last + 1;
+                layer[component] = last + 2;
+            }
+        }
+    }
+}
+
+/// Moves a note on a frame, a note node in a group without a line, to the first layer of the
+/// steps of its group, so that it stands at the frame's head; in a group of nothing else it stays
+/// in the first layer.
+fn place_frame_notes(diagram: &Diagram, ends: &[(usize, usize)], layer: &mut [usize]) {
+    let frame_note = |node: usize| {
+        diagram.nodes[node].shape == Shape::Note
+            && ends.iter().all(|&(from, to)| from != node && to != node)
+    };
+    for note in 0..layer.len() {
+        let Some(group) = diagram.nodes[note].group else {
+            continue;
+        };
+        if !frame_note(note) {
+            continue;
+        }
+        layer[note] = (0..layer.len())
+            .filter(|&node| !frame_note(node) && diagram.inside(node, group))
+            .map(|node| layer[node])
+            .min()
+            .unwrap_or(0);
+    }
 }
 
 /// The rank of every step, and how many ranks there are: a step on its own is a rank, and so is

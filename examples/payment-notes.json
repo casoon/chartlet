@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Payments and what to know about them",
+  "source": "Illustrative reference architecture",
+  "width": 1000,
+  "height": 1120,
+  "architecture": {
+    "boundaries": [
+      { "id": "cloud", "label": "Cloud account" },
+      { "id": "pci", "label": "Card data zone", "in": "cloud" }
+    ],
+    "components": [
+      { "id": "shopper", "label": "Shopper", "kind": "person" },
+      { "id": "checkout", "label": "Checkout", "kind": "frontend" },
+      { "id": "gateway", "label": "API gateway", "in": "cloud" },
+      { "id": "payments", "label": "Payment service", "in": "pci" },
+      { "id": "vault", "label": "Token vault", "kind": "security", "in": "pci" },
+      { "id": "ledger", "label": "Ledger", "kind": "database", "in": "cloud" },
+      { "id": "provider", "label": "Card provider", "kind": "external" }
+    ],
+    "connections": [
+      { "from": "shopper", "to": "checkout", "label": "pays" },
+      { "from": "checkout", "to": "gateway", "technology": "HTTPS" },
+      { "from": "gateway", "to": "payments", "label": "charge" },
+      { "from": "payments", "to": "vault", "label": "tokenizes" },
+      { "from": "payments", "to": "provider", "label": "authorizes", "technology": "HTTPS" },
+      { "from": "payments", "to": "ledger", "label": "records", "technology": "SQL" }
+    ],
+    "mainPath": ["shopper", "checkout", "gateway", "payments", "provider"],
+    "orientation": "portrait",
+    "notes": [
+      { "on": "vault", "text": "Card numbers never leave the vault; everything else sees tokens." },
+      { "on": "pci", "text": "Audited once a year; changes need a second reviewer." },
+      { "text": "Figures and names are illustrative; the diagram shows the target state." }
+    ]
+  },
+  "mobile": {
+    "width": 440,
+    "height": 1200
+  }
+}

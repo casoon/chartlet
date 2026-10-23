@@ -29,7 +29,12 @@
         ]
       },
       { "id": "db", "label": "Order store", "kind": "database", "in": "shop" },
-      { "id": "psp", "label": "Card processor", "kind": "external" }
+      {
+        "id": "psp",
+        "label": "Card processor",
+        "kind": "external",
+        "provides": [{ "id": "card-api", "label": "Card API" }]
+      }
     ],
     "connections": [
       { "from": "shopper", "to": "web", "label": "buys" },
@@ -37,7 +42,7 @@
       { "from": "checkout", "to": "orders", "toInterface": "orders-api", "label": "places" },
       { "from": "checkout", "to": "payments", "toInterface": "payments-api", "label": "charges" },
       { "from": "support", "to": "payments", "toInterface": "refunds-api", "label": "refunds" },
-      { "from": "payments", "to": "psp", "technology": "HTTPS" },
+      { "from": "payments", "to": "psp", "toInterface": "card-api", "technology": "HTTPS" },
       { "from": "orders", "to": "db", "technology": "SQL" }
     ],
     "mainPath": ["shopper", "web", "checkout", "payments", "psp"],

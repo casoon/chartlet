@@ -2179,9 +2179,9 @@ pub(crate) fn class_sentence(
     sentence
 }
 
-/// The notes of a class or architecture diagram, one sentence each with the element it explains:
-/// `Note on Order: only for existing customers.`
-pub(crate) fn notes(locale: Locale, notes: &[(&str, &str)]) -> String {
+/// The notes of a diagram, one sentence each with the element or frame it explains, if any:
+/// `Note on Order: only for existing customers.`, `Note: prices are net.`
+pub(crate) fn notes(locale: Locale, notes: &[(Option<&str>, &str)]) -> String {
     let sentences: Vec<String> = notes
         .iter()
         .map(|(on, text)| {
@@ -2191,9 +2191,11 @@ pub(crate) fn notes(locale: Locale, notes: &[(&str, &str)]) -> String {
             } else {
                 "."
             };
-            match locale {
-                Locale::En => format!("Note on {on}: {text}{stop}"),
-                Locale::De => format!("Notiz zu {on}: {text}{stop}"),
+            match (locale, on) {
+                (Locale::En, Some(on)) => format!("Note on {on}: {text}{stop}"),
+                (Locale::De, Some(on)) => format!("Notiz zu {on}: {text}{stop}"),
+                (Locale::En, None) => format!("Note: {text}{stop}"),
+                (Locale::De, None) => format!("Notiz: {text}{stop}"),
             }
         })
         .collect();

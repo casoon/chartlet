@@ -8,6 +8,7 @@
 //! a cycle is drawn back the other way.
 
 mod graph;
+pub(crate) mod notes;
 mod trunks;
 
 use std::fmt::Write as _;
@@ -79,6 +80,8 @@ const SOCKET: f64 = 10.0;
 const INTERFACE_GAP: f64 = 6.0;
 const INTERFACE_SIZE: f64 = 11.0;
 const INTERFACE_LINE: f64 = 13.0;
+/// The room around the name of an interface on a chip below its ball, on a narrow canvas.
+const INTERFACE_PAD: f64 = 4.0;
 
 /// The spacing of a diagram: roomy on a wide canvas, compact below [`NARROW`] pixels, such as a
 /// mobile variant, where steps get narrower and wrap their labels sooner, and the space around
@@ -95,6 +98,11 @@ struct Spacing {
 }
 
 impl Spacing {
+    /// Whether this is the compact spacing of a narrow canvas.
+    fn is_compact(&self) -> bool {
+        self.margin < MARGIN
+    }
+
     const fn for_width(width: u32) -> Self {
         if width < NARROW {
             Self {
@@ -129,13 +137,12 @@ pub(crate) fn layout(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let flow = flow(spec);
-    let mut scene = layout_with_trunks(
-        spec,
-        &Diagram::from_flow(flow),
-        flow.shared_trunks,
-        warnings,
-        metrics,
-    );
+    let mut diagram = Diagram::from_flow(flow);
+    notes::push_notes(&mut diagram, &flow.notes, "flow", |id| {
+        notes::Target::Node(flow.node(id).expect("validated"))
+    });
+    let mut scene = layout_with_trunks(spec, &diagram, flow.shared_trunks, warnings, metrics);
+    notes::push_band(&mut scene, spec, (&flow.notes, "flow"), metrics, warnings);
     let values: Vec<Option<f64>> = flow.nodes.iter().map(|node| node.value).collect();
     heat::push_key(
         &mut scene,
@@ -685,7 +692,7 @@ fn node_boxes(
             continue;
         }
         if node.shape == Shape::Note {
-            let (lines, size) = note_box(node, spacing, metrics, warnings);
+            let (lines, size) = note_box(&node.label, &node.path, spacing, metrics, warnings);
             labels.push(lines);
             sublabels.push(Vec::new());
             sizes.push(size);
@@ -793,10 +800,18 @@ fn interface_box(
         .iter()
         .map(|line| metrics.width(line, INTERFACE_SIZE))
         .fold(0.0, f64::max);
-    let size = (
-        2.0 * (BALL + INTERFACE_GAP + text),
-        (2.0 * BALL).max(INTERFACE_LINE * count(lines.len())),
-    );
+    let size = if spacing.is_compact() {
+        // On a narrow canvas the name stands below the ball, on a chip over the stem.
+        (
+            (text + 2.0 * INTERFACE_PAD).max(2.0 * BALL),
+            2.0 * (BALL + INTERFACE_PAD + INTERFACE_LINE * count(lines.len())),
+        )
+    } else {
+        (
+            2.0 * (BALL + INTERFACE_GAP + text),
+            (2.0 * BALL).max(INTERFACE_LINE * count(lines.len())),
+        )
+    };
     (lines, size)
 }
 
@@ -808,19 +823,14 @@ const MAX_NOTE_LINES: usize = 10;
 
 /// The lines of a note and its box: width and height.
 fn note_box(
-    node: &Node,
+    text: &str,
+    path: &str,
     spacing: &Spacing,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> (Vec<String>, (f64, f64)) {
-    let path = format!("{}/text", node.path);
-    let lines = note_lines(
-        &node.label,
-        spacing.max_node - 2.0 * PAD,
-        metrics,
-        warnings,
-        &path,
-    );
+    let path = format!("{path}/text");
+    let lines = note_lines(text, spacing.max_node - 2.0 * PAD, metrics, warnings, &path);
     let text = lines
         .iter()
         .map(|line| metrics.width(line, NOTE_SIZE))
@@ -1424,6 +1434,9 @@ fn step_sizes(model: &Model, landscape: bool) -> Vec<(f64, f64)> {
         for (node, size) in sizes.iter_mut().enumerate() {
             // The name of an interface stands below its ball rather than beside it.
             if model.diagram.nodes[node].shape == Shape::Interface {
+                if model.spacing.is_compact() {
+                    continue;
+                }
                 let text = size.0 / 2.0 - BALL - INTERFACE_GAP;
                 let lines = count(model.labels[node].len());
                 *size = (
@@ -3204,8 +3217,27 @@ impl Plan {
     ) {
         let lines = &model.labels[node];
         let (middle_x, middle_y) = (x + width / 2.0, y + height / 2.0);
+        let compact = model.spacing.is_compact();
+        if compact {
+            elements.push(Element::Rect(Rect {
+                x,
+                y: middle_y + BALL + INTERFACE_PAD / 2.0,
+                width,
+                height: INTERFACE_LINE * count(lines.len()) + INTERFACE_PAD,
+                class: "chartlet-diagram-chip",
+                series_index: None,
+                style_index: None,
+                tooltip: None,
+            }));
+        }
         for (index, line) in lines.iter().enumerate() {
-            let (x, y, anchor) = if self.landscape {
+            let (x, y, anchor) = if compact {
+                (
+                    middle_x,
+                    middle_y + BALL + INTERFACE_PAD + 9.0 + INTERFACE_LINE * count(index),
+                    TextAnchor::Middle,
+                )
+            } else if self.landscape {
                 (
                     middle_x,
                     middle_y + BALL + INTERFACE_GAP + 9.0 + INTERFACE_LINE * count(index),
@@ -3980,6 +4012,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&sentence);
     }
+    description.push_str(&notes::sentences(locale, &flow.notes, |id| {
+        &flow.nodes[flow.node(id).expect("validated")].label
+    }));
     description
 }
 
@@ -4034,6 +4069,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         columns.push(words.role.to_owned());
     }
     columns.push(words.leads_to.to_owned());
+    let with_notes = flow.notes.iter().any(|note| note.on.is_some());
+    if with_notes {
+        columns.push(words.notes.to_owned());
+    }
     let rows = reading_order(&Diagram::from_flow(flow))
         .into_iter()
         .map(|node| {
@@ -4069,11 +4108,20 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 );
             }
             row.push(next_steps(spec, &ends, node, true).join(", "));
+            if with_notes {
+                row.push(notes::of(&flow.notes, &step.id));
+            }
             row
         })
         .collect();
     DataTable {
-        caption: format!("{} {}", words.data_for, spec.title),
+        caption: notes::caption(
+            format!("{} {}", words.data_for, spec.title),
+            spec.locale,
+            &flow.notes,
+            |_| true,
+            |id| &flow.nodes[flow.node(id).expect("validated")].label,
+        ),
         columns,
         rows,
     }
