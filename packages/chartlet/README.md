@@ -104,7 +104,8 @@ a.connect(api, db, { label: 'reads, writes' });
 const spec = a.spec({ title: 'Orders' });
 ```
 
-See [JavaScript runtimes](https://github.com/casoon/chartlet/blob/main/docs/guides/javascript.md#architecture-builder).
+`flow()` builds a flow chart the same way, with `lane`, `node`, `group`, the same edge calls,
+`mainPath` and `sameRank`. See [JavaScript runtimes](https://github.com/casoon/chartlet/blob/main/docs/guides/javascript.md#architecture-builder).
 
 ## Cloudflare Workers and Vite
 
