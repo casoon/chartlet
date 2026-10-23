@@ -162,6 +162,8 @@ pub struct FlowNodeSpec {
     /// The parts of what the step holds, drawn as a stripe inside the bottom of its box.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parts: Vec<PartSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// What a step is; every kind has its own shape.
@@ -209,6 +211,47 @@ pub struct FlowEdgeSpec {
     /// it carries more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
+}
+
+/// What a node or an edge of a diagram means beyond its kind, the same in every diagram: each
+/// role has its own color and a sign that does not depend on color, a pattern or a badge, and
+/// the legend below the diagram names the roles it uses.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "lowercase")]
+pub enum DiagramRole {
+    /// Something the whole depends on, or that is at risk: a strong red outline or line and a
+    /// badge with `!`.
+    Critical,
+    /// Something not built yet: a dashed outline or line and a badge with `+`.
+    Planned,
+    /// Something on its way out: a dotted outline or line and a badge with `−`.
+    Deprecated,
+}
+
+impl DiagramRole {
+    /// Whether the role draws the line of an edge in a pattern of its own, which leaves no room
+    /// for a `dash` of the edge.
+    pub(crate) const fn has_pattern(self) -> bool {
+        matches!(self, Self::Planned | Self::Deprecated)
+    }
+}
+
+/// Checks that an edge with a role whose line has a pattern of its own declares no `dash`.
+pub(crate) fn validate_role(
+    role: Option<DiagramRole>,
+    dash: Option<Dash>,
+    path: &str,
+) -> Result<(), ChartError> {
+    match (role, dash) {
+        (Some(role), Some(_)) if role.has_pattern() => Err(ChartError::new(
+            "role_conflict",
+            format!("{path}/dash"),
+            "a planned or deprecated edge is drawn in the pattern of its role; remove dash",
+        )),
+        _ => Ok(()),
+    }
 }
 
 /// One part of what a node holds: a name and a value of at least 0.
@@ -366,6 +409,23 @@ impl ChartSpec {
                 .tree
                 .as_ref()
                 .is_some_and(|tree| tree.nodes.iter().any(|node| !node.parts.is_empty()))
+    }
+
+    /// Whether a flow chart or an architecture diagram gives a node or an edge a role.
+    pub(crate) fn has_roles(&self) -> bool {
+        self.flow.as_ref().is_some_and(|flow| {
+            flow.nodes.iter().any(|node| node.role.is_some())
+                || flow.edges.iter().any(|edge| edge.role.is_some())
+        }) || self.architecture.as_ref().is_some_and(|architecture| {
+            architecture
+                .components
+                .iter()
+                .any(|component| component.role.is_some())
+                || architecture
+                    .connections
+                    .iter()
+                    .any(|connection| connection.role.is_some())
+        })
     }
 
     /// Whether a flow chart or a tree has a node with a value.
@@ -552,6 +612,7 @@ impl FlowSpec {
                 validate_text(label, &format!("{path}/label"), 60)?;
             }
             validate_weight(edge.weight, &path)?;
+            validate_role(edge.role, edge.dash, &path)?;
         }
         Ok(())
     }

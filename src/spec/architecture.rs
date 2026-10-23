@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, MainPath, sequence::is_identifier, validate_text,
+    ChartSpec, Dash, DiagramOrientation, DiagramRole, MainPath, sequence::is_identifier,
+    validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -43,6 +44,8 @@ pub struct ComponentSpec {
     /// The `id` of the boundary the component lies in.
     #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
     pub boundary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// What a component is; every kind has its own shape.
@@ -105,6 +108,8 @@ pub struct ConnectionSpec {
     /// stronger as it carries more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// A frame around components, such as a cloud region, a network, a zone or a system. Boundaries
@@ -342,6 +347,7 @@ impl ArchitectureSpec {
                 validate_text(label, &format!("{path}/label"), 60)?;
             }
             super::flow::validate_weight(connection.weight, &path)?;
+            super::flow::validate_role(connection.role, connection.dash, &path)?;
             if let Some(technology) = &connection.technology {
                 validate_text(technology, &format!("{path}/technology"), 40)?;
             }

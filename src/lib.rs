@@ -25,6 +25,7 @@ pub mod qr;
 mod rangebar;
 mod reference;
 mod render;
+mod roles;
 mod sankey;
 mod scatter;
 mod scene;
@@ -53,9 +54,9 @@ pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
     CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ClassKind,
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionSpec, Corner, Curve, Dash,
-    DataPoint, DiagramOrientation, DistancesSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec,
-    FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage,
-    MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
+    DataPoint, DiagramOrientation, DiagramRole, DistancesSpec, FlowEdgeSpec, FlowNodeSpec,
+    FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement,
+    Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
     NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, OhlcPoint, Orientation,
     PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec,
     ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder,

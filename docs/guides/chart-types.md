@@ -1021,6 +1021,15 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   brackets on a line below it. A `step` from 1 to 99 numbers the connection in a sequence of
   calls; the number is written before the label, every number is used once (`duplicate_step`,
   `invalid_step`), and the description lists the steps in order.
+- **Roles.** `role` on a component or a connection says what it means in this picture, beyond its
+  kind: `critical` (a strong red outline or line, badge `!`), `planned` (dashed and violet, badge
+  `+`) or `deprecated` (dotted and gray, badge `−`). Flow charts take the same roles on steps and
+  edges. Shape and fill stay those of the kind, so a role adds meaning rather than replacing it;
+  `external` stays a kind. The colors are the theme's role colors in light, dark, blueprint and
+  print, and the line or badge carries the role without color. A legend below the diagram names
+  only the roles used, the description lists what has each role, and the table gains a Role
+  column. A planned or deprecated connection takes no `dash` (`role_conflict`). Example
+  `billing-migration` shows a migration: the old path deprecated, the new one planned.
 - **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
   classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
   (`option_not_supported`).

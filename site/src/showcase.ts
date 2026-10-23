@@ -350,6 +350,13 @@ const catalogue = [
       'Requests per second between the services of a shop. Every connection has a `weight`; its line is as much stronger as it carries more, from 1 px for nothing to 5 px for the heaviest, while the arrowheads keep their size. The description names the heaviest connection and the table gives every weight. The main path is given by its ends only, `{ "from": "web", "to": "pay" }`, and stays in the accent color. Illustrative values.',
   },
   {
+    slug: 'billing-migration',
+    chart: 'Architecture diagram with roles',
+    useCase: 'Show what changes in a migration',
+    blurb:
+      'Billing moves out of a monolith. The old path is `deprecated` (dotted, gray), the new service and its connections are `planned` (dashed, violet), the gateway, the accounts database and the payment call are `critical` (strong red). Each role also carries a badge or a line pattern, so it reads without color; the legend names only the roles used, and the description and the table name every role. Illustrative values.',
+  },
+  {
     slug: 'department-budgets',
     chart: 'Tree with boxes colored by value',
     useCase: 'Show where the money goes in an organization',

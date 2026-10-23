@@ -41,7 +41,8 @@ pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use classes::{ClassKind, ClassSpec, ClassesSpec, RelationKind, RelationSpec};
 pub use flow::{
-    FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, MainPath, NodeKind, PartSpec,
+    DiagramRole, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, MainPath, NodeKind,
+    PartSpec,
 };
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};

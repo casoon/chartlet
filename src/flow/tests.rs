@@ -510,3 +510,52 @@ fn a_long_sublabel_wraps_instead_of_being_cut_off() {
     assert!(output.content.contains("Puzzles · worksheets"));
     assert!(output.content.contains("certificates · invoices"));
 }
+
+#[test]
+fn a_flow_chart_gives_steps_and_edges_roles_in_picture_legend_and_text() {
+    let json = SPEC
+        .replace(
+            r#"{"id": "edit", "label": "Edit"}"#,
+            r#"{"id": "edit", "label": "Edit", "role": "deprecated", "value": 3}"#,
+        )
+        .replace(
+            r#"{"from": "publish", "to": "done"}"#,
+            r#"{"from": "publish", "to": "done", "role": "critical"}"#,
+        );
+    let output = svg(&json);
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    // The role joins the value's fill on the step's group; the outline is the role's.
+    assert!(
+        output
+            .content
+            .contains("chartlet-heat-3 chartlet-flow-role-deprecated")
+    );
+    assert!(output.content.contains(">−</text>"));
+    assert!(output.content.contains(">Deprecated</text>"));
+    assert!(output.content.contains(">Critical</text>"));
+    let alternative =
+        text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+    assert!(
+        alternative
+            .description
+            .ends_with("Roles: critical: Publish → Live; deprecated: Edit."),
+        "{}",
+        alternative.description
+    );
+    assert!(alternative.table.columns.contains(&"Role".to_owned()));
+    let publish = alternative
+        .table
+        .rows
+        .iter()
+        .find(|row| row[0] == "Publish")
+        .expect("a row");
+    assert_eq!(publish.last().map(String::as_str), Some("Live (critical)"));
+    let dashed = SPEC.replace(
+        r#"{"from": "publish", "to": "done"}"#,
+        r#"{"from": "publish", "to": "done", "role": "planned", "dash": "dotted"}"#,
+    );
+    assert_eq!(
+        error(&dashed),
+        ("role_conflict", "/flow/edges/4/dash".to_owned())
+    );
+}

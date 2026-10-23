@@ -298,6 +298,7 @@ const NOTES = [
   "Every kind has its own shape and a role color; say what an edge means in its label, the line pattern only repeats it.",
   "The description and the data table list every element in reading order; check a spec with chartlet_validate_spec.",
   '"theme": "blueprint" draws a diagram in pale lines on a deep blue ground (diagrams only; charts keep light and dark). A deployment is an architecture diagram: boundaries are the hosts, components of kind node and artifact sit in them.',
+  'Flow and architecture diagrams take "role" on nodes and edges: "critical" (strong red outline or line, badge !), "planned" (dashed violet, badge +) or "deprecated" (dotted gray, badge −). The kind keeps its shape and fill; a legend names only the roles used. Use a role for what something means in this picture, not for its kind (external is a kind); planned and deprecated edges take no dash (role_conflict).',
   'A tree takes "layout": "radial" for a mind map (root in the middle, subtrees in sectors); it refuses orientation, partner and link. "collapsed": true on a node hides what hangs below it.',
 ];
 

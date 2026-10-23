@@ -1403,7 +1403,8 @@
                 "enum": ["person", "frontend", "service", "database", "queue", "storage", "cache", "external", "security", "node", "artifact"],
                 "default": "service"
               },
-              "in": { "$ref": "#/$defs/identifier" }
+              "in": { "$ref": "#/$defs/identifier" },
+              "role": { "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -1421,7 +1422,8 @@
               "technology": { "type": "string", "minLength": 1, "maxLength": 40 },
               "step": { "type": "integer", "minimum": 1, "maximum": 99 },
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
-              "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 }
+              "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
+              "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -1476,7 +1478,8 @@
         },
         "lane": { "$ref": "#/$defs/identifier" },
         "value": { "description": "A number that colors the node's fill, from light for the smallest value to dark for the largest.", "type": "number" },
-        "parts": { "description": "The parts of what the node holds, drawn as a stripe inside the bottom of its box; at most 6 per node and 8 names per diagram; a decision takes none.", "type": "array", "maxItems": 6, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "value": { "type": "number", "minimum": 0 } } } }
+        "parts": { "description": "The parts of what the node holds, drawn as a stripe inside the bottom of its box; at most 6 per node and 8 names per diagram; a decision takes none.", "type": "array", "maxItems": 6, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "value": { "type": "number", "minimum": 0 } } } },
+        "role": { "$ref": "#/$defs/diagramRole" }
       }
     },
     "flowEdge": {
@@ -1488,8 +1491,13 @@
         "to": { "$ref": "#/$defs/identifier" },
         "label": { "type": "string", "minLength": 1, "maxLength": 60 },
         "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
-        "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 }
+        "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
+        "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
       }
+    },
+    "diagramRole": {
+      "description": "What a node or an edge means beyond its kind, alike in every diagram. critical: a strong red outline or line and a badge with !; planned: dashed, violet, badge +; deprecated: dotted, gray, badge −. The kind keeps its shape and fill; a legend below the diagram names the roles used, and the description and the table name every role.",
+      "enum": ["critical", "planned", "deprecated"]
     },
     "participant": {
       "description": "A participant; each kind has its own shape.",
