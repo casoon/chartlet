@@ -3,7 +3,7 @@ use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 82] = [
+const EXAMPLES: [(&str, &str, &str); 83] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -223,6 +223,11 @@ const EXAMPLES: [(&str, &str, &str); 82] = [
         "service-fan-out",
         include_str!("../examples/service-fan-out.json"),
         include_str!("../examples/service-fan-out.svg"),
+    ),
+    (
+        "order-fulfilment",
+        include_str!("../examples/order-fulfilment.json"),
+        include_str!("../examples/order-fulfilment.svg"),
     ),
     (
         "tenant-architecture",

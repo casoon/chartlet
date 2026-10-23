@@ -122,7 +122,13 @@ pub(crate) fn layout(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let flow = flow(spec);
-    let mut scene = layout_diagram(spec, &Diagram::from_flow(flow), warnings, metrics);
+    let mut scene = layout_with_trunks(
+        spec,
+        &Diagram::from_flow(flow),
+        flow.shared_trunks,
+        warnings,
+        metrics,
+    );
     let values: Vec<Option<f64>> = flow.nodes.iter().map(|node| node.value).collect();
     heat::push_key(
         &mut scene,

@@ -2,17 +2,19 @@
 //! steps of the layer before, drawn as one line out of the step that branches on a track of its
 //! own, with a dot at every branch. Only edges that read the same on the shared part share it:
 //! the usual arrowhead, no label, the same pattern, weight and role, off the main path, and with
-//! their other ends in the same frame, so that they cross the same frames. Every edge is still
+//! their other ends in the same lane and frame, so that they cross the same frames. The branches
+//! of a decision keep a line each. Every edge is still
 //! drawn, from end to end, with its tooltip; where an edge would be ambiguous on the shared line,
 //! such as a second edge between the same two steps, it keeps a line of its own.
 
-use super::{Diagram, Ends, Graph};
+use super::{Diagram, Ends, Graph, Shape};
 use crate::spec::{Dash, DiagramRole};
 
-/// What the edges of a trunk share: the step, the frame of their other ends, their pattern, their
-/// weight and their role.
+/// What the edges of a trunk share: the step, the lane and the frame of their other ends, their
+/// pattern, their weight and their role.
 type Key = (
     usize,
+    Option<usize>,
     Option<usize>,
     Option<Dash>,
     Option<u64>,
@@ -70,8 +72,12 @@ impl Trunks {
                 } else {
                     (spec.to, spec.from)
                 };
+                if leaving && diagram.nodes[node].shape == Shape::Decision {
+                    continue;
+                }
                 let key = (
                     node,
+                    diagram.nodes[other].lane,
                     diagram.nodes[other].group,
                     spec.dash,
                     spec.weight.map(f64::to_bits),

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Order fulfilment with parallel checks",
+  "source": "Warehouse handbook, order path",
+  "width": 960,
+  "height": 700,
+  "flow": {
+    "nodes": [
+      { "id": "received", "label": "Order received", "kind": "start" },
+      { "id": "split", "label": "Split into tasks" },
+      { "id": "stock", "label": "Reserve stock" },
+      { "id": "payment", "label": "Capture payment" },
+      { "id": "fraud", "label": "Check fraud score" },
+      { "id": "address", "label": "Validate address" },
+      { "id": "pack", "label": "Pack parcel" },
+      { "id": "express", "label": "Express?", "kind": "decision" },
+      { "id": "courier", "label": "Hand to courier" },
+      { "id": "post", "label": "Send by post" },
+      { "id": "shipped", "label": "Shipped", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "received", "to": "split" },
+      { "from": "split", "to": "stock" },
+      { "from": "split", "to": "payment" },
+      { "from": "split", "to": "fraud" },
+      { "from": "split", "to": "address" },
+      { "from": "stock", "to": "pack" },
+      { "from": "payment", "to": "pack" },
+      { "from": "fraud", "to": "pack" },
+      { "from": "address", "to": "pack" },
+      { "from": "pack", "to": "express" },
+      { "from": "express", "to": "courier", "label": "yes" },
+      { "from": "express", "to": "post", "label": "no" },
+      { "from": "courier", "to": "shipped" },
+      { "from": "post", "to": "shipped" }
+    ],
+    "groups": [{ "label": "Checks", "nodes": ["stock", "payment", "fraud", "address"] }],
+    "mainPath": ["received", "split", "payment", "pack", "express", "courier", "shipped"],
+    "sharedTrunks": true
+  }
+}

@@ -230,7 +230,12 @@ const KINDS = {
       store: "cylinder",
       external: "dashed box",
     },
-    edge: { solid: "default", dashed: "dash", dotted: "dash" },
+    edge: {
+      solid: "default",
+      dashed: "dash",
+      dotted: "dash",
+      sharedTrunks: "on flow: true draws edges that leave or reach one step together on one branching line; only unlabeled ones with the same dash, weight and role whose other ends share lane and group, never out of a decision",
+    },
   },
   state: {
     state: {

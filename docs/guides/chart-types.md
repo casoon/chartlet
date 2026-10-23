@@ -908,6 +908,15 @@ releases.
   landscape. Once a chart has `lanes`, every step names its `lane` (`missing_lane`).
 - **Groups** frame steps of one lane under a name (`group_spans_lanes` otherwise). A step outside
   a group that ends up inside its frame is reported as `group_overlap`.
+- **Shared trunks.** With `"sharedTrunks": true`, edges that leave one step for steps of the next
+  layer, or reach one from steps of the layer before — a step that splits into parallel tasks, the
+  tasks that all lead to one step — are drawn on one line that branches on a track of its own,
+  with a dot at every branch, as in architecture diagrams. Only edges that read the same on the
+  shared part share it: no `label`, the same `dash`, `weight` and `role`, off the main path, and
+  their other ends in the same lane and group. The branches of a decision keep a line each, even
+  without a label, and so does a second edge between the same two steps. Every edge is still drawn
+  from end to end with its tooltip, and the description and the table are as before. Example
+  `order-fulfilment`.
 - **Orientation** works as for sequence diagrams: portrait runs the flow down, landscape right,
   and `auto` picks by the canvas.
 - **Text alternative.** The description names the steps in reading order — layer by layer — and

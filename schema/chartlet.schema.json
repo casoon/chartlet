@@ -894,7 +894,8 @@
           "$ref": "#/$defs/sameRank"
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
-        "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
+        "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 },
+        "sharedTrunks": { "description": "Draws edges that leave a step together, or reach one together, on one shared line that branches with a dot at every branch: only those without label, off the main path, with the same dash, weight and role and their other ends in the same lane and group; the branches of a decision keep a line each. Every edge is still drawn and listed.", "type": "boolean", "default": false }
       }
     },
     "state": {
