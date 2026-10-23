@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, DiagramRole, MainPath, NoteSpec,
+    ChartSpec, Dash, DiagramOrientation, DiagramRole, DiagramSpacing, MainPath, NoteSpec, PortSide,
     flow::validate_notes,
     sequence::is_identifier,
     validate_text,
@@ -43,6 +43,8 @@ pub struct ArchitectureSpec {
     pub same_rank: Vec<Vec<String>>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+    #[serde(default, skip_serializing_if = "DiagramSpacing::is_normal")]
+    pub spacing: DiagramSpacing,
     /// Whether connections that leave a component together, or reach one together, are drawn on
     /// one shared line that branches; only those that read the same on the shared part.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -186,6 +188,12 @@ pub struct ConnectionSpec {
     /// Which way the connection runs; `forward`, from `from` to `to`, when absent.
     #[serde(default, skip_serializing_if = "ConnectionDirection::is_forward")]
     pub direction: ConnectionDirection,
+    /// The side of `from` the connection leaves, and the side of `to` it reaches; where the
+    /// layout chooses when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_side: Option<PortSide>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_side: Option<PortSide>,
 }
 
 /// Which way a connection runs. A connection both ways stays one connection: one relationship
@@ -550,6 +558,11 @@ impl ArchitectureSpec {
             }
             super::flow::validate_weight(connection.weight, &path)?;
             super::flow::validate_role(connection.role, connection.dash, &path)?;
+            super::flow::validate_sides(
+                (&connection.from, &connection.to),
+                (connection.from_side, connection.to_side),
+                &path,
+            )?;
             if let Some(technology) = &connection.technology {
                 validate_text(technology, &format!("{path}/technology"), 40)?;
             }

@@ -895,6 +895,7 @@
         },
         "notes": { "description": "Notes on steps (on names a step) or on the whole chart (without on).", "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "spacing": { "$ref": "#/$defs/diagramSpacing" },
         "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
       }
     },
@@ -947,7 +948,8 @@
           "type": "array",
           "items": { "$ref": "#/$defs/identifier" }
         },
-        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "spacing": { "$ref": "#/$defs/diagramSpacing" }
       }
     },
     "network": {
@@ -1030,7 +1032,8 @@
             "properties": {
               "id": { "$ref": "#/$defs/identifier" },
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
-              "in": { "$ref": "#/$defs/identifier" }
+              "in": { "$ref": "#/$defs/identifier" },
+              "orientation": { "description": "Lays out the package's classes portrait or landscape whichever way the diagram runs, as one block; relations from outside run on straight to their class. When such a way would cross the block in every orientation the diagram may take, the package follows the diagram (package_orientation_ignored). Not in a package that has an orientation of its own.", "enum": ["portrait", "landscape"] }
             }
           }
         },
@@ -1054,7 +1057,8 @@
           }
         },
         "notes": { "description": "Notes on classes or packages (on names one) or on the whole diagram (without on).", "$ref": "#/$defs/notes" },
-        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+        "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "spacing": { "$ref": "#/$defs/diagramSpacing" }
       }
     },
     "scatter": {
@@ -1459,7 +1463,9 @@
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
               "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
               "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
-              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" }
+              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" },
+              "fromSide": { "description": "The side of `from` the connection leaves.", "$ref": "#/$defs/portSide" },
+              "toSide": { "description": "The side of `to` the connection reaches.", "$ref": "#/$defs/portSide" }
             }
           }
         },
@@ -1488,6 +1494,7 @@
         },
         "notes": { "description": "Notes on components or boundaries (on names one) or on the whole diagram (without on). A view keeps the notes on the whole diagram, and those on the components and boundaries it shows; a deployment view keeps only those on the whole diagram.", "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "spacing": { "$ref": "#/$defs/diagramSpacing" },
         "sharedTrunks": { "description": "Draws connections that leave a component together, or reach one together, on one shared line that branches with a dot at every branch: only those without label, technology or step, in the usual direction, off the main path, with the same dash, weight and role and their other ends in the same boundary. Every connection is still drawn and listed.", "type": "boolean", "default": false },
         "views": {
           "description": "Views on this model. A specification with views renders one of them, chosen by its key, or the default view; never the whole model. A view resolves to an architecture diagram of its own: the listed components in the order of the model, the connections between them (or only the listed ones), the boundaries that hold at least one of them, and the model's main path when the view shows all of it. Nothing outside the view is drawn or described, and no connection is drawn that the model does not have.",
@@ -1639,8 +1646,19 @@
         "label": { "type": "string", "minLength": 1, "maxLength": 60 },
         "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
         "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
-        "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
+        "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
+        "fromSide": { "description": "The side of `from` the edge leaves.", "$ref": "#/$defs/portSide" },
+        "toSide": { "description": "The side of `to` the edge reaches.", "$ref": "#/$defs/portSide" }
       }
+    },
+    "diagramSpacing": {
+      "description": "How much room a layered diagram leaves between its layers and between neighbours in a layer: compact (about 70 %, never below what a phone keeps, and not spread over a larger canvas), normal (default) or roomy (150 %). Steps, texts, margins and the distance between parallel lines keep their size.",
+      "enum": ["compact", "normal", "roomy"],
+      "default": "normal"
+    },
+    "portSide": {
+      "description": "A side of a node, named after the flow so that it holds in either orientation: start faces the nodes before, end the nodes after, left and right lie across the flow (left and right in portrait, top and bottom in landscape). Without it the layout chooses. A side along the flow against the edge is ignored (port_side_ignored); an edge from a node to itself takes none. An edge with a side never joins a shared trunk.",
+      "enum": ["start", "end", "left", "right"]
     },
     "diagramRole": {
       "description": "What a node or an edge means beyond its kind, alike in every diagram. critical: a strong red outline or line and a badge with !; planned: dashed, violet, badge +; deprecated: dotted, gray, badge −. The kind keeps its shape and fill; a legend below the diagram names the roles used, and the description and the table name every role.",

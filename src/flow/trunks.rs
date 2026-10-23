@@ -59,6 +59,7 @@ impl Trunks {
                     && spec.technology.is_none()
                     && !spec.main
                     && spec.ends == Ends::arrow()
+                    && !spec.sides.any()
             })
             .collect();
         for leaving in [true, false] {

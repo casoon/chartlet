@@ -12,7 +12,8 @@ use crate::{
     DataTable,
     error::ChartWarning,
     flow::{
-        Diagram, Edge, End, Ends, Group, MARGIN, Node, Shape, heaviest_edge, layout_with_trunks,
+        Diagram, Edge, End, Ends, Group, MARGIN, Node, Shape, Sides, heaviest_edge,
+        layout_with_trunks,
         notes::{self, Target},
         reading_order,
     },
@@ -217,6 +218,11 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
                 sign: connection.direction.sign(),
                 weight: connection.weight,
                 role: connection.role,
+                sides: Sides {
+                    from: connection.from_side,
+                    to: connection.to_side,
+                    path: format!("/architecture/connections/{index}"),
+                },
             })
             .collect(),
         lanes: Vec::new(),
@@ -241,6 +247,8 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
             })
             .collect(),
         orientation: architecture.orientation,
+        spacing: architecture.spacing,
+        ..Diagram::default()
     }
 }
 
@@ -1049,8 +1057,9 @@ mod tests {
     #[test]
     fn only_connections_that_read_the_same_share_a_trunk() {
         let separate = FAN_OUT.replace("\"sharedTrunks\": true", "\"sharedTrunks\": false");
-        // Labels, a second pattern, a weight, a direction or a second connection between the
-        // same two components each keep a line of their own; what is left shares no trunk.
+        // Labels, a second pattern, a weight, a direction, a role, a side or a second connection
+        // between the same two components each keep a line of their own; what is left shares no
+        // trunk.
         for (from, to) in [
             (
                 r#""to": "search" }"#,
@@ -1068,6 +1077,10 @@ mod tests {
             (
                 r#""to": "search" }"#,
                 r#""to": "search", "role": "critical" }"#,
+            ),
+            (
+                r#""to": "search" }"#,
+                r#""to": "search", "fromSide": "right" }"#,
             ),
             (
                 r#"{ "from": "gateway", "to": "cart" },"#,
