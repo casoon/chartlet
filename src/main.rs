@@ -11,6 +11,7 @@ use chartlet::{
 };
 use serde_json::{Value, json};
 
+mod inspect_command;
 mod preview;
 mod watch;
 
@@ -125,6 +126,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     match arguments.next().as_deref() {
         Some("render") => {}
         Some("stylesheet") => return Ok(write_stdout(&shared_stylesheet(arguments)?)?),
+        Some("inspect") => return inspect_command::run(arguments),
         Some("-h" | "--help") => return Ok(write_stdout(&usage())?),
         _ => return Err(usage().into()),
     }
@@ -434,6 +436,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 
 fn usage() -> String {
     "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
+       chartlet inspect <spec.json|-> [--disable <code>]... [--strict] [--format text|json] [--diagnostics text|json]
        chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
 }
 

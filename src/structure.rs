@@ -157,7 +157,7 @@ fn is_chain(nodes: usize, edges: &[(usize, usize)]) -> bool {
 }
 
 /// Each node's neighbours, read without direction, in the order of the edges.
-fn neighbours(nodes: usize, edges: &[(usize, usize)]) -> Vec<Vec<usize>> {
+pub(crate) fn neighbours(nodes: usize, edges: &[(usize, usize)]) -> Vec<Vec<usize>> {
     let mut neighbours = vec![Vec::new(); nodes];
     for &(from, to) in edges {
         neighbours[from].push(to);

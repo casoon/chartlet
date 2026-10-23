@@ -1,7 +1,7 @@
 ---
 title: CLI options
 sidebarLabel: CLI options
-description: Output formats and options of chartlet render, and chartlet stylesheet.
+description: Output formats and options of chartlet render, chartlet inspect and chartlet stylesheet.
 order: 2
 ---
 
@@ -96,6 +96,37 @@ output. The page shows the latest chart with its warnings and reloads after ever
 failed render it shows the error and marks the previous chart as stale. `-o` is optional with it;
 the page itself is never part of the output. It shows SVG and HTML, not `--format png`; with
 `--styles external` it loads the shared stylesheet itself. Ctrl-C stops the watch and the page.
+
+## chartlet inspect
+
+```sh
+chartlet inspect <spec.json | -> [--disable <code>]... [--strict] [--format text|json]
+```
+
+Checks an architecture model for gaps in its documentation, without rendering it; see
+[Inspections](../../guides/warnings-and-errors/#inspections) for the rules. The findings go to
+standard output, one line each, or with `--format json` as one document:
+
+```text
+gap[unlabelled_connection] at /architecture/connections/0: the connection from "Customer" to "Web shop" has no label; add a label that says what it does, such as "reads orders"
+hint[isolated_component] at /architecture/components/2: "Audit log" has no connection to any other component; connect it, or keep it if it stands apart on purpose
+```
+
+```json
+{ "findings": [{ "code": "isolated_component", "severity": "hint", "path": "/architecture/components/2", "message": "…", "hint": "…" }] }
+```
+
+| Option | Effect |
+| --- | --- |
+| `--disable <code>` | Leaves out one inspection; repeatable. An unknown code is an error. |
+| `--strict` | Fails (exit code 1, `strict_inspections`) when a finding of severity `gap` remains; hints never fail. |
+| `--format text\|json` | Text lines (default) or one JSON document on standard output. |
+| `--diagnostics json` | Writes an error as the JSON document of `render` to standard error. |
+
+Findings alone leave the exit code at 0. An invalid specification fails exactly as with
+`chartlet render`, with its code and path, and any other chart type with
+`inspections_unavailable` at `/type`. `chartlet render` never runs inspections: its output,
+warnings, `--strict` and `--allow-warning` stay as they are.
 
 ## chartlet stylesheet
 

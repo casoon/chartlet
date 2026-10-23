@@ -320,7 +320,7 @@ fn unknown_view(key: &str, keys: &[&str]) -> ChartError {
 impl ArchitectureSpec {
     /// What `view` shows of the model: its components, its connections (one per step of a
     /// dynamic view) and the boundaries around its components, by their places in the model.
-    fn selection(&self, view: &ViewSpec) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
+    pub(crate) fn selection(&self, view: &ViewSpec) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
         let model = self;
         let connection = |id: &str| {
             model

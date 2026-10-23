@@ -12,6 +12,7 @@ mod diverging;
 mod error;
 mod flow;
 mod heat;
+mod inspect;
 mod layout;
 mod metrics;
 mod network;
@@ -49,6 +50,7 @@ mod waterfall;
 
 use describe::automatic_description;
 pub use error::{ChartError, ChartWarning};
+pub use inspect::{INSPECTIONS, Inspection, Severity, inspect_json};
 pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
