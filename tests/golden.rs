@@ -3,7 +3,7 @@ use chartlet::{ChartSpec, RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 95] = [
+const EXAMPLES: [(&str, &str, &str); 96] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -479,10 +479,15 @@ const EXAMPLES: [(&str, &str, &str); 95] = [
         include_str!("../examples/warming-causes.json"),
         include_str!("../examples/warming-causes.svg"),
     ),
+    (
+        "payment-notes",
+        include_str!("../examples/payment-notes.json"),
+        include_str!("../examples/payment-notes.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 30] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 31] = [
     (
         "co-authors",
         include_str!("../examples/co-authors.json"),
@@ -632,6 +637,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 30] = [
         "warming-causes",
         include_str!("../examples/warming-causes.json"),
         include_str!("../examples/warming-causes.mobile.svg"),
+    ),
+    (
+        "payment-notes",
+        include_str!("../examples/payment-notes.json"),
+        include_str!("../examples/payment-notes.mobile.svg"),
     ),
 ];
 

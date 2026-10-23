@@ -1,8 +1,10 @@
 //! Architecture diagrams: components joined by connections, inside nested boundaries such as a
 //! cloud region, a network or a system, laid out by the layered layout of flow charts. A
 //! connection says what it does and, in brackets below, how. Notes stand beside the components
-//! they explain, joined by a dotted line that is no connection. The description and the data
-//! table name every component with its boundaries, where it connects to and its notes.
+//! they explain, joined by a dotted line that is no connection, at the head of a boundary, or
+//! below the diagram when they explain it as a whole. The description and the data table name
+//! every component with its boundaries, where it connects to and its notes; the table's caption
+//! carries the notes no component row does.
 
 use std::fmt::Write as _;
 
@@ -11,6 +13,7 @@ use crate::{
     error::ChartWarning,
     flow::{
         Diagram, Edge, End, Ends, Group, MARGIN, Node, Shape, heaviest_edge, layout_with_trunks,
+        notes::{self, Target},
         reading_order,
     },
     layout::format_value,
@@ -37,6 +40,13 @@ pub(crate) fn layout(
         architecture.shared_trunks,
         warnings,
         metrics,
+    );
+    notes::push_band(
+        &mut scene,
+        spec,
+        (&architecture.notes, "architecture"),
+        metrics,
+        warnings,
     );
     let used = roles::used(
         architecture
@@ -128,10 +138,12 @@ const fn shape(kind: ComponentKind) -> Shape {
 
 fn diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
     let mut diagram = model_diagram(architecture, locale);
-    for (index, note) in architecture.notes.iter().enumerate() {
-        let target = architecture.component(&note.on).expect("validated");
-        diagram.push_note(target, &note.text, format!("/architecture/notes/{index}"));
-    }
+    notes::push_notes(&mut diagram, &architecture.notes, "architecture", |id| {
+        architecture.component(id).map_or_else(
+            || Target::Frame(architecture.boundary(id).expect("validated")),
+            Target::Node,
+        )
+    });
     diagram
 }
 
@@ -558,25 +570,21 @@ fn with_roles(architecture: &ArchitectureSpec) -> Vec<(DiagramRole, String)> {
         .collect()
 }
 
-/// Every note with the component it explains, one sentence each after a space; nothing without
-/// notes.
+/// Every note with the component or boundary it explains, one sentence each after a space;
+/// nothing without notes.
 fn notes_sentences(spec: &ChartSpec) -> String {
     let architecture = architecture(spec);
-    if architecture.notes.is_empty() {
-        return String::new();
-    }
-    let notes: Vec<(&str, &str)> = architecture
-        .notes
-        .iter()
-        .map(|note| {
-            let target = architecture.component(&note.on).expect("validated");
-            (
-                architecture.components[target].label.as_str(),
-                note.text.as_str(),
-            )
-        })
-        .collect();
-    format!(" {}", text::notes(spec.locale, &notes))
+    notes::sentences(spec.locale, &architecture.notes, |id| {
+        label(architecture, id)
+    })
+}
+
+/// The label of the component or boundary `id`.
+fn label<'a>(architecture: &'a ArchitectureSpec, id: &str) -> &'a str {
+    architecture.component(id).map_or_else(
+        || &architecture.boundaries[architecture.boundary(id).expect("validated")].label,
+        |component| &architecture.components[component].label,
+    )
 }
 
 /// One row per component in reading order: its label, kind, boundaries, role and where it
@@ -585,7 +593,11 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let architecture = architecture(spec);
     let words = spec.locale.words();
     let bounded = !architecture.boundaries.is_empty();
-    let with_notes = !architecture.notes.is_empty();
+    let with_notes = architecture.notes.iter().any(|note| {
+        note.on
+            .as_deref()
+            .is_some_and(|on| architecture.component(on).is_some())
+    });
     let with_roles = architecture
         .components
         .iter()
@@ -631,20 +643,22 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             }
             row.push(connects_to(spec, component, true).join(", "));
             if with_notes {
-                let id = &architecture.components[component].id;
-                let notes: Vec<&str> = architecture
-                    .notes
-                    .iter()
-                    .filter(|note| &note.on == id)
-                    .map(|note| note.text.as_str())
-                    .collect();
-                row.push(notes.join("; "));
+                row.push(notes::of(
+                    &architecture.notes,
+                    &architecture.components[component].id,
+                ));
             }
             row
         })
         .collect();
     DataTable {
-        caption: format!("{} {}", words.data_for, spec.title),
+        caption: notes::caption(
+            format!("{} {}", words.data_for, spec.title),
+            spec.locale,
+            &architecture.notes,
+            |id| architecture.component(id).is_some(),
+            |id| label(architecture, id),
+        ),
         columns,
         rows,
     }
@@ -1496,10 +1510,65 @@ mod tests {
             .find(|row| row[0] == "API")
             .expect("a row");
         assert_eq!(api[4], "Rate limited to 100 requests a second");
-        let on_boundary = json.replace(r#"{"on": "db""#, r#"{"on": "cloud""#);
+        let unknown = json.replace(r#"{"on": "db""#, r#"{"on": "nowhere""#);
         assert_eq!(
-            error(&on_boundary),
+            error(&unknown),
             ("unknown_node", "/architecture/notes/0/on".to_owned())
+        );
+    }
+
+    #[test]
+    fn notes_on_a_boundary_or_the_whole_diagram_stand_without_a_line() {
+        let notes = r#""notes": [
+                {"on": "cloud", "text": "Runs in one region"},
+                {"text": "All traffic is encrypted in transit"}
+            ],
+            "mainPath""#;
+        let json = SPEC.replace("\"mainPath\"", notes);
+        let plain = svg(SPEC);
+        let output = svg(&json);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        for text in ["Runs in one region", "All traffic is encrypted in transit"] {
+            assert!(output.content.contains(&format!("<title>{text}</title>")));
+        }
+        // No dotted line: neither note joins anything.
+        assert_eq!(
+            output
+                .content
+                .matches("chartlet-flow-edge chartlet-flow-dotted")
+                .count(),
+            plain
+                .content
+                .matches("chartlet-flow-edge chartlet-flow-dotted")
+                .count()
+        );
+        // The note on the whole diagram stands in a band below it, which grows the canvas.
+        let height = |content: &str| {
+            let start = content.find("height=\"").expect("a height") + 8;
+            content[start..start + content[start..].find('"').expect("closed")]
+                .parse::<f64>()
+                .expect("a number")
+        };
+        assert!(height(&output.content) > height(&plain.content));
+        let plain = text_alternative(&ChartSpec::from_json(SPEC).expect("parses")).expect("valid");
+        let with_notes =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        assert_eq!(
+            with_notes.description,
+            format!(
+                "{} Note on Cloud: Runs in one region. Note: All traffic is encrypted in transit.",
+                plain.description
+            )
+        );
+        // No component row carries them: the caption does.
+        assert_eq!(with_notes.table.columns, plain.table.columns);
+        assert_eq!(with_notes.table.rows, plain.table.rows);
+        assert_eq!(
+            with_notes.table.caption,
+            format!(
+                "{}. Note on Cloud: Runs in one region. Note: All traffic is encrypted in transit.",
+                plain.table.caption
+            )
         );
     }
 
