@@ -5,194 +5,1018 @@ order: 1
 ---
 
 [`schema/chartlet.schema.json`](https://github.com/casoon/chartlet/blob/main/schema/chartlet.schema.json)
-is the complete contract and can be used for editor validation.
+is the complete contract and can be used for editor validation. This page describes every field by
+chart type, and the rules the renderer checks beyond the schema. An error names its code and the
+place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
+[Warnings and errors](../../guides/warnings-and-errors/).
 
-| Field | Required | Description |
+| `type` | Section | Drawn from |
 | --- | --- | --- |
-| `schemaVersion` | yes | Always `1`. |
-| `type` | yes | `bar`, `line`, `time`, `topicmap`, `atlas`, `stripes`, `calendar`, `rangebar`, `boxplot`, `timeline`, `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `waterfall`, `multiples`, `sequence`, `flow`, `state`, `architecture`, `tree`, or `network`. |
-| `title` | yes | Visible title; also the accessible name of the chart (`<title>`). The SVG profile draws it in the chart: a title wider than the chart wraps onto a second line at a space, and the chart below it moves down; only what does not fit on two lines is shortened (`text_truncated`). The HTML profile shows it as the `<figcaption>` and draws no title in its SVGs, so it never shortens it. |
-| `data` | one of | Single series: `[{ "label": "…", "value": 1, "group": "…", "lower": 0.5, "upper": 1.5 }]`. `group` (bar charts) gives every bar of a group one palette color and a legend entry; either every point names a group or none does (`missing_group`), at most 4 groups (`too_many_series`). `lower` and `upper` (bar charts without groups, and single-series line charts) draw an error bar through the end of the bar or the point: on every point or on none (`missing_bounds`), the value between them (`invalid_bounds`). |
-| `categories` + `series` | one of | Several series: unique category labels, and `[{ "name": "…", "values": […] }]`; a series of a bar or line chart (no stack) may add `lower` and `upper` arrays, one entry per category, for error bars (`missing_bounds`, `series_length_mismatch`, `invalid_bounds`). On `multiples`, `categories` with `values` in each pane makes small multiples of bars. |
-| `orientation` | no | `vertical` (default) or `horizontal`; bar charts only. |
-| `theme` | no | `light` (default), `dark` or, for diagrams, `blueprint`; the palettes are CSS custom properties on the root. |
-| `timeAxis.timezone` | no | Fixed UTC offset such as `"+02:00"`, or `UTC` (default); `time` charts only. |
-| `timeAxis.title` | no | Title of the time axis. |
-| `timeAxis.gaps` | no | `show` (default) keeps the distances in time; `collapse` places every observed timestamp at the same distance from the next, so weekends and holidays take no space. Reference lines, point markers and zones then take the slot of an observation and must lie within the observed range (`time_out_of_range`). |
-| `timeAxis.precision` | no | `year`, `month`, `day` or `minute`: how tooltips, the data table and the description name an observation. Absent, the coarsest form that tells the observations apart is chosen: a year when all fall on January 1, a month when all fall on the first of a month. Set it for annual values placed mid-year (`1950-07-01` → `1950`). Each data layer is named by its own observations (or its own `precision`), and a table row as finely as the finest layer with a value there. |
-| `timeAxis.step` | no | The distance between time ticks instead of one chosen from the width: whole years (1–1000) on a calendar axis, units on a numeric axis; ticks sit on its multiples (`50` → 1850, 1900, 1950, 2000). For a narrow panel whose claim needs a tick the automatic choice leaves out. A label that would run into the one before it is left out; its gridline stays. |
-| `timeAxis.min`, `timeAxis.max` | no | Positions the time axis reaches at least, such as `"1990"` before data from 1991, so that a round tick is drawn. They extend the axis and never cut an observation off; they are no observations (no table row, not in the description). Not with `"gaps": "collapse"`. |
-| `panes[].layers[].stepEnd` | no | `line` and `area` with `"curve": "step"`: a time after the last observation where its step ends — annual means drawn as steps end at the end of their last year. It is no observation: no marker, tooltip, table row or description. Not with collapsed gaps or in a stacked pane. |
-| `panes[].layers[].markers` | no | `line` and `area` only: `false` draws no markers, for a fitted or reference line whose observations are not data; tooltips stay on invisible targets unless the chart sets `"tooltips": "markers"`. |
-| `panes[].layers[].precision` | no | Data layers on a calendar axis: the same values as `timeAxis.precision`, for one layer — yearly means beside monthly values. On a numeric axis each layer writes its positions with the decimals its own positions need. |
-| `timeAxis.kind` | no | `calendar` (default) reads every `time` as a timestamp. `number` reads it as a plain number — a distance along a profile, a depth, an age in millions of years — with ticks at round numbers, values written in the chart's `locale`, and the axis `title` as the head of the table's first column. No `timezone`, `gaps: "collapse"` or `zoomSteps` with it. |
-| `timeAxis.reverse` | no | `true` runs the axis from right to left, the largest position at the left: ages before present read from the oldest on the left to today on the right. |
-| `panes` | no | `time`: 1–4 panes stacked on one shared time axis, each with its own `valueAxis` and `layers`. `multiples`: 2–12 panes, each with a unique `title`, sharing the top-level `valueAxis`; with `categories`, each pane has its own `values` (one per category, `null` for none) and its own `valueAxis` instead of `layers` (1–20 categories). Up to six data layers per pane — on a `time` chart at most four of the whole chart without their own `color` — and six annotation layers (zones, reference lines and point markers together). |
-| `panes[].note` | no | `multiples` only: a short finding under the panel title, such as a verdict, up to 160 characters on up to two lines. Panel titles also take two lines before they are shortened; every panel keeps the same head height, so the plots stay aligned. The notes are part of the description. |
-| `panes[].noteEmphasis` | no | `true` draws the panel's note in the text color and semibold instead of muted, to set one finding apart from the others by weight, not by color alone. |
-| `panes[].title` | multiples | Heading of a small-multiples panel; not allowed on a `time` chart, whose panes are named by their `valueAxis.title`. |
-| `panes[].heightRatio` | no | `time` only: the pane's share of the plot height against the other panes, 1–10, default 1. |
-| `panes[].stack` | no | `time` only: `"normal"` stacks the pane's `area` layers in layer order, each on top of the ones before it, so that the top edge shows their total; line and point layers in the pane stay as they are. The areas need the same times and `curve`, a value of zero or more at every time (`unaligned_stack`, `negative_in_stack`) and no `lower`/`upper`. Markers and the end labels sit on top of the stack; tooltips and the data table give each layer's own value. |
-| `panes[].valueAxis` | no | `time` only: `title`, `format`, `decimals`, `min`, `max`, `step`, `exact`, `thousandsSeparator`, `scale`, `reverse` and `unit` of the pane's own value axis. |
-| `columns` | no | `multiples` only: grid columns, 1–6; default up to three. |
-| `sparkline` | no | `time` only: `true` draws the lines and areas of one pane across the whole canvas, without axes, title, legend or value labels, with a dot at the end of each line; `width` 60–600 and `height` 16–200. The title and description remain the accessible name and description, and the HTML profile keeps its caption and table. Only line and area layers; no zoom steps or mobile variant. |
-| `tooltips` | no | `time` only: `"observations"` (default) gives every observation a tooltip while observations stand at least 4 pixels apart, on an invisible target where no marker is drawn; `"markers"` gives tooltips only to drawn markers, so a line too dense for markers has none and its SVG stays small. |
-| `legend` | no | `time` only: `top` (default) names the series in a legend above the plot; `end` writes each name at the last observation of its line, right of the plot, which makes room for the widest name (at most a third of the chart). Names that would overlap move apart. Not with candles, whose legend explains hollow and filled bodies. |
-| `independentAxes` | no | `multiples` only: `true` gives every panel its own value axis, scaled to its own values, for panels in different units or sizes. Their heights can then no longer be compared across panels; the description says so. |
-| `panes[].layers[].mark` | no | `line`, `area`, `point`, `ohlc` (candlesticks, `time` only), `band` (a zone), or `annotation`. An `area` is a line whose region down to zero is filled in its color; the value axis then always includes zero. A `point` layer draws a dot for every observation and no line, as in a scatter plot; it takes no `dash`, `stroke`, `curve`, `modeled` or `lower`/`upper`. The area between two lines is an uncertainty band (`lower`/`upper`), not a separate mark. |
-| `panes[].layers[].name` | one of | Legend and table label; required once a pane — or a `time` chart across its panes — has several data layers, and unique within the pane; on a `time` chart unique across all panes, since they share one legend. |
-| `panes[].layers[].data` | ohlc | `[{ "time": "2026-03-02", "open": 10, "high": 12, "low": 9, "close": 11 }]`, 2–2000 candles with increasing `time`; `low` at or below `open` and `close`, `high` at or above them. A candlestick layer takes no `color`, `modeled`, `stroke` or `dash`. |
-| `panes[].layers[].points` | line, area | `[{ "time": 1772323200, "value": 1 }]`; ISO 8601 dates and bare years (`"1850"`) are accepted too. `"value": null` marks a missing observation: the line, its area and its band break there, and table and description say “Missing”. Add `lower` and `upper` to every point with a value for an uncertainty band; a point without a value carries neither. |
-| `panes[].layers[].modeled` | no | Line and area layers: the line is dashed (unless `dash` says otherwise), its band hatched, and legend, description and table say “modelled”. |
-| `panes[].layers[].stroke` | no | Line and area layers: `regular` (default, 3 px), `thin` (1 px), `medium` (2 px, for small panels) or `bold` (4.5 px); the legend sample shows the same weight, so two lines differ in more than color. |
-| `panes[].layers[].dash` | no | Line and area layers: `solid`, `dashed`, or `dotted`. Defaults to `dashed` for a modeled layer and `solid` otherwise; the legend sample shows the same pattern. |
-| `panes[].layers[].value` / `time` | annotation | A horizontal reference line at `value`, a vertical one at `time`, or a point marker at both. Both widen the axes. |
-| `panes[].layers[].shape` | no | Point markers only: `circle` (default), `square`, `diamond`, `triangle-up`, or `triangle-down`. A reference line refuses it. |
-| `panes[].layers[].bottom` / `top` | band | Value edges of a zone; `bottom` must lie below `top`. A missing edge is the edge of the plot. Given edges widen the value axis. |
-| `panes[].layers[].from` / `to` | band | Time edges of a zone in the forms a point's `time` takes; `from` must lie before `to`. A missing edge is the edge of the plot. At least `bottom` and `top`, or `from` and `to`, are required. |
-| `panes[].layers[].label` | annotation, band | Required text of a reference line, point marker or zone. |
-| `stripes` | stripes | `{ "firstYear": 1850, "values": [..], "reference": 0, "min": .., "max": .., "yearLabels": true, "stretch": false }`; `null` leaves a year empty. `stretch: true` draws the stripes alone across the whole canvas, without margins, title or year labels, and the SVG stretches to whatever box the page gives it (`preserveAspectRatio="none"`): give it a height in CSS, such as a 6-pixel band. Title and description remain its accessible name and description. |
-| `calendar` | calendar | `{ "year": 2024, "layout": "months" \| "weeks", "days": [{ "date": "2024-03-01", "value": 1 }], "reference", "min", "max" }`. |
-| `ranges` | rangebar | `[{ "label": "…", "low": 0, "high": 1, "mid": 0.5, "modeled": false, "group": "…", "weight": 12, "summary": false }]`; `orientation` applies. `group` draws the spans of each group in its own palette color, with a legend entry per group; either every range names a group or none does (`missing_group`), and at most 4 groups (`too_many_series`). `weight` (above zero, with `mid`) turns the central mark into a square whose area follows it; `summary: true` (with `mid`) draws the span as a diamond, widest at `mid`: together with `references` a forest plot (`invalid_weight`, `summary_without_mid`). See [Forest plots](../../guides/chart-types/#forest-plots). |
-| `boxes` | boxplot | `[{ "label": "…", "values": [3, 4, 5, 6, 9] }` or `{ "label": "…", "min": 1, "q1": 2, "median": 3, "q3": 4, "max": 6, "outliers": [9] }]`; `orientation` applies. A box is computed from 5–1000 `values` (quartiles by linear interpolation, whiskers to the last value within 1.5 × the box, every other value a point) or drawn from the five numbers; never both (`conflicting_data_shape`), never part of them (`incomplete_box`), in order (`invalid_box`). 1–100 boxes with unique labels. `violinScale` (`width`, `area`, `count`; violins only) sets how violin widths relate. a `group` on every box (up to four) colors the boxes of a group alike with a legend. `showMean` marks the mean of every box with a diamond (needs `values`, `values_required`). `boxDisplay` (`box`, `violin`, `strip`) draws the observations as boxes (the default), as violins or as strips; the last two need `values` on every box (`values_required`). See [Box plots](../../guides/chart-types/#box-plots). |
-| `timeline` | timeline | `{ "items": [{ "id": "a", "label": "…", "start": "2027-01-04", "end": "2027-02-26", "group": "…", "after": ["b"] }, { "label": "…", "at": "2027-06-15" }], "markers": [{ "label": "Today", "at": "2027-02-10" }] }`. An item is a phase (`start` and `end`, with an optional `progress` from 0 to 1, or a `rollup` of the ids of phases it sums up) or a milestone (`at`); `groupRows` puts the rows of a group together (needs groups), `timezone` reads and writes the days in UTC, a fixed offset such as `+02:00` or one of about 55 IANA names such as `Europe/Berlin`, with the daylight saving rules in force today (`invalid_timezone`), `weekends` shades Saturdays and Sundays on an axis of at most 120 days (`weekends_hidden` beyond), never a mix (`invalid_item`); days are ISO 8601 dates or Unix seconds; `after` names the ids of items it follows (`unknown_node`, `circular_dependency`; a warning `follows_overlap` when it starts before them); groups on all items or none, at most 4; 1–60 items, up to 6 markers. See [Timelines](../../guides/chart-types/#timelines). |
-| `parliament` | parliament | `{ "parties": [{ "label": "Red", "seats": 40 }, { "label": "Blue", "seats": 35 }], "majority": true, "coalition": ["Red"] }`. Up to 8 parties with unique labels and at least one seat, at most 800 seats; the dots are in blocks by party from left to right in the order of the list. `majority` marks the seat that makes a majority; `coalition` (labels of parties, `unknown_node`) rings their seats and sums them. See [Parliament charts](../../guides/chart-types/#parliament-charts). |
-| `treemap` | treemap | `{ "items": [{ "label": "Schools", "value": 310, "group": "Society" }] }`. Up to 100 items with unique labels and values above zero (`invalid_value`); `group` goes on every item or on none (`missing_group`), up to 4 groups, and colors the rectangles with a legend. An item may have `children` instead of a `value` (`value_with_children`), nested up to three levels (`too_deep`), colored by the item at the top (`group_with_children`). The areas follow the values by the squarified method. See [Treemaps](../../guides/chart-types/#treemaps). |
-| `sankey` | sankey | `{ "links": [{ "from": "Gas", "to": "Power", "value": 120 }] }`. Up to 100 links and 40 nodes; the nodes are the labels the links name, in the order they first appear. Values above zero (`invalid_value`), no link from a node to itself (`self_link`), one link for each pair (`duplicate_link`), no cycle (`link_cycle`) except flows marked `"back": true`, which return to an earlier column and are drawn as loops under the diagram (`link_not_back` otherwise). `nodes` (`{ "label", "column", "color" }`) pins a column or a palette color and fixes the order with `"order": "listed"`. Columns follow the longest path to a node; a band takes the color of the node it leaves. See [Sankey diagrams](../../guides/chart-types/#sankey-diagrams). |
-| `survival` | survival | `{ "groups": [{ "label": "Standard", "observations": [{ "time": 4.2 }, { "time": 9, "event": false }] }], "confidence": true, "atRisk": true, "timeTitle": "Months" }`. 1–4 groups with unique labels and 2–2000 observations each; a time is zero or more (`invalid_value`), `event: false` cuts the observation off (censored). The curve is the Kaplan-Meier estimate, `confidence` draws the 95 % band (log-log, Greenwood variance), `atRisk` (default true) writes the number at risk under the time axis, `logRank` tests whether the groups differ (two or more groups, `log_rank_needs_groups`). See [Survival curves](../../guides/chart-types/#survival-curves). |
-| `scatter` | scatter | `{ "points": [{ "x": 1.2, "y": 3.4, "group": "Up", "label": "Gene A" }], "lines": [{ "axis": "y", "value": 1.3, "label": "p = 0.05" }], "xTitle": "…", "yTitle": "…" }`. 1–5000 points with finite numbers; `group` on every point or none (`missing_group`), up to 4 groups with a legend; up to 8 `lines` across the plot at a value of `x` or `y`; a `label` writes a name beside the point where there is room. `xRange`/`yRange` fix the ends of an axis (`out_of_range`, `invalid_range`) and `xTicks` puts named labels at chosen places on the x axis. `quadrants` (`{ "x": 5, "y": 5, "labels": { "topLeft": "Quick wins" } }`) divides the plot into four areas, each name optional, and says in the description and the table in which area each point lies; with a fixed range the dividing lines lie inside it (`out_of_range`). `regression` draws the least-squares line for each group; `xScale` and `yScale` (`log`) need values above zero. From 300 points on the dots are small and have no tooltip; from 100 the data table lists only the labeled points, or the 20 highest. See [Scatter plots](../../guides/chart-types/#scatter-plots). |
-| `classes` | classes | `{ "classes": [{ "id": "order", "label": "Order", "kind": "class", "attributes": ["+ id: Int"], "methods": ["+ total(): Money"], "role": "critical" }], "relations": [{ "from": "order", "to": "line", "kind": "composition", "fromCardinality": "1", "toCardinality": "1..*", "label": "has", "role": "planned" }], "packages": [{ "id": "ordering", "label": "Ordering", "in": "shop", "orientation": "landscape" }], "notes": [{ "on": "order", "text": "…" }], "orientation": "auto", "spacing": "normal" }`; a class names its package with `"in"`. A package's `orientation` (`portrait` or `landscape`) lays out its classes that way as one block, whichever way the diagram runs; `auto` on a package and a package with one inside another with one are `option_not_supported`, and a package whose block a relation from outside would have to cross follows the diagram (`package_orientation_ignored`, a warning); see [Class and entity diagrams](../../guides/chart-types/#class-and-entity-diagrams). `kind` of a class: `class` (default), `interface`, `abstract`, `enum` (a stereotype above the name) or `entity` (an entity of an entity-relationship diagram); attributes and methods are lines of text in their own compartments. `kind` of a relation: `association` (default, a plain line), `inheritance` (hollow triangle at `to`), `realization` (dashed, hollow triangle at `to`), `composition` (filled diamond at `from`), `aggregation` (hollow diamond at `from`) or `dependency` (dashed, open arrowhead at `to`); `fromCardinality` and `toCardinality` (up to 12 characters, such as `0..*`) stand at the ends. `direction` on an association: `forward` (navigable to `to`, an open arrowhead there), `both` (open arrowheads at either end) or `none` (a plain line); other kinds refuse it (`option_not_supported`). Up to 40 classes with unique ids (`duplicate_id`, `invalid_id`) and 100 relations between existing classes (`unknown_node`, also for a package). Packages frame their classes: up to 12 (`too_many_packages`) nested at most four deep (`packages_too_deep`), ids unique among classes and packages (`duplicate_id`), classes and packages lie in existing packages (`unknown_package`) without a circle (`package_cycle`), and every package holds a class (`empty_package`); classes outside every package are allowed. The description names every package with what it holds, the table gains a Package column (`Shop › Ordering`). See [Class diagrams](../../guides/chart-types/#class-and-entity-diagrams). |
-| `network` | network | `{ "nodes": [{ "id": "a", "label": "…", "group": "…", "role": "critical" }], "edges": [{ "from": "a", "to": "b", "dash": "solid", "weight": 3, "role": "planned" }], "layout": "circle", "center": "a", "directed": false, "order": "crossings" }`. `layout`: `circle` (default) or `rings` around `center`; `order` (circle only): `crossings` (default, groups together with few crossings) or `listed`. See [Networks](../../guides/chart-types/#networks). |
-| `waffle` | waffle | `{ "parts": [{ "label": "Wind", "value": 31 }, { "label": "Gas", "value": 28 }], "cells": 100, "columns": 10, "total": 100 }`. Up to 4 parts with unique labels and values above zero; `cells` 10–400 (default 100) squares in rows of `columns` (default about square), each part with the share of the squares by the largest remainder and at least one; a `total` above the sum of the parts leaves squares for the rest (`invalid_total` below it). See [Waffle charts](../../guides/chart-types/#waffle-charts). |
-| `waterfall` | waterfall | `{ "steps": [{ "label": "Revenue", "value": 1250, "kind": "start" }, { "label": "Costs", "value": -420 }, { "label": "Margin", "kind": "total" }] }`; `orientation` and `valueAxis` apply. A `delta` (default) adds its value, a `start` sets the total as a bar from zero, a `total` shows the running total and takes no value, or the matching one (`total_mismatch`); `missing_value` otherwise. 2–40 steps with unique labels. See [Waterfalls](../../guides/chart-types/#waterfalls). |
-| `sequence` | sequence | `{ "participants": [{ "id": "api", "label": "…", "sublabel": "…", "kind": "service" }], "messages": [{ "from": "api", "to": "db", "label": "…", "kind": "call" }], "fragments": [{ "kind": "alt", "label": "…", "from": 0, "to": 2, "else": [{ "from": 1, "label": "…" }] }], "numbered": false, "orientation": "auto" }`. `kind` of a participant: `service` (default), `actor`, `database`, `queue`, `external`; of a message: `call` (default), `reply`, `async`; of a fragment: `alt`, `opt`, `loop`, `par`, `critical`, `break`. `orientation`: `auto` (default), `portrait` or `landscape`. See [Sequence diagrams](../../guides/chart-types/#sequence-diagrams). |
-| `flow` | flow | `{ "nodes": [{ "id": "a", "label": "…", "sublabel": "…", "kind": "process", "lane": "x", "value": 3, "parts": [{ "label": "…", "value": 2 }], "role": "critical" }], "edges": [{ "from": "a", "to": "b", "label": "…", "dash": "solid", "weight": 120, "role": "planned", "fromSide": "right", "toSide": "start" }], "lanes": [{ "id": "x", "label": "…" }], "groups": [{ "label": "…", "nodes": ["a"] }], "mainPath": ["a", "b"], "sameRank": [["a", "c"]], "notes": [{ "on": "a", "text": "…" }, { "text": "…" }], "orientation": "auto", "spacing": "normal", "valueLabel": "…", "sharedTrunks": false }`; `mainPath` may also be `{ "from": "a", "to": "b" }`, the shortest way between them. `sharedTrunks`: draw edges that leave a step together, or reach one together, on one line that branches, where they read the same (no label, same `dash`, `weight` and `role`, off the main path, other ends in the same lane and group, not out of a decision; note lines never). `sameRank` lists sets of at least two steps that lie at one position along the flow, each step in one set at most, no two of a set joined by an edge (`same_rank_edge`). `kind` of a step: `process` (default), `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external`. `fromSide` and `toSide` pin the side of a step an edge leaves and reaches, named after the flow so that they hold in either orientation: `start` faces the steps before, `end` the steps after, `left` and `right` lie across the flow (left and right in portrait, top and bottom in landscape); see [Port sides](../../guides/chart-types/#port-sides). `spacing` (flow charts, state, class and architecture diagrams): `compact`, `normal` (default) or `roomy` scales the gaps between layers and between neighbours in a layer — never steps, texts, margins or the distance between parallel lines; see [Spacing](../../guides/chart-types/#spacing). See [Flow charts](../../guides/chart-types/#flow-charts). |
-| `state` | state | `{ "states": [{ "id": "a", "label": "…", "sublabel": "…", "kind": "state", "final": false, "in": "c", "role": "critical" }], "transitions": [{ "from": "a", "to": "b", "event": "…", "guard": "…", "action": "…", "dash": "solid", "role": "planned" }], "initial": "a", "mainPath": ["a", "b"], "orientation": "auto", "spacing": "normal" }`. `kind`: `state` (default), `choice` or `composite`. See [State diagrams](../../guides/chart-types/#state-diagrams). |
-| `architecture` | architecture | `{ "components": [{ "id": "a", "label": "…", "sublabel": "…", "kind": "service", "in": "net", "role": "critical", "tags": ["public"], "provides": [{ "id": "api", "label": "…" }] }], "connections": [{ "id": "c1", "from": "a", "to": "b", "label": "…", "technology": "…", "dash": "solid", "weight": 120, "role": "planned", "direction": "forward", "toInterface": "api", "fromSide": "left", "toSide": "start", "tags": ["sync"] }], "boundaries": [{ "id": "net", "label": "…", "in": "region" }], "mainPath": ["a", "b"], "sameRank": [["a", "c"]], "notes": [{ "on": "a", "text": "…" }], "orientation": "auto", "spacing": "normal", "sharedTrunks": false, "views": [{ "key": "overview", "title": "…", "description": "…", "components": ["a", "b"], "connections": ["c1"], "mainPath": ["a", "b"], "include": ["public"], "exclude": ["legacy"] }, { "key": "flow", "title": "…", "steps": [{ "connection": "c1", "label": "…" }], "perspective": "team", "width": 600, "height": 400, "mobile": { "width": 360 } }, { "key": "prod", "title": "…", "environment": "Production", "hosts": [{ "id": "node", "label": "…" }], "instances": [{ "id": "a-1", "of": "a", "in": "node" }], "instanceConnections": [{ "id": "c1", "from": "a-1", "to": "b-1" }], "deriveConnections": false }], "defaultView": "overview", "perspectives": [{ "key": "team", "title": "Team", "description": "…", "categories": [{ "label": "Payments", "components": ["a"], "connections": ["c1"] }, { "label": "Platform", "components": ["b"] }] }], "perspective": "team" }`; `mainPath` may also be `{ "from": "a", "to": "b" }`. `sameRank`, `fromSide` and `toSide` as for flow charts, with components and connections. `kind`: `person`, `frontend`, `service` (default), `database`, `queue`, `storage`, `cache`, `security`, `external`. `symbol` (optional) draws a generic symbol above the label and names a technology category in the description and the data table, after the kind; the kind keeps its shape: `browser`, `mobile`, `api-gateway`, `load-balancer`, `cdn`, `firewall`, `identity`, `container`, `orchestrator`, `function`, `cloud`, `cache`, `object-storage`, `message-broker`, `search-index`, `monitoring`. With `views`, one view is rendered — the one asked for, else `defaultView`, else the first — as a diagram of its own; see [Views on one model](../../guides/chart-types/#views-on-one-model). `perspectives` name questions such as the team or the technical debt, each with up to eight categories that list their components; the diagram shows one perspective only when `perspective` (on the model or a view) selects it; see [Perspectives](../../guides/chart-types/#perspectives). A view with `environment` is a deployment view: `instances` of components on `hosts`, joined only by `instanceConnections`; see [Environments and instances](../../guides/chart-types/#environments-and-instances). `direction`: `forward` (default, an arrowhead at `to`), `both` (one connection both ways, arrowheads at either end), `none` (no direction, no arrowhead). `sharedTrunks`: draw connections that leave a component together, or reach one together, on one line that branches, where they read the same (no label, usual direction, same `dash`, `weight` and `role`, off the main path, other ends in the same boundary). `provides` (up to 4, not on `person` or `node`) lists the interfaces a component provides, each a ball on a stem ahead of its box; `toInterface` on a connection names one of them on `to`, which `from` requires: the connection ends in a socket around the ball, runs forward, takes no `toSide` and never joins a shared trunk (`unknown_interface`, `duplicate_id`, `too_many_interfaces`, `option_not_supported`). See [Architecture diagrams](../../guides/chart-types/#architecture-diagrams). |
-| `role` | flow, architecture, state, network, tree, classes | On a step, component, state, node or class, and on an edge, connection, transition or relation: what it means beyond its kind, drawn alike in every diagram. `critical`: a 3 px red outline or a 2.6 px red line and a badge with `!`; `planned`: dashed and violet, badge `+`; `deprecated`: dotted and gray, badge `−`. The badge sits on the top left corner of a box. Colors are the theme's role colors (`--chartlet-role-red`, `-violet`, `-gray`), so light, dark, blueprint and print each resolve them. A role keeps the shape and fill of the kind (and a `value`'s fill); it overrides the color of the main path, which keeps its place in the layout, while a `weight` keeps its line width; `planned` and `deprecated` have a pattern of their own, so an edge with one of them takes no `dash` (`role_conflict`); `critical` keeps a `dash`. A legend below the diagram names only the roles used; the description lists what has each role, and the table adds a Role column when a step or component has one and names the role of an edge in its notes. A state diagram's table, one row per transition, adds a Role column for transitions and names a state with its role, `Locked (critical)`; a tree's and a network's table add a Role column for nodes, a class diagram's for classes, and name the role of a relation or a network edge in its notes. A network node is a dot too small for a badge: a ring around it in the role's color and pattern says the role, and the dot keeps the color of its group. A composite state is a frame and takes no role (`option_not_supported`). The marks at the ends of a relation keep their form, a hollow mark stays hollow; a realization or a dependency is dashed by its kind, so it takes `critical` only (`role_conflict` at its `role`). An unknown role is `invalid_spec`. |
-| `tree` | tree | `{ "nodes": [{ "id": "a", "label": "…", "sublabel": "…", "parent": "root", "link": "60 %", "kind": "unit", "partner": "b", "value": 3, "parts": [{ "label": "…", "value": 2 }], "role": "critical" }], "orientation": "auto", "valueLabel": "…" }` — or, for a dendrogram, `{ "distances": { "labels": ["a", "b"], "matrix": [[0, 1], [1, 0]] }, "linkage": "average" }` (`average`, `complete` or `single`). Exactly one node has neither a parent nor a partner: the root. The children of a node keep the order of the list. `kind`: `unit` (default), `person` or `external`. A `partner` joins two nodes as a couple, side by side; the children of either hang from the middle of the line between them. `collapsed` draws a node without what hangs below it, with a `+n` for the nodes left out (`nothing_to_collapse` warns when nothing hangs below). `"layout": "radial"` draws a mind map: the root in the middle, every level on a ring around it, each subtree in a sector as wide as its share of the leaves; it takes no `orientation`, `partner` or `link` (`option_not_supported`). See [Trees](../../guides/chart-types/#trees). |
-| `patterns` | no | `bar` with `series` only: `true` draws every other series as an outline — the background inside, the series color around it — in the bars, the legend and stacks, so that series differ in form as well as in color. |
-| `stack` | no | `bar` with `series` only: `"normal"` stacks the series of a category by value, positive ones up and negative ones down, with the total beyond each stack; `"percent"` stacks shares of each category's total (values of zero or more, axis in percent). A stack has no series filter. |
-| `references` | no | `bar` and `rangebar`: up to four reference lines across the bars, `[{ "value": 48, "label": "EU average" }]`. A line widens the value axis to reach its value; the description names it. |
-| `panes[].layers[].curve` | no | Line and area: `linear` (default) joins the observations directly; `step` holds each value until the next observation, for values that stand for a whole period such as an annual mean. |
-| `panes[].layers[].color` | no | `#rgb`, `#rrggbb`, `#rrggbbaa`, `var(--name)`, or `var(--name, #hex)` with a hex fallback, which the print variant draws. |
-| `description` | no | Replaces the generated description. |
-| `source` | no | Shown below the chart in the HTML output. |
-| `categoryAxis.title` | no | Title of the category axis. |
-| `valueAxis.title` | no | Title of the value axis. |
-| `valueAxis.format` | no | `number` (default) or `percent`; `0.12` is shown as `12%`. |
-| `valueAxis.decimals` | no | Fixed decimal places, 0–6, for values in tooltips, value labels, description and table. Axis ticks always carry as many decimals as their step (`0.0, 0.5, 1.0`). On a `time` chart every pane sets it on its own `valueAxis`. |
-| `valueAxis.min`, `valueAxis.max` | no | The axis reaches at least down to `min` and up to `max`; values beyond them widen it further, and each end is rounded outward to a tick. Without them, a line, time series or range bar whose values are all zero or more never gets a margin below zero (and one whose values are all zero or less none above it). Bars always start at zero. On a `time` chart every pane sets them on its own `valueAxis`. |
-| `valueAxis.thousandsSeparator` | no | `true` separates thousands in ticks, value labels, tooltips, description and table: `12,500`, or `12.500` with `locale: "de"`. Off by default, because four-digit values are often years. On a `time` chart every pane sets it on its own `valueAxis`. |
-| `valueAxis.scale` | no | `linear` (default) or `log`: powers of ten evenly spaced, ticks at each power and, over two decades or fewer, at 2 and 5 times it. Every value, band and zone edge, reference line and declared `min`/`max` must be above zero; bars start at the bottom of the axis. Not with `stack` or an `area` layer. On a `time` chart every pane sets it on its own `valueAxis`. |
-| `valueAxis.step`, `valueAxis.exact` | no | `step` sets the distance between ticks instead of a round step chosen from the values. `exact: true` makes `min` and `max` the ends of the axis — both are required, every value has to lie between them (`value_outside_axis` otherwise), and the ticks sit on multiples of the step between them: `{ "min": -2.5, "max": 3.5, "step": 1, "exact": true }` runs from −2.5 to 3.5 with ticks at −2, −1, 0 … 3 and the zero line. A bar chart's exact axis includes zero. Not with a logarithmic axis or a stack. |
-| `valueAxis.unit` | no | `time` (per pane) and `multiples`: the unit of the values, such as `W/m²`, up to 20 characters. It follows the top tick label (`4 W/m²`) and the column names of the data table, and costs no height, unlike a title above the plot. |
-| `valueAxis.reverse` | no | `true` runs the axis the other way, larger values down (or left on horizontal bars), as records such as δ18O are conventionally drawn. |
-| `locale` | no | `en` (default) or `de`: language of the generated texts (description, legend additions, tooltips, calendar month and weekday names, HTML caption and table) the number format (`1,5`) and dates: ISO 8601 (`2026-08-31`) in English, `31.08.2026` and `08.2026` in German. Available for every chart type. Negative numbers always use the true minus sign `−`. |
-| `showTitle` | no | `false` leaves the drawn title out of the SVG profile when the page heads the chart, and gives its space to the chart; it stays the accessible name. Every chart type. The HTML profile never draws the title (its `<figcaption>` is the visible title), so it ignores `showTitle`. Default `true`. |
-| `width`, `height` | no | Size in pixels: 200–2400 × 160–1600, default 800 × 450. Below 320 pixels a chart is compact, for a panel in a grid of columns: a narrower value-axis gutter and margin keep room for the plot, and the text keeps its size when the chart is shown at the width it was rendered for. Text shrinks with the chart when a page scales it down, so render at the width of its place. |
-| `mobile` | no | A second layout for narrow containers: `{ "width": 360, "height": 360, "breakpoint": 640 }`. `width` is required, 200–600; `height` 160–1600, default 360; `breakpoint` 320–1600, default 640, is the container width in CSS pixels below which the HTML profile shows the mobile variant; `columns`, for small multiples only, sets the grid columns of the mobile variant, usually 1. Available for every chart type. The SVG profile is unchanged; `--variant mobile` renders the mobile variant alone. See [Responsive charts](../../guides/responsive/). |
-| `showValues` | no | Value labels on bars and points, default `true`. On a time pane with several layers the labels can overlap; the values stay in the tooltips and the data table. |
-| `zoomSteps` | no | Two to four `{ "label", "from", "to" }` variants, selectable in the HTML output. Bar and line charts: `from` and `to` are category indices. `time` charts: timestamps in the forms a point's `time` takes; each window must hold at least two observations of one layer, and the chart is redrawn from the observations inside it. |
+| `bar`, `line` | [Bar and line charts](#bar-and-line-charts) | `data`, or `categories` and `series` |
+| `time` | [Time charts](#time-charts) | `timeAxis`, `panes` |
+| `multiples` | [Small multiples](#small-multiples) | `panes` |
+| `stripes` | [Stripes](#stripes) | `stripes` |
+| `calendar` | [Calendars](#calendars) | `calendar` |
+| `rangebar` | [Range bars](#range-bars) | `ranges` |
+| `boxplot` | [Box plots](#box-plots) | `boxes` |
+| `timeline` | [Timelines](#timelines) | `timeline` |
+| `parliament` | [Parliament charts](#parliament-charts) | `parliament` |
+| `treemap` | [Treemaps](#treemaps) | `treemap` |
+| `sankey` | [Sankey diagrams](#sankey-diagrams) | `sankey` |
+| `survival` | [Survival curves](#survival-curves) | `survival` |
+| `scatter` | [Scatter plots](#scatter-plots) | `scatter` |
+| `waffle` | [Waffle charts](#waffle-charts) | `waffle` |
+| `waterfall` | [Waterfalls](#waterfalls) | `waterfall` |
+| `topicmap` | [Topic maps](#topic-maps) | `topicmap` |
+| `atlas` | [Knowledge landscapes](#knowledge-landscapes) | `atlas` |
+| `sequence` | [Sequence diagrams](#sequence-diagrams) | `sequence` |
+| `flow` | [Flow charts](#flow-charts) | `flow` |
+| `state` | [State diagrams](#state-diagrams) | `state` |
+| `classes` | [Class diagrams](#class-diagrams) | `classes` |
+| `architecture` | [Architecture diagrams](#architecture-diagrams) | `architecture` |
+| `tree` | [Trees](#trees) | `tree` |
+| `network` | [Networks](#networks) | `network` |
 
-## Limits
+Fields every type takes are in [Common fields](#common-fields), the value axis of the charts that
+have one in [Value axis](#value-axis), and what the diagrams share in
+[Diagram fields](#diagram-fields).
 
-Up to 100 categories and four series. Labels must be unique. Values must be zero or have a
-magnitude between `1e-100` and `1e100`.
+## Common fields
 
-A `time` chart carries one to four panes (`too_many_panes`), each with a `heightRatio` from 1 to 10
-(`invalid_height_ratio`) and up to six data layers (eight in a stacked pane) of 2000 observations or candles each. At most
-four data layers of the whole chart take a palette color — candles take none — and a further layer
-needs its own `color` (`too_many_layers`). Layer names are unique across the panes
-(`duplicate_series`), and every data layer needs one once the chart has more than one
-(`missing_name`). A candle whose `low` lies above its open or close, or whose `high` lies below
-them, is `invalid_candle`; more candles than a third of the plot's horizontal pixels are drawn as
-wicks only and reported as `dense_chart`. A zoom window has to hold two observations of a layer in
-every pane (`zoom_out_of_range`). With `"gaps": "collapse"`, a reference line or point marker outside
-the observed range and a zone that encloses no observation are `time_out_of_range`. Markers and
-value labels are drawn up to 60 observations per layer; a denser layer is a line only, and the
-values stay in the data table. More observations than the plot has horizontal pixels produce a
-`dense_chart` warning. These numbers come from a measurement at the default size — see
-[the time series guide](../../guides/time-series/).
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `schemaVersion` | `1` | yes | Always `1`. |
+| `type` | string | yes | One of the types in the table above. |
+| `title` | string, up to 200 characters | yes | Visible title; also the accessible name of the chart (`<title>`). The SVG profile draws it in the chart: a title wider than the chart wraps onto a second line at a space, and the chart below it moves down; only what does not fit on two lines is shortened (`text_truncated`). The HTML profile shows it as the `<figcaption>` and draws no title in its SVGs, so it never shortens it. |
+| `showTitle` | boolean | no | `false` leaves the drawn title out of the SVG profile when the page heads the chart, and gives its space to the chart; it stays the accessible name. Every chart type. The HTML profile never draws the title (its `<figcaption>` is the visible title), so it ignores `showTitle`. Default `true`. |
+| `description` | string, up to 1000 characters | no | Replaces the generated description. |
+| `source` | string, up to 300 characters | no | Shown below the chart in the HTML output. |
+| `theme` | `light`, `dark`, `blueprint` | no | `light` (default), `dark` or, for diagrams, `blueprint`; the palettes are CSS custom properties on the root. |
+| `locale` | `en`, `de` | no | `en` (default) or `de`: language of the generated texts (description, legend additions, tooltips, calendar month and weekday names, HTML caption and table) the number format (`1,5`) and dates: ISO 8601 (`2026-08-31`) in English, `31.08.2026` and `08.2026` in German. Available for every chart type. Negative numbers always use the true minus sign `−`. |
+| `width`, `height` | integer | no | Size in pixels: 200–2400 × 160–1600, default 800 × 450. Below 320 pixels a chart is compact, for a panel in a grid of columns: a narrower value-axis gutter and margin keep room for the plot, and the text keeps its size when the chart is shown at the width it was rendered for. Text shrinks with the chart when a page scales it down, so render at the width of its place. |
+| `mobile` | object | no | A second layout for narrow containers: `{ "width": 360, "height": 360, "breakpoint": 640 }`. Available for every chart type. The SVG profile is unchanged; `--variant mobile` renders the mobile variant alone. See [Responsive charts](../../guides/responsive/). |
+| `mobile.width` | integer, 200–600 | with `mobile` | Width of the mobile variant. |
+| `mobile.height` | integer, 160–1600 | no | Height of the mobile variant, default 360. |
+| `mobile.breakpoint` | integer, 320–1600 | no | The container width in CSS pixels below which the HTML profile shows the mobile variant, default 640. |
+| `mobile.columns` | integer, 1–6 | no | Small multiples only: the grid columns of the mobile variant, usually 1. |
+| `showValues` | boolean | no | Value labels on bars and points, default `true`. On a time pane with several layers the labels can overlap; the values stay in the tooltips and the data table. |
 
-A mobile variant is laid out from the same specification at `mobile.width` × `mobile.height`. A
-size outside its limits is `invalid_dimension` with the path of the field (`/mobile/width`,
-`/mobile/height`, `/mobile/breakpoint`); a `mobile` without `width` is `invalid_spec` at `/mobile`.
-Warnings that only the mobile layout raises are reported with the same code and path and a message
-that begins with `mobile variant: `.
+Rules:
 
-Small multiples take 2 to 12 panes in up to six columns, with at most four distinct layer names
-across all panels (one palette color each). Stripes take up to 500 yearly values; a calendar
-covers one year between 1700 and 2199. Range bars take up to 100 ranges. A sequence diagram takes 1–12
-participants (`too_many_participants`), 1–60 messages (`too_many_messages`) and up to 12 fragments
-(`too_many_fragments`); participant `id`s are identifiers (`invalid_id`) and unique
-(`duplicate_id`), every message names existing participants (`unknown_participant`), and fragments
-lie within the messages, nest at most three deep and never cross (`invalid_fragment`,
-`fragments_cross`). A flow chart takes 1–40 steps (`too_many_nodes`), up to 80 edges
-(`too_many_edges`), 8 lanes (`too_many_lanes`) and 8 groups (`too_many_groups`); step and lane
-`id`s are identifiers and unique, edges, groups and the main path name existing steps
-(`unknown_node`), every step names a declared lane once there are lanes (`missing_lane`,
-`unknown_lane`), a step belongs to one group at most (`duplicate_member`) and a group to one lane
-(`group_spans_lanes`), a `weight` is at least 0 (`invalid_edge_weight`), an edge from a step to
-itself takes no `fromSide` or `toSide` (`option_not_supported`, in architecture diagrams too),
-`parts` (flow charts
-and trees) has at most 6 entries per node and 8 names per diagram (`too_many_parts`) with values
-of at least 0 that add up to more than 0 (`invalid_value`) and stays off decisions
-(`option_not_supported`), and the main path
-follows edges (`main_path_gap`) or, given as
-`{ "from": "a", "to": "b" }`, has a way along them (`main_path_unreachable`). A sequence diagram or
-flow chart that does not fit its canvas is drawn larger and reported as `canvas_too_small` at
-`/width` or `/height`; a step that lands inside the frame of a group it does not belong to is
-`group_overlap`; a `fromSide` or `toSide` along the flow that would turn the edge back over its
-step, such as `start` on an edge that leads on to a later step, is ignored and reported as
-`port_side_ignored` at that field (flow charts and architecture diagrams). A state diagram takes 1–40 states (`too_many_states`) and up to 80 transitions
-(`too_many_transitions`); transitions, `initial` and the main path name existing states
-(`unknown_state`), a choice or composite state cannot be final (`option_not_supported`), states lie in composite states (`not_composite`) without a circle (`state_cycle`) at most four deep (`states_too_deep`), a composite state holds a state (`empty_composite`) and is never named by a transition, `initial` or the main path (`composite_not_allowed`), and with an `initial`
-state every other state needs a transition into it (`unreachable_state`, a warning). An architecture diagram takes 1–40 components (`too_many_nodes`),
-up to 80 connections (`too_many_edges`) and 12 boundaries (`too_many_boundaries`) nested at most
-four deep (`boundaries_too_deep`); identifiers are unique among components and boundaries
-(`duplicate_id`), components and boundaries lie in existing boundaries (`unknown_boundary`)
-without a circle (`boundary_cycle`), every boundary holds a component (`empty_boundary`), and
-connections and the main path name existing components (`unknown_node`, `main_path_gap`,
-`main_path_unreachable`), a `symbol` is one of the names above (`unknown_symbol`), and in flow charts, architecture, state and network diagrams a `planned` or `deprecated`
-edge takes no `dash` (`role_conflict`). Connection ids are unique among connections (`duplicate_id`). Up to 20
-views (`too_many_views`) with unique keys (`duplicate_id`) and a title; a view lists components
-or steps (`empty_view`) that exist (`unknown_node`, `unknown_connection`), each listed
+- `schemaVersion` other than 1 is `unsupported_schema_version`.
+- A size outside its limits is `invalid_dimension` with the path of the field (`/width`, `/height`,
+  `/mobile/width`, `/mobile/height`, `/mobile/breakpoint`); a `mobile` without `width` is
+  `invalid_spec` at `/mobile`.
+- A mobile variant is laid out from the same specification at `mobile.width` × `mobile.height`.
+  Warnings that only the mobile layout raises are reported with the same code and path and a
+  message that begins with `mobile variant: `. Asking for the mobile variant of a specification
+  without `mobile` is `missing_mobile` at `/mobile`.
+- `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class and network
+  diagrams; any other type refuses it (`option_not_supported` at `/theme`).
+- Texts must contain visible text (`empty_text`), stay within their length (`text_too_long`) and
+  hold no control character that XML 1.0 cannot represent (`invalid_xml_character`).
+- Numbers must be finite (`non_finite_value`) and zero or of a magnitude between `1e-100` and
+  `1e100` (`unsupported_numeric_range`).
+- A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
+  `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `waterfall`,
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `topicmap`, `atlas`, `columns`),
+  and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
+  `stack`, `patterns`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
+  refused with `option_not_supported` rather than ignored.
+- A type whose block is absent is refused with the block's own code: `missing_stripes`,
+  `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
+  `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_waterfall`,
+  `missing_topicmap`, `missing_atlas`, `missing_sequence`, `missing_flow`, `missing_state`,
+  `missing_classes`, `missing_architecture`, `missing_tree` and `missing_network`. An empty list
+  where a type needs at least one entry is `empty_data`.
+- Stripes, calendars, timelines, both maps and every diagram are drawn from their block alone:
+  `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
+  `valueAxis` and `timeAxis` are `option_not_supported` there.
+
+## Value axis
+
+Bar, line, range bar, box plot and waterfall charts take a top-level `valueAxis`, small multiples one shared
+by every panel (or one per panel, see [Small multiples](#small-multiples)), and every pane of a
+`time` chart its own. Bar and line charts also take `categoryAxis`.
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `categoryAxis.title` | string, up to 100 characters | no | Title of the category axis. |
+| `valueAxis.title` | string, up to 100 characters | no | Title of the value axis. |
+| `valueAxis.format` | `number`, `percent` | no | `number` (default) or `percent`; `0.12` is shown as `12%`. |
+| `valueAxis.decimals` | integer, 0–6 | no | Fixed decimal places for values in tooltips, value labels, description and table. Axis ticks always carry as many decimals as their step (`0.0, 0.5, 1.0`). On a `time` chart every pane sets it on its own `valueAxis`. |
+| `valueAxis.min`, `valueAxis.max` | number | no | The axis reaches at least down to `min` and up to `max`; values beyond them widen it further, and each end is rounded outward to a tick. Without them, a line, time series or range bar whose values are all zero or more never gets a margin below zero (and one whose values are all zero or less none above it). Bars always start at zero. On a `time` chart every pane sets them on its own `valueAxis`. |
+| `valueAxis.thousandsSeparator` | boolean | no | `true` separates thousands in ticks, value labels, tooltips, description and table: `12,500`, or `12.500` with `locale: "de"`. Off by default, because four-digit values are often years. On a `time` chart every pane sets it on its own `valueAxis`. |
+| `valueAxis.scale` | `linear`, `log` | no | `linear` (default) or `log`: powers of ten evenly spaced, ticks at each power and, over two decades or fewer, at 2 and 5 times it. Every value, band and zone edge, reference line and declared `min`/`max` must be above zero; bars start at the bottom of the axis. Not with `stack` or an `area` layer. On a `time` chart every pane sets it on its own `valueAxis`. |
+| `valueAxis.step` | number above 0 | no | The distance between ticks instead of a round step chosen from the values. |
+| `valueAxis.exact` | boolean | no | `true` makes `min` and `max` the ends of the axis — both are required, every value has to lie between them, and the ticks sit on multiples of the step between them: `{ "min": -2.5, "max": 3.5, "step": 1, "exact": true }` runs from −2.5 to 3.5 with ticks at −2, −1, 0 … 3 and the zero line. A bar chart's exact axis includes zero. Not with a logarithmic axis or a stack. |
+| `valueAxis.unit` | string, up to 20 characters | no | `time` (per pane) and `multiples`: the unit of the values, such as `W/m²`. It follows the top tick label (`4 W/m²`) and the column names of the data table, and costs no height, unlike a title above the plot. |
+| `valueAxis.reverse` | boolean | no | `true` runs the axis the other way, larger values down (or left on horizontal bars), as records such as δ18O are conventionally drawn. |
+
+Rules:
+
+- `min` at or above `max` is `invalid_axis_range` at `max`; `decimals` above 6 is
+  `invalid_decimals`.
+- A `step` of zero or less is `invalid_value`; a step that gives more than 50 ticks across the
+  values and declared ends, or fewer than two on an exact axis, is `invalid_axis_range` at `step`.
+- `exact` without both `min` and `max`, or a bar chart's exact axis that leaves out zero, is
+  `invalid_axis_range`; a value outside an exact axis is `value_outside_axis`.
+- On a logarithmic axis a value, edge or bound of zero or less is `invalid_value`; `log` with a
+  stack or an `area` layer, `step` or `exact` with `log`, `exact` with a stack and `unit` on any
+  other type than `time` or `multiples` are `option_not_supported`.
+
+## Bar and line charts
+
+`"type": "bar"` and `"type": "line"`. A chart has `data` (one series) or `categories` with
+`series`, never both (`conflicting_data_shape`). [Value axis](#value-axis) and `categoryAxis` apply.
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `data` | array, 1–100 | one of | Single series: `[{ "label": "…", "value": 1, "group": "…", "lower": 0.5, "upper": 1.5 }]`. |
+| `data[].label` | string, up to 200 characters | yes | The category. Labels are unique. |
+| `data[].value` | number or `null` | yes | The value; `null` marks a missing value (line charts). |
+| `data[].group` | string, up to 60 characters | no | Bar charts: gives every bar of a group one palette color and a legend entry; either every point names a group or none does. |
+| `data[].lower`, `data[].upper` | number | no | Bar charts without groups, and single-series line charts: an error bar through the end of the bar or the point, on every point or on none, the value between them. |
+| `categories` | array of strings, 1–100 | one of | Unique category labels shared by all series. |
+| `series` | array, 1–4 | with `categories` | `[{ "name": "…", "values": […] }]`. |
+| `series[].name` | string, up to 100 characters | yes | Legend and table label; unique. |
+| `series[].values` | array of numbers or `null` | yes | One value per category; `null` marks a missing value. |
+| `series[].lower`, `series[].upper` | array of numbers or `null` | no | A series of a bar or line chart without a stack: error bars, one entry per category, `null` where the value is `null`. |
+| `orientation` | `vertical`, `horizontal` | no | `vertical` (default) or `horizontal`; bar charts only. |
+| `stack` | `normal`, `percent` | no | `bar` with `series` only: `"normal"` stacks the series of a category by value, positive ones up and negative ones down, with the total beyond each stack; `"percent"` stacks shares of each category's total (values of zero or more, axis in percent). A stack has no series filter. |
+| `patterns` | boolean | no | `bar` with `series` only: `true` draws every other series as an outline — the background inside, the series color around it — in the bars, the legend and stacks, so that series differ in form as well as in color. |
+| `references` | array, up to 4 | no | `bar` and `rangebar`: reference lines across the bars, `[{ "value": 48, "label": "EU average" }]`. A line widens the value axis to reach its value; the description names it. |
+| `references[].value` | number | yes | Where the line stands. |
+| `references[].label` | string, up to 60 characters | yes | Its text. |
+| `zoomSteps` | array, 2–4 | no | Variants selectable in the HTML output, each `{ "label", "from", "to" }`: `from` and `to` are category indices. |
+| `zoomSteps[].label` | string, up to 40 characters | yes | Name of the variant. |
+| `zoomSteps[].from`, `zoomSteps[].to` | integer, from 0 | yes | First and last category of the variant. |
+
+Rules:
+
+- Up to 100 categories and four series (`too_many_data_points`, `too_many_series`). Labels must be
+  unique (`duplicate_label`), and so must series names (`duplicate_series`); a series has one
+  value per category (`series_length_mismatch`).
+- A bar chart needs a value for every category of `data` (`missing_bar_value`); a chart whose
+  values are all `null` is `empty_series`.
+- Groups: on every point or none (`missing_group`), at most 4 (`too_many_series`), bar charts only
+  and not together with error bars (`option_not_supported`).
+- Error bars: `lower` and `upper` on every point or value or on none (`missing_bounds`), the value
+  between them (`invalid_bounds`); on another type or with a stack `option_not_supported`.
+- `stack` needs categories with at least two series (`option_not_supported`); a percent stack
+  takes no negative values (`invalid_value`).
+- More than four reference lines are `too_many_references`.
+- Zoom steps: one alone is `not_enough_zoom_steps`, more than four `too_many_zoom_steps`; an index
+  that is not a whole number from 0 is `invalid_spec`, `from` after `to` is `invalid_zoom_step`,
+  `to` beyond the last category `zoom_out_of_range`.
+- `orientation` on a line chart is `option_not_supported`. More than 16 categories warn with
+  `dense_chart`; when their labels do not fit even on two lines, only every few categories are
+  labelled (`labels_thinned`). A bar chart category whose value labels have no room shows none
+  (`value_labels_omitted`).
+
+## Time charts
+
+`"type": "time"`: one to four panes stacked on one shared time axis, each with its own `valueAxis`
+(see [Value axis](#value-axis)) and `layers`. See [the time series guide](../../guides/time-series/).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `timeAxis.kind` | `calendar`, `number` | no | `calendar` (default) reads every `time` as a timestamp. `number` reads it as a plain number — a distance along a profile, a depth, an age in millions of years — with ticks at round numbers, values written in the chart's `locale`, and the axis `title` as the head of the table's first column. No `timezone`, `gaps: "collapse"` or `zoomSteps` with it. |
+| `timeAxis.timezone` | string | no | Fixed UTC offset such as `"+02:00"`, or `UTC` (default). Timestamps without their own offset are read as wall-clock time in this zone. |
+| `timeAxis.title` | string, up to 100 characters | no | Title of the time axis. |
+| `timeAxis.gaps` | `show`, `collapse` | no | `show` (default) keeps the distances in time; `collapse` places every observed timestamp at the same distance from the next, so weekends and holidays take no space. Reference lines, point markers and zones then take the slot of an observation and must lie within the observed range. |
+| `timeAxis.precision` | `year`, `month`, `day`, `minute` | no | How tooltips, the data table and the description name an observation. Absent, the coarsest form that tells the observations apart is chosen: a year when all fall on January 1, a month when all fall on the first of a month. Set it for annual values placed mid-year (`1950-07-01` → `1950`). Each data layer is named by its own observations (or its own `precision`), and a table row as finely as the finest layer with a value there. |
+| `timeAxis.step` | number above 0 | no | The distance between time ticks instead of one chosen from the width: whole years (1–1000) on a calendar axis, units on a numeric axis; ticks sit on its multiples (`50` → 1850, 1900, 1950, 2000). For a narrow panel whose claim needs a tick the automatic choice leaves out. A label that would run into the one before it is left out; its gridline stays. |
+| `timeAxis.min`, `timeAxis.max` | time | no | Positions the time axis reaches at least, such as `"1990"` before data from 1991, so that a round tick is drawn. They extend the axis and never cut an observation off; they are no observations (no table row, not in the description). Not with `"gaps": "collapse"`. |
+| `timeAxis.reverse` | boolean | no | `true` runs the axis from right to left, the largest position at the left: ages before present read from the oldest on the left to today on the right. |
+| `panes` | array, 1–4 | yes | The panes, top to bottom. |
+| `panes[].heightRatio` | integer, 1–10 | no | The pane's share of the plot height against the other panes, default 1. |
+| `panes[].valueAxis` | object | no | `title`, `format`, `decimals`, `min`, `max`, `step`, `exact`, `thousandsSeparator`, `scale`, `reverse` and `unit` of the pane's own value axis. |
+| `panes[].stack` | `normal` | no | Stacks the pane's `area` layers in layer order, each on top of the ones before it, so that the top edge shows their total; line and point layers in the pane stay as they are. Markers and the end labels sit on top of the stack; tooltips and the data table give each layer's own value. |
+| `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane) and six annotation layers. |
+| `sparkline` | boolean | no | `true` draws the lines and areas of one pane across the whole canvas, without axes, title, legend or value labels, with a dot at the end of each line; `width` 60–600 and `height` 16–200. The title and description remain the accessible name and description, and the HTML profile keeps its caption and table. Only line and area layers; no zoom steps or mobile variant. |
+| `tooltips` | `observations`, `markers` | no | `"observations"` (default) gives every observation a tooltip while observations stand at least 4 pixels apart, on an invisible target where no marker is drawn; `"markers"` gives tooltips only to drawn markers, so a line too dense for markers has none and its SVG stays small. |
+| `legend` | `top`, `end` | no | `top` (default) names the series in a legend above the plot; `end` writes each name at the last observation of its line, right of the plot, which makes room for the widest name (at most a third of the chart). Names that would overlap move apart. Not with candles, whose legend explains hollow and filled bodies. |
+| `zoomSteps` | array, 2–4 | no | `{ "label", "from", "to" }` windows selectable in the HTML output; `from` and `to` are times. Each window must hold at least two observations of one layer, and the chart is redrawn from the observations inside it. |
+
+A time is Unix seconds between 1700-01-01 and 2200-01-01, an ISO 8601 date such as `2026-03-01` or
+`2026-03-01T12:00:00Z`, or a bare year such as `"1850"` (January 1st).
+
+### Layers
+
+Small multiples take the same layers, without `ohlc`.
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `mark` | `line`, `area`, `point`, `ohlc`, `band`, `annotation` | yes | An `area` is a line whose region down to zero is filled in its color; the value axis then always includes zero. A `point` layer draws a dot for every observation and no line, as in a scatter plot; it takes no `dash`, `stroke`, `curve`, `modeled` or `lower`/`upper`. `ohlc` draws candlesticks (`time` only), `band` a zone, `annotation` a reference line or point marker. The area between two lines is an uncertainty band (`lower`/`upper`), not a separate mark. |
+| `name` | string, up to 100 characters | one of | Legend and table label; required once a pane — or a `time` chart across its panes — has several data layers, and unique within the pane; on a `time` chart unique across all panes, since they share one legend. |
+| `points` | array, 1–2000 | line, area, point | `[{ "time": 1772323200, "value": 1 }]`; ISO 8601 dates and bare years (`"1850"`) are accepted too, with increasing `time`. `"value": null` marks a missing observation: the line, its area and its band break there, and table and description say “Missing”. |
+| `points[].lower`, `points[].upper` | number | no | An uncertainty band: on every point with a value, or on none; a point without a value carries neither. |
+| `data` | array, 2–2000 | ohlc | `[{ "time": "2026-03-02", "open": 10, "high": 12, "low": 9, "close": 11 }]`, candles with increasing `time`; `low` at or below `open` and `close`, `high` at or above them. A candlestick layer takes no `color`, `modeled`, `stroke` or `dash`. |
+| `color` | string, up to 100 characters | no | `#rgb`, `#rrggbb`, `#rrggbbaa`, `var(--name)`, or `var(--name, #hex)` with a hex fallback, which the print variant draws. Anything else is painted in the neutral tone and warns with `color_not_supported`; a `var(--name)` without fallback is drawn in the text color by the print and social variants, with `color_not_resolved`. |
+| `modeled` | boolean | no | Line and area layers: the line is dashed (unless `dash` says otherwise), its band hatched, and legend, description and table say “modelled”. |
+| `stroke` | `regular`, `thin`, `medium`, `bold` | no | Line and area layers: `regular` (default, 3 px), `thin` (1 px), `medium` (2 px, for small panels) or `bold` (4.5 px); the legend sample shows the same weight, so two lines differ in more than color. |
+| `dash` | `solid`, `dashed`, `dotted` | no | Line and area layers. Defaults to `dashed` for a modeled layer and `solid` otherwise; the legend sample shows the same pattern. |
+| `curve` | `linear`, `step` | no | Line and area: `linear` (default) joins the observations directly; `step` holds each value until the next observation, for values that stand for a whole period such as an annual mean. |
+| `stepEnd` | time | no | `line` and `area` with `"curve": "step"`: a time after the last observation where its step ends — annual means drawn as steps end at the end of their last year. It is no observation: no marker, tooltip, table row or description. Not with collapsed gaps or in a stacked pane. |
+| `markers` | boolean | no | `line` and `area` only: `false` draws no markers, for a fitted or reference line whose observations are not data; tooltips stay on invisible targets unless the chart sets `"tooltips": "markers"`. |
+| `precision` | `year`, `month`, `day`, `minute` | no | Data layers on a calendar axis: the same values as `timeAxis.precision`, for one layer — yearly means beside monthly values. On a numeric axis each layer writes its positions with the decimals its own positions need. |
+| `value`, `time` | number, time | annotation | A horizontal reference line at `value`, a vertical one at `time`, or a point marker at both. Both widen the axes. |
+| `shape` | `circle`, `square`, `diamond`, `triangle-up`, `triangle-down` | no | Point markers only, `circle` by default. |
+| `bottom`, `top` | number | band | Value edges of a zone; `bottom` must lie below `top`. A missing edge is the edge of the plot. Given edges widen the value axis. |
+| `from`, `to` | time | band | Time edges of a zone; `from` must lie before `to`. A missing edge is the edge of the plot. At least `bottom` and `top`, or `from` and `to`, are required. |
+| `label` | string, up to 100 characters | annotation, band | Required text of a reference line, point marker or zone. |
+
+Rules:
+
+- One to four panes (`too_many_panes`), each with a `heightRatio` from 1 to 10
+  (`invalid_height_ratio`) and up to six data layers (eight in a stacked pane) of 2000
+  observations or candles each (`too_many_data_points`). At most four data layers of the whole
+  chart take a palette color — candles take none — and a further layer needs its own `color`
+  (`too_many_layers`). Layer names are unique across the panes (`duplicate_series`), and every
+  data layer needs one once the chart has more than one (`missing_name`).
+- Observations: a time that cannot be read is `invalid_time`; times must increase
+  (`unordered_time`); a layer without observations, or a line, area or point layer with fewer
+  than two, is `empty_series`; a candlestick layer needs at least two candles (`empty_series`). A `stepEnd`
+  at or before the last observation is `unordered_time`.
+- Bands: `lower` and `upper` on every point with a value or on none (`incomplete_band`), `upper`
+  not below `lower` (`invalid_band`); a value outside its own band warns with
+  `value_outside_band`.
+- A candle whose `low` lies above its open or close, or whose `high` lies below them, is
+  `invalid_candle`; more candles than a third of the plot's horizontal pixels are drawn as wicks
+  only and reported as `dense_chart`.
+- A stacked pane needs area layers with the same times and `curve`, a value of zero or more at
+  every time (`unaligned_stack`, `negative_in_stack`) and no `lower`/`upper`.
+- A pane takes up to six annotation layers — zones, reference lines and point markers together
+  (`too_many_annotations`). A zone needs `bottom` and `top`, `from` and `to`, or both, and a
+  reference line `time`, `value` or both (`missing_position`); `bottom` at or above `top`, or
+  `from` at or after `to`, is `invalid_band`; a zone, reference line or point marker without
+  `label` is `missing_label`. A field that belongs to another mark — `name`, `points`, `value` or
+  `shape` on a zone, `shape` on a reference line — is `option_not_supported` with its path. A
+  label that overlaps another annotation label, crosses a data line, or leaves the plot is
+  reported as a `label_overlap` warning.
+- With `"gaps": "collapse"`, a reference line or point marker outside the observed range and a
+  zone that encloses no observation are `time_out_of_range`.
+- `timeAxis`: `max` at or before `min` is `invalid_axis_range`; a `step` that is no whole number of
+  years from 1 to 1000 on a calendar axis, not above zero on a numeric one, or that places no tick
+  or more than 50, is `invalid_axis_range` at `/timeAxis/step`. A `timezone` that is neither `UTC`
+  nor a fixed offset is `invalid_timezone`.
+- Zoom steps: one alone is `not_enough_zoom_steps`, more than four `too_many_zoom_steps`, `from`
+  at or after `to` is `invalid_zoom_step`, and a window has to hold two observations of a layer in
+  every pane (`zoom_out_of_range`).
+- `title` on a pane, and the bar and line fields `data`, `categories`, `series`, `orientation` and
+  `categoryAxis`, are `option_not_supported` on a time chart.
+- Markers and value labels are drawn up to 60 observations per layer; a denser layer is a line
+  only, and the values stay in the data table. More observations than the plot has horizontal
+  pixels produce a `dense_chart` warning. These numbers come from a measurement at the default
+  size — see [the time series guide](../../guides/time-series/).
+
+## Small multiples
+
+`"type": "multiples"`: 2–12 panes in a grid, each with a unique `title`, sharing the top-level
+`valueAxis`. A pane either has `layers` (as on a [time chart](#layers), without `ohlc`), or, with
+top-level `categories`, its own `values` — small multiples of bars.
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `panes` | array, 2–12 | yes | The panels, in reading order. |
+| `panes[].title` | string, up to 100 characters | yes | Heading of the panel. Panel titles take two lines before they are shortened; every panel keeps the same head height, so the plots stay aligned. |
+| `panes[].note` | string, up to 160 characters | no | A short finding under the panel title, such as a verdict, on up to two lines. The notes are part of the description. |
+| `panes[].noteEmphasis` | boolean | no | `true` draws the panel's note in the text color and semibold instead of muted, to set one finding apart from the others by weight, not by color alone. Needs a `note`. |
+| `panes[].layers` | array | one of | Up to six data layers and six annotation layers. |
+| `panes[].values` | array of numbers or `null`, up to 100 | one of | With `categories`: one value per category, `null` for none. |
+| `panes[].valueAxis` | object | no | With `categories`: the panel's own value axis. |
+| `categories` | array of strings, 1–20 | no | The categories of small multiples of bars. |
+| `columns` | integer, 1–6 | no | Grid columns; default up to three. |
+| `independentAxes` | boolean | no | `true` gives every panel its own value axis, scaled to its own values, for panels in different units or sizes. Their heights can then no longer be compared across panels; the description says so. |
+
+Rules:
+
+- Fewer than two panes is `not_enough_panes`, more than twelve `too_many_panes`; `columns` outside
+  1–6 is `invalid_columns`. A pane without `title` is `missing_title`, two alike
+  `duplicate_title`.
+- At most four distinct layer names across all panels (one palette color each).
+- Small multiples of bars: at most 20 categories (`too_many_data_points`), unique
+  (`duplicate_label`); a panel of bars takes `values`, no `layers` or `stack`
+  (`option_not_supported`), and draws horizontal bars (`orientation` is `option_not_supported`).
+- `zoomSteps` and the `ohlc` mark are `option_not_supported`, and so are `heightRatio` and `stack`,
+  which belong to a time chart; `note` and `noteEmphasis` belong to small multiples only.
+
+## Stripes
+
+`"type": "stripes"`. Stripes and calendars share one [diverging scale](#diverging-scale).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `stripes.firstYear` | integer | yes | The year of the first value; the values follow year by year. |
+| `stripes.values` | array of numbers or `null`, 1–500 | yes | One value per year; `null` leaves a year empty. |
+| `stripes.reference` | number | no | The neutral middle of the scale, default 0. |
+| `stripes.min`, `stripes.max` | number | no | Where the outermost steps begin; default the largest distance of any value from the reference. |
+| `stripes.yearLabels` | boolean | no | Label the first and the last year under the stripes, default `true`. |
+| `stripes.stretch` | boolean | no | `true` draws the stripes alone across the whole canvas, without margins, title or year labels, and the SVG stretches to whatever box the page gives it (`preserveAspectRatio="none"`): give it a height in CSS, such as a 6-pixel band. Title and description remain its accessible name and description. |
+
+Rules: up to 500 yearly values (`too_many_data_points`); every year between 1 and 9999
+(`invalid_year`); at least one value that is not `null` (`empty_series`); `min` below and `max`
+above the reference (`invalid_scale`).
+
+## Calendars
+
+`"type": "calendar"`: a heatmap of one year on the [diverging scale](#diverging-scale).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `calendar.year` | integer, 1700–2199 | yes | The year shown. |
+| `calendar.layout` | `months`, `weeks` | no | `months` (default): twelve rows of up to 31 days; `weeks`: seven weekday rows, one column per week. |
+| `calendar.days` | array, 1–366 | yes | `[{ "date": "2024-03-01", "value": 1 }]`. A day that is absent or `null` stays an empty cell. |
+| `calendar.days[].date` | string | yes | ISO 8601 date in the chart's year. |
+| `calendar.days[].value` | number or `null` | yes | The day's value. |
+| `calendar.reference`, `calendar.min`, `calendar.max` | number | no | As for stripes. |
+
+Rules: a year outside 1700–2199 is `invalid_year`; a date that is no ISO 8601 date is
+`invalid_date`, one in another year `date_outside_year`, a day given twice `duplicate_date`; at
+least one value that is not `null` (`empty_series`); `min` below and `max` above the reference
+(`invalid_scale`).
+
+## Range bars
+
+`"type": "rangebar"`: one span per category. `orientation`, [Value axis](#value-axis) and
+`references` apply. See [Forest plots](../../guides/chart-types/#forest-plots).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `ranges` | array, 1–100 | yes | `[{ "label": "…", "low": 0, "high": 1, "mid": 0.5, "modeled": false, "group": "…", "weight": 12, "summary": false }]`. |
+| `ranges[].label` | string, up to 200 characters | yes | The category; unique. |
+| `ranges[].low`, `ranges[].high` | number | yes | The ends of the span. |
+| `ranges[].mid` | number | no | A central mark between `low` and `high`. |
+| `ranges[].modeled` | boolean | no | Draws the span as modelled. |
+| `ranges[].group` | string, up to 60 characters | no | Draws the spans of each group in its own palette color, with a legend entry per group. |
+| `ranges[].weight` | number above 0 | no | With `mid`: turns the central mark into a square whose area follows it. |
+| `ranges[].summary` | boolean | no | With `mid`: draws the span as a diamond, widest at `mid` — together with `references` a forest plot. |
+
+Rules: up to 100 ranges (`too_many_data_points`) with unique labels (`duplicate_label`); `low`
+above `high` is `invalid_range`, a `mid` outside them `mid_outside_range`; groups on every range or
+none (`missing_group`), at most 4 (`too_many_series`); a `weight` of zero or less is
+`invalid_weight`, and `weight` or `summary` without `mid` is `invalid_weight` or
+`summary_without_mid`. More than 16 ranges warn with `dense_chart`.
+
+## Box plots
+
+`"type": "boxplot"`. `orientation` and [Value axis](#value-axis) apply. See
+[Box plots](../../guides/chart-types/#box-plots).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `boxes` | array, 1–100 | yes | `[{ "label": "…", "values": [3, 4, 5, 6, 9] }` or `{ "label": "…", "min": 1, "q1": 2, "median": 3, "q3": 4, "max": 6, "outliers": [9] }]`. |
+| `boxes[].label` | string, up to 200 characters | yes | The category; unique. |
+| `boxes[].values` | array of numbers, 5–1000 | one of | Observations from which the box is computed: quartiles by linear interpolation, whiskers to the last value within 1.5 × the box, every other value a point. |
+| `boxes[].min`, `boxes[].q1`, `boxes[].median`, `boxes[].q3`, `boxes[].max` | number | one of | The five numbers of a box computed elsewhere, in this order. |
+| `boxes[].outliers` | array of numbers | no | Points beyond the whiskers of a box given by its five numbers. |
+| `boxes[].group` | string, up to 60 characters | no | On every box (up to four groups): colors the boxes of a group alike, with a legend. |
+| `boxDisplay` | `box`, `violin`, `strip` | no | Draws the observations as boxes (the default), as violins or as strips; the last two need `values` on every box. |
+| `violinScale` | `width`, `area`, `count` | no | Violins only: `width` (default) makes every violin as wide as the others at its widest, `area` gives them the same area, `count` an area that follows their number of observations. |
+| `showMean` | boolean | no | Marks the mean of every box with a diamond and adds a Mean column to the table; needs `values`. |
+
+Rules: 1–100 boxes (`too_many_data_points`) with unique labels (`duplicate_label`); `values` and
+the five numbers never both (`conflicting_data_shape`), never part of the five numbers
+(`incomplete_box`), the five numbers in order (`invalid_box`), and 5–1000 `values`
+(`invalid_values`); violins, strips and `showMean` need `values` on every box
+(`values_required`); groups on every box or none (`missing_group`), at most 4
+(`too_many_series`). More than 16 boxes warn with `dense_chart`.
+
+## Timelines
+
+`"type": "timeline"`: phases, milestones, marker lines and which items follow which. See
+[Timelines](../../guides/chart-types/#timelines).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `timeline.items` | array, 1–60 | yes | `[{ "id": "a", "label": "…", "start": "2027-01-04", "end": "2027-02-26", "group": "…", "after": ["b"] }, { "label": "…", "at": "2027-06-15" }]`. |
+| `timeline.items[].id` | identifier | no | What `after` and `rollup` name; unique. |
+| `timeline.items[].label` | string, up to 100 characters | yes | The row's name. |
+| `timeline.items[].start`, `timeline.items[].end` | day | phase | A phase runs from `start` to `end`. |
+| `timeline.items[].at` | day | milestone | A milestone lies at `at`. |
+| `timeline.items[].progress` | number, 0–1 | no | How much of a phase is done: that share of its bar is drawn darker. |
+| `timeline.items[].rollup` | array of ids | no | The ids of the phases this phase sums up: its progress is theirs, each weighted by its length. Instead of `progress`. |
+| `timeline.items[].group` | string, up to 60 characters | no | Groups on all items or none, at most 4. |
+| `timeline.items[].after` | array of ids | no | The ids of the items this item follows. |
+| `timeline.markers` | array, up to 6 | no | `[{ "label": "Today", "at": "2027-02-10" }]`: dashed marker lines for days that matter. |
+| `timeline.markers[].label` | string, up to 60 characters | yes | The marker's text. |
+| `timeline.markers[].at` | day | yes | Its day. |
+| `timeline.groupRows` | boolean | no | Puts the rows of a group together, in the order the groups first appear (needs groups). |
+| `timeline.timezone` | string | no | Reads and writes the days in UTC (default), a fixed offset such as `+02:00` or one of about 55 IANA names such as `Europe/Berlin`, with the daylight saving rules in force today. |
+| `timeline.weekends` | boolean | no | Shades Saturdays and Sundays on an axis of at most 120 days. |
+
+Days are ISO 8601 dates, optionally with a time, or Unix seconds.
+
+Rules: 1–60 items (`too_many_nodes`) and up to 6 markers (`too_many_markers`); ids are identifiers
+(`invalid_id`) and unique (`duplicate_id`); a day that cannot be read is `invalid_time`, an `end`
+before its `start` `invalid_range`; an item is a phase or a milestone, never a mix
+(`invalid_item`); `progress` outside 0–1 is `invalid_value`, on a milestone (or a milestone with
+`rollup`) `progress_on_milestone`, together with `rollup` `conflicting_progress`; a `rollup`
+names existing items (`unknown_node`) that are phases summing up no others, not itself
+(`invalid_rollup`); `after` names existing items (`unknown_node`) and runs in no circle
+(`circular_dependency`), and an item that starts before one it follows ends warns with
+`follows_overlap`; groups on all items or none (`missing_group`), at most 4 (`too_many_series`),
+and `groupRows` without groups is `option_not_supported`; an unknown `timezone` is
+`invalid_timezone`; `weekends` beyond 120 days warns with `weekends_hidden`; more than 30 items
+warn with `dense_chart`.
+
+## Parliament charts
+
+`"type": "parliament"`: the seats of an assembly as dots in a semicircle, in blocks by party from
+left to right in the order of the list. See
+[Parliament charts](../../guides/chart-types/#parliament-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `parliament.parties` | array, 1–8 | yes | `[{ "label": "Red", "seats": 40 }, { "label": "Blue", "seats": 35 }]`. |
+| `parliament.parties[].label` | string, up to 100 characters | yes | The party; unique. |
+| `parliament.parties[].seats` | integer, 1–800 | yes | Its seats. |
+| `parliament.majority` | boolean | no | Marks the seat that makes a majority. |
+| `parliament.coalition` | array of labels | no | Labels of parties whose seats are ringed and summed. |
+
+Rules: up to 8 parties (`too_many_series`) with unique labels (`duplicate_label`) and at least
+one seat (`invalid_value`), at most 800 seats (`too_many_data_points`); `coalition` names
+existing parties (`unknown_node`).
+
+## Treemaps
+
+`"type": "treemap"`: the areas follow the values by the squarified method. See
+[Treemaps](../../guides/chart-types/#treemaps).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `treemap.items` | array | yes | `[{ "label": "Schools", "value": 310, "group": "Society" }]`. |
+| `items[].label` | string, up to 100 characters | yes | The item; unique, parts included. |
+| `items[].value` | number above 0 | leaf | The value of a leaf; an item with `children` has none. |
+| `items[].group` | string, up to 60 characters | no | On every item or on none, up to 4 groups: colors the rectangles with a legend. |
+| `items[].children` | array | no | The parts of the item, drawn inside its rectangle, nested up to three levels; colored by the item at the top. |
+
+Rules: up to 100 items, parts included (`too_many_data_points`), with unique labels
+(`duplicate_label`) and values above zero (`invalid_value`); an item with `children` takes no
+`value` (`value_with_children`), nested at most three levels (`too_deep`), and a nested treemap
+takes no groups (`group_with_children`); groups on every item or none (`missing_group`), at most 4
+(`too_many_series`).
+
+## Sankey diagrams
+
+`"type": "sankey"`. Columns follow the longest path to a node; a band takes the color of the node
+it leaves. See [Sankey diagrams](../../guides/chart-types/#sankey-diagrams).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `sankey.links` | array, 1–100 | yes | `[{ "from": "Gas", "to": "Power", "value": 120 }]`. The nodes are the labels the links name, in the order they first appear. |
+| `sankey.links[].from`, `sankey.links[].to` | string, up to 100 characters | yes | The nodes the flow leaves and reaches. |
+| `sankey.links[].value` | number above 0 | yes | How much flows. |
+| `sankey.links[].back` | boolean | no | A flow back to an earlier column, drawn as a loop under the diagram; the columns and their order do not follow it. |
+| `sankey.nodes` | array, up to 40 | no | Nodes whose column or color the specification fixes; they come first, in this order. |
+| `sankey.nodes[].label` | string, up to 100 characters | yes | A label the links name. |
+| `sankey.nodes[].column` | integer, 0–7 | no | Pins the node's column. |
+| `sankey.nodes[].color` | integer, 1–4 | no | Pins its palette color. |
+| `sankey.order` | `auto`, `listed` | no | `auto` (default) orders the nodes of a column to cross few bands; `listed` keeps the order of `nodes`, then of the links. |
+
+Rules: up to 100 links (`too_many_data_points`) and 40 nodes (`too_many_nodes`); values above zero
+(`invalid_value`), no link from a node to itself (`self_link`), one link for each pair
+(`duplicate_link`), no cycle (`link_cycle`) except flows marked `"back": true`, which must return
+to an earlier column (`link_not_back`); listed nodes have unique labels (`duplicate_label`) that
+the links name (`unknown_node`), and a pinned column no earlier than the links into the node allow
+(`column_too_early`).
+
+## Survival curves
+
+`"type": "survival"`: Kaplan-Meier estimates. See
+[Survival curves](../../guides/chart-types/#survival-curves).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `survival.groups` | array, 1–4 | yes | `[{ "label": "Standard", "observations": [{ "time": 4.2 }, { "time": 9, "event": false }] }]`. |
+| `survival.groups[].label` | string, up to 100 characters | yes | The group; unique. |
+| `survival.groups[].observations` | array, 2–2000 | yes | The observed times. |
+| `survival.groups[].observations[].time` | number, 0 or more | yes | When the event happened, or the observation ended. |
+| `survival.groups[].observations[].event` | boolean | no | `false` cuts the observation off (censored), marked on the curve; default `true`. |
+| `survival.confidence` | boolean | no | Draws the 95 % band (log-log, Greenwood variance). |
+| `survival.atRisk` | boolean | no | Writes the number at risk under the time axis, default `true`. |
+| `survival.logRank` | boolean | no | Tests whether the groups differ (log-rank, Mantel-Cox) and writes the statistic and p in the plot and the description. |
+| `survival.timeTitle` | string, up to 100 characters | no | Title of the time axis, such as `Months`. |
+
+Rules: 1–4 groups (`too_many_series`) with unique labels (`duplicate_label`) and 2–2000
+observations each (`invalid_values`); a time is zero or more (`invalid_value`); `logRank` needs
+two or more groups (`log_rank_needs_groups`).
+
+## Scatter plots
+
+`"type": "scatter"`. See [Scatter plots](../../guides/chart-types/#scatter-plots).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `scatter.points` | array, 1–5000 | yes | `[{ "x": 1.2, "y": 3.4, "group": "Up", "label": "Gene A" }]`. From 300 points on the dots are small and have no tooltip; from 100 the data table lists only the labeled points, or the 20 highest. |
+| `scatter.points[].x`, `scatter.points[].y` | number | yes | The position. |
+| `scatter.points[].group` | string, up to 60 characters | no | On every point or none, up to 4 groups with a legend. |
+| `scatter.points[].label` | string, up to 60 characters | no | Writes a name beside the point where there is room. |
+| `scatter.lines` | array, up to 8 | no | `[{ "axis": "y", "value": 1.3, "label": "p = 0.05" }]`: lines across the plot. |
+| `scatter.lines[].axis` | `x`, `y` | yes | The axis the value lies on. |
+| `scatter.lines[].value` | number | yes | Where the line stands. |
+| `scatter.lines[].label` | string, up to 100 characters | no | Its text. |
+| `scatter.xTitle`, `scatter.yTitle` | string, up to 100 characters | no | Axis titles. |
+| `scatter.xRange`, `scatter.yRange` | `[min, max]` | no | Fix the ends of an axis instead of ends rounded outward to a tick; everything drawn along it must lie within. |
+| `scatter.xTicks` | array, up to 40 | no | `[{ "at": 1, "label": "chr1" }]`: named labels at chosen places on the x axis instead of numbered ticks; a label that would run into the one before it is left out. |
+| `scatter.xTicks[].at` | number | yes | The position. |
+| `scatter.xTicks[].label` | string, up to 40 characters | yes | The name. |
+| `scatter.quadrants` | object | no | `{ "x": 5, "y": 5, "labels": { "topLeft": "Quick wins" } }` divides the plot into four areas by a line at `x` and one at `y`, and says in the description and the table in which area each point lies. |
+| `scatter.quadrants.x`, `scatter.quadrants.y` | number | yes | The dividing lines. |
+| `scatter.quadrants.labels.topLeft`, `.topRight`, `.bottomLeft`, `.bottomRight` | string, up to 40 characters | no | The name of each area, each optional; top is the side of the larger y, right the side of the larger x. |
+| `scatter.regression` | boolean | no | Draws the least-squares line for each group; on a logarithmic axis it is fitted to the logarithms. |
+| `scatter.xScale`, `scatter.yScale` | `linear`, `log` | no | `log` needs values above zero. |
+
+Rules: 1–5000 points (`too_many_data_points`) with finite numbers; groups on every point or none
+(`missing_group`), at most 4 (`too_many_series`); more than 8 lines or 40 tick labels are
+`too_many_references`; with a logarithmic scale every value is above zero (`invalid_value`); a
+range whose ends are not in order is `invalid_range`, and what lies outside a fixed range —
+points, lines, ticks, the dividing lines of `quadrants` — is `out_of_range`. A dividing line on the
+end of an axis, or an area too small for its name, warns with `quadrant_without_room`.
+
+## Waffle charts
+
+`"type": "waffle"`: a grid of squares that each stand for the same share of a whole, filled by the
+parts in reading order. See [Waffle charts](../../guides/chart-types/#waffle-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `waffle.parts` | array, 1–4 | yes | `[{ "label": "Wind", "value": 31 }, { "label": "Gas", "value": 28 }]`; each part gets the share of the squares by the largest remainder, and at least one. |
+| `waffle.parts[].label` | string, up to 100 characters | yes | The part; unique. |
+| `waffle.parts[].value` | number above 0 | yes | Its amount. |
+| `waffle.cells` | integer, 10–400 | no | The number of squares, default 100. |
+| `waffle.columns` | integer, 2–40 | no | Squares per row; default about square. |
+| `waffle.total` | number above 0 | no | A total above the sum of the parts leaves squares for the rest. |
+
+Rules: up to 4 parts (`too_many_series`) with unique labels (`duplicate_label`) and values above
+zero (`invalid_value`); `cells` outside 10–400, or no more cells than parts, is
+`invalid_cells`; `columns` outside 2–40 is `invalid_columns`; a `total` below the sum of the parts
+is `invalid_total`.
+
+## Waterfalls
+
+`"type": "waterfall"`: a running total that rises and falls step by step. `orientation` and
+[Value axis](#value-axis) apply. See [Waterfalls](../../guides/chart-types/#waterfalls).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `waterfall.steps` | array, 2–40 | yes | `[{ "label": "Revenue", "value": 1250, "kind": "start" }, { "label": "Costs", "value": -420 }, { "label": "Margin", "kind": "total" }]`. |
+| `waterfall.steps[].label` | string, up to 100 characters | yes | The step; unique. |
+| `waterfall.steps[].value` | number | depends | The change, or the start. |
+| `waterfall.steps[].kind` | `delta`, `start`, `total` | no | A `delta` (default) adds its value, a `start` sets the total as a bar from zero, a `total` shows the running total and takes no value, or the matching one. |
+
+Rules: 2–40 steps (`too_many_data_points`) with unique labels (`duplicate_label`); a `delta` or
+`start` without value is `missing_value`; a `total` with a value other than the running total is
+`total_mismatch`.
+
+## Topic maps
+
+`"type": "topicmap"` (experimental): one landmass per subject, with the area of each proportional
+to its value. See [Maps](../../guides/chart-types/#maps).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `topicmap.topics` | array, 1–40 | yes | The subjects. |
+| `topics[].label` | string, up to 200 characters | yes | The name; unique among topics and islands. |
+| `topics[].value` | number, 1 or more | yes | The size of the area. |
+| `topics[].points` | integer, 0 or more | no | The number of paths through the topic, drawn as points inside its area; default 0. |
+| `topics[].tooltip` | string, up to 300 characters | no | A line of detail on hover. |
+| `topicmap.islands` | array, up to 6 | no | Fringe topics, with the fields of a topic, drawn as small fixed-size islands beside the rest. |
+| `topicmap.links` | array | no | Neighborhoods between two topics or islands, drawn as routes. |
+| `links[].from`, `links[].to` | string | yes | Labels of topics or islands. |
+| `links[].weight` | number, 0–1 | no | Default 1. |
+| `topicmap.cartouche` | object | no | The legend box printed on the map. |
+| `cartouche.heading` | string, up to 100 characters | yes | Its heading. |
+| `cartouche.meta` | string, up to 200 characters | yes | Its line of metadata. |
+| `cartouche.corner` | `bottomRight`, `bottomLeft`, `topRight`, `topLeft` | no | Its corner, default `bottomRight`. |
+| `topicmap.seed` | integer, 0 or more | no | The seed of the coastlines, default 0; the same seed draws the same map. |
+| `topicmap.graticule` | boolean | no | Draws the map grid on the sea, default `true`. |
+| `topicmap.compass` | boolean | no | Draws a compass rose, default `true`. |
+| `topicmap.depthBands` | integer, 0–3 | no | Depth-line rings around each coastline, default 2. |
+
+Rules: up to 40 topics (`too_many_topics`) and 6 islands (`too_many_islands`); a value below 1 is
+`topic_value_out_of_range`; labels are unique among topics and islands (`duplicate_topic_label`);
+links name declared labels (`unknown_topic_link`) with a weight from 0 to 1
+(`invalid_link_weight`); `depthBands` outside 0–3 is `invalid_depth_bands`. A topic below 12 warns
+with `topic_too_small_for_label`, a label placed beside its area with `label_outside_area`, and a
+link dropped because more than three routes would meet at one end with `link_dropped`.
+
+## Knowledge landscapes
+
+`"type": "atlas"` (experimental): realms of neighbouring regions, holding places, tiled as one
+continuous land. See [Maps](../../guides/chart-types/#maps).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `atlas.realms` | array, 1–8 | yes | The landscapes. |
+| `realms[].label` | string, up to 200 characters | yes | The realm's name; unique among realms and regions. |
+| `realms[].regions` | array, 1 or more | yes | Its areas. |
+| `realms[].tooltip` | string, up to 300 characters | no | A line of detail on hover. |
+| `regions[].label` | string, up to 200 characters | yes | The region's name; unique among realms and regions. |
+| `regions[].value` | number, 1 or more | yes | How much of its realm it holds. |
+| `regions[].places` | array | no | Single entries, drawn as points inside the region. |
+| `regions[].tooltip` | string, up to 300 characters | no | A line of detail on hover. |
+| `places[].label` | string, up to 200 characters | yes | The entry. |
+| `places[].weight` | number, 0.25–4 | no | How prominent the point is; 1 (default) is an ordinary place. |
+| `places[].tooltip` | string, up to 300 characters | no | A line of detail on hover. |
+| `atlas.links` | array | no | Kinship between two regions, named by `from` and `to` labels and valid across realm borders, with a `weight` from 0 to 1 (default 1). |
+| `atlas.seed` | integer, 0 or more | no | The seed of the land's shapes, default 0; the same seed draws the same map. |
+| `atlas.areaDamping` | number, 0.2–1 | no | The exponent a region's area follows: 1 is proportional to its value, 0.5 (default) its square root. |
+| `atlas.contours` | boolean | no | Contour lines from the density of places, default `true`. |
+
+Rules: up to 8 realms (`too_many_realms`), 60 regions across all realms (`too_many_regions`) and
+4000 places across all regions (`too_many_places`); a realm without regions is `empty_realm`;
+labels are unique among realms and regions (`duplicate_atlas_label`); a region's value below 1 is
+`region_value_out_of_range`, a place's weight outside 0.25–4 `place_weight_out_of_range`,
+`areaDamping` outside 0.2–1 `invalid_area_damping`; links name declared regions
+(`unknown_region_link`) with a weight from 0 to 1 (`invalid_link_weight`). A realm of one region
+warns with `realm_without_structure`, a region listing more places than its value with
+`more_places_than_value`, a region without room for its name with `label_does_not_fit`, and one
+with more places than ground with `places_did_not_fit`.
+
+## Diagram fields
+
+Sequence, flow, state, class, architecture, tree and network diagrams set their orientation inside
+their block; the top-level `orientation` is refused (see [Common fields](#common-fields)).
+
+An identifier — `id`, and every field that names one — is a letter followed by up to 63 letters,
+digits, hyphens or underscores (`invalid_id`).
+
+| Field | Type | Diagrams | Meaning |
+| --- | --- | --- | --- |
+| `orientation` | `auto`, `portrait`, `landscape` | sequence, flow, state, classes, architecture, tree | `auto` (default) takes portrait where that fits the canvas, landscape where only that fits, and otherwise the one that grows the canvas less. |
+| `spacing` | `compact`, `normal`, `roomy` | flow, state, classes, architecture | `compact`, `normal` (default) or `roomy` scales the gaps between layers and between neighbours in a layer — never steps, texts, margins or the distance between parallel lines; see [Spacing](../../guides/chart-types/#spacing). |
+| `mainPath` | array of ids, or `{ "from", "to" }` | flow, state (array only), architecture | The usual way through the diagram, as ids joined by edges, or the shortest way along the edges between `from` and `to` (at a tie the first in the order of the edges). Kept in line and drawn stronger. |
+| `sameRank` | array of id sets | flow, architecture | Sets of at least two ids that lie at one position along the flow; a layout hint that adds no edge. |
+| `fromSide`, `toSide` | `start`, `end`, `left`, `right` | flow edges, architecture connections | Pin the side of a node an edge leaves and reaches, named after the flow so that they hold in either orientation: `start` faces the nodes before, `end` the nodes after, `left` and `right` lie across the flow (left and right in portrait, top and bottom in landscape); see [Port sides](../../guides/chart-types/#port-sides). An edge with a side never joins a shared trunk. |
+| `notes` | array, up to 12 | flow, classes, architecture | `[{ "on": "a", "text": "…" }, { "text": "…" }]`. |
+| `notes[].on` | identifier | — | The step, class, package, component or boundary the note explains; flow charts take notes on steps only. |
+| `notes[].text` | string, up to 160 characters | — | Required; wraps onto as many lines as it needs. |
+| `role` | `critical`, `planned`, `deprecated` | flow, state, classes, architecture, tree, network | What a node or an edge means beyond its kind, drawn alike in every diagram. |
+
+**Notes.** A note on an element is drawn beside it and joined to it by a dotted line that is no
+edge, relation or connection; a note on a package or boundary stands inside that frame, at the
+head of its contents, without a line; a note without `on` explains the whole diagram and stands in
+a band below it, notes side by side and wrapping onto further rows. The description gives every
+note (`Note on Card: …`, `Note: …`); the table gives notes on elements in a Notes column of their
+rows and the others, which belong to no row, after its caption. More than 12 notes are
+`too_many_notes`, a longer text `text_too_long`, an `on` that names nothing `unknown_node` at
+`/…/notes/0/on`.
+
+**Roles.** On a step, component, state, node or class, and on an edge, connection, transition or
+relation. `critical`: a 3 px red outline or a 2.6 px red line and a badge with `!`; `planned`:
+dashed and violet, badge `+`; `deprecated`: dotted and gray, badge `−`. The badge sits on the top
+left corner of a box. Colors are the theme's role colors (`--chartlet-role-red`, `-violet`,
+`-gray`), so light, dark, blueprint and print each resolve them. A role keeps the shape and fill of
+the kind (and a `value`'s fill); it overrides the color of the main path, which keeps its place in
+the layout, while a `weight` keeps its line width; `planned` and `deprecated` have a pattern of
+their own, so an edge, connection or transition with one of them takes no `dash`
+(`role_conflict`); `critical` keeps a `dash`. A legend below the diagram names only the roles used;
+the description lists what has each role, and the table adds a Role column when a step or
+component has one and names the role of an edge in its notes. A state diagram's table, one row per
+transition, adds a Role column for transitions and names a state with its role,
+`Locked (critical)`; a tree's and a network's table add a Role column for nodes, a class diagram's
+for classes, and name the role of a relation or a network edge in its notes. A network node is a
+dot too small for a badge: a ring around it in the role's color and pattern says the role, and the
+dot keeps the color of its group. A composite state is a frame and takes no role
+(`option_not_supported`). The marks at the ends of a relation keep their form, a hollow mark stays
+hollow; a realization or a dependency is dashed by its kind, so it takes `critical` only
+(`role_conflict` at its `role`). An unknown role is `invalid_spec`.
+
+**Layout.** A sequence diagram or flow chart — and every diagram laid out like one — that does not
+fit its canvas is drawn larger and reported as `canvas_too_small` at `/width` or `/height`. A
+`fromSide` or `toSide` along the flow that would turn the edge back over its step, such as `start`
+on an edge that leads on to a later step, is ignored and reported as `port_side_ignored` at that
+field (flow charts and architecture diagrams); an edge from a node to itself takes no `fromSide`
+or `toSide` (`option_not_supported`). A main path must follow edges (`main_path_gap`) or, given
+as `{ "from": "a", "to": "b" }`, have a way along them (`main_path_unreachable`). In a `sameRank`
+set, each id appears in one set at most, and no two of a set are joined by an edge
+(`same_rank_edge`).
+
+## Sequence diagrams
+
+`"type": "sequence"`. See [Sequence diagrams](../../guides/chart-types/#sequence-diagrams).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `sequence.participants` | array, 1–12 | yes | `[{ "id": "api", "label": "…", "sublabel": "…", "kind": "service" }]`. |
+| `participants[].id` | identifier | yes | Unique. |
+| `participants[].label`, `participants[].sublabel` | string, up to 60 characters | label | Name and second line. |
+| `participants[].kind` | `service`, `actor`, `database`, `queue`, `external` | no | Each kind has its own shape; default `service`. |
+| `sequence.messages` | array, 1–60 | yes | `[{ "from": "api", "to": "db", "label": "…", "kind": "call" }]`, in the order they are sent. |
+| `messages[].from`, `messages[].to` | identifier | yes | Sender and receiver; a participant may send to itself. |
+| `messages[].label` | string, up to 80 characters | yes | The message. |
+| `messages[].kind` | `call`, `reply`, `async` | no | Default `call`; a call activates its receiver until the receiver replies. |
+| `sequence.fragments` | array, up to 12 | no | `[{ "kind": "alt", "label": "…", "from": 0, "to": 2, "else": [{ "from": 1, "label": "…" }] }]`: frames around runs of consecutive messages. |
+| `fragments[].kind` | `alt`, `opt`, `loop`, `par`, `critical`, `break` | yes | The kind of frame. |
+| `fragments[].from`, `fragments[].to` | integer, from 0 | yes | The first and last message inside, counted from 0 and included. |
+| `fragments[].label` | string, up to 60 characters | no | Its condition. |
+| `fragments[].else` | array | no | Only `alt`: further branches, each starting at a later message inside the frame (`from`) with an optional `label`. |
+| `sequence.numbered` | boolean | no | Numbers the messages in round badges at the start of their arrows. |
+| `sequence.orientation` | `auto`, `portrait`, `landscape` | no | See [Diagram fields](#diagram-fields). |
+
+Rules: 1–12 participants (`too_many_participants`), 1–60 messages (`too_many_messages`) and up to
+12 fragments (`too_many_fragments`); participant `id`s are identifiers (`invalid_id`) and unique
+(`duplicate_id`), every message names existing participants (`unknown_participant`), and
+fragments lie within the messages, nest at most three deep and never cross (`invalid_fragment`,
+`fragments_cross`).
+
+## Flow charts
+
+`"type": "flow"`: steps laid out in layers along the flow, down in portrait and right in landscape.
+Edges may form cycles; an edge back is drawn against the flow. See
+[Flow charts](../../guides/chart-types/#flow-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `flow.nodes` | array, 1–40 | yes | The steps: `[{ "id": "a", "label": "…", "sublabel": "…", "kind": "process", "lane": "x", "value": 3, "parts": [{ "label": "…", "value": 2 }], "role": "critical" }]`. |
+| `nodes[].id` | identifier | yes | Unique among steps and lanes. |
+| `nodes[].label`, `nodes[].sublabel` | string, up to 60 characters | label | Name and second line. |
+| `nodes[].kind` | `process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external` | no | Each kind has its own shape; default `process`. |
+| `nodes[].lane` | identifier | with lanes | The lane the step lies in. |
+| `nodes[].value` | number | no | Colors the step's fill, from light for the smallest value to dark for the largest. |
+| `nodes[].parts` | array, up to 6 | no | `[{ "label", "value" }]` (label up to 40 characters, value 0 or more): the parts of what the step holds, drawn as a stripe inside the bottom of its box. |
+| `nodes[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `flow.edges` | array, up to 80 | no | `[{ "from": "a", "to": "b", "label": "…", "dash": "solid", "weight": 120, "role": "planned", "fromSide": "right", "toSide": "start" }]`. |
+| `edges[].from`, `edges[].to` | identifier | yes | The steps it joins. |
+| `edges[].label` | string, up to 60 characters | no | Its text. |
+| `edges[].dash` | `solid`, `dashed`, `dotted` | no | Default `solid`. |
+| `edges[].weight` | number, 0 or more | no | How much the edge carries: the line is drawn from 1 px for nothing to 5 px for the heaviest edge. |
+| `edges[].role`, `edges[].fromSide`, `edges[].toSide` | | no | See [Diagram fields](#diagram-fields). |
+| `flow.lanes` | array, up to 8 | no | `[{ "id": "x", "label": "…" }]` (label up to 40 characters): bands across the flow; once there are lanes, every step names one. |
+| `flow.groups` | array, up to 8 | no | `[{ "label": "…", "nodes": ["a"] }]` (label up to 40 characters): frames around steps of one lane. |
+| `flow.mainPath`, `flow.sameRank`, `flow.notes`, `flow.orientation`, `flow.spacing` | | no | See [Diagram fields](#diagram-fields). |
+| `flow.valueLabel` | string, up to 40 characters | no | What the `value` of the steps stands for: the name of the color key and of the table column. |
+| `flow.sharedTrunks` | boolean | no | Draws edges that leave a step together, or reach one together, on one line that branches, where they read the same (no label, same `dash`, `weight` and `role`, off the main path, other ends in the same lane and group, not out of a decision; note lines never). Every edge is still drawn and listed. |
+
+Rules: 1–40 steps (`too_many_nodes`), up to 80 edges (`too_many_edges`), 8 lanes
+(`too_many_lanes`) and 8 groups (`too_many_groups`); step and lane `id`s are identifiers
+(`invalid_id`) and unique (`duplicate_id`); edges, groups and the main path name existing steps
+(`unknown_node`); every step names a declared lane once there are lanes (`missing_lane`,
+`unknown_lane`); a step belongs to one group at most (`duplicate_member`) and a group to one lane
+(`group_spans_lanes`); a `weight` is at least 0 (`invalid_edge_weight`); `parts` (flow charts and
+trees) has at most 6 entries per node and 8 names per diagram (`too_many_parts`) with values of
+at least 0 that add up to more than 0 (`invalid_value`) and stays off decisions
+(`option_not_supported`). A step that lands inside the frame of a group it does not belong to is
+`group_overlap`. The rules in [Diagram fields](#diagram-fields) apply.
+
+## State diagrams
+
+`"type": "state"`: laid out like a flow chart. Transitions are written `event [guard] / action`.
+See [State diagrams](../../guides/chart-types/#state-diagrams).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `state.states` | array, 1–40 | yes | `[{ "id": "a", "label": "…", "sublabel": "…", "kind": "state", "final": false, "in": "c", "role": "critical" }]`. |
+| `states[].id` | identifier | yes | Unique. |
+| `states[].label`, `states[].sublabel` | string, up to 60 characters | label | Name and second line. |
+| `states[].kind` | `state`, `choice`, `composite` | no | `state` (default); a `choice` is a diamond; a `composite` is a frame around the states that name it with `in`. |
+| `states[].final` | boolean | no | A final state, drawn with a double outline. |
+| `states[].in` | identifier | no | The composite state it lies in. |
+| `states[].role` | role | no | Not on a composite state. |
+| `state.transitions` | array, up to 80 | no | `[{ "from": "a", "to": "b", "event": "…", "guard": "…", "action": "…", "dash": "solid", "role": "planned" }]`. |
+| `transitions[].from`, `transitions[].to` | identifier | yes | The states it joins. |
+| `transitions[].event`, `transitions[].guard`, `transitions[].action` | string, up to 40 characters | no | The parts of its label. |
+| `transitions[].dash` | `solid`, `dashed`, `dotted` | no | Default `solid`. |
+| `transitions[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `state.initial` | identifier | no | The state the machine starts in: a dot with an arrow into it. |
+| `state.mainPath` | array of ids | no | The usual way through the states, joined by transitions. |
+| `state.orientation`, `state.spacing` | | no | See [Diagram fields](#diagram-fields). |
+
+Rules: 1–40 states (`too_many_states`) and up to 80 transitions (`too_many_transitions`); ids are
+identifiers (`invalid_id`) and unique (`duplicate_id`); transitions, `initial` and the main path
+name existing states (`unknown_state`) and follow transitions (`main_path_gap`); a choice or
+composite state cannot be final (`option_not_supported`); states lie in composite states
+(`not_composite`) without a circle (`state_cycle`) at most four deep (`states_too_deep`), a
+composite state holds a state (`empty_composite`) and is never named by a transition, `initial` or
+the main path (`composite_not_allowed`); with an `initial` state every other state needs a
+transition into it (`unreachable_state`, a warning).
+
+## Class diagrams
+
+`"type": "classes"`: a class or entity-relationship diagram, laid out like a flow chart. See
+[Class and entity diagrams](../../guides/chart-types/#class-and-entity-diagrams).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `classes.classes` | array, 1–40 | yes | `[{ "id": "order", "label": "Order", "kind": "class", "attributes": ["+ id: Int"], "methods": ["+ total(): Money"], "role": "critical" }]`. |
+| `classes[].id` | identifier | yes | Unique among classes and packages. |
+| `classes[].label` | string, up to 60 characters | yes | The name. |
+| `classes[].kind` | `class`, `interface`, `abstract`, `enum`, `entity` | no | `class` (default), `interface`, `abstract`, `enum` (a stereotype above the name) or `entity` (an entity of an entity-relationship diagram). |
+| `classes[].attributes`, `classes[].methods` | array of strings, up to 30, each up to 100 characters | no | Lines of text in their own compartments. |
+| `classes[].in` | identifier | no | The package the class lies in; classes outside every package are allowed. |
+| `classes[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `classes.relations` | array, up to 100 | no | `[{ "from": "order", "to": "line", "kind": "composition", "fromCardinality": "1", "toCardinality": "1..*", "label": "has", "role": "planned" }]`. |
+| `relations[].from`, `relations[].to` | identifier | yes | The classes it joins; relations join classes, never packages. |
+| `relations[].kind` | `association`, `inheritance`, `realization`, `composition`, `aggregation`, `dependency` | no | `association` (default, a plain line), `inheritance` (hollow triangle at `to`), `realization` (dashed, hollow triangle at `to`), `composition` (filled diamond at `from`), `aggregation` (hollow diamond at `from`) or `dependency` (dashed, open arrowhead at `to`). |
+| `relations[].label` | string, up to 60 characters | no | Its text. |
+| `relations[].fromCardinality`, `relations[].toCardinality` | string, up to 12 characters | no | Stand at the ends, such as `0..*`. |
+| `relations[].direction` | `forward`, `both`, `none` | no | Associations only: `forward` (navigable to `to`, an open arrowhead there), `both` (open arrowheads at either end) or `none` (a plain line). |
+| `relations[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `classes.packages` | array, up to 12 | no | `[{ "id": "ordering", "label": "Ordering", "in": "shop", "orientation": "landscape" }]`: frames that group classes into modules. |
+| `packages[].id` | identifier | yes | Unique among classes and packages. |
+| `packages[].label` | string, up to 60 characters | yes | The name. |
+| `packages[].in` | identifier | no | The package it lies in. |
+| `packages[].orientation` | `portrait`, `landscape` | no | Lays out the package's classes that way as one block, whichever way the diagram runs; relations from outside run on straight to their class. |
+| `classes.notes`, `classes.orientation`, `classes.spacing` | | no | See [Diagram fields](#diagram-fields). |
+
+The description names every package with what it holds, and the table gains a Package column
+(`Shop › Ordering`).
+
+Rules: up to 40 classes (`too_many_nodes`) with unique ids (`duplicate_id`, `invalid_id`), at most
+30 attributes and 30 methods each (`too_many_data_points`), and 100 relations (`too_many_edges`)
+between existing classes (`unknown_node`, also for a package); `direction` on another kind than an
+association is `option_not_supported`. Packages: up to 12 (`too_many_packages`) nested at most
+four deep (`packages_too_deep`), classes and packages lie in existing packages
+(`unknown_package`) without a circle (`package_cycle`), and every package holds a class
+(`empty_package`). `auto` as a package's `orientation`, and a package with one inside another with
+one, are `option_not_supported`; a package whose block a relation from outside would have to cross
+follows the diagram (`package_orientation_ignored`, a warning).
+
+## Architecture diagrams
+
+`"type": "architecture"`: components joined by connections inside boundaries, laid out like a flow
+chart. See [Architecture diagrams](../../guides/chart-types/#architecture-diagrams).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `architecture.components` | array, 1–40 | yes | `[{ "id": "a", "label": "…", "sublabel": "…", "kind": "service", "in": "net", "role": "critical", "tags": ["public"], "provides": [{ "id": "api", "label": "…" }] }]`. |
+| `components[].id` | identifier | yes | Unique among components and boundaries. |
+| `components[].label`, `components[].sublabel` | string, up to 60 characters | label | Name and second line, such as its technology or host. |
+| `components[].kind` | `person`, `frontend`, `service`, `database`, `queue`, `storage`, `cache`, `security`, `external`, `node`, `artifact` | no | Each with its own shape; default `service`. `node` and `artifact` are for deployments. |
+| `components[].symbol` | `browser`, `mobile`, `api-gateway`, `load-balancer`, `cdn`, `firewall`, `identity`, `container`, `orchestrator`, `function`, `cloud`, `cache`, `object-storage`, `message-broker`, `search-index`, `monitoring` | no | Draws a generic symbol above the label and names a technology category in the description and the data table, after the kind; the kind keeps its shape. |
+| `components[].in` | identifier | no | The boundary it lies in. |
+| `components[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `components[].tags` | array of identifiers, up to 8 | no | Names of groups the component belongs to, such as `public`, by which views include or exclude it; not drawn. |
+| `components[].provides` | array, up to 4 | no | Interfaces the component provides, each a ball on a stem ahead of its box with the label beside it. Not on `person` or `node`. |
+| `provides[].id` | identifier | yes | Unique among the interfaces of the component; with the component's id it forms the stable id `component.interface`. |
+| `provides[].label` | string, up to 40 characters | yes | Its name. |
+| `architecture.connections` | array, up to 80 | no | `[{ "id": "c1", "from": "a", "to": "b", "label": "…", "technology": "…", "dash": "solid", "weight": 120, "role": "planned", "direction": "forward", "toInterface": "api", "fromSide": "left", "toSide": "start", "tags": ["sync"] }]`. |
+| `connections[].id` | identifier | no | A stable name by which views and perspectives select the connection; unique among connections. |
+| `connections[].from`, `connections[].to` | identifier | yes | The components it joins. |
+| `connections[].label` | string, up to 60 characters | no | What it does. |
+| `connections[].technology` | string, up to 40 characters | no | How, written in brackets on a line below the label. |
+| `connections[].step` | integer, 1–99 | no | Numbers the connection in a sequence of calls; the number is written before the label, and the description lists the steps in order. |
+| `connections[].dash` | `solid`, `dashed`, `dotted` | no | Default `solid`. |
+| `connections[].weight` | number, 0 or more | no | How much it carries: the line is drawn from 1 px for nothing to 5 px for the heaviest. |
+| `connections[].direction` | `forward`, `both`, `none` | no | `forward` (default, an arrowhead at `to`), `both` (one connection both ways, arrowheads at either end), `none` (no direction, no arrowhead). |
+| `connections[].toInterface` | identifier | no | An interface `to` provides, which `from` requires: the connection ends in a socket around the ball, runs forward, takes no `toSide` and never joins a shared trunk. |
+| `connections[].tags` | array of identifiers, up to 8 | no | Groups the connection belongs to, by which views include or exclude it; not drawn. |
+| `connections[].role`, `connections[].fromSide`, `connections[].toSide` | | no | See [Diagram fields](#diagram-fields). |
+| `architecture.boundaries` | array, up to 12 | no | `[{ "id": "net", "label": "…", "in": "region" }]` (label up to 60 characters): frames such as a cloud region, a network or a system. |
+| `architecture.mainPath`, `architecture.sameRank`, `architecture.notes`, `architecture.orientation`, `architecture.spacing` | | no | See [Diagram fields](#diagram-fields), with components and connections. |
+| `architecture.sharedTrunks` | boolean | no | Draws connections that leave a component together, or reach one together, on one line that branches, where they read the same (no label, technology or step, usual direction, same `dash`, `weight` and `role`, off the main path, other ends in the same boundary). |
+| `architecture.views` | array, up to 20 | no | Views on the model; see [Views](#views). |
+| `architecture.defaultView` | identifier | no | The key of the view rendered when none is asked for; without it, the first view. |
+| `architecture.perspectives` | array, up to 8 | no | See [Perspectives](#perspectives). |
+| `architecture.perspective` | identifier | no | The key of the perspective the diagram shows, and every view without one of its own. |
+
+Rules: 1–40 components (`too_many_nodes`), up to 80 connections (`too_many_edges`) and 12
+boundaries (`too_many_boundaries`) nested at most four deep (`boundaries_too_deep`); identifiers
+are unique among components and boundaries (`duplicate_id`), components and boundaries lie in
+existing boundaries (`unknown_boundary`) without a circle (`boundary_cycle`), every boundary holds
+a component (`empty_boundary`); connections and the main path name existing components
+(`unknown_node`, `main_path_gap`, `main_path_unreachable`); connection ids are unique among
+connections (`duplicate_id`); a `symbol` is one of the names above (`unknown_symbol`); a `step` lies
+from 1 to 99 (`invalid_step`) and every number is used once (`duplicate_step`). Tags: up to 8 per
+component or connection (`too_many_tags`), written like ids (`invalid_tag`), each once
+(`duplicate_tag`). Interfaces: at most four per component (`too_many_interfaces`), ids unique
+within it (`duplicate_id`), none on a `person` or `node`, and a connection to an interface runs
+forward and takes no `toSide` (`option_not_supported`); a `toInterface` that `to` does not provide
+is `unknown_interface`. A component that lands inside the frame of a boundary it does not belong to
+is `group_overlap`. The rules in [Diagram fields](#diagram-fields) apply.
+
+### Views
+
+With `views`, one view is rendered — the one asked for, else `defaultView`, else the first — as a
+diagram of its own, never the whole model. See
+[Views on one model](../../guides/chart-types/#views-on-one-model).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `views[].key` | identifier | yes | A stable name of the view; unique among views. |
+| `views[].title` | string, up to 200 characters | yes | The title of the diagram the view renders. |
+| `views[].description` | string, up to 1000 characters | no | Its description; without one it is generated from what the view shows. |
+| `views[].components` | array of ids | no | The components the view shows. Required unless the view has `steps`, `include` or `exclude`. |
+| `views[].connections` | array of ids | no | The connections it shows, each between shown components; without it, every connection between them. |
+| `views[].mainPath` | array of ids, or `{ "from", "to" }` | no | The way the view draws stronger; without one, the model's main path when it lies in the view. |
+| `views[].include` | array of tags | no | Shows every component carrying one of these tags and none of `exclude`; with `connections`, also the connections between shown components that carry one. |
+| `views[].exclude` | array of tags | no | Leaves out components and connections carrying one, unless the view lists them. With neither `components` nor `include`, the view starts from every component. |
+| `views[].steps` | array, up to 99 | no | A dynamic view: `[{ "connection": "c1", "label": "…" }]`, connections of the model in the order they occur, numbered from 1 in place of their own steps: `connection` names one by `id`, the same may occur again, and `label` (up to 60 characters) replaces the connection's. |
+| `views[].perspective` | identifier | no | The perspective the view shows, in place of the model's. |
+| `views[].width`, `views[].height`, `views[].mobile` | | no | Take the place of the model's and are checked like them, at the view (`invalid_dimension` at `/architecture/views/0/width`). |
+| `views[].environment` | string, up to 60 characters | no | Makes the view a deployment view of this environment, such as `Production`. |
+| `views[].hosts` | array | deployment | Machines, clusters or zones, nested like boundaries (`id`, `label`, `in`). |
+| `views[].instances` | array | deployment | `[{ "id": "a-1", "of": "a", "in": "node" }]`: running instances of the model's components, drawn as `Label (id)`. `id` is unique among the instances and hosts of the view, `of` names the component, `in` the host. |
+| `views[].instanceConnections` | array | no | Connections between instances, with the fields of a connection and `from`/`to` naming instances. One with the `id` of a model connection takes the `label`, `technology`, `dash`, `role`, `fromSide` and `toSide` it leaves out from it. |
+| `views[].deriveConnections` | boolean | no | Deployment views only: adds an instance connection for every model connection the view does not name by `id`, from each instance of its `from` component to the nearest instances of its `to` component by shared hosts, all of them at a tie; see [Environments and instances](../../guides/chart-types/#environments-and-instances). |
+
+Rules: up to 20 views (`too_many_views`) with unique keys (`duplicate_id`); a view lists
+components or steps (`empty_view`) that exist (`unknown_node`, `unknown_connection`), each listed
 connection or step joins shown components (`connection_outside_view`), a view with `steps` takes
 no `connections` (`option_not_supported`) and at most 99 steps (`too_many_steps`), and
-`defaultView` and the key asked for name a view (`unknown_view`). Components and connections take up
-to 8 `tags` (`too_many_tags`), written like ids (`invalid_tag`), each once (`duplicate_tag`); a
-view's `include` and `exclude` name tags the model carries (`unknown_tag`), each once in both
-together (`duplicate_tag`), select at least one component (`empty_view`), and are not taken by a
-view with `steps` or an `environment` (`option_not_supported`); see [Views on one
-model](../../guides/chart-types/#views-on-one-model) for the rule. A view's own `width`, `height`
-and `mobile` take the place of the model's and are checked like them, at the view
-(`invalid_dimension` at `/architecture/views/0/width`). Every view must resolve to a
-valid diagram; its diagnostics point into the model or the view. Up to 8 perspectives (`too_many_perspectives`) with well-formed keys of their own (`invalid_id`), a title and 1–8 categories (`invalid_categories`) with distinct labels (`duplicate_category`) that list existing components (`unknown_node`) and connections by `id` (`unknown_connection`), each in at most one category of a perspective (`duplicate_member`); `perspective` on the model or a view names an existing perspective (`unknown_perspective`). A deployment view (one with `environment`) lists at least one instance (`empty_view`), each `of` an existing component (`unknown_node`) and drawn as `Label (id)` in at most 60 characters (`text_too_long` at the instance's `id`), and takes no `components`, `connections`, `steps` or `mainPath`; another view takes no `hosts`, `instances` or `instanceConnections` (`option_not_supported`); an instance connection with an `id` names a model connection (`unknown_connection`) between the components its instances run (`instance_mismatch`). `deriveConnections` (deployment views only, else `option_not_supported`) adds an instance connection for every model connection the view does not name by `id`, from each instance of its `from` component to the nearest instances of its `to` component by shared hosts, all of them at a tie; see [Environments and instances](../../guides/chart-types/#environments-and-instances). Instances, hosts and instance connections are then checked like components, boundaries and connections, after expansion, with diagnostics in the view. Flow charts, class and architecture diagrams take up to 12 notes (`too_many_notes`),
-each with a text of up to 160 characters (`text_too_long`) and an optional `on` that names an
-existing step, class, package, component or boundary (`unknown_node` at `/…/notes/0/on`; flow
-charts take notes on steps only). A note on an element is drawn beside it and joined to it by a
-dotted line that is no edge, relation or connection; a note on a package or boundary stands inside
-that frame, at the head of its contents, without a line; a note without `on` explains the whole
-diagram and stands in a band below it, notes side by side and wrapping onto further rows. The
-description gives every note (`Note on Card: …`, `Note: …`); the table gives notes on elements in
-a Notes column of their rows and the others, which belong to no row, after its caption. A view
-keeps the notes without `on` and those on the components and boundaries it shows; a deployment
-view keeps only the notes without `on`. A tree takes 1–150 nodes (`too_many_nodes`) down to twelve levels below the root (`tree_too_deep`); identifiers are unique (`duplicate_id`), exactly one node has no parent (`invalid_root`), parents exist (`unknown_node`) and run up to the root without a circle (`circular_parent`), the root has no `link` (`option_not_supported`), a radial tree has no `orientation`, `partner` or `link` (`option_not_supported`), and a partner exists, is another node, has no parent and is named by one node only (`unknown_node`, `invalid_partner`). A tree built from `distances` (a dendrogram) takes 2–40 labels (`empty_data`, `too_many_nodes`) that are unique (`duplicate_id`) and a square, symmetric matrix with 0 on its diagonal and no value below 0 (`invalid_matrix`), and no `nodes`, `layout`, `orientation` or `valueLabel`; `linkage` without `distances` is refused (`option_not_supported`). A network takes 1–40 nodes (`too_many_nodes`), up to 120 edges (`too_many_edges`) and 8 groups (`too_many_groups`); identifiers are unique (`duplicate_id`), edges join two different existing nodes (`unknown_node`, `self_loop`) and carry a `weight` of at least 0 (`invalid_edge_weight`), rings need a `center` that exists (`missing_center`, `unknown_node`) and take no `order`, and a circle takes no `center` (`option_not_supported`).
+`defaultView` and the key asked for name a view (`unknown_view`). `include` and `exclude` name tags
+the model carries (`unknown_tag`), each once in both together (`duplicate_tag`), select at least
+one component (`empty_view`), and are not taken by a view with `steps` or an `environment`
+(`option_not_supported`). A deployment view lists at least one instance (`empty_view`), each `of`
+an existing component (`unknown_node`) and drawn as `Label (id)` in at most 60 characters
+(`text_too_long` at the instance's `id`), and takes no `components`, `connections`, `steps` or
+`mainPath`; another view takes no `hosts`, `instances`, `instanceConnections` or
+`deriveConnections` (`option_not_supported`); an instance connection with an `id` names a model
+connection (`unknown_connection`) between the components its instances run
+(`instance_mismatch`). Instances, hosts and instance connections are then checked like components,
+boundaries and connections, after expansion, with diagnostics in the view. Every view must resolve
+to a valid diagram; its diagnostics point into the model or the view. A view keeps the notes
+without `on` and those on the components and boundaries it shows; a deployment view keeps only the
+notes without `on`.
 
-A pane takes up to six annotation layers — zones, reference lines and point markers together
-(`too_many_annotations`). A zone needs `bottom` and `top`, `from` and `to`, or both
-(`missing_position`); `bottom` at or above `top`, or `from` at or after `to`, is `invalid_band`; a
-zone, reference line or point marker without `label` is `missing_label`. A field that belongs to
-another mark — `name`, `points`, `value` or `shape` on a zone, `shape` on a reference line — is
-`option_not_supported` with its path. A label that overlaps another annotation label, crosses a
-data line, or leaves the plot is reported as a `label_overlap` warning.
+### Perspectives
 
-Fields that belong to a later milestone are refused with a named error rather than ignored:
-`zoomSteps` on small multiples, the `ohlc` mark on small multiples (`option_not_supported`), `title`
-on the pane of a `time` chart, and the bar and line fields `data`, `categories`, `series`, `orientation`, and `categoryAxis` on a
-`time` chart (`option_not_supported`). A block that belongs to another type (`stripes`,
-`calendar`, `ranges`, `boxes`, `timeline`, `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `waterfall`, `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `columns`) is refused the same way.
+`perspectives` name questions such as the team or the technical debt; the diagram shows one only
+when `perspective` (on the model or a view) selects it. See
+[Perspectives](../../guides/chart-types/#perspectives).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `perspectives[].key` | identifier | yes | A stable name; unique among perspectives. |
+| `perspectives[].title` | string, up to 40 characters | yes | Its name in the legend, the description and the table, such as `Team`. |
+| `perspectives[].description` | string, up to 200 characters | no | A sentence added to the description. |
+| `perspectives[].categories` | array, 1–8 | yes | `[{ "label": "Payments", "components": ["a"], "connections": ["c1"] }]`, in the order that fixes their colors. |
+| `categories[].label` | string, up to 40 characters | yes | The category, such as a team; unique in the perspective. |
+| `categories[].components`, `categories[].connections` | array of ids | no | What lies in the category; connections by `id`. |
+
+Rules: up to 8 perspectives (`too_many_perspectives`) with well-formed keys of their own
+(`invalid_id`), each with 1–8 categories (`invalid_categories`) with distinct labels
+(`duplicate_category`) that list existing components (`unknown_node`) and connections
+(`unknown_connection`), each in at most one category of a perspective (`duplicate_member`);
+`perspective` on the model or a view names an existing perspective (`unknown_perspective`).
+
+## Trees
+
+`"type": "tree"`: one root and nodes that each name their parent, or a dendrogram built from
+distances. See [Trees](../../guides/chart-types/#trees) and
+[Dendrograms](../../guides/chart-types/#dendrograms).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `tree.nodes` | array, 1–150 | one of | `[{ "id": "a", "label": "…", "sublabel": "…", "parent": "root", "link": "60 %", "kind": "unit", "partner": "b", "value": 3, "parts": [{ "label": "…", "value": 2 }], "role": "critical" }]`. The children of a node keep the order of the list. |
+| `nodes[].id` | identifier | yes | Unique. |
+| `nodes[].label`, `nodes[].sublabel` | string, up to 60 characters | label | Name and second line. |
+| `nodes[].parent` | identifier | no | The node it hangs from; exactly one node has neither a parent nor a partner: the root. |
+| `nodes[].link` | string, up to 40 characters | no | What joins the node to its parent, such as a share. |
+| `nodes[].kind` | `unit`, `person`, `external` | no | Default `unit`. |
+| `nodes[].partner` | identifier | no | Joins two nodes as a couple, side by side; the children of either hang from the middle of the line between them. |
+| `nodes[].collapsed` | boolean | no | Draws the node without what hangs below it (and below its partner), with a `+n` for the nodes left out; the description and the table still list them. |
+| `nodes[].value` | number | no | Colors the node's fill, from light for the smallest value to dark for the largest. |
+| `nodes[].parts` | array, up to 6 | no | As on a flow chart step. |
+| `nodes[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `tree.orientation` | `auto`, `portrait`, `landscape` | no | See [Diagram fields](#diagram-fields). |
+| `tree.layout` | `layered`, `radial` | no | `layered` (default): one row per level (a column in landscape). `radial` draws a mind map: the root in the middle, every level on a ring around it, each subtree in a sector as wide as its share of the leaves. |
+| `tree.valueLabel` | string, up to 40 characters | no | What the `value` of the nodes stands for: the name of the color key and of the table column. |
+| `tree.distances` | object | one of | For a dendrogram: `{ "labels": ["a", "b"], "matrix": [[0, 1], [1, 0]] }`, the distances between items, from which the tree is built by agglomerative clustering. |
+| `distances.labels` | array of strings, 2–40, each up to 60 characters | yes | The items, in the order of the matrix. |
+| `distances.matrix` | array of arrays of numbers | yes | A square, symmetric matrix with 0 on its diagonal and no value below 0. |
+| `tree.linkage` | `average`, `complete`, `single` | no | With `distances`: how far apart two clusters are — the mean distance between their items (`average`, default), the largest (`complete`) or the smallest (`single`). |
+
+Rules: 1–150 nodes (`too_many_nodes`) down to twelve levels below the root (`tree_too_deep`);
+identifiers are unique (`duplicate_id`), exactly one node has no parent (`invalid_root`), parents
+exist (`unknown_node`) and run up to the root without a circle (`circular_parent`), the root has
+no `link` (`option_not_supported`), a radial tree has no `orientation`, `partner` or `link`
+(`option_not_supported`), and a partner exists, is another node, has no parent and is named by one
+node only (`unknown_node`, `invalid_partner`); `collapsed` on a node with nothing below it warns
+with `nothing_to_collapse`. `parts` follows the rules of flow charts. A dendrogram takes 2–40
+labels (`empty_data`, `too_many_nodes`) that are unique (`duplicate_id`) and a square, symmetric
+matrix with 0 on its diagonal and no value below 0 (`invalid_matrix`), and no `nodes`, `layout`,
+`orientation` or `valueLabel`; `linkage` without `distances` is refused (`option_not_supported`).
+
+## Networks
+
+`"type": "network"`: nodes as dots joined by edges, with no direction of flow. See
+[Networks](../../guides/chart-types/#networks).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `network.nodes` | array, 1–40 | yes | `[{ "id": "a", "label": "…", "group": "…", "role": "critical" }]`. |
+| `nodes[].id` | identifier | yes | Unique. |
+| `nodes[].label` | string, up to 60 characters | yes | The name. |
+| `nodes[].group` | string, up to 40 characters | no | Its color and a legend entry. |
+| `nodes[].role` | role | no | Drawn as a ring around the dot. |
+| `network.edges` | array, up to 120 | no | `[{ "from": "a", "to": "b", "dash": "solid", "weight": 3, "role": "planned" }]`. |
+| `edges[].from`, `edges[].to` | identifier | yes | The nodes it joins. |
+| `edges[].dash` | `solid`, `dashed`, `dotted` | no | Default `solid`. |
+| `edges[].weight` | number, 0 or more | no | The line is drawn from 1 px for nothing to 5 px for the heaviest edge. |
+| `edges[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `network.layout` | `circle`, `rings` | no | `circle` (default): the nodes clockwise from twelve o'clock, groups together; `rings` around `center`, every other node on the ring of its distance in edges. |
+| `network.center` | identifier | rings | The node in the middle of the rings. |
+| `network.order` | `crossings`, `listed` | no | Circle only: `crossings` (default, groups together with few crossings) or `listed`. |
+| `network.directed` | boolean | no | Edges lead from one node to the other, drawn with an arrowhead. |
+
+Rules: 1–40 nodes (`too_many_nodes`), up to 120 edges (`too_many_edges`) and 8 groups
+(`too_many_groups`); identifiers are unique (`duplicate_id`), edges join two different existing
+nodes (`unknown_node`, `self_loop`) and carry a `weight` of at least 0 (`invalid_edge_weight`);
+rings need a `center` that exists (`missing_center`, `unknown_node`) and take no `order`, and a
+circle takes no `center` (`option_not_supported`).
 
 ## Diverging scale
 
