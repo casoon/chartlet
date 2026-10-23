@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, ConnectionDirection, Dash, DiagramOrientation, sequence::is_identifier,
-    validate_text,
+    ChartSpec, ConnectionDirection, Dash, DiagramOrientation, NoteSpec, flow::validate_notes,
+    sequence::is_identifier, validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -13,6 +13,9 @@ pub(crate) const MAX_CLASSES: usize = 40;
 pub(crate) const MAX_RELATIONS: usize = 100;
 /// The members in one compartment of a class.
 const MAX_MEMBERS: usize = 30;
+/// Packages of one diagram, and how deeply they may nest inside each other.
+pub(crate) const MAX_PACKAGES: usize = 12;
+pub(crate) const MAX_PACKAGE_DEPTH: usize = 4;
 
 /// A class diagram or entity-relationship diagram: boxes with an attribute and a method
 /// compartment, joined by relations with their cardinalities, laid out like a flow chart.
@@ -22,8 +25,25 @@ pub struct ClassesSpec {
     pub classes: Vec<ClassSpec>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub relations: Vec<RelationSpec>,
+    /// Frames that group classes into modules, such as ordering or payment.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub packages: Vec<PackageSpec>,
+    /// Notes beside classes, such as an assumption or a limitation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<NoteSpec>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
+}
+
+/// A frame around classes that belong together. Packages nest by naming the package they lie
+/// `in`; relations still join classes, never packages.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PackageSpec {
+    pub id: String,
+    pub label: String,
+    #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -39,6 +59,9 @@ pub struct ClassSpec {
     /// The methods, one line each, such as `+ total(): Money`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub methods: Vec<String>,
+    /// The `id` of the package the class lies in.
+    #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
+    pub package: Option<String>,
 }
 
 /// What a class is: it decides the stereotype written above its name.
@@ -130,6 +153,36 @@ impl ClassesSpec {
     pub(crate) fn class(&self, id: &str) -> Option<usize> {
         self.classes.iter().position(|class| class.id == id)
     }
+
+    pub(crate) fn package(&self, id: &str) -> Option<usize> {
+        self.packages.iter().position(|package| package.id == id)
+    }
+
+    /// The packages around package `index`, outermost first, ending with it; `None` when they
+    /// run in a circle.
+    pub(crate) fn chain(&self, index: usize) -> Option<Vec<usize>> {
+        let mut chain = vec![index];
+        let mut at = index;
+        while let Some(parent) = self.packages[at].parent.as_deref() {
+            at = self.package(parent)?;
+            if chain.contains(&at) {
+                return None;
+            }
+            chain.push(at);
+        }
+        chain.reverse();
+        Some(chain)
+    }
+
+    /// The packages around class `index`, outermost first; empty outside every package.
+    pub(crate) fn packages_of(&self, index: usize) -> Vec<usize> {
+        self.classes[index]
+            .package
+            .as_deref()
+            .and_then(|id| self.package(id))
+            .and_then(|package| self.chain(package))
+            .unwrap_or_default()
+    }
 }
 
 impl ChartSpec {
@@ -164,15 +217,87 @@ impl ChartSpec {
                 format!("at most {MAX_RELATIONS} relations are supported"),
             ));
         }
+        classes.validate_packages()?;
         classes.validate_classes()?;
         classes.validate_relations()?;
+        validate_notes(
+            &classes.notes,
+            "classes",
+            |id| classes.class(id).is_some(),
+            "class",
+        )?;
         Ok(Vec::new())
     }
 }
 
 impl ClassesSpec {
-    fn validate_classes(&self) -> Result<(), ChartError> {
+    /// Packages with unique ids that nest in existing packages, without a circle and at most
+    /// [`MAX_PACKAGE_DEPTH`] deep.
+    fn validate_packages(&self) -> Result<(), ChartError> {
+        if self.packages.len() > MAX_PACKAGES {
+            return Err(ChartError::new(
+                "too_many_packages",
+                "/classes/packages",
+                format!("at most {MAX_PACKAGES} packages are supported"),
+            ));
+        }
         let mut ids = BTreeSet::new();
+        for (index, package) in self.packages.iter().enumerate() {
+            let path = format!("/classes/packages/{index}");
+            if !is_identifier(&package.id) {
+                return Err(ChartError::new(
+                    "invalid_id",
+                    format!("{path}/id"),
+                    "use 1–64 ASCII letters, digits, hyphens, or underscores, starting with a letter",
+                ));
+            }
+            if !ids.insert(package.id.as_str()) {
+                return Err(ChartError::new(
+                    "duplicate_id",
+                    format!("{path}/id"),
+                    format!(
+                        "the id \"{}\" is already taken by an earlier package",
+                        package.id
+                    ),
+                ));
+            }
+            validate_text(&package.label, &format!("{path}/label"), 60)?;
+        }
+        for (index, package) in self.packages.iter().enumerate() {
+            let path = format!("/classes/packages/{index}/in");
+            if let Some(parent) = &package.parent
+                && self.package(parent).is_none()
+            {
+                return Err(ChartError::new(
+                    "unknown_package",
+                    path,
+                    format!("no package has the id \"{parent}\""),
+                ));
+            }
+            let Some(chain) = self.chain(index) else {
+                return Err(ChartError::new(
+                    "package_cycle",
+                    path,
+                    "packages lie in each other in a circle",
+                ));
+            };
+            if chain.len() > MAX_PACKAGE_DEPTH {
+                return Err(ChartError::new(
+                    "packages_too_deep",
+                    path,
+                    format!("packages nest at most {MAX_PACKAGE_DEPTH} deep"),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_classes(&self) -> Result<(), ChartError> {
+        let mut ids: BTreeSet<&str> = self
+            .packages
+            .iter()
+            .map(|package| package.id.as_str())
+            .collect();
         for (index, class) in self.classes.iter().enumerate() {
             let path = format!("/classes/classes/{index}");
             if !is_identifier(&class.id) {
@@ -187,7 +312,7 @@ impl ClassesSpec {
                     "duplicate_id",
                     format!("{path}/id"),
                     format!(
-                        "the id \"{}\" is already taken by an earlier class",
+                        "the id \"{}\" is already taken by a package or an earlier class",
                         class.id
                     ),
                 ));
@@ -208,6 +333,26 @@ impl ClassesSpec {
                     validate_text(member, &format!("{path}/{name}/{at}"), 100)?;
                 }
             }
+            if let Some(package) = &class.package
+                && self.package(package).is_none()
+            {
+                return Err(ChartError::new(
+                    "unknown_package",
+                    format!("{path}/in"),
+                    format!("no package has the id \"{package}\""),
+                ));
+            }
+        }
+        for (index, package) in self.packages.iter().enumerate() {
+            let holds =
+                (0..self.classes.len()).any(|class| self.packages_of(class).contains(&index));
+            if !holds {
+                return Err(ChartError::new(
+                    "empty_package",
+                    format!("/classes/packages/{index}"),
+                    format!("no class lies in \"{}\"", package.id),
+                ));
+            }
         }
         Ok(())
     }
@@ -217,10 +362,15 @@ impl ClassesSpec {
             let path = format!("/classes/relations/{index}");
             for (name, id) in [("from", &relation.from), ("to", &relation.to)] {
                 if self.class(id).is_none() {
+                    let message = if self.package(id).is_some() {
+                        format!("\"{id}\" is a package; relations join classes")
+                    } else {
+                        format!("no class has the id \"{id}\"")
+                    };
                     return Err(ChartError::new(
                         "unknown_node",
                         format!("{path}/{name}"),
-                        format!("no class has the id \"{id}\""),
+                        message,
                     ));
                 }
             }

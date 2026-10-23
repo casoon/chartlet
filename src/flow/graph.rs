@@ -162,10 +162,13 @@ impl Graph {
 
     /// Orders every layer by the mean position of each item's neighbours, sweeping down and up
     /// the layers, and keeps the order with the fewest crossings. Within a layer, items keep to
-    /// their lanes and the members of a group stay together.
+    /// their lanes and the members of a group stay together: an order that splits a group, such
+    /// as the order of the specification, is never kept.
     fn order(&mut self) {
         self.renumber();
-        let mut best = (self.crossings(), self.layers.clone());
+        let mut best = self
+            .groups_together()
+            .then(|| (self.crossings(), self.layers.clone()));
         for sweep in 0..16 {
             let down = sweep % 2 == 0;
             let order: Vec<usize> = if down {
@@ -177,12 +180,31 @@ impl Graph {
                 self.sort_layer(layer, down);
             }
             let crossings = self.crossings();
-            if crossings < best.0 {
-                best = (crossings, self.layers.clone());
+            if best.as_ref().is_none_or(|best| crossings < best.0) && self.groups_together() {
+                best = Some((crossings, self.layers.clone()));
             }
         }
-        self.layers = best.1;
+        if let Some((_, layers)) = best {
+            self.layers = layers;
+        }
         self.renumber();
+    }
+
+    /// Whether the members of every group stand next to each other in every layer.
+    fn groups_together(&self) -> bool {
+        self.layers.iter().all(|layer| {
+            let mut closed: Vec<usize> = Vec::new();
+            let mut open: &[usize] = &[];
+            for item in layer {
+                let groups = &self.items[*item].groups;
+                if groups.iter().any(|group| closed.contains(group)) {
+                    return false;
+                }
+                closed.extend(open.iter().filter(|group| !groups.contains(group)));
+                open = groups;
+            }
+            true
+        })
     }
 
     fn sort_layer(&mut self, layer: usize, down: bool) {

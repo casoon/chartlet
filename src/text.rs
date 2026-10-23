@@ -80,6 +80,10 @@ pub(crate) struct Words {
     pub component: &'static str,
     pub boundary: &'static str,
     pub connects_to: &'static str,
+    /// The package column of a class diagram's table.
+    pub package: &'static str,
+    /// The notes column of a class or architecture diagram's table.
+    pub notes: &'static str,
     /// The columns of a tree's table.
     pub node: &'static str,
     pub level: &'static str,
@@ -250,6 +254,8 @@ const EN: Words = Words {
     yes: "yes",
     boundary: "Boundary",
     connects_to: "Connects to",
+    package: "Package",
+    notes: "Notes",
     focus: "Focus",
     show_all: "Show all",
     ring: "Ring",
@@ -371,6 +377,8 @@ const DE: Words = Words {
     yes: "ja",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
+    package: "Paket",
+    notes: "Notizen",
     focus: "Fokus",
     show_all: "Alle zeigen",
     ring: "Ring",
@@ -1666,7 +1674,8 @@ pub(crate) fn view_scope(
     }
 }
 
-/// A boundary and what it holds, components and boundaries, as a sentence.
+/// A boundary and what it holds, components and boundaries, as a sentence; a package of a class
+/// diagram reads the same.
 /// The same in English and German.
 pub(crate) fn boundary(label: &str, parent: Option<&str>, held: &[&str]) -> String {
     let parent = parent.map_or_else(String::new, |parent| format!(" (in {parent})"));
@@ -2040,16 +2049,26 @@ pub(crate) fn tree_collapsed(locale: Locale, labels: &[&str]) -> String {
     }
 }
 
-/// What a class diagram shows: how many classes and relations.
-pub(crate) fn classes_opening(locale: Locale, classes: usize, relations: usize) -> String {
+/// What a class diagram shows: how many classes and relations, in how many packages.
+pub(crate) fn classes_opening(
+    locale: Locale,
+    classes: usize,
+    relations: usize,
+    packages: usize,
+) -> String {
+    let packages = match (locale, packages) {
+        (_, 0) => String::new(),
+        (Locale::En, count) => format!(" in {count} package{}", plural(count, "", "s")),
+        (Locale::De, count) => format!(" in {count} {}", plural(count, "Paket", "Paketen")),
+    };
     match locale {
         Locale::En => format!(
-            "Class diagram with {classes} class{} and {relations} relation{}.",
+            "Class diagram with {classes} class{} and {relations} relation{}{packages}.",
             plural(classes, "", "es"),
             plural(relations, "", "s")
         ),
         Locale::De => format!(
-            "Klassendiagramm mit {classes} {} und {relations} {}.",
+            "Klassendiagramm mit {classes} {} und {relations} {}{packages}.",
             plural(classes, "Klasse", "Klassen"),
             plural(relations, "Beziehung", "Beziehungen")
         ),
@@ -2082,6 +2101,27 @@ pub(crate) fn class_sentence(
         write!(sentence, "{label} {joined}.").expect("writing to String cannot fail");
     }
     sentence
+}
+
+/// The notes of a class or architecture diagram, one sentence each with the element it explains:
+/// `Note on Order: only for existing customers.`
+pub(crate) fn notes(locale: Locale, notes: &[(&str, &str)]) -> String {
+    let sentences: Vec<String> = notes
+        .iter()
+        .map(|(on, text)| {
+            let text = text.trim();
+            let stop = if text.ends_with(['.', '!', '?']) {
+                ""
+            } else {
+                "."
+            };
+            match locale {
+                Locale::En => format!("Note on {on}: {text}{stop}"),
+                Locale::De => format!("Notiz zu {on}: {text}{stop}"),
+            }
+        })
+        .collect();
+    sentences.join(" ")
 }
 
 /// The kind of a class as the table writes it.

@@ -1,7 +1,8 @@
 //! Architecture diagrams: components joined by connections, inside nested boundaries such as a
 //! cloud region, a network or a system, laid out by the layered layout of flow charts. A
-//! connection says what it does and, in brackets below, how. The description and the data table
-//! name every component with its boundaries and where it connects to.
+//! connection says what it does and, in brackets below, how. Notes stand beside the components
+//! they explain, joined by a dotted line that is no connection. The description and the data
+//! table name every component with its boundaries, where it connects to and its notes.
 
 use std::fmt::Write as _;
 
@@ -74,6 +75,24 @@ const fn shape(kind: ComponentKind) -> Shape {
 }
 
 fn diagram(architecture: &ArchitectureSpec) -> Diagram {
+    let mut diagram = model_diagram(architecture);
+    for (index, note) in architecture.notes.iter().enumerate() {
+        let target = architecture.component(&note.on).expect("validated");
+        diagram.push_note(target, &note.text, format!("/architecture/notes/{index}"));
+    }
+    diagram
+}
+
+/// The components in reading order, without the notes.
+fn components_in_order(architecture: &ArchitectureSpec) -> Vec<usize> {
+    reading_order(&diagram(architecture))
+        .into_iter()
+        .filter(|node| *node < architecture.components.len())
+        .collect()
+}
+
+/// The diagram of the components, connections and boundaries, without notes.
+fn model_diagram(architecture: &ArchitectureSpec) -> Diagram {
     let boundary = |id: &Option<String>| {
         id.as_deref()
             .map(|id| architecture.boundary(id).expect("validated"))
@@ -383,7 +402,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&text::steps(locale, &steps));
     }
-    for component in reading_order(&diagram(architecture)) {
+    for component in components_in_order(architecture) {
         let spec_component = &architecture.components[component];
         write!(
             description,
@@ -401,6 +420,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&sentence);
     }
+    description.push_str(&notes_sentences(spec));
     description
 }
 
@@ -412,7 +432,7 @@ fn with_roles(architecture: &ArchitectureSpec) -> Vec<(DiagramRole, String)> {
             .label
             .as_str()
     };
-    reading_order(&diagram(architecture))
+    components_in_order(architecture)
         .into_iter()
         .filter_map(|component| {
             let component = &architecture.components[component];
@@ -429,12 +449,34 @@ fn with_roles(architecture: &ArchitectureSpec) -> Vec<(DiagramRole, String)> {
         .collect()
 }
 
+/// Every note with the component it explains, one sentence each after a space; nothing without
+/// notes.
+fn notes_sentences(spec: &ChartSpec) -> String {
+    let architecture = architecture(spec);
+    if architecture.notes.is_empty() {
+        return String::new();
+    }
+    let notes: Vec<(&str, &str)> = architecture
+        .notes
+        .iter()
+        .map(|note| {
+            let target = architecture.component(&note.on).expect("validated");
+            (
+                architecture.components[target].label.as_str(),
+                note.text.as_str(),
+            )
+        })
+        .collect();
+    format!(" {}", text::notes(spec.locale, &notes))
+}
+
 /// One row per component in reading order: its label, kind, boundaries, role and where it
 /// connects to.
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let architecture = architecture(spec);
     let words = spec.locale.words();
     let bounded = !architecture.boundaries.is_empty();
+    let with_notes = !architecture.notes.is_empty();
     let with_roles = architecture
         .components
         .iter()
@@ -447,7 +489,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         columns.push(words.role.to_owned());
     }
     columns.push(words.connects_to.to_owned());
-    let rows = reading_order(&diagram(architecture))
+    if with_notes {
+        columns.push(words.notes.to_owned());
+    }
+    let rows = components_in_order(architecture)
         .into_iter()
         .map(|component| {
             let mut row = vec![
@@ -465,6 +510,16 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 );
             }
             row.push(connects_to(spec, component, true).join(", "));
+            if with_notes {
+                let id = &architecture.components[component].id;
+                let notes: Vec<&str> = architecture
+                    .notes
+                    .iter()
+                    .filter(|note| &note.on == id)
+                    .map(|note| note.text.as_str())
+                    .collect();
+                row.push(notes.join("; "));
+            }
             row
         })
         .collect();
@@ -959,6 +1014,39 @@ mod tests {
     }
 
     #[test]
+    fn note_lines_never_join_a_shared_trunk() {
+        let notes = r#""notes": [
+                {"on": "gateway", "text": "Routes by path"},
+                {"on": "gateway", "text": "Retries twice"},
+                {"on": "logs", "text": "Kept for a day"}
+            ],
+            "sharedTrunks""#;
+        let json = FAN_OUT.replace("\"sharedTrunks\"", notes);
+        let content = svg(&json).content;
+        assert!(branches(&content) > 0);
+        // No arrowhead on a note line: as many as without notes.
+        let arrowheads = |content: &str| {
+            content.matches("class=\"chartlet-flow-head").count() - branches(content)
+        };
+        assert_eq!(arrowheads(&content), arrowheads(&svg(FAN_OUT).content));
+        // Every note line leaves on its own, apart from the gateway's trunk, without a tooltip.
+        let start = |line: &str| line.split(' ').next().expect("a point").to_owned();
+        let notes: Vec<String> = content
+            .split("<polyline points=\"")
+            .filter(|line| line.contains("chartlet-flow-dotted\"/>"))
+            .map(start)
+            .collect();
+        assert_eq!(notes.len(), 3);
+        let trunk = content
+            .split("<polyline points=\"")
+            .find(|line| line.contains("<title>Gateway → Catalog</title>"))
+            .map(start)
+            .expect("drawn");
+        assert!(notes.iter().all(|note| *note != trunk));
+        assert_ne!(notes[0], notes[1]);
+    }
+
+    #[test]
     fn shared_trunks_work_on_a_phone() {
         let json = FAN_OUT.replace(
             "\"source\"",
@@ -1241,6 +1329,58 @@ mod tests {
             ("unknown_symbol", "/architecture/components/2/symbol")
         );
         assert!(error.message.contains("load-balancer"), "{}", error.message);
+    }
+
+    #[test]
+    fn notes_explain_components_without_joining_the_model() {
+        let notes = r#""notes": [
+                {"on": "db", "text": "Replaced step by step by the new store"},
+                {"on": "api", "text": "Rate limited to 100 requests a second"}
+            ],
+            "mainPath""#;
+        let json = SPEC.replace("\"mainPath\"", notes);
+        let output = svg(&json.replace("\"height\": 800", "\"height\": 900"));
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(
+            output
+                .content
+                .contains("<title>Replaced step by step by the new store</title>")
+        );
+        assert_eq!(
+            output
+                .content
+                .matches("class=\"chartlet-flow-group\"")
+                .count(),
+            2
+        );
+        let plain = text_alternative(&ChartSpec::from_json(SPEC).expect("parses")).expect("valid");
+        let with_notes =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        // Size, boundaries, main path, structure and components read as before.
+        assert_eq!(
+            with_notes.description,
+            format!(
+                "{} Note on Posts: Replaced step by step by the new store. Note on API: Rate limited to 100 requests a second.",
+                plain.description
+            )
+        );
+        assert_eq!(
+            with_notes.table.columns,
+            ["Component", "Kind", "Boundary", "Connects to", "Notes"]
+        );
+        assert_eq!(with_notes.table.rows.len(), plain.table.rows.len());
+        let api = with_notes
+            .table
+            .rows
+            .iter()
+            .find(|row| row[0] == "API")
+            .expect("a row");
+        assert_eq!(api[4], "Rate limited to 100 requests a second");
+        let on_boundary = json.replace(r#"{"on": "db""#, r#"{"on": "cloud""#);
+        assert_eq!(
+            error(&on_boundary),
+            ("unknown_node", "/architecture/notes/0/on".to_owned())
+        );
     }
 
     #[test]
