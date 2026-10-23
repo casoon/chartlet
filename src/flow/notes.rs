@@ -2,7 +2,11 @@
 //! inside a frame, at its head, without a line; or on the diagram as a whole, in a band below it.
 //! None of them adds an edge, and the description and table name every one.
 
-use super::{Diagram, MEMBER_LINE, NOTE_PAD, Node, PAD, Shape, Spacing, count, note_box, shape};
+use super::{
+    Diagram, MEMBER_LINE, Node, PAD, Shape, count,
+    measure::{NOTE_PAD, Spacing, note_box},
+    shape,
+};
 use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
