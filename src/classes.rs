@@ -13,11 +13,17 @@ use crate::{
     DataTable,
     error::ChartWarning,
     flow::MARGIN,
-    flow::{Diagram, Edge, End, Ends, Group, Node, Shape, Sides, layout_diagram},
+    flow::{
+        Block, Diagram, Edge, End, Ends, Group, Node, Shape, Sides, Whole, blocks_reachable,
+        layout_diagram,
+    },
     metrics::TextMetrics,
     roles,
     scene::Scene,
-    spec::{ChartSpec, ClassesSpec, ConnectionDirection, DiagramRole, RelationKind, RelationSpec},
+    spec::{
+        ChartSpec, ClassesSpec, ConnectionDirection, DiagramOrientation, DiagramRole, RelationKind,
+        RelationSpec,
+    },
     structure::{Facts, Structure},
     text,
 };
@@ -28,7 +34,10 @@ pub(crate) fn layout(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let classes = classes(spec);
-    let mut scene = layout_diagram(spec, &diagram(spec), warnings, metrics);
+    let mut scene = match with_blocks(spec, metrics, warnings) {
+        Some(diagram) => layout_diagram(spec, &diagram, warnings, metrics),
+        None => layout_diagram(spec, &diagram(spec), warnings, metrics),
+    };
     let used = roles::used(
         classes.classes.iter().map(|class| class.role),
         classes.relations.iter().map(|relation| relation.role),
@@ -98,6 +107,273 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         diagram.push_note(target, &note.text, format!("/classes/notes/{index}"));
     }
     diagram
+}
+
+/// The diagram with every package that has an orientation of its own laid out on its own, as a
+/// block that the diagram places as one node; `None` without such a package, or when a relation
+/// from outside could not reach its class in a block straight in any orientation the diagram may
+/// take, which is reported.
+fn with_blocks(
+    spec: &ChartSpec,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) -> Option<Diagram> {
+    let classes = classes(spec);
+    let oriented: Vec<usize> = (0..classes.packages.len())
+        .filter(|package| classes.packages[*package].orientation.is_some())
+        .collect();
+    if oriented.is_empty() {
+        return None;
+    }
+    let mut block_warnings = Vec::new();
+    let mut diagram = split(spec, &oriented, metrics, &mut block_warnings);
+    let [portrait, landscape] = blocks_reachable(&diagram);
+    let orientation = match (classes.orientation, portrait, landscape) {
+        (DiagramOrientation::Portrait, true, _) | (DiagramOrientation::Auto, true, false) => {
+            DiagramOrientation::Portrait
+        }
+        (DiagramOrientation::Landscape, _, true) | (DiagramOrientation::Auto, false, true) => {
+            DiagramOrientation::Landscape
+        }
+        (DiagramOrientation::Auto, true, true) => DiagramOrientation::Auto,
+        _ => {
+            for package in oriented {
+                warnings.push(ChartWarning::new(
+                    "package_orientation_ignored",
+                    format!("/classes/packages/{package}/orientation"),
+                    "a relation from outside the package would have to cross it to reach its \
+                     class; the package follows the orientation of the diagram",
+                ));
+            }
+            return None;
+        }
+    };
+    diagram.orientation = orientation;
+    warnings.append(&mut block_warnings);
+    Some(diagram)
+}
+
+/// The diagram of the classes, their relations and notes, with the classes and notes of each of
+/// the packages `oriented` laid out as a block in the package's orientation, with the packages
+/// inside it, and the relations between them; the diagram takes each block as one node, in the
+/// place of its first class, inside the package's own package.
+#[allow(clippy::too_many_lines)]
+fn split(
+    spec: &ChartSpec,
+    oriented: &[usize],
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) -> Diagram {
+    let classes = classes(spec);
+    let whole = diagram(spec);
+    let all_ends: Vec<(usize, usize)> = whole
+        .edges
+        .iter()
+        .map(|edge| (edge.from, edge.to))
+        .collect();
+    let labels: Vec<String> = whole.nodes.iter().map(|node| node.label.clone()).collect();
+    let block_of: Vec<Option<usize>> = (0..whole.nodes.len())
+        .map(|node| {
+            oriented
+                .iter()
+                .position(|package| whole.inside(node, *package))
+        })
+        .collect();
+    let group_block: Vec<Option<usize>> = (0..whole.groups.len())
+        .map(|group| {
+            oriented
+                .iter()
+                .position(|package| whole.chain(Some(group)).contains(package))
+        })
+        .collect();
+    // The outer diagram: every node outside the blocks, and a node for each block.
+    let mut outer_of = vec![0; whole.nodes.len()];
+    let mut outer_nodes: Vec<usize> = Vec::new();
+    for node in 0..whole.nodes.len() {
+        match block_of[node] {
+            None => {
+                outer_of[node] = outer_nodes.len();
+                outer_nodes.push(node);
+            }
+            Some(block) => {
+                let first = block_of.iter().position(|of| *of == Some(block));
+                if first == Some(node) {
+                    outer_nodes.push(node);
+                }
+                outer_of[node] = outer_nodes.len() - 1;
+            }
+        }
+    }
+    let outer_groups: Vec<usize> = (0..whole.groups.len())
+        .filter(|group| group_block[*group].is_none())
+        .collect();
+    let outer_group = |group: Option<usize>| {
+        group.map(|group| {
+            outer_groups
+                .iter()
+                .position(|kept| *kept == group)
+                .expect("a group outside the blocks")
+        })
+    };
+    let Diagram {
+        nodes,
+        edges,
+        groups,
+        ..
+    } = whole;
+    let mut nodes: Vec<Option<Node>> = nodes.into_iter().map(Some).collect();
+    let mut edges: Vec<Option<Edge>> = edges.into_iter().map(Some).collect();
+    let mut groups: Vec<Option<Group>> = groups.into_iter().map(Some).collect();
+    let whole_parent: Vec<Option<usize>> = groups
+        .iter()
+        .map(|group| group.as_ref().and_then(|group| group.parent))
+        .collect();
+    // Each block, laid out on its own.
+    let mut inner_diagrams = Vec::new();
+    for (block, &package) in oriented.iter().enumerate() {
+        let members: Vec<usize> = (0..nodes.len())
+            .filter(|node| block_of[*node] == Some(block))
+            .collect();
+        let inner_groups: Vec<usize> = (0..groups.len())
+            .filter(|group| group_block[*group] == Some(block))
+            .collect();
+        let inner_group = |group: Option<usize>| {
+            group.and_then(|group| inner_groups.iter().position(|kept| *kept == group))
+        };
+        let inner_edges: Vec<usize> = (0..edges.len())
+            .filter(|edge| {
+                let (from, to) = all_ends[*edge];
+                block_of[from] == Some(block) && block_of[to] == Some(block)
+            })
+            .collect();
+        let inner_of = |node: usize| {
+            members
+                .iter()
+                .position(|member| *member == node)
+                .expect("a member of the block")
+        };
+        inner_diagrams.push(Diagram {
+            nodes: members
+                .iter()
+                .map(|&node| {
+                    let node = nodes[node].take().expect("each node in one place");
+                    Node {
+                        group: inner_group(node.group),
+                        ..node
+                    }
+                })
+                .collect(),
+            edges: inner_edges
+                .iter()
+                .map(|&edge| {
+                    let edge = edges[edge].take().expect("each edge in one place");
+                    Edge {
+                        from: inner_of(edge.from),
+                        to: inner_of(edge.to),
+                        ..edge
+                    }
+                })
+                .collect(),
+            lanes: Vec::new(),
+            groups: inner_groups
+                .iter()
+                .map(|&group| {
+                    let group = groups[group].take().expect("each group in one place");
+                    Group {
+                        parent: inner_group(group.parent),
+                        ..group
+                    }
+                })
+                .collect(),
+            ranks: Vec::new(),
+            orientation: classes.packages[package]
+                .orientation
+                .expect("an oriented package"),
+            spacing: classes.spacing,
+            blocks: Vec::new(),
+            whole: Some(Whole {
+                nodes: members.clone(),
+                ends: inner_edges.iter().map(|edge| all_ends[*edge]).collect(),
+                all_ends: all_ends.clone(),
+                labels: labels.clone(),
+            }),
+        });
+    }
+    let outer_edges: Vec<usize> = (0..edges.len())
+        .filter(|edge| edges[*edge].is_some())
+        .collect();
+    let blocks = inner_diagrams
+        .iter()
+        .zip(oriented)
+        .map(|(inner, _)| {
+            let first = inner.whole.as_ref().expect("named in the whole").nodes[0];
+            Block::new(spec, inner, outer_of[first], metrics, warnings)
+        })
+        .collect();
+    Diagram {
+        nodes: outer_nodes
+            .iter()
+            .map(|&node| match block_of[node] {
+                None => {
+                    let node = nodes[node].take().expect("each node in one place");
+                    Node {
+                        group: outer_group(node.group),
+                        ..node
+                    }
+                }
+                Some(block) => {
+                    let package = oriented[block];
+                    Node {
+                        label: classes.packages[package].label.clone(),
+                        sublabel: None,
+                        shape: Shape::Block,
+                        lane: None,
+                        group: outer_group(whole_parent[package]),
+                        id: None,
+                        path: format!("/classes/packages/{package}"),
+                        compartments: Vec::new(),
+                        value: None,
+                        parts: Vec::new(),
+                        symbol: None,
+                        role: None,
+                        category: None,
+                    }
+                }
+            })
+            .collect(),
+        edges: outer_edges
+            .iter()
+            .map(|&edge| {
+                let edge = edges[edge].take().expect("each edge in one place");
+                Edge {
+                    from: outer_of[edge.from],
+                    to: outer_of[edge.to],
+                    ..edge
+                }
+            })
+            .collect(),
+        lanes: Vec::new(),
+        groups: outer_groups
+            .iter()
+            .map(|&group| {
+                let group = groups[group].take().expect("each group in one place");
+                Group {
+                    parent: outer_group(group.parent),
+                    ..group
+                }
+            })
+            .collect(),
+        ranks: Vec::new(),
+        orientation: classes.orientation,
+        spacing: classes.spacing,
+        blocks,
+        whole: Some(Whole {
+            nodes: outer_nodes,
+            ends: outer_edges.iter().map(|edge| all_ends[*edge]).collect(),
+            all_ends,
+            labels,
+        }),
+    }
 }
 
 /// The diagram of the classes and their relations, without notes.
@@ -176,6 +452,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
         ranks: Vec::new(),
         orientation: classes.orientation,
         spacing: classes.spacing,
+        ..Diagram::default()
     }
 }
 
@@ -432,6 +709,175 @@ mod tests {
             r#""label": "places","#,
             &format!(r#""label": "places", "direction": "{direction}","#),
         )
+    }
+
+    const INVOICES: &str = include_str!("../examples/invoice-model.json");
+
+    /// The box of the class `name` in `svg`: left, top, width, height.
+    fn class_box(svg: &str, name: &str) -> (f64, f64, f64, f64) {
+        let end = svg
+            .find(&format!("<title>{name}</title>"))
+            .unwrap_or_else(|| panic!("{name} is drawn"));
+        let rect = &svg[svg[..end].rfind("<rect").expect("a box")..end];
+        let number = |attribute: &str| -> f64 {
+            let start = rect
+                .find(&format!(" {attribute}=\""))
+                .expect("the attribute")
+                + attribute.len()
+                + 3;
+            rect[start..]
+                .split('"')
+                .next()
+                .and_then(|value| value.parse().ok())
+                .expect("a number")
+        };
+        (number("x"), number("y"), number("width"), number("height"))
+    }
+
+    /// The points of the line with the tooltip `title`.
+    fn line(svg: &str, title: &str) -> Vec<(f64, f64)> {
+        let end = svg
+            .find(&format!("<title>{title}</title>"))
+            .unwrap_or_else(|| panic!("{title} is drawn"));
+        let start = svg[..end].rfind("points=\"").expect("a line") + 8;
+        svg[start..]
+            .split('"')
+            .next()
+            .expect("points")
+            .split(' ')
+            .map(|pair| {
+                let (x, y) = pair.split_once(',').expect("a point");
+                (x.parse().expect("x"), y.parse().expect("y"))
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_package_lays_out_its_classes_in_its_own_orientation() {
+        for variant in [crate::Variant::Desktop, crate::Variant::Mobile] {
+            let json = INVOICES.replacen('{', r#"{"mobile": {"width": 360, "height": 900},"#, 1);
+            let options = RenderOptions {
+                variant,
+                ..RenderOptions::default()
+            };
+            let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+            // A landscape package is wider than a phone; that is all the layout may report.
+            assert!(
+                output
+                    .warnings
+                    .iter()
+                    .all(|warning| warning.code == "canvas_too_small"),
+                "{:?}",
+                output.warnings
+            );
+            let again = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+            assert_eq!(
+                again.content, output.content,
+                "{variant:?} is deterministic"
+            );
+            let svg = output.content;
+            let middle = |name: &str| {
+                let (x, y, width, height) = class_box(&svg, name);
+                (x + width / 2.0, y + height / 2.0)
+            };
+            // The diagram runs down, the billing package right.
+            assert!(middle("Customer").1 < middle("Order").1);
+            assert!(middle("Order").1 < middle("Invoice").1);
+            assert!(middle("Invoice").0 < middle("InvoiceLine").0);
+            assert!(middle("InvoiceLine").0 < middle("TaxRate").0);
+            assert!((middle("InvoiceLine").1 - middle("TaxRate").1).abs() < 0.01);
+            // A relation from outside reaches the top of its class inside the package, and one to
+            // a class outside leaves the bottom of its class.
+            let (x, y, width, height) = class_box(&svg, "Invoice");
+            let billed = line(&svg, "Order → Invoice: billed as");
+            let tip = billed[billed.len() - 1];
+            assert!(
+                (tip.1 - y).abs() < 0.01 && x < tip.0 && tip.0 < x + width,
+                "{tip:?}"
+            );
+            let dunned = line(&svg, "Invoice → Reminder: dunned by");
+            assert!((dunned[0].1 - (y + height)).abs() < 0.01, "{:?}", dunned[0]);
+            // Every class keeps its own focus, hotspot and hook.
+            for index in 0..6 {
+                assert!(svg.contains(&format!("chartlet-n-{index}")), "{index}");
+            }
+        }
+        // Without the package's orientation, the classes follow the diagram.
+        let plain = svg(&INVOICES.replace(r#", "orientation": "landscape""#, "")).expect("renders");
+        let (_, line_y, _, _) = class_box(&plain, "InvoiceLine");
+        let (_, invoice_y, _, _) = class_box(&plain, "Invoice");
+        assert!(line_y > invoice_y);
+    }
+
+    #[test]
+    fn a_package_that_relations_would_cross_follows_the_diagram() {
+        // A second line under the invoice, reached from the order: in a landscape package it lies
+        // below the first, behind it from above, and behind the invoice's edges from the left.
+        let json = INVOICES
+            .replace(
+                r#"{
+        "id": "reminder","#,
+                r#"{
+        "id": "credit",
+        "label": "CreditNote",
+        "attributes": ["+ amount: Money"],
+        "in": "billing"
+      },
+      {
+        "id": "reminder","#,
+            )
+            .replace(
+                r#"{ "from": "invoice", "to": "reminder","#,
+                r#"{ "from": "invoice", "to": "credit", "label": "corrected by" },
+      { "from": "order", "to": "credit", "label": "refunds" },
+      { "from": "invoice", "to": "reminder","#,
+            );
+        let output =
+            render_json(&json, RenderFormat::Svg, &RenderOptions::default()).expect("renders");
+        let warnings: Vec<(&str, &str)> = output
+            .warnings
+            .iter()
+            .filter(|warning| warning.code != "canvas_too_small")
+            .map(|warning| (warning.code, warning.path.as_str()))
+            .collect();
+        assert_eq!(
+            warnings,
+            [(
+                "package_orientation_ignored",
+                "/classes/packages/1/orientation"
+            )]
+        );
+        let plain = render_json(
+            &json.replace(r#", "orientation": "landscape""#, ""),
+            RenderFormat::Svg,
+            &RenderOptions::default(),
+        )
+        .expect("renders");
+        let drawing = |svg: &str| svg.split_once("</style>").map(|(_, rest)| rest.to_owned());
+        assert_eq!(drawing(&output.content), drawing(&plain.content));
+    }
+
+    #[test]
+    fn invalid_package_orientations_name_the_field() {
+        let auto = INVOICES.replace(r#""orientation": "landscape""#, r#""orientation": "auto""#);
+        assert_eq!(
+            svg(&auto),
+            Err((
+                "option_not_supported",
+                "/classes/packages/1/orientation".to_owned()
+            ))
+        );
+        let nested = INVOICES.replace(
+            r#"{ "id": "sales", "label": "Sales" }"#,
+            r#"{ "id": "sales", "label": "Sales", "orientation": "landscape", "in": "billing" }"#,
+        );
+        assert_eq!(
+            svg(&nested),
+            Err((
+                "option_not_supported",
+                "/classes/packages/0/orientation".to_owned()
+            ))
+        );
     }
 
     #[test]

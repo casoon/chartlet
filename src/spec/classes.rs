@@ -46,6 +46,10 @@ pub struct PackageSpec {
     pub label: String,
     #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
+    /// Which way the package lays out its own classes, portrait or landscape, whichever way the
+    /// diagram around it runs: the package is then placed as one block.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orientation: Option<DiagramOrientation>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -295,6 +299,37 @@ impl ClassesSpec {
                     path,
                     format!("packages nest at most {MAX_PACKAGE_DEPTH} deep"),
                 ));
+            }
+        }
+        for (index, package) in self.packages.iter().enumerate() {
+            let path = format!("/classes/packages/{index}/orientation");
+            match package.orientation {
+                None => {}
+                Some(DiagramOrientation::Auto) => {
+                    return Err(ChartError::new(
+                        "option_not_supported",
+                        path,
+                        "a package lays out its classes portrait or landscape; leave orientation \
+                         out to follow the diagram",
+                    ));
+                }
+                Some(_) => {
+                    let chain = self.chain(index).expect("checked above");
+                    if let Some(outer) = chain[..chain.len() - 1]
+                        .iter()
+                        .find(|outer| self.packages[**outer].orientation.is_some())
+                    {
+                        return Err(ChartError::new(
+                            "option_not_supported",
+                            path,
+                            format!(
+                                "the package lies in \"{}\", which has an orientation of its own; \
+                                 only one of them may",
+                                self.packages[*outer].id
+                            ),
+                        ));
+                    }
+                }
             }
         }
         Ok(())

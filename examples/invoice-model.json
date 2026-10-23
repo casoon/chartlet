@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "type": "classes",
+  "title": "Orders and their invoices",
+  "source": "Illustrative domain model",
+  "width": 900,
+  "height": 760,
+  "classes": {
+    "orientation": "portrait",
+    "packages": [
+      { "id": "sales", "label": "Sales" },
+      { "id": "billing", "label": "Billing", "orientation": "landscape" }
+    ],
+    "classes": [
+      {
+        "id": "customer",
+        "label": "Customer",
+        "attributes": ["+ id: Int", "+ name: String"],
+        "in": "sales"
+      },
+      {
+        "id": "order",
+        "label": "Order",
+        "attributes": ["+ id: Int", "+ placedAt: Date"],
+        "methods": ["+ total(): Money"],
+        "in": "sales"
+      },
+      {
+        "id": "invoice",
+        "label": "Invoice",
+        "attributes": ["+ number: String", "+ issuedAt: Date"],
+        "methods": ["+ total(): Money"],
+        "in": "billing"
+      },
+      {
+        "id": "line",
+        "label": "InvoiceLine",
+        "attributes": ["+ quantity: Int", "+ net: Money"],
+        "in": "billing"
+      },
+      {
+        "id": "tax",
+        "label": "TaxRate",
+        "attributes": ["+ code: String", "+ percent: Decimal"],
+        "in": "billing"
+      },
+      {
+        "id": "reminder",
+        "label": "Reminder",
+        "attributes": ["+ level: Int", "+ sentAt: Date"]
+      }
+    ],
+    "relations": [
+      { "from": "customer", "to": "order", "fromCardinality": "1", "toCardinality": "0..*", "label": "places" },
+      { "from": "order", "to": "invoice", "fromCardinality": "1", "toCardinality": "1..*", "label": "billed as" },
+      { "from": "invoice", "to": "line", "kind": "composition", "fromCardinality": "1", "toCardinality": "1..*", "label": "lists" },
+      { "from": "line", "to": "tax", "fromCardinality": "*", "toCardinality": "1", "label": "taxed at" },
+      { "from": "invoice", "to": "reminder", "fromCardinality": "1", "toCardinality": "0..3", "label": "dunned by" }
+    ]
+  }
+}

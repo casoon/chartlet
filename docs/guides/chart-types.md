@@ -644,6 +644,17 @@ related.
   class, directly or in a package inside it, and classes outside every package stay free.
   Relations still join classes, also across package borders; a relation that names a package is
   `unknown_node`. Example `shop-modules`.
+- **Orientation of a package.** `"orientation": "landscape"` (or `"portrait"`) on a package lays
+  out its classes that way whichever way the diagram runs — a chain of value objects side by
+  side in a diagram that runs down. The package is laid out on its own, with the packages inside
+  it and the relations between its classes, and the diagram places it as one block. A relation
+  from outside meets the block where its class lies inside and runs on straight to the side of
+  that class. Where that way would cross another class, a relation or a label of the block in
+  every orientation the diagram may take, chartlet lays the package out with the diagram instead
+  and reports `package_orientation_ignored`; with `"orientation": "auto"` on the diagram it first
+  tries the orientation where every way is open. A package with an orientation of its own holds
+  no package that has one too, and takes `portrait` or `landscape` only (`option_not_supported`).
+  Example `invoice-model`.
 - **Notes** explain a class: `"notes": [{ "on": "card", "text": "Stores only a token" }]`
   draws a pale box with a folded corner beside the class, joined to it by a dotted line without
   marks. The line only says “explains”: it is no relation, so the most connected classes,

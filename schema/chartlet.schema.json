@@ -1031,7 +1031,8 @@
             "properties": {
               "id": { "$ref": "#/$defs/identifier" },
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
-              "in": { "$ref": "#/$defs/identifier" }
+              "in": { "$ref": "#/$defs/identifier" },
+              "orientation": { "description": "Lays out the package's classes portrait or landscape whichever way the diagram runs, as one block; relations from outside run on straight to their class. When such a way would cross the block in every orientation the diagram may take, the package follows the diagram (package_orientation_ignored). Not in a package that has an orientation of its own.", "enum": ["portrait", "landscape"] }
             }
           }
         },

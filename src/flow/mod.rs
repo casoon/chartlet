@@ -7,6 +7,7 @@
 //! two layers, and arrive on the near side of the next; an edge the layout turned around to break
 //! a cycle is drawn back the other way.
 
+mod blocks;
 mod graph;
 mod trunks;
 
@@ -32,6 +33,7 @@ use crate::{
     symbols::{self, Symbol},
     text,
 };
+pub(crate) use blocks::{Block, Whole, blocks_reachable};
 use graph::{Graph, settle};
 use trunks::Trunks;
 
@@ -274,6 +276,7 @@ fn flow(spec: &ChartSpec) -> &FlowSpec {
 
 /// A diagram for the layered layout, whatever specification it comes from: steps with a shape,
 /// edges between them, and the lanes and groups the steps name by index.
+#[derive(Default)]
 pub(crate) struct Diagram {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
@@ -284,6 +287,10 @@ pub(crate) struct Diagram {
     pub orientation: DiagramOrientation,
     /// How much room the diagram leaves between its layers and between neighbours in a layer.
     pub spacing: DiagramSpacing,
+    /// The blocks the nodes of shape [`Shape::Block`] stand for.
+    pub blocks: Vec<Block>,
+    /// For a diagram that draws part of a model, how its nodes and edges stand in the whole.
+    pub whole: Option<Whole>,
 }
 
 pub(crate) struct Node {
@@ -464,6 +471,8 @@ pub(crate) enum Shape {
     /// A note that explains another node: a pale box with a folded corner and its text set left,
     /// joined to that node by a dotted line without marks.
     Note,
+    /// Nodes laid out on their own and placed as one, see [`Block`].
+    Block,
 }
 
 impl From<NodeKind> for Shape {
@@ -560,6 +569,7 @@ impl Diagram {
                 .collect(),
             orientation: flow.orientation,
             spacing: flow.spacing,
+            ..Self::default()
         }
     }
 
@@ -821,7 +831,18 @@ fn node_boxes(
     let mut labels = Vec::with_capacity(diagram.nodes.len());
     let mut sublabels = Vec::with_capacity(diagram.nodes.len());
     let mut sizes = Vec::with_capacity(diagram.nodes.len());
-    for node in &diagram.nodes {
+    for (index, node) in diagram.nodes.iter().enumerate() {
+        if node.shape == Shape::Block {
+            let block = diagram
+                .blocks
+                .iter()
+                .find(|block| block.node == index)
+                .expect("a block node has its block");
+            labels.push(Vec::new());
+            sublabels.push(Vec::new());
+            sizes.push(block.size);
+            continue;
+        }
         if node.shape == Shape::Initial {
             labels.push(Vec::new());
             sublabels.push(Vec::new());
@@ -1178,8 +1199,12 @@ impl Label {
 impl Model<'_> {
     /// The focus classes of a step: the step itself and every step it shares an edge with.
     fn node_classes(&self, node: usize) -> String {
-        let mut related: Vec<usize> = self
-            .ends
+        // A diagram that draws part of a model names the nodes of the whole.
+        let (node, ends) = match &self.diagram.whole {
+            Some(whole) => (whole.nodes[node], &whole.all_ends),
+            None => (node, &self.ends),
+        };
+        let mut related: Vec<usize> = ends
             .iter()
             .filter_map(|&(from, to)| match (from == node, to == node) {
                 (true, _) => Some(to),
@@ -1195,7 +1220,11 @@ impl Model<'_> {
 
     /// The focus classes of an edge: the steps at both its ends.
     fn edge_classes(&self, edge: usize) -> String {
-        let (from, to) = self.ends[edge];
+        let (from, to) = self
+            .diagram
+            .whole
+            .as_ref()
+            .map_or(self.ends[edge], |whole| whole.ends[edge]);
         focus_classes(None, &[from.min(to), from.max(to)])
     }
 }
@@ -2146,6 +2175,10 @@ struct Ports {
     /// the side of the step, as an offset from the step's middle.
     leave_along: Vec<Option<f64>>,
     reach_along: Vec<Option<f64>>,
+    /// Per edge that leaves or reaches a block: where on the main axis, from the block's middle,
+    /// it meets the node inside the block it joins.
+    leave_into: Vec<Option<f64>>,
+    reach_into: Vec<Option<f64>>,
 }
 
 impl Ports {
@@ -2160,6 +2193,10 @@ impl Ports {
         let mut leave = vec![0.0; edges];
         let mut reach = vec![0.0; edges];
         for node in 0..model.diagram.nodes.len() {
+            // The edges of a block meet it where the nodes they join lie inside.
+            if model.diagram.nodes[node].shape == Shape::Block {
+                continue;
+            }
             for (outgoing, offsets) in [(true, &mut leave), (false, &mut reach)] {
                 let edges: Vec<(f64, usize)> = graph
                     .chains
@@ -2234,8 +2271,11 @@ impl Ports {
             reach,
             leave_along: vec![None; edges],
             reach_along: vec![None; edges],
+            leave_into: vec![None; edges],
+            reach_into: vec![None; edges],
         };
         ports.across(graph, cross, cross_size, model, landscape);
+        ports.blocks(graph, model, landscape);
         ports
     }
 
@@ -2379,7 +2419,7 @@ fn port_points(
     plan: &Plan,
     model: &Model,
     (node, middle): (usize, f64),
-    (offset, along): (f64, Option<f64>),
+    (offset, along, into): (f64, Option<f64>, Option<f64>),
     leaving: bool,
 ) -> Vec<(f64, f64)> {
     let cross = plan.cross[node];
@@ -2390,7 +2430,12 @@ fn port_points(
         } else {
             middle - depth
         };
-        return vec![(main, cross + offset)];
+        // Into a block, the edge runs on to the side of the node it joins there.
+        return match (into, leaving) {
+            (None, _) => vec![(main, cross + offset)],
+            (Some(into), true) => vec![(middle + into, cross + offset), (main, cross + offset)],
+            (Some(into), false) => vec![(main, cross + offset), (middle + into, cross + offset)],
+        };
     };
     let side = side_depth(plan, model, node, along).copysign(offset);
     let main = middle + along;
@@ -2809,7 +2854,7 @@ fn route(
             // An edge that meets its step across the flow leaves the side of the step, and runs
             // along the flow on its stub beside it; its label goes beside the stub.
             let (leave, reach) = (ports.leave[edge], ports.reach[edge]);
-            let leaving = (leave, ports.leave_along[edge]);
+            let leaving = (leave, ports.leave_along[edge], ports.leave_into[edge]);
             let mut points = port_points(plan, model, (first, middle(first)), leaving, true);
             let start = points[points.len() - 1];
             for piece in gaps.pieces.iter().filter(|piece| piece.edge == edge) {
@@ -2819,7 +2864,7 @@ fn route(
                     points.push((main, piece.to));
                 }
             }
-            let reaching = (reach, ports.reach_along[edge]);
+            let reaching = (reach, ports.reach_along[edge], ports.reach_into[edge]);
             let arrival = port_points(plan, model, (last, middle(last)), reaching, false);
             let end = arrival[0];
             points.extend(arrival);
@@ -2917,6 +2962,9 @@ impl Plan {
         }
         self.draw_branches(model, elements);
         for node in 0..model.diagram.nodes.len() {
+            if model.diagram.nodes[node].shape == Shape::Block {
+                continue;
+            }
             elements.push(Element::Group(model.node_classes(node)));
             self.draw_loop(model, node, elements, &mut labels);
             elements.push(Element::GroupEnd);
@@ -2931,6 +2979,12 @@ impl Plan {
                 .collect::<Vec<_>>(),
         );
         for (node, step) in heat.into_iter().enumerate() {
+            // A block draws what it holds, each node with its own groups and hotspot.
+            if let Some(block) = model.diagram.blocks.iter().find(|block| block.node == node) {
+                let (x, y, _, _) = self.node_box(model, node);
+                elements.extend(blocks::placed(&block.elements, (x, y)));
+                continue;
+            }
             let mut classes = model.node_classes(node);
             if let Some(step) = step {
                 classes.push_str(&heat::class(step));
@@ -2952,7 +3006,11 @@ impl Plan {
             if spec.shape != Shape::Initial {
                 let (x, y, width, height) = self.node_box(model, node);
                 elements.push(Element::Hotspot(Hotspot {
-                    node,
+                    node: model
+                        .diagram
+                        .whole
+                        .as_ref()
+                        .map_or(node, |whole| whole.nodes[node]),
                     label: spec.label.clone(),
                     x,
                     y,
@@ -3274,7 +3332,13 @@ impl Plan {
             (None, Some(technology)) => Some(format!("[{technology}]")),
             (None, None) => None,
         };
-        let (from_label, to_label) = (&diagram.nodes[from].label, &diagram.nodes[to].label);
+        let (from_label, to_label) = match &diagram.whole {
+            Some(whole) => {
+                let (from, to) = whole.ends[edge];
+                (&whole.labels[from], &whole.labels[to])
+            }
+            None => (&diagram.nodes[from].label, &diagram.nodes[to].label),
+        };
         // The line to a note only points at it; the note carries its own text.
         let tooltip = match note {
             _ if diagram.nodes[to].shape == Shape::Note => None,
@@ -3767,6 +3831,8 @@ pub(crate) fn shape(
         Shape::State | Shape::Final | Shape::Initial => {
             state_shape(kind, (x, y, width, height), tooltip, elements);
         }
+        // A block draws what it holds instead of a shape.
+        Shape::Block => {}
         Shape::Note => {
             // A sheet without a shadow, its top right corner folded over.
             elements.push(shape(
