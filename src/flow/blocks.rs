@@ -8,7 +8,13 @@
 //! knows, for each of its nodes and each of its four sides, whether it is, and a diagram whose
 //! edges would cross a block in an orientation is not laid out in that orientation.
 
-use super::{Diagram, Graph, Model, Plan, Ports, SUBLABEL_SIZE, Spacing, count, graph::Chain};
+use super::{
+    Diagram, Graph, SUBLABEL_SIZE, count,
+    graph::Chain,
+    measure::{Model, Spacing},
+    place::Plan,
+    ports::Ports,
+};
 use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
