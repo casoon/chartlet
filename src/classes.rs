@@ -144,6 +144,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             Edge {
                 from,
                 to,
+                id: None,
                 label: relation.label.clone(),
                 technology: None,
                 dash: relation.kind.dash(),
@@ -166,6 +167,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             .enumerate()
             .map(|(index, group)| Group {
                 label: group.label.clone(),
+                id: Some(group.id.clone()),
                 path: format!("/classes/packages/{index}"),
                 parent: package(&group.parent),
             })

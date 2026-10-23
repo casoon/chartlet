@@ -1158,6 +1158,26 @@ first — and never the whole model, so a view never passes for the complete sys
 Up to 20 views and 99 steps per view. Example `shop-views` (overview, and checkout as
 `shop-views.checkout.svg`).
 
+#### All views on one page
+
+`--all-views` (`allViews: true` in npm and MCP, `RenderOptions::all_views`) renders every view
+of a model as one HTML page, without a script: the model's title as an `h2`, a navigation
+of links to the views, and each view as a section headed by its title as an `h3`, with the figure,
+description and data table of its own export — the default view first, then the others in
+the order of `views`. The links are ordinary in-page links, reachable with the keyboard; in
+print every view after the first starts a new page.
+
+- **IDs.** The page takes the ID prefix (`--id-prefix`, or one derived from the model); the
+  views take that prefix followed by `-v1`, `-v2`, … in the order of the page, their sections
+  `<prefix>-v1-view`, …, which the navigation links to. Every ID on the page is unique.
+- **Only HTML.** The SVG format, the mobile, print and social variants, `--view`, a
+  specification without views and PNG are refused (`option_not_supported` at
+  `/render/allViews`); each view as SVG stays a file of its own. A single view's export is
+  unchanged by this option.
+- **Provenance.** The manifest lists the views in `views`, in the order of the page.
+
+Example `shop-views.all.html`.
+
 ### Perspectives
 
 The same diagram can answer different questions: which team runs each component, where

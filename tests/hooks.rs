@@ -83,6 +83,9 @@ fn without_hooks(content: &str) -> String {
         "data-chartlet-locale",
         "data-chartlet-table",
         "data-chartlet-node",
+        "data-chartlet-edge",
+        "data-chartlet-frame",
+        "data-chartlet-lane",
         "data-part",
         "data-stacked",
         "data-x",
@@ -370,4 +373,183 @@ fn a_class_in_a_package_keeps_its_hook_and_a_note_has_none() {
     let note = svg.find(">Only paid orders<").expect("the note is drawn");
     let group = &svg[svg[..note].rfind("<g").expect("the note's group")..note];
     assert!(!group.contains("data-chartlet-node"), "{group}");
+}
+
+/// The group that carries `attribute="id"`, up to where its drawing starts.
+fn hooked_group<'a>(content: &'a str, attribute: &str, id: &str) -> &'a str {
+    let hook = format!(" {attribute}=\"{id}\">");
+    let end = content
+        .find(&hook)
+        .unwrap_or_else(|| panic!("a hook for {id}"))
+        + hook.len();
+    let group = &content[end..];
+    &group[..group.find("</g>").expect("a closed group")]
+}
+
+#[test]
+fn connections_with_an_id_carry_an_edge_hook() {
+    let architecture = |connections: &str| {
+        format!(
+            r#"{{"schemaVersion": 1, "type": "architecture", "title": "Shop",
+            "architecture": {{"boundaries": [{{"id": "cloud", "label": "Cloud"}}],
+            "components": [
+                {{"id": "web", "label": "Web"}},
+                {{"id": "db", "label": "DB", "kind": "database", "in": "cloud"}},
+                {{"id": "cache", "label": "Cache", "kind": "cache", "in": "cloud"}}],
+            "connections": [{connections}],
+            "notes": [{{"on": "db", "text": "Nightly backup"}}]}}}}"#
+        )
+    };
+    let (reads, warms, plain) = (
+        r#"{"id": "reads", "from": "web", "to": "db", "label": "Query"}"#,
+        r#"{"id": "warms", "from": "web", "to": "cache", "label": "Query"}"#,
+        r#"{"from": "db", "to": "cache"}"#,
+    );
+    for connections in [
+        format!("{reads}, {warms}, {plain}"),
+        format!("{plain}, {warms}, {reads}"),
+    ] {
+        let specification = architecture(&connections);
+        let svg = render(&specification, RenderFormat::Svg, true);
+        // Two connections of the same label stay apart; the one without an ID and the note's
+        // line carry none.
+        assert_eq!(svg.matches("data-chartlet-edge=").count(), 2);
+        assert!(hooked_group(&svg, "data-chartlet-edge", "reads").contains("Web → DB"));
+        assert!(hooked_group(&svg, "data-chartlet-edge", "warms").contains("Web → Cache"));
+        assert_eq!(svg.matches(" data-chartlet-frame=\"cloud\">").count(), 1);
+        assert!(hooked_group(&svg, "data-chartlet-frame", "cloud").contains("chartlet-flow-group"));
+        let plain = render(&specification, RenderFormat::Svg, false);
+        assert!(!plain.contains("data-chartlet-"));
+    }
+}
+
+#[test]
+fn a_repeated_step_of_a_view_hooks_its_connection_once() {
+    let svg = render_json(
+        include_str!("../examples/shop-views.json"),
+        RenderFormat::Svg,
+        &RenderOptions {
+            hooks: true,
+            view: Some("checkout".to_owned()),
+            ..RenderOptions::default()
+        },
+    )
+    .expect("the view renders")
+    .content;
+    // The checkout runs `orders` twice; only its first step keeps the ID.
+    assert_eq!(svg.matches(" data-chartlet-edge=\"orders\"").count(), 1);
+    assert_eq!(svg.matches(" data-chartlet-edge=\"call\"").count(), 1);
+}
+
+#[test]
+fn shared_trunks_keep_one_edge_hook_per_connection() {
+    let specification = include_str!("../examples/service-fan-out.json").replace(
+        r#"{ "from": "gateway", "to": "cart" }"#,
+        r#"{"id": "to-cart", "from": "gateway", "to": "cart"}"#,
+    );
+    let svg = render(&specification, RenderFormat::Svg, true);
+    assert_eq!(svg.matches("data-chartlet-edge=").count(), 1);
+    assert!(hooked_group(&svg, "data-chartlet-edge", "to-cart").contains("Gateway → Cart"));
+    for frame in ["cluster", "services", "ops"] {
+        assert_eq!(
+            svg.matches(&format!(" data-chartlet-frame=\"{frame}\""))
+                .count(),
+            1
+        );
+    }
+}
+
+#[test]
+fn frames_and_lanes_carry_their_spec_ids() {
+    let classes = r#"{"schemaVersion": 1, "type": "classes", "title": "Packaged",
+        "classes": {"packages": [{"id": "sales", "label": "Orders"}, {"id": "stock", "label": "Orders"}],
+        "classes": [
+            {"id": "sales-order", "label": "Order", "in": "sales"},
+            {"id": "stock_order", "label": "Order", "in": "stock"}
+        ], "relations": [{"from": "sales-order", "to": "stock_order"}]}}"#;
+    let svg = render(classes, RenderFormat::Svg, true);
+    assert_eq!(svg.matches("data-chartlet-frame=").count(), 2);
+    assert_eq!(svg.matches("data-chartlet-edge=").count(), 0);
+    assert!(hooked_group(&svg, "data-chartlet-frame", "sales").contains(">Orders<"));
+
+    let states = r#"{"schemaVersion": 1, "type": "state", "title": "Ticket",
+        "state": {"initial": "new", "states": [
+            {"id": "new", "label": "New"},
+            {"id": "work", "label": "In progress", "kind": "composite"},
+            {"id": "open", "label": "Open", "in": "work"},
+            {"id": "done", "label": "Done", "final": true}
+        ], "transitions": [{"from": "new", "to": "open"}, {"from": "open", "to": "done"}]}}"#;
+    let svg = render(states, RenderFormat::Svg, true);
+    assert!(hooked_group(&svg, "data-chartlet-frame", "work").contains(">In progress<"));
+    assert!(!svg.contains("data-chartlet-node=\"work\""));
+
+    let example = include_str!("../examples/release-flow.json");
+    let flow = render(example, RenderFormat::Svg, true);
+    let spec: serde_json::Value = serde_json::from_str(example).expect("JSON");
+    let lanes = spec["flow"]["lanes"].as_array().expect("lanes");
+    assert_eq!(flow.matches("data-chartlet-lane=").count(), lanes.len());
+    let first = lanes[0]["id"].as_str().expect("an id");
+    assert!(hooked_group(&flow, "data-chartlet-lane", first).contains("chartlet-flow-lane"));
+}
+
+#[test]
+fn networks_trees_and_sequences_hook_their_nodes() {
+    let network = r#"{"schemaVersion": 1, "type": "network", "title": "Two Annas",
+        "network": {"nodes": [{"id": "anna-1", "label": "Anna"}, {"id": "anna-2", "label": "Anna"},
+            {"id": "ben", "label": "Ben"}],
+        "edges": [{"from": "anna-1", "to": "ben"}, {"from": "anna-2", "to": "ben"}]}}"#;
+    let svg = render(network, RenderFormat::Svg, true);
+    assert_eq!(svg.matches("data-chartlet-node=").count(), 3);
+    assert!(hooked_group(&svg, "data-chartlet-node", "anna-1").contains("Anna"));
+    assert!(hooked_group(&svg, "data-chartlet-node", "anna-2").contains("Anna"));
+
+    for (example, kind, objects) in [
+        (
+            include_str!("../examples/family-tree.json"),
+            "tree",
+            "nodes",
+        ),
+        (
+            include_str!("../examples/sign-in-sequence.json"),
+            "sequence",
+            "participants",
+        ),
+    ] {
+        let spec: serde_json::Value = serde_json::from_str(example).expect("JSON");
+        let svg = render(example, RenderFormat::Svg, true);
+        for object in spec[kind][objects].as_array().expect("objects") {
+            let id = object["id"].as_str().expect("an id");
+            let label = object["label"].as_str().expect("a label");
+            assert!(
+                hooked_group(&svg, "data-chartlet-node", id).contains(label),
+                "{kind}: {id}"
+            );
+        }
+    }
+}
+
+#[test]
+fn edge_and_frame_hooks_repeat_across_variants_and_embeds_without_dom_id_collisions() {
+    let specification = include_str!("../examples/tenant-architecture.json").replacen(
+        r#""from": "nutzer","#,
+        r#""id": "use", "from": "nutzer","#,
+        1,
+    );
+    let page: Vec<String> = ["first", "second"]
+        .into_iter()
+        .map(|prefix| render_with(&specification, RenderFormat::Html, prefix))
+        .collect();
+    // Each figure holds the desktop and the mobile variant.
+    assert_eq!(page[0].matches(" data-chartlet-edge=\"use\"").count(), 2);
+    assert_eq!(page[0].matches(" data-chartlet-frame=\"rz\"").count(), 2);
+    let page = page.concat();
+    assert_eq!(page.matches(" data-chartlet-edge=\"use\"").count(), 4);
+    let mut ids: Vec<&str> = page
+        .match_indices(" id=\"")
+        .map(|(start, _)| attribute(&page[start..], "id"))
+        .collect();
+    let all = ids.len();
+    ids.sort_unstable();
+    ids.dedup();
+    assert_eq!(ids.len(), all, "a DOM ID repeats");
 }

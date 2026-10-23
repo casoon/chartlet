@@ -930,7 +930,7 @@ fn draw_nodes(
         if let Some(role) = spec.role {
             classes.push_str(roles::class(role));
         }
-        elements.push(Element::Group(classes));
+        elements.push(Element::NodeGroup(classes, spec.id.clone()));
         let (x, y, width, height) = node_box(node);
         let tooltip = Some(match &spec.sublabel {
             Some(sublabel) => format!("{} – {sublabel}", spec.label),

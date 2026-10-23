@@ -694,7 +694,7 @@ pub(crate) fn layout(
         if let Some(role) = spec_node.role {
             classes.push_str(roles::class(role));
         }
-        elements.push(Element::Group(classes));
+        elements.push(Element::NodeGroup(classes, spec_node.id.clone()));
         let (x, y) = plan.point(&placement, node);
         let tooltip = match &spec_node.group {
             Some(group) => format!("{} ({group})", spec_node.label),

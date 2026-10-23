@@ -5,7 +5,7 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "view", "strict", "allowWarnings", "manifest", "alternative", "styles", "hooks" } }`, or
+//! "variant", "view", "allViews", "strict", "allowWarnings", "manifest", "alternative", "styles", "hooks" } }`, or
 //! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
 //! `"styles": "external"`, for every chart type when `types` is absent. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
@@ -13,7 +13,9 @@
 //! the CLI reports with `--diagnostics json`. `styleHashes` are the CSP source expressions of the
 //! inline styles in `content`, see [`csp::style_hashes`]; `manifest` is the object the CLI writes
 //! with `--manifest`; `alternative`, when asked for, is the chart's text alternative,
-//! `{ "description", "table": { "caption", "columns", "rows" } }`.
+//! `{ "description", "table": { "caption", "columns", "rows" } }`; with `allViews` that of the
+//! default view, and `alternatives` lists that of every view on the page, in its order, each with
+//! its `view` key.
 
 mod csp;
 
@@ -81,6 +83,7 @@ fn respond(request: &[u8]) -> Value {
             content,
             manifest,
             alternative,
+            alternatives,
         }) => {
             let mut response = json!({
                 "ok": true,
@@ -92,15 +95,23 @@ fn respond(request: &[u8]) -> Value {
                 response["manifest"] =
                     serde_json::from_str(&manifest.to_json()).expect("a manifest is valid JSON");
             }
-            if let Some(TextAlternative { description, table }) = alternative {
-                response["alternative"] = json!({
-                    "description": description,
-                    "table": {
-                        "caption": table.caption,
-                        "columns": table.columns,
-                        "rows": table.rows,
-                    },
-                });
+            if let Some(alternative) = alternative {
+                response["alternative"] = alternative_json(alternative);
+            }
+            if !alternatives.is_empty() {
+                response["alternatives"] = alternatives
+                    .into_iter()
+                    .map(|(view, alternative)| {
+                        let mut entry = json!({ "view": view });
+                        entry.as_object_mut().expect("an object").extend(
+                            alternative_json(alternative)
+                                .as_object()
+                                .cloned()
+                                .expect("an object"),
+                        );
+                        entry
+                    })
+                    .collect();
             }
             response
         }
@@ -108,11 +119,24 @@ fn respond(request: &[u8]) -> Value {
     }
 }
 
-/// A successful render: the content, and the manifest and text alternative when asked for.
+fn alternative_json(TextAlternative { description, table }: TextAlternative) -> Value {
+    json!({
+        "description": description,
+        "table": {
+            "caption": table.caption,
+            "columns": table.columns,
+            "rows": table.rows,
+        },
+    })
+}
+
+/// A successful render: the content, and the manifest and text alternative when asked for; with
+/// all views, the text alternative of each view by its key, in the order of the page.
 struct Rendered {
     content: String,
     manifest: Option<Manifest>,
     alternative: Option<TextAlternative>,
+    alternatives: Vec<(String, TextAlternative)>,
 }
 
 fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Value> {
@@ -156,6 +180,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
             styles,
             hooks: options["hooks"].as_bool() == Some(true),
             view: options["view"].as_str().map(str::to_owned),
+            all_views: options["allViews"].as_bool() == Some(true),
         },
     )
     .map_err(|error| error_json(&error))?;
@@ -185,11 +210,34 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
     } else {
         None
     };
+    let alternatives = if alternative.is_some() && options["allViews"].as_bool() == Some(true) {
+        view_alternatives(&spec).map_err(|error| error_json(&error))?
+    } else {
+        Vec::new()
+    };
     Ok(Rendered {
         content: rendered.content,
         manifest: rendered.manifest,
         alternative,
+        alternatives,
     })
+}
+
+/// The text alternative of every view of a model, by its key, in the order of the page of all
+/// views: the default view first.
+fn view_alternatives(spec: &str) -> Result<Vec<(String, TextAlternative)>, chartlet::ChartError> {
+    let spec = ChartSpec::from_json(spec)?;
+    let mut keys: Vec<&str> = spec.view_keys();
+    let default = spec
+        .architecture
+        .as_ref()
+        .and_then(|architecture| architecture.default_view.as_deref())
+        .unwrap_or(keys[0]);
+    keys.retain(|key| *key != default);
+    keys.insert(0, default);
+    keys.into_iter()
+        .map(|key| Ok((key.to_owned(), text_alternative(&spec.view(Some(key))?)?)))
+        .collect()
 }
 
 fn error_json(error: &chartlet::ChartError) -> Value {
