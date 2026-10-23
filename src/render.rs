@@ -460,9 +460,9 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         if is_atlas { ATLAS_STYLE } else { "" },
         diagram_style(spec.chart_type),
         if spec.has_roles() {
-            crate::roles::STYLE
+            crate::roles::style(spec.chart_type)
         } else {
-            ""
+            String::new()
         },
         if spec.has_edge_weights() {
             WEIGHT_STYLE
@@ -520,7 +520,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
         Topicmap, Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 46] = [
+    let groups: [(&str, &[ChartType]); 48] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -556,7 +556,9 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (STATE_STYLE, &[State]),
         (CLASSES_STYLE, &[Classes]),
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
-        (crate::roles::STYLE, &[Flow, Architecture]),
+        crate::roles::STYLE_GROUPS[0],
+        crate::roles::STYLE_GROUPS[1],
+        crate::roles::STYLE_GROUPS[2],
         (WEIGHT_STYLE, &[Flow, Architecture, Network]),
         (NETWORK_STYLE, &[Network]),
         (crate::heat::STYLE, &[Flow, Tree]),
@@ -941,6 +943,13 @@ fn emit_element(
             }
             output.push('>');
         }
+        Element::EdgeGroup(classes, id) => {
+            write!(output, "<g class=\"{classes}\"").expect("write");
+            if hooks.is_some() {
+                write!(output, " data-chartlet-edge=\"{}\"", escape(id)).expect("write");
+            }
+            output.push('>');
+        }
         Element::GroupEnd => output.push_str("</g>"),
         Element::Hotspot(_) => {}
         Element::Symbol(symbol) => write!(
@@ -1013,6 +1022,9 @@ fn emit_hook(hook: &Hook, spec: &ChartSpec, output: &mut String) {
                 )
                 .expect("write");
             }
+        }
+        Hook::Object(attribute, id) => {
+            write!(output, "<g {attribute}=\"{}\">", escape(id)).expect("write");
         }
         Hook::End => output.push_str("</g>"),
     }
@@ -1295,6 +1307,55 @@ pub(crate) fn html_zoom(
     hooks: bool,
 ) -> String {
     html_document(panels, spec, table_mode, id_prefix, true, hooks)
+}
+
+/// One view of an architecture model on the page of all its views: the ID prefix of its figure,
+/// which its section's ID extends, its title and its HTML figure.
+pub(crate) struct ViewSection {
+    pub id: String,
+    pub title: String,
+    pub content: String,
+}
+
+/// The page of all views: links stay visible and large enough to hit, a link target keeps a
+/// margin above it, and in print every view after the first starts a page of its own.
+const VIEWS_STYLE: &str = ".chartlet-views-nav ul{margin:0 0 16px 0;padding-left:20px}.chartlet-views-nav li{margin:4px 0}.chartlet-views-nav a{display:inline-block;min-height:24px;padding:2px 0}.chartlet-views-nav a:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-view{margin:0 0 32px 0;scroll-margin-top:16px}@media print{.chartlet-view+.chartlet-view{break-before:page}}";
+
+/// Every view of a model on one page, without a script: the model's title, a navigation of links
+/// to the views in the order of the page, and each view as a section headed by its title, with
+/// its figure.
+pub(crate) fn html_views(sections: &[ViewSection], spec: &ChartSpec, id_prefix: &str) -> String {
+    let words = spec.locale.words();
+    let mut output = String::new();
+    write!(
+        output,
+        "<div class=\"chartlet-views\" id=\"{id_prefix}\"><style>{VIEWS_STYLE}</style><h2 id=\"{id_prefix}-title\">{}</h2><nav class=\"chartlet-views-nav\" aria-label=\"{}\"><ul>",
+        escape(&spec.title),
+        words.views
+    )
+    .expect("write");
+    for section in sections {
+        write!(
+            output,
+            "<li><a href=\"#{}-view\">{}</a></li>",
+            section.id,
+            escape(&section.title)
+        )
+        .expect("write");
+    }
+    output.push_str("</ul></nav>");
+    for section in sections {
+        write!(
+            output,
+            "<section class=\"chartlet-view\" id=\"{id}-view\" aria-labelledby=\"{id}-view-title\"><h3 id=\"{id}-view-title\">{}</h3>{}</section>",
+            escape(&section.title),
+            section.content,
+            id = section.id,
+        )
+        .expect("write");
+    }
+    output.push_str("</div>");
+    output
 }
 
 /// Switches between the chart and its mobile variant by the width of the wrapper. The mobile

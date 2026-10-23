@@ -39,6 +39,14 @@ Each row starts with its category; values are written as the chart writes them, 
 declared `decimals` or `thousandsSeparator`. From Rust, `chartlet::text_alternative(&spec)`
 returns the same.
 
+With `allViews: true`, `alternative` is that of the model's default view, and `alternatives`
+lists that of every view on the page, in its order, each with its `view` key:
+
+```js
+const { alternatives } = renderChart(model, { allViews: true, alternative: true });
+alternatives.map(({ view, description }) => `${view}: ${description}`);
+```
+
 ## Structured diagnostics
 
 `renderChart` throws on an invalid specification. `renderChartDetailed` takes the same arguments
@@ -148,7 +156,7 @@ as `stylesheet_common()` and `stylesheet_types(&[…])`.
 
 ## Architecture builder
 
-`@casoon/chartlet/builder` assembles an architecture specification in code. It builds nothing but
+`@casoon/chartlet/builder` assembles an architecture or flow specification in code. It builds nothing but
 the regular JSON specification: `spec()` returns a plain object to inspect, serialize or pass to
 `renderChart`, so the JSON stays the way out. Importing it renders and writes nothing, and it
 keeps no state between builders.
@@ -204,6 +212,40 @@ is no shorter, since nothing repeats. The builder pays off where parts repeat: a
 used for several regions returns its ids instead of making the caller repeat them in templates
 and merge three lists, and a wrong reference is reported at the call that made it rather than as
 a path into the finished specification.
+
+### Flow builder
+
+`flow(settings)` builds a flow chart the same way: `settings` go into the `flow` object, ids are
+yours, references are checked at the call, and `spec(fields)` returns the plain specification.
+
+```js
+import { flow } from '@casoon/chartlet/builder';
+
+const f = flow();
+const dev = f.lane('dev', 'Development');
+const ci = f.lane('ci', 'Continuous integration');
+const commit = f.node('commit', 'Commit pushed', { kind: 'start', lane: dev });
+const build = f.node('build', 'Build', { lane: ci });
+const tests = f.node('tests', 'Run tests', { lane: ci });
+const done = f.node('done', 'Merged', { kind: 'end', lane: dev });
+f.chain([commit, build, tests, done])
+  .group('Quality gates', [build, tests])
+  .mainPath({ from: commit, to: done });
+
+const spec = f.spec({ title: 'From commit to merge' });
+```
+
+| Call | Adds |
+|---|---|
+| `lane(id, label)`, `node(id, label, fields)` | One lane or step; returns its id. `fields.lane` names a lane declared before |
+| `group(label, [step, …])` | A frame around the listed steps |
+| `connect`, `fanOut`, `fanIn`, `chain` | Edges between steps, as in the architecture builder |
+| `mainPath([…])` or `mainPath({ from, to })` | The main path |
+| `sameRank([step, …])` | One set of steps at one position along the flow; each call adds a set |
+| `spec(fields)` | Returns the specification with `fields` at the top level |
+
+Lanes and steps have ids of their own, so a lane and a step may share one; a group has none. The
+examples `order-flow` and `release-flow` rebuild with it byte for byte.
 
 ## Interactive module
 

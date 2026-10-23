@@ -23,7 +23,7 @@ use crate::{
     layout::{NARROW, count, format_value, push_title, title_extra},
     metrics::TextMetrics,
     parts, roles,
-    scene::{Circle, Element, Hotspot, Line, Rect, Scene, SymbolUse, Text, TextAnchor},
+    scene::{Circle, Element, Hook, Hotspot, Line, Rect, Scene, SymbolUse, Text, TextAnchor},
     spec::{
         ChartSpec, Dash, DiagramOrientation, DiagramRole, FlowSpec, NodeKind, NumberStyle, PartSpec,
     },
@@ -150,7 +150,13 @@ pub(crate) fn layout(
         flow.nodes.iter().map(|node| node.role),
         flow.edges.iter().map(|edge| edge.role),
     );
-    roles::push_legend(&mut scene, spec.locale, &used, MARGIN, metrics);
+    roles::push_legend(
+        &mut scene,
+        spec.locale,
+        &used,
+        (MARGIN, roles::push_badge),
+        metrics,
+    );
     scene
 }
 
@@ -246,7 +252,7 @@ fn flow(spec: &ChartSpec) -> &FlowSpec {
 pub(crate) struct Diagram {
     pub nodes: Vec<Node>,
     pub edges: Vec<Edge>,
-    pub lanes: Vec<String>,
+    pub lanes: Vec<Lane>,
     pub groups: Vec<Group>,
     /// Sets of steps that share one layer, by index; no step lies in two.
     pub ranks: Vec<Vec<usize>>,
@@ -290,6 +296,9 @@ impl Node {
 pub(crate) struct Edge {
     pub from: usize,
     pub to: usize,
+    /// The edge's ID in the specification, which the hooks carry; `None` for an edge the
+    /// specification gives no ID.
+    pub id: Option<String>,
     pub label: Option<String>,
     /// How the connection is made, written in brackets on a line below the label.
     pub technology: Option<String>,
@@ -350,8 +359,17 @@ impl Ends {
     }
 }
 
+/// A lane: its name and its ID in the specification, which the hooks carry.
+pub(crate) struct Lane {
+    pub label: String,
+    pub id: String,
+}
+
 pub(crate) struct Group {
     pub label: String,
+    /// The group's ID in the specification, which the hooks carry; `None` for a group the
+    /// specification gives no ID.
+    pub id: Option<String>,
     pub path: String,
     /// The group this one lies in.
     pub parent: Option<usize>,
@@ -447,6 +465,7 @@ impl Diagram {
                 .map(|(index, (edge, (from, to)))| Edge {
                     from,
                     to,
+                    id: None,
                     label: edge.label.clone(),
                     technology: None,
                     dash: edge.dash,
@@ -458,13 +477,21 @@ impl Diagram {
                     role: edge.role,
                 })
                 .collect(),
-            lanes: flow.lanes.iter().map(|lane| lane.label.clone()).collect(),
+            lanes: flow
+                .lanes
+                .iter()
+                .map(|lane| Lane {
+                    label: lane.label.clone(),
+                    id: lane.id.clone(),
+                })
+                .collect(),
             groups: flow
                 .groups
                 .iter()
                 .enumerate()
                 .map(|(index, group)| Group {
                     label: group.label.clone(),
+                    id: None,
                     path: format!("/flow/groups/{index}"),
                     parent: None,
                 })
@@ -502,6 +529,7 @@ impl Diagram {
         self.edges.push(Edge {
             from: target,
             to: note,
+            id: None,
             label: None,
             technology: None,
             dash: Some(Dash::Dotted),
@@ -1468,7 +1496,7 @@ fn lane_bands(
             if lane_head > 0.0 {
                 0.0
             } else {
-                metrics.width(lane, SUBLABEL_SIZE) + 2.0 * LANE_PAD
+                metrics.width(&lane.label, SUBLABEL_SIZE) + 2.0 * LANE_PAD
             }
         })
         .collect();
@@ -2528,7 +2556,10 @@ impl Plan {
             if let Some(role) = model.diagram.edges[edge].role {
                 classes.push_str(roles::class(role));
             }
-            elements.push(Element::Group(classes));
+            elements.push(match &model.diagram.edges[edge].id {
+                Some(id) => Element::EdgeGroup(classes, id.clone()),
+                None => Element::Group(classes),
+            });
             self.draw_edge(model, edge, elements, &mut labels);
             elements.push(Element::GroupEnd);
         }
@@ -2640,6 +2671,10 @@ impl Plan {
     fn draw_lanes(&self, model: &Model, elements: &mut Vec<Element>) {
         let lanes = &model.diagram.lanes;
         for (index, (lane, band)) in lanes.iter().zip(&self.bands).enumerate() {
+            elements.push(Element::Hook(Hook::Object(
+                "data-chartlet-lane",
+                lane.id.clone(),
+            )));
             let (x1, y1) = self.page((0.0, band.0));
             let (x2, y2) = self.page((self.main_length, band.1));
             elements.push(Element::Rect(Rect {
@@ -2685,8 +2720,9 @@ impl Plan {
                 y,
                 class: "chartlet-flow-lane-label",
                 anchor,
-                content: lane.clone(),
+                content: lane.label.clone(),
             }));
+            elements.push(Element::Hook(Hook::End));
         }
     }
 
@@ -2767,6 +2803,12 @@ impl Plan {
                     "a step outside the frame lies inside it; move it elsewhere or regroup the steps",
                 ));
             }
+            if let Some(id) = &diagram.groups[group].id {
+                elements.push(Element::Hook(Hook::Object(
+                    "data-chartlet-frame",
+                    id.clone(),
+                )));
+            }
             elements.push(Element::Rect(Rect {
                 x: left,
                 y: top,
@@ -2792,6 +2834,9 @@ impl Plan {
                     &path,
                 ),
             }));
+            if diagram.groups[group].id.is_some() {
+                elements.push(Element::Hook(Hook::End));
+            }
         }
     }
 

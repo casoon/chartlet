@@ -520,7 +520,7 @@ impl ChartSpec {
                 .is_some_and(|tree| tree.nodes.iter().any(|node| !node.parts.is_empty()))
     }
 
-    /// Whether a flow chart or an architecture diagram gives a node or an edge a role.
+    /// Whether a diagram gives a node or an edge a role.
     pub(crate) fn has_roles(&self) -> bool {
         self.flow.as_ref().is_some_and(|flow| {
             flow.nodes.iter().any(|node| node.role.is_some())
@@ -534,7 +534,26 @@ impl ChartSpec {
                     .connections
                     .iter()
                     .any(|connection| connection.role.is_some())
-        })
+        }) || self.state.as_ref().is_some_and(|machine| {
+            machine.states.iter().any(|state| state.role.is_some())
+                || machine
+                    .transitions
+                    .iter()
+                    .any(|transition| transition.role.is_some())
+        }) || self.network.as_ref().is_some_and(|network| {
+            network.nodes.iter().any(|node| node.role.is_some())
+                || network.edges.iter().any(|edge| edge.role.is_some())
+        }) || self
+            .tree
+            .as_ref()
+            .is_some_and(|tree| tree.nodes.iter().any(|node| node.role.is_some()))
+            || self.classes.as_ref().is_some_and(|classes| {
+                classes.classes.iter().any(|class| class.role.is_some())
+                    || classes
+                        .relations
+                        .iter()
+                        .any(|relation| relation.role.is_some())
+            })
     }
 
     /// Whether a flow chart or a tree has a node with a value.

@@ -2,7 +2,12 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
-use super::{ChartSpec, Dash, flow::validate_weight, sequence::is_identifier, validate_text};
+use super::{
+    ChartSpec, Dash, DiagramRole,
+    flow::{validate_role, validate_weight},
+    sequence::is_identifier,
+    validate_text,
+};
 use crate::error::{ChartError, ChartWarning};
 
 /// Nodes and edges of one network; beyond this the labels around a circle crowd each other.
@@ -40,6 +45,8 @@ pub struct NetworkNodeSpec {
     /// The group a node belongs to: its color, a legend entry, and on a circle a neighbourhood.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,6 +60,8 @@ pub struct NetworkEdgeSpec {
     /// it carries more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// How the nodes of a network are placed.
@@ -227,6 +236,7 @@ impl NetworkSpec {
                 ));
             }
             validate_weight(edge.weight, &path)?;
+            validate_role(edge.role, edge.dash, &path)?;
         }
         Ok(())
     }

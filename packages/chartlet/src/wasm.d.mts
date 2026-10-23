@@ -1,4 +1,6 @@
 import type {
+  InspectChartOptions,
+  InspectChartResult,
   RenderChartDetailedResult,
   RenderChartOptions,
   RenderChartResult,
@@ -15,6 +17,8 @@ export interface ChartRenderer {
   ): RenderChartDetailedResult;
   /** The shared stylesheet that charts rendered with `styles: "external"` rely on. */
   stylesheet(options?: StylesheetOptions): string;
+  /** Runs the inspections in WebAssembly; `options.binary` is ignored. See `inspectChart`. */
+  inspectChart(spec: Record<string, unknown> | string, options?: InspectChartOptions): InspectChartResult;
 }
 
 /** Instantiates the renderer from the compiled `@casoon/chartlet/chartlet.wasm` module. */

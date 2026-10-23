@@ -26,8 +26,10 @@ with.
 An architecture model with `views` renders its default view, or the one in
 `RenderOptions { view: Some("checkout".into()), .. }`. `ChartSpec::view` resolves a view to a
 specification of its own, for `text_alternative` or `render_png`; `ChartSpec::view_keys` lists
-the keys. `inspect_json` runs the [inspections](../../guides/warnings-and-errors/#inspections)
-of an architecture model, leaving out the codes it is given (`INSPECTIONS` lists them all).
+the keys. `RenderOptions { all_views: true, .. }` renders every view on one HTML page, and
+`Manifest::views` lists them. `inspect_json` runs the [inspections](../../guides/warnings-and-errors/#inspections)
+of an architecture model, flow chart or class diagram, leaving out the codes it is given
+(`INSPECTIONS` lists them all).
 
 With the `png` feature (`cargo add chartlet --features png`), `render_png` rasterizes the print or
 the social variant, see [Social images and PNG](../../guides/social-and-png/).

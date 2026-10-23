@@ -10,7 +10,7 @@ use crate::{
     layout::{LABEL_SIZE, count},
     metrics::TextMetrics,
     scene::{Circle, Element, Line, Scene, Text, TextAnchor},
-    spec::{DiagramRole, Locale},
+    spec::{ChartType, DiagramRole, Locale},
     text,
 };
 
@@ -18,6 +18,43 @@ use crate::{
 /// come after the main path, so that a role recolors a main edge, and before the widths of
 /// weighted edges, so that a weight keeps its width.
 pub(crate) const STYLE: &str = ".chartlet-flow-role-critical .chartlet-flow-node{stroke:var(--chartlet-role-red);stroke-width:3}.chartlet-flow-role-planned .chartlet-flow-node{stroke:var(--chartlet-role-violet);stroke-dasharray:6 3}.chartlet-flow-role-deprecated .chartlet-flow-node{stroke:var(--chartlet-role-gray);stroke-dasharray:1.5 3}.chartlet-flow-role-critical .chartlet-flow-edge{stroke:var(--chartlet-role-red);stroke-width:2.6}.chartlet-flow-role-planned .chartlet-flow-edge{stroke:var(--chartlet-role-violet);stroke-dasharray:6 4}.chartlet-flow-role-deprecated .chartlet-flow-edge{stroke:var(--chartlet-role-gray);stroke-dasharray:1 4;stroke-linecap:round}.chartlet-flow-role-critical .chartlet-flow-head,.chartlet-flow-role-critical .chartlet-diagram-badge{fill:var(--chartlet-role-red);stroke:var(--chartlet-role-red)}.chartlet-flow-role-planned .chartlet-flow-head,.chartlet-flow-role-planned .chartlet-diagram-badge{fill:var(--chartlet-role-violet);stroke:var(--chartlet-role-violet)}.chartlet-flow-role-deprecated .chartlet-flow-head,.chartlet-flow-role-deprecated .chartlet-diagram-badge{fill:var(--chartlet-role-gray);stroke:var(--chartlet-role-gray)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+
+/// In class diagrams, the hollow marks of a relation stay hollow under a role, and the open
+/// arrowhead of a dependency or an association takes the role's color like a filled head.
+const CLASSES_STYLE: &str = ".chartlet-flow-role-critical .chartlet-flow-hollow,.chartlet-flow-role-planned .chartlet-flow-hollow,.chartlet-flow-role-deprecated .chartlet-flow-hollow{fill:var(--chartlet-background)}.chartlet-flow-role-critical .chartlet-flow-open{stroke:var(--chartlet-role-red)}.chartlet-flow-role-planned .chartlet-flow-open{stroke:var(--chartlet-role-violet)}.chartlet-flow-role-deprecated .chartlet-flow-open{stroke:var(--chartlet-role-gray)}";
+
+/// In networks, the ring a role draws around a dot, which keeps the color of its group.
+const NETWORK_STYLE: &str = ".chartlet-net-role{fill:none}";
+
+/// The style of the roles of a diagram of `chart_type`.
+pub(crate) fn style(chart_type: ChartType) -> String {
+    match chart_type {
+        ChartType::Classes => [STYLE, CLASSES_STYLE].concat(),
+        ChartType::Network => [STYLE, NETWORK_STYLE].concat(),
+        _ => STYLE.to_owned(),
+    }
+}
+
+/// The groups of the shared stylesheet for the roles, each with the chart types it serves.
+pub(crate) const STYLE_GROUPS: [(&str, &[ChartType]); 3] = [
+    (
+        STYLE,
+        &[
+            ChartType::Flow,
+            ChartType::Architecture,
+            ChartType::State,
+            ChartType::Network,
+            ChartType::Tree,
+            ChartType::Classes,
+        ],
+    ),
+    (CLASSES_STYLE, &[ChartType::Classes]),
+    (NETWORK_STYLE, &[ChartType::Network]),
+];
+
+/// How far the ring of a role stands from the dot of a network node, which wears a halo of the
+/// background on its edge.
+pub(crate) const RING_GAP: f64 = 2.5;
 
 const LEGEND_ROW: f64 = 22.0;
 /// The length of the line that stands for an edge in the legend.
@@ -63,6 +100,21 @@ pub(crate) fn push_badge(role: DiagramRole, (cx, cy): (f64, f64), elements: &mut
     }));
 }
 
+/// The ring of a role around the dot of a network node centred on `(cx, cy)`: its pattern says the
+/// role without color, as the outline of a box does; a dot is too small for a badge.
+pub(crate) fn push_ring((cx, cy): (f64, f64), radius: f64, elements: &mut Vec<Element>) {
+    elements.push(Element::Circle(Circle {
+        cx,
+        cy,
+        radius,
+        class: "chartlet-flow-node chartlet-net-role",
+        topic: None,
+        series_index: None,
+        style_index: None,
+        tooltip: None,
+    }));
+}
+
 /// The roles a diagram uses, in their fixed order, each with whether a node and whether an edge
 /// has it.
 pub(crate) fn used(
@@ -82,14 +134,17 @@ pub(crate) fn used(
     .collect()
 }
 
-/// The legend of the roles below a diagram: for every role used, its badge where a node has it,
-/// a piece of line where an edge has it, and its name, in rows that fit. The canvas grows by its
-/// height.
+/// What draws the sign of a node with a role centred on a point: a badge, or a ring in networks.
+pub(crate) type NodeSign = fn(DiagramRole, (f64, f64), &mut Vec<Element>);
+
+/// The legend of the roles below a diagram: for every role used, the sign of a node with it
+/// where a node has it (drawn by `node_sign` centred on a point), a piece of line where an edge
+/// has it, and its name, in rows that fit. The canvas grows by its height.
 pub(crate) fn push_legend(
     scene: &mut Scene,
     locale: Locale,
     used: &[(DiagramRole, bool, bool)],
-    margin: f64,
+    (margin, node_sign): (f64, NodeSign),
     metrics: &impl TextMetrics,
 ) {
     if used.is_empty() {
@@ -113,7 +168,7 @@ pub(crate) fn push_legend(
             .elements
             .push(Element::Group(class(role).trim_start().to_owned()));
         if on_nodes {
-            push_badge(role, (at + BADGE, y - 4.0), &mut scene.elements);
+            node_sign(role, (at + BADGE, y - 4.0), &mut scene.elements);
             at += 2.0 * BADGE + 6.0;
         }
         if on_edges {
