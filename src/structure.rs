@@ -328,7 +328,7 @@ mod tests {
         let structure = of(4, &[(0, 1), (1, 2), (2, 3), (3, 1)]);
         assert_eq!(structure.loops, vec![vec![1, 2, 3]]);
         assert_eq!(structure.sources, vec![0]);
-        assert!(structure.sinks.is_empty());
+        assert!(structure.sinks.is_empty(), "{:?}", structure.sinks);
     }
 
     #[test]
@@ -367,7 +367,7 @@ mod tests {
             &[true, false, false, false],
             DIRECTED,
         );
-        assert!(structure.sources.is_empty());
+        assert!(structure.sources.is_empty(), "{:?}", structure.sources);
         assert_eq!(structure.sinks, vec![2, 3]);
     }
 

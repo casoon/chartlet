@@ -2231,7 +2231,11 @@ mod tests {
         assert_eq!(count(&output.content, "chartlet-arch-ball"), 4);
         // On a phone the names stand on chips below the balls, and the diagram fits.
         assert!(output.warnings.is_empty(), "{:?}", output.warnings);
-        assert!(svg(INTERFACES).warnings.is_empty());
+        assert!(
+            svg(INTERFACES).warnings.is_empty(),
+            "{:?}",
+            svg(INTERFACES).warnings
+        );
         let print = RenderOptions {
             variant: crate::Variant::Print,
             ..RenderOptions::default()

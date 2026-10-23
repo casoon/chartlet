@@ -1130,7 +1130,7 @@ mod tests {
         assert_eq!(manifest.view, None);
         assert!(!manifest.to_json().contains("\"view\""));
         let spec = ChartSpec::from_json(plain).unwrap();
-        assert!(spec.view_keys().is_empty());
+        assert!(spec.view_keys().is_empty(), "{:?}", spec.view_keys());
         assert_eq!(
             serde_json::to_string(&spec.view(None).unwrap()).unwrap(),
             serde_json::to_string(&spec).unwrap()
@@ -1251,7 +1251,11 @@ mod tests {
         let spec = ChartSpec::from_json(&json).unwrap();
         let media = spec.view(Some("media")).unwrap();
         // Of the first set only api is shown, of the second only files: both are dropped.
-        assert!(architecture(&media).same_rank.is_empty());
+        assert!(
+            architecture(&media).same_rank.is_empty(),
+            "{:?}",
+            architecture(&media).same_rank
+        );
         let json = json.replace(
             r#"["api", "files", "site"]"#,
             r#"["api", "files", "site", "db"]"#,
@@ -1481,7 +1485,11 @@ mod tests {
         let media = spec.view(Some("media")).unwrap();
         let team = &architecture(&media).perspectives[0];
         assert_eq!(team.categories[0].connections, ["store"]);
-        assert!(team.categories[1].connections.is_empty());
+        assert!(
+            team.categories[1].connections.is_empty(),
+            "{:?}",
+            team.categories[1].connections
+        );
         // Every occurrence of a connection in a dynamic view is in its category.
         let svg = render_json(&json, RenderFormat::Svg, &with(Some("comment")))
             .unwrap()

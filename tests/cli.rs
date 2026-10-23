@@ -867,7 +867,11 @@ fn inspect_reports_findings_without_failing() {
         "gap[unlabelled_connection] at /architecture/connections/0: the connection from \"Customer\" to \"Web shop\" has no label; add a label that says what it does, such as \"reads orders\"\n\
          hint[isolated_component] at /architecture/components/2: \"Audit log\" has no connection to any other component; connect it, or keep it if it stands apart on purpose\n"
     );
-    assert!(output.stderr.is_empty());
+    assert!(
+        output.stderr.is_empty(),
+        "{:?}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]
@@ -922,5 +926,9 @@ fn render_ignores_inspections() {
         UNDOCUMENTED,
     );
     assert!(output.status.success());
-    assert!(output.stderr.is_empty());
+    assert!(
+        output.stderr.is_empty(),
+        "{:?}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }

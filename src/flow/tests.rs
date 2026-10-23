@@ -812,7 +812,11 @@ fn shared_trunks_in_a_flow_chart_branch_and_keep_every_edge() {
     let separate = FULFILMENT.replace("\"sharedTrunks\": true", "\"sharedTrunks\": false");
     let unset = FULFILMENT.replace(",\n    \"sharedTrunks\": true", "");
     assert_ne!(unset, FULFILMENT);
-    assert!(svg(FULFILMENT).warnings.is_empty());
+    assert!(
+        svg(FULFILMENT).warnings.is_empty(),
+        "{:?}",
+        svg(FULFILMENT).warnings
+    );
     assert_eq!(svg(&separate).content, svg(&unset).content);
     assert_eq!(branches(&svg(&unset).content), 0);
     for orientation in ["portrait", "landscape"] {

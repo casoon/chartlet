@@ -509,7 +509,11 @@ mod tests {
             findings[0].message,
             "the connection from \"Web shop\" to \"Orders\" has no label"
         );
-        assert!(found(&documented(), "unlabelled_connection").is_empty());
+        assert!(
+            found(&documented(), "unlabelled_connection").is_empty(),
+            "{:?}",
+            found(&documented(), "unlabelled_connection")
+        );
     }
 
     #[test]
@@ -520,7 +524,7 @@ mod tests {
             .unwrap()
             .remove("label");
         let findings = inspect_json(&model(&architecture), &["unlabelled_connection"]).unwrap();
-        assert!(findings.is_empty());
+        assert!(findings.is_empty(), "{findings:?}");
     }
 
     #[test]
@@ -536,7 +540,11 @@ mod tests {
         );
         let findings = inspect_json(&model(&architecture), &[]).unwrap();
         assert_eq!(findings[0].severity, Severity::Hint);
-        assert!(found(&documented(), "connection_without_technology").is_empty());
+        assert!(
+            found(&documented(), "connection_without_technology").is_empty(),
+            "{:?}",
+            found(&documented(), "connection_without_technology")
+        );
     }
 
     #[test]
@@ -551,7 +559,11 @@ mod tests {
             ["/architecture/components/2"]
         );
         // The person of `documented` has no sublabel either, and is not reported.
-        assert!(found(&documented(), "component_without_sublabel").is_empty());
+        assert!(
+            found(&documented(), "component_without_sublabel").is_empty(),
+            "{:?}",
+            found(&documented(), "component_without_sublabel")
+        );
     }
 
     #[test]
@@ -565,9 +577,17 @@ mod tests {
             found(&architecture, "isolated_component"),
             ["/architecture/components/3"]
         );
-        assert!(found(&documented(), "isolated_component").is_empty());
+        assert!(
+            found(&documented(), "isolated_component").is_empty(),
+            "{:?}",
+            found(&documented(), "isolated_component")
+        );
         let alone = json!({ "components": [{ "id": "web", "label": "Web shop" }] });
-        assert!(found(&alone, "isolated_component").is_empty());
+        assert!(
+            found(&alone, "isolated_component").is_empty(),
+            "{:?}",
+            found(&alone, "isolated_component")
+        );
     }
 
     fn with_views(views: &Value) -> Value {
@@ -589,8 +609,16 @@ mod tests {
             { "key": "front", "title": "Front", "components": ["user", "web"] },
             { "key": "back", "title": "Back", "components": ["web", "db"] }
         ]));
-        assert!(found(&all, "component_in_no_view").is_empty());
-        assert!(found(&documented(), "component_in_no_view").is_empty());
+        assert!(
+            found(&all, "component_in_no_view").is_empty(),
+            "{:?}",
+            found(&all, "component_in_no_view")
+        );
+        assert!(
+            found(&documented(), "component_in_no_view").is_empty(),
+            "{:?}",
+            found(&documented(), "component_in_no_view")
+        );
     }
 
     #[test]
@@ -599,7 +627,11 @@ mod tests {
             { "key": "front", "title": "Front", "components": ["user", "web"] },
             { "key": "order", "title": "Order", "steps": [{ "connection": "store" }] }
         ]));
-        assert!(found(&architecture, "component_in_no_view").is_empty());
+        assert!(
+            found(&architecture, "component_in_no_view").is_empty(),
+            "{:?}",
+            found(&architecture, "component_in_no_view")
+        );
     }
 
     #[test]
@@ -617,7 +649,11 @@ mod tests {
             { "key": "front", "title": "Front", "components": ["user", "web"] },
             { "key": "back", "title": "Back", "components": ["web", "db"] }
         ]));
-        assert!(found(&apart, "view_adds_nothing").is_empty());
+        assert!(
+            found(&apart, "view_adds_nothing").is_empty(),
+            "{:?}",
+            found(&apart, "view_adds_nothing")
+        );
     }
 
     #[test]
@@ -694,8 +730,16 @@ mod tests {
         );
         // A decision with one way on has nothing to tell apart.
         flow["edges"].as_array_mut().unwrap().remove(1);
-        assert!(found_in("flow", &flow, "unlabelled_decision_branch").is_empty());
-        assert!(found_in("flow", &order_flow(), "unlabelled_decision_branch").is_empty());
+        assert!(
+            found_in("flow", &flow, "unlabelled_decision_branch").is_empty(),
+            "{:?}",
+            found_in("flow", &flow, "unlabelled_decision_branch")
+        );
+        assert!(
+            found_in("flow", &order_flow(), "unlabelled_decision_branch").is_empty(),
+            "{:?}",
+            found_in("flow", &order_flow(), "unlabelled_decision_branch")
+        );
     }
 
     #[test]
@@ -707,9 +751,17 @@ mod tests {
             found_in("flow", &flow, "unreachable_step"),
             ["/flow/nodes/1", "/flow/nodes/3"]
         );
-        assert!(found_in("flow", &order_flow(), "unreachable_step").is_empty());
+        assert!(
+            found_in("flow", &order_flow(), "unreachable_step").is_empty(),
+            "{:?}",
+            found_in("flow", &order_flow(), "unreachable_step")
+        );
         flow["nodes"][0]["kind"] = json!("process");
-        assert!(found_in("flow", &flow, "unreachable_step").is_empty());
+        assert!(
+            found_in("flow", &flow, "unreachable_step").is_empty(),
+            "{:?}",
+            found_in("flow", &flow, "unreachable_step")
+        );
     }
 
     #[test]
@@ -717,10 +769,18 @@ mod tests {
         let mut flow = order_flow();
         flow["nodes"][4]["kind"] = json!("process");
         assert_eq!(found_in("flow", &flow, "flow_without_end"), ["/flow/nodes"]);
-        assert!(found_in("flow", &order_flow(), "flow_without_end").is_empty());
+        assert!(
+            found_in("flow", &order_flow(), "flow_without_end").is_empty(),
+            "{:?}",
+            found_in("flow", &order_flow(), "flow_without_end")
+        );
         // Without a start either, the flow is a part of a larger one.
         flow["nodes"][0]["kind"] = json!("process");
-        assert!(found_in("flow", &flow, "flow_without_end").is_empty());
+        assert!(
+            found_in("flow", &flow, "flow_without_end").is_empty(),
+            "{:?}",
+            found_in("flow", &flow, "flow_without_end")
+        );
     }
 
     fn shop_classes() -> Value {
@@ -754,11 +814,19 @@ mod tests {
             found_in("classes", &classes, "class_without_members"),
             ["/classes/classes/2"]
         );
-        assert!(found_in("classes", &shop_classes(), "class_without_members").is_empty());
+        assert!(
+            found_in("classes", &shop_classes(), "class_without_members").is_empty(),
+            "{:?}",
+            found_in("classes", &shop_classes(), "class_without_members")
+        );
         for class in classes["classes"].as_array_mut().unwrap() {
             class.as_object_mut().unwrap().remove("attributes");
         }
-        assert!(found_in("classes", &classes, "class_without_members").is_empty());
+        assert!(
+            found_in("classes", &classes, "class_without_members").is_empty(),
+            "{:?}",
+            found_in("classes", &classes, "class_without_members")
+        );
     }
 
     #[test]
@@ -770,9 +838,17 @@ mod tests {
             found_in("classes", &classes, "isolated_class"),
             ["/classes/classes/2"]
         );
-        assert!(found_in("classes", &shop_classes(), "isolated_class").is_empty());
+        assert!(
+            found_in("classes", &shop_classes(), "isolated_class").is_empty(),
+            "{:?}",
+            found_in("classes", &shop_classes(), "isolated_class")
+        );
         let alone = json!({ "classes": [{ "id": "order", "label": "Order" }] });
-        assert!(found_in("classes", &alone, "isolated_class").is_empty());
+        assert!(
+            found_in("classes", &alone, "isolated_class").is_empty(),
+            "{:?}",
+            found_in("classes", &alone, "isolated_class")
+        );
     }
 
     #[test]
