@@ -94,6 +94,7 @@ impl ChartSpec {
         spec.title.clone_from(&view.title);
         spec.description.clone_from(&view.description);
         spec.architecture = Some(architecture);
+        let own_size = view.size_of(&mut spec);
         ResolvedView {
             spec,
             key: view.key.clone(),
@@ -106,6 +107,7 @@ impl ChartSpec {
             dynamic: false,
             own_main_path: false,
             deployment: true,
+            own_size,
         }
     }
 }

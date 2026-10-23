@@ -267,6 +267,7 @@ const KINDS = {
     view: {
       components: "architecture.views[]: a key, a title and the components shown; connections between them come along, or only the listed connections",
       steps: "a dynamic view: connection ids in the order they occur, each with optional step text, numbered from 1; a connection may occur again",
+      size: "optional width, height and mobile on a view, in place of the model's, checked like them",
     },
     note: { note: "on a component id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no connection; up to 12" },
   },

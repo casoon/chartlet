@@ -1511,6 +1511,9 @@
                 }
               },
               "perspective": { "description": "The key of the perspective the view shows, in place of the model's.", "$ref": "#/$defs/identifier" },
+              "width": { "description": "The width of the diagram the view renders, in place of the model's; checked like it.", "$ref": "#/properties/width" },
+              "height": { "description": "The height of the diagram the view renders, in place of the model's; checked like it.", "$ref": "#/properties/height" },
+              "mobile": { "description": "The mobile layout of the diagram the view renders, in place of the model's; checked like it.", "$ref": "#/properties/mobile" },
               "environment": { "description": "Makes the view a deployment view of this environment, such as Production: it shows instances on hosts joined by instance connections, in place of components, connections, steps and mainPath.", "type": "string", "minLength": 1, "maxLength": 60 },
               "hosts": { "description": "Deployment view: machines, clusters or zones, nested like boundaries; each holds an instance.", "type": "array", "items": { "$ref": "#/$defs/architecture/properties/boundaries/items" } },
               "instances": {

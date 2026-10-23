@@ -6,8 +6,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ArchitectureSpec, BoundarySpec, ChartSpec, ConnectionSpec, MainPath, sequence::is_identifier,
-    validate_text,
+    ArchitectureSpec, BoundarySpec, ChartSpec, ConnectionSpec, MainPath, MobileSpec,
+    sequence::is_identifier, validate_text,
 };
 use crate::error::ChartError;
 
@@ -49,6 +49,15 @@ pub struct ViewSpec {
     /// The `key` of the perspective the view shows, in place of the model's.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub perspective: Option<String>,
+    /// The width of the diagram the view renders, in place of the model's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub width: Option<u32>,
+    /// The height of the diagram the view renders, in place of the model's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub height: Option<u32>,
+    /// The mobile layout of the diagram the view renders, in place of the model's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mobile: Option<MobileSpec>,
     /// A deployment view: the name of the environment, such as `Production`. Such a view shows
     /// `instances` of the model's components on its `hosts`, joined by its
     /// `instanceConnections`, in place of components, connections and steps.
@@ -118,6 +127,8 @@ pub(crate) struct ResolvedView {
     /// The view is a deployment: its components are the view's instances, its boundaries its
     /// hosts and its connections its instance connections.
     pub(super) deployment: bool,
+    /// The fields of the size the view sets in place of the model's: `width`, `height`, `mobile`.
+    pub(super) own_size: Vec<&'static str>,
 }
 
 impl ChartSpec {
@@ -311,6 +322,7 @@ impl ChartSpec {
         spec.title.clone_from(&view.title);
         spec.description.clone_from(&view.description);
         spec.architecture = Some(architecture);
+        let own_size = view.size_of(&mut spec);
         ResolvedView {
             spec,
             key: view.key.clone(),
@@ -323,6 +335,7 @@ impl ChartSpec {
             dynamic,
             own_main_path: !view.main_path.is_empty(),
             deployment: false,
+            own_size,
         }
     }
 }
@@ -353,6 +366,27 @@ fn shown_notes(model: &ArchitectureSpec, is_shown: &impl Fn(&str) -> bool) -> Ve
     (0..model.notes.len())
         .filter(|&note| is_shown(&model.notes[note].on))
         .collect()
+}
+
+impl ViewSpec {
+    /// Gives `spec` the size the view sets in place of the model's, and returns the fields it
+    /// set.
+    pub(super) fn size_of(&self, spec: &mut ChartSpec) -> Vec<&'static str> {
+        let mut own = Vec::new();
+        if let Some(width) = self.width {
+            spec.width = width;
+            own.push("width");
+        }
+        if let Some(height) = self.height {
+            spec.height = height;
+            own.push("height");
+        }
+        if let Some(mobile) = &self.mobile {
+            spec.mobile = Some(mobile.clone());
+            own.push("mobile");
+        }
+        own
+    }
 }
 
 fn unknown_view(key: &str, keys: &[&str]) -> ChartError {
@@ -591,6 +625,14 @@ impl ResolvedView {
     pub(crate) fn model_path(&self, path: &str) -> String {
         let view = format!("/architecture/views/{}", self.index);
         if path == "/title" || path == "/description" {
+            return format!("{view}{path}");
+        }
+        // A size the view sets is checked in the view.
+        if self.own_size.iter().any(|field| {
+            path.strip_prefix('/')
+                .and_then(|rest| rest.strip_prefix(field))
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+        }) {
             return format!("{view}{path}");
         }
         if self.deployment {
@@ -1288,6 +1330,65 @@ mod tests {
             "{}",
             alternative.description
         );
+    }
+
+    #[test]
+    fn a_view_may_set_its_own_size() {
+        let json = edited(
+            r#""title": "Blog media","#,
+            r#""title": "Blog media", "width": 720, "height": 480,
+               "mobile": {"width": 340, "height": 700},"#,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        let media = spec.view(Some("media")).unwrap();
+        assert_eq!((media.width, media.height), (720, 480));
+        assert_eq!(media.mobile.as_ref().map(|mobile| mobile.width), Some(340));
+        // The other views keep the model's size.
+        let overview = spec.view(Some("overview")).unwrap();
+        assert_eq!((overview.width, overview.height), (1000, 600));
+        assert_eq!(
+            overview.mobile.as_ref().map(|mobile| mobile.width),
+            Some(360)
+        );
+        let svg = render_json(&json, RenderFormat::Svg, &with(Some("media")))
+            .unwrap()
+            .content;
+        assert!(svg.contains(r#"viewBox="0 0 720 "#), "{svg}");
+        let mobile = render_json(
+            &json,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: crate::Variant::Mobile,
+                ..with(Some("media"))
+            },
+        )
+        .unwrap()
+        .content;
+        assert!(mobile.contains(r#"viewBox="0 0 340 "#));
+        // Without a size of its own, a view renders the bytes it did.
+        assert_eq!(
+            render(&json, Some("overview")).unwrap().content,
+            render(MODEL, Some("overview")).unwrap().content
+        );
+
+        for (field, path) in [
+            (r#""width": 100,"#, "/architecture/views/1/width"),
+            (r#""height": 100,"#, "/architecture/views/1/height"),
+            (
+                r#""mobile": {"width": 100},"#,
+                "/architecture/views/1/mobile/width",
+            ),
+        ] {
+            let json = edited(
+                r#""title": "Blog media","#,
+                &format!(r#""title": "Blog media", {field}"#),
+            );
+            let error = error(&json);
+            assert_eq!(error.path, path, "{}: {}", error.code, error.message);
+        }
+        // The model's own size is checked at the model's.
+        let error = error(&edited(r#""width": 1000"#, r#""width": 100"#));
+        assert_eq!(error.path, "/width");
     }
 
     #[test]

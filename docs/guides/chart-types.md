@@ -1135,6 +1135,9 @@ first — and never the whole model, so a view never passes for the complete sys
   is never used. Without one the description is generated from what the view shows and says
   how much of the model that is (“It is a view that shows 8 of the model's 11 components and 8
   of its 11 connections.”). The data table lists the shown components only.
+- **Size.** A view may set its own `width`, `height` and `mobile`, in place of the model's — a
+  narrow detail beside a wide overview. They are checked like the model's, with diagnostics at
+  the view; a view without them keeps the model's size.
 - **Variants and provenance.** Every variant — HTML, mobile, print, social, PNG — renders the
   chosen view. The manifest names it in `view`; `specHash` is the hash of the whole model. Each
   view gets its own derived ID prefix, so several views can share a page.
