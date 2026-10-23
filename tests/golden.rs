@@ -3,7 +3,7 @@ use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 82] = [
+const EXAMPLES: [(&str, &str, &str); 83] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -193,6 +193,11 @@ const EXAMPLES: [(&str, &str, &str); 82] = [
         "request-volume",
         include_str!("../examples/request-volume.json"),
         include_str!("../examples/request-volume.svg"),
+    ),
+    (
+        "contract-review",
+        include_str!("../examples/contract-review.json"),
+        include_str!("../examples/contract-review.svg"),
     ),
     (
         "co-authors",
@@ -417,7 +422,7 @@ const EXAMPLES: [(&str, &str, &str); 82] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 29] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 30] = [
     (
         "co-authors",
         include_str!("../examples/co-authors.json"),
@@ -562,6 +567,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 29] = [
         "data-tier",
         include_str!("../examples/data-tier.json"),
         include_str!("../examples/data-tier.mobile.svg"),
+    ),
+    (
+        "contract-review",
+        include_str!("../examples/contract-review.json"),
+        include_str!("../examples/contract-review.mobile.svg"),
     ),
 ];
 

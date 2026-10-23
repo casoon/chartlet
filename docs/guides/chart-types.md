@@ -910,6 +910,8 @@ releases.
   a group that ends up inside its frame is reported as `group_overlap`.
 - **Orientation** works as for sequence diagrams: portrait runs the flow down, landscape right,
   and `auto` picks by the canvas.
+- **Port sides.** `fromSide` and `toSide` on an edge say which side of its steps it leaves and
+  reaches, such as a way back that leaves a decision sideways; see [Port sides](#port-sides).
 - **Text alternative.** The description names the steps in reading order — layer by layer — and
   where each one leads, with the main path, the lanes and the groups. Before the steps it names
   the shape of the graph where there is one to tell (see [Graph structure](#graph-structure));
@@ -938,6 +940,34 @@ color. The colors are CSS custom properties (`--chartlet-role-blue`, `--chartlet
 …) that a host page can override.
 
 Limits: 1–40 steps with unique `id`s, up to 80 edges, 8 lanes and 8 groups.
+
+### Port sides
+
+An edge leaves its step on the side the flow leads to and reaches the next on the side it comes
+from. `fromSide` and `toSide` pin the side instead, named after the flow so that they hold in
+portrait, in landscape and in the mobile variant: `start` faces the steps before, `end` the steps
+after, and `left` and `right` lie across the flow — left and right in portrait, top and bottom in
+landscape.
+
+```json
+{ "from": "compliant", "to": "draft", "label": "no", "fromSide": "right", "toSide": "right" }
+```
+
+- An edge with `left` or `right` leaves the side of its step level with its middle, runs along
+  the flow on a short stub beside it and changes course between the layers like any other edge;
+  the layout keeps room beside the step for it. A way back that leaves and reaches the same side
+  runs straight past the steps between. Several edges on one side of a step spread along it, each
+  on a stub of its own, so they do not cross there.
+- `start` and `end` are where an edge meets its step anyway when they agree with its direction:
+  `end` on `fromSide` and `start` on `toSide` of an edge that leads on, the other way round for a
+  way back that closes a loop. The opposite would turn the edge back over its own step; chartlet
+  ignores it and reports `port_side_ignored` at the field.
+- An edge with a side keeps a line of its own: it never joins a shared trunk. On the main path it
+  is still drawn thicker, but the steps it joins are not lined up, since it cannot run straight.
+- An edge from a step to itself is drawn as a loop beside the step and takes no side
+  (`option_not_supported`).
+- Architecture diagrams take the same `fromSide` and `toSide` on their connections. Example
+  `contract-review`.
 
 ### Graph structure
 

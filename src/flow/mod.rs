@@ -25,7 +25,8 @@ use crate::{
     parts, roles,
     scene::{Circle, Element, Hotspot, Line, Rect, Scene, SymbolUse, Text, TextAnchor},
     spec::{
-        ChartSpec, Dash, DiagramOrientation, DiagramRole, FlowSpec, NodeKind, NumberStyle, PartSpec,
+        ChartSpec, Dash, DiagramOrientation, DiagramRole, FlowSpec, NodeKind, NumberStyle,
+        PartSpec, PortSide,
     },
     structure::{Facts, Structure},
     symbols::{self, Symbol},
@@ -294,6 +295,32 @@ pub(crate) struct Edge {
     pub weight: Option<f64>,
     /// What the edge means beyond its kind: the color and pattern of its line.
     pub role: Option<DiagramRole>,
+    /// The sides of its steps the edge is asked to leave and reach.
+    pub sides: Sides,
+}
+
+/// The sides of its steps an edge is asked to leave and reach, and where the edge stands in the
+/// specification, for warnings about them.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Sides {
+    pub from: Option<PortSide>,
+    pub to: Option<PortSide>,
+    pub path: String,
+}
+
+impl Sides {
+    /// Whether the edge asks for a side at either end.
+    pub(crate) const fn any(&self) -> bool {
+        self.from.is_some() || self.to.is_some()
+    }
+}
+
+/// A side of a step across the flow: towards smaller cross positions, left in portrait and top in
+/// landscape, or towards larger ones.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Across {
+    Low,
+    High,
 }
 
 /// What an edge has at one of its ends.
@@ -438,6 +465,11 @@ impl Diagram {
                     sign: "→",
                     weight: edge.weight,
                     role: edge.role,
+                    sides: Sides {
+                        from: edge.from_side,
+                        to: edge.to_side,
+                        path: format!("/flow/edges/{index}"),
+                    },
                 })
                 .collect(),
             lanes: flow.lanes.iter().map(|lane| lane.label.clone()).collect(),
@@ -498,6 +530,7 @@ impl Diagram {
             sign: "—",
             weight: None,
             role: None,
+            sides: Sides::default(),
         });
         self.nodes.push(Node {
             label: text.to_owned(),
@@ -548,6 +581,10 @@ struct Model<'a> {
     number_style: NumberStyle,
     /// The edges drawn on shared trunks.
     trunks: Trunks,
+    /// Per edge, the side across the flow it leaves its first step on and reaches its last on.
+    across: Vec<(Option<Across>, Option<Across>)>,
+    /// Per step, the room the edges that meet it across the flow take on its low and high side.
+    side_room: Vec<(f64, f64)>,
 }
 
 impl<'a> Model<'a> {
@@ -602,6 +639,8 @@ impl<'a> Model<'a> {
                 )
             })
             .collect();
+        let across = across_sides(diagram, &graph, warnings);
+        let side_room = side_room(diagram.nodes.len(), &graph, &across, spacing.passing_gap);
         Self {
             diagram,
             spacing,
@@ -616,8 +655,91 @@ impl<'a> Model<'a> {
             loop_lines,
             number_style,
             trunks: Trunks::none(diagram.edges.len()),
+            across,
+            side_room,
         }
     }
+}
+
+/// Per edge, the side across the flow it is asked to leave its first step on and reach its last
+/// on, in the order the layout runs it: an edge the layout turned around leaves its `to` and
+/// reaches its `from`. A side along the flow is where the edge meets its step anyway, or else
+/// would turn the edge back over that step and its other edges: then it is reported and the edge
+/// meets the step where the flow leads.
+fn across_sides(
+    diagram: &Diagram,
+    graph: &Graph,
+    warnings: &mut Vec<ChartWarning>,
+) -> Vec<(Option<Across>, Option<Across>)> {
+    diagram
+        .edges
+        .iter()
+        .zip(&graph.chains)
+        .map(|(edge, chain)| {
+            let Some(chain) = chain else {
+                return (None, None);
+            };
+            let mut side = |side: Option<PortSide>, field: &str, along: PortSide| match side {
+                Some(PortSide::Left) => Some(Across::Low),
+                Some(PortSide::Right) => Some(Across::High),
+                Some(side) if side != along => {
+                    warnings.push(ChartWarning::new(
+                        "port_side_ignored",
+                        format!("{}/{field}", edge.sides.path),
+                        "on this side the edge would turn back over its node; it meets the node \
+                         where the flow leads, use left or right to leave the flow",
+                    ));
+                    None
+                }
+                _ => None,
+            };
+            let (from_along, to_along) = if chain.reversed {
+                (PortSide::Start, PortSide::End)
+            } else {
+                (PortSide::End, PortSide::Start)
+            };
+            let from = side(edge.sides.from, "fromSide", from_along);
+            let to = side(edge.sides.to, "toSide", to_along);
+            if chain.reversed {
+                (to, from)
+            } else {
+                (from, to)
+            }
+        })
+        .collect()
+}
+
+/// Per step, the room the edges that meet it across the flow take beside it on its low and its
+/// high side: a stub out of the step, and a track more for every further edge on one side.
+fn side_room(
+    nodes: usize,
+    graph: &Graph,
+    across: &[(Option<Across>, Option<Across>)],
+    stub: f64,
+) -> Vec<(f64, f64)> {
+    (0..nodes)
+        .map(|node| {
+            let room = |side: Across| {
+                let (mut leaving, mut reaching) = (0, 0);
+                for (chain, (leave, reach)) in graph.chains.iter().zip(across) {
+                    let Some(chain) = chain else { continue };
+                    if chain.items[0] == node && *leave == Some(side) {
+                        leaving += 1;
+                    }
+                    if chain.items[chain.items.len() - 1] == node && *reach == Some(side) {
+                        reaching += 1;
+                    }
+                }
+                let most = usize::max(leaving, reaching);
+                if most == 0 {
+                    0.0
+                } else {
+                    stub + TRACK * count(most - 1)
+                }
+            };
+            (room(Across::Low), room(Across::High))
+        })
+        .collect()
 }
 
 /// Each step's label and sublabel on one or two lines, and its box: width and height.
@@ -1099,6 +1221,7 @@ struct Plan {
 }
 
 impl Plan {
+    #[allow(clippy::too_many_lines)]
     fn new(
         spec: &ChartSpec,
         model: &Model,
@@ -1126,7 +1249,17 @@ impl Plan {
             }
         };
         let loop_room = loop_room(model, landscape, metrics);
-        let after = |item: usize| graph.items[item].node.map_or(0.0, |node| loop_room[node]);
+        // Beside a step, the room of its loop and of the edges that meet it across the flow.
+        let after = |item: usize| {
+            graph.items[item]
+                .node
+                .map_or(0.0, |node| loop_room[node] + model.side_room[node].1)
+        };
+        let before = |item: usize| {
+            graph.items[item]
+                .node
+                .map_or(0.0, |node| model.side_room[node].0)
+        };
         let gap = |a: usize, b: usize| {
             let (first, second) = (&graph.items[a], &graph.items[b]);
             let base = if first.node.is_some() && second.node.is_some() {
@@ -1140,6 +1273,7 @@ impl Plan {
                 + cross_size(b) / 2.0
                 + base
                 + after(a)
+                + before(b)
                 + model.spacing.group_gap * frames
         };
         let lane_head = if landscape { LANE_HEAD } else { 0.0 };
@@ -1148,11 +1282,11 @@ impl Plan {
             graph,
             &cross_size,
             &gap,
-            &after,
+            (&before, &after),
             lane_head,
             metrics,
         );
-        let cross = place(graph, &cross_size, &gap, &bands, lane_head);
+        let cross = place(graph, &cross_size, &gap, &before, &bands, lane_head);
         let cross_length = if bands.is_empty() {
             content_length(graph, &cross, &cross_size, &after)
         } else {
@@ -1185,11 +1319,14 @@ impl Plan {
             &plan.bands,
             lane_head,
         );
-        let cross_needed = if plan.bands.is_empty() && !diagram.groups.is_empty() {
+        let mut cross_needed = if plan.bands.is_empty() && !diagram.groups.is_empty() {
             plan.keep_frames_clear(model, &cross_size, &gap, &after)
         } else {
             cross_needed
         };
+        if plan.bands.is_empty() && model.side_room.iter().any(|room| room.0 > 0.0) {
+            cross_needed += plan.clear_low_sides(graph, &cross_size, &before);
+        }
         let ports = Ports::new(graph, &plan.cross, &cross_size, model, landscape);
         let ends = lane_ends(diagram, landscape);
         let gaps = Gaps::new(model, &plan, &ports, landscape);
@@ -1256,6 +1393,24 @@ impl Plan {
         self.cross_length = content_length(&model.graph, &self.cross, cross_size, after)
             .max(frames_reach(model, &self.cross, cross_size, landscape).1);
         self.cross_length
+    }
+
+    /// Moves the content on along the cross axis where edges that meet the first steps across the
+    /// flow, on their low side, reach before 0; returns how far.
+    fn clear_low_sides(
+        &mut self,
+        graph: &Graph,
+        cross_size: &impl Fn(usize) -> f64,
+        before: &impl Fn(usize) -> f64,
+    ) -> f64 {
+        let low = (0..graph.items.len())
+            .map(|item| self.cross[item] - cross_size(item) / 2.0 - before(item))
+            .fold(0.0, f64::min);
+        for position in &mut self.cross {
+            *position -= low;
+        }
+        self.cross_length -= low;
+        -low
     }
 
     /// Spreads the lanes over `room` on the cross axis, each its share wider, its steps and
@@ -1374,7 +1529,7 @@ fn lane_bands(
     graph: &Graph,
     cross_size: &impl Fn(usize) -> f64,
     gap: &impl Fn(usize, usize) -> f64,
-    after: &impl Fn(usize) -> f64,
+    (before, after): (&impl Fn(usize) -> f64, &impl Fn(usize) -> f64),
     lane_head: f64,
     metrics: &impl TextMetrics,
 ) -> Vec<(f64, f64)> {
@@ -1394,7 +1549,8 @@ fn lane_bands(
     }
     for layer in &graph.layers {
         for segment in segments(graph, layer) {
-            let span = cross_size(segment[0]) / 2.0
+            let span = before(segment[0])
+                + cross_size(segment[0]) / 2.0
                 + segment
                     .windows(2)
                     .map(|pair| gap(pair[0], pair[1]))
@@ -1430,6 +1586,7 @@ fn place(
     graph: &Graph,
     cross_size: &impl Fn(usize) -> f64,
     gap: &impl Fn(usize, usize) -> f64,
+    before: &impl Fn(usize) -> f64,
     bands: &[(f64, f64)],
     lane_head: f64,
 ) -> Vec<f64> {
@@ -1438,7 +1595,7 @@ fn place(
         graph.items[segment[0]].lane.map(|lane| {
             let band = bands[lane];
             (
-                band.0 + LANE_PAD + lane_head + cross_size(segment[0]) / 2.0,
+                band.0 + LANE_PAD + lane_head + before(segment[0]) + cross_size(segment[0]) / 2.0,
                 band.1 - LANE_PAD - cross_size(segment[segment.len() - 1]) / 2.0,
             )
         })
@@ -1523,8 +1680,9 @@ fn straighten(
     lane_head: f64,
 ) {
     let graph = &model.graph;
+    // An edge that meets a step across the flow cannot run straight.
     let edges: Vec<usize> = (0..model.diagram.edges.len())
-        .filter(|edge| model.diagram.edges[*edge].main)
+        .filter(|edge| model.diagram.edges[*edge].main && model.across[*edge] == (None, None))
         .collect();
     // Moving one item may make room for, or take room from, another; a few rounds settle it.
     for _ in 0..3 {
@@ -1561,6 +1719,7 @@ fn straighten(
             }
         }
     }
+    line_up_side_runs(model, cross, cross_size, gap, bands, lane_head);
     // Then the small steps of every other edge, where an item off the main path can move.
     let on_main: Vec<bool> = (0..graph.items.len())
         .map(|item| {
@@ -1609,6 +1768,57 @@ fn straighten(
             .fold(f64::INFINITY, f64::min);
         for position in cross.iter_mut() {
             *position -= low;
+        }
+    }
+}
+
+/// Lines up the items that carry an edge on beside a step it meets across the flow with the
+/// outermost stub on that side, where their neighbours leave room.
+fn line_up_side_runs(
+    model: &Model,
+    cross: &mut [f64],
+    cross_size: &impl Fn(usize) -> f64,
+    gap: &impl Fn(usize, usize) -> f64,
+    bands: &[(f64, f64)],
+    lane_head: f64,
+) {
+    let graph = &model.graph;
+    for (edge, chain) in graph.chains.iter().enumerate() {
+        let Some(chain) = chain else { continue };
+        let inner = &chain.items[1..chain.items.len() - 1];
+        let stub = |node: usize, side: Across| {
+            let (low, high) = model.side_room[node];
+            match side {
+                Across::Low => cross[node] - cross_size(node) / 2.0 - low,
+                Across::High => cross[node] + cross_size(node) / 2.0 + high,
+            }
+        };
+        let (first, last) = (chain.items[0], chain.items[chain.items.len() - 1]);
+        // From the end that meets its step across the flow; from both, outside both stubs.
+        let (target, backwards) = match model.across[edge] {
+            (None, None) => continue,
+            (Some(Across::Low), Some(Across::Low)) => (
+                f64::min(stub(first, Across::Low), stub(last, Across::Low)),
+                false,
+            ),
+            (Some(Across::High), Some(Across::High)) => (
+                f64::max(stub(first, Across::High), stub(last, Across::High)),
+                false,
+            ),
+            (Some(side), _) => (stub(first, side), false),
+            (None, Some(side)) => (stub(last, side), true),
+        };
+        let order: Vec<usize> = if backwards {
+            inner.iter().rev().copied().collect()
+        } else {
+            inner.to_vec()
+        };
+        for item in order {
+            if !align(
+                graph, cross, item, target, cross_size, gap, bands, lane_head, false,
+            ) {
+                break;
+            }
         }
     }
 }
@@ -1859,9 +2069,15 @@ fn align(
 
 /// Where edges leave and reach their steps on the cross axis, as offsets from the step's middle.
 struct Ports {
-    /// Per edge: the offset where it leaves its first step and where it reaches its last.
+    /// Per edge: the offset where it leaves its first step and where it reaches its last. For an
+    /// edge that meets its step across the flow, the offset of the stub beside the step it runs
+    /// along.
     leave: Vec<f64>,
     reach: Vec<f64>,
+    /// Per edge that leaves or reaches its step across the flow: where on the main axis it meets
+    /// the side of the step, as an offset from the step's middle.
+    leave_along: Vec<Option<f64>>,
+    reach_along: Vec<Option<f64>>,
 }
 
 impl Ports {
@@ -1884,12 +2100,16 @@ impl Ports {
                     .filter_map(|(edge, chain)| {
                         let chain = chain.as_ref()?;
                         let items = &chain.items;
-                        let (end, next) = if outgoing {
-                            (items[0], items[1])
+                        let (end, next, side) = if outgoing {
+                            (items[0], items[1], model.across[edge].0)
                         } else {
-                            (items[items.len() - 1], items[items.len() - 2])
+                            (
+                                items[items.len() - 1],
+                                items[items.len() - 2],
+                                model.across[edge].1,
+                            )
                         };
-                        (end == node).then_some((cross[next], edge))
+                        (end == node && side.is_none()).then_some((cross[next], edge))
                     })
                     .collect();
                 // The edges of a shared trunk take one port, where they lie on average.
@@ -1941,7 +2161,129 @@ impl Ports {
                 }
             }
         }
-        Self { leave, reach }
+        let mut ports = Self {
+            leave,
+            reach,
+            leave_along: vec![None; edges],
+            reach_along: vec![None; edges],
+        };
+        ports.across(graph, cross, cross_size, model, landscape);
+        ports
+    }
+
+    /// The ports of the edges that meet their steps across the flow. On each side of a step, the
+    /// edges that reach it come first along the flow and those that leave it after them, spread
+    /// over the step's depth; each runs along a stub of its own beside the step, the edge that
+    /// runs further along the step outside the others, so that none crosses another there.
+    fn across(
+        &mut self,
+        graph: &Graph,
+        cross: &[f64],
+        cross_size: &impl Fn(usize) -> f64,
+        model: &Model,
+        landscape: bool,
+    ) {
+        let stub = model.spacing.passing_gap;
+        let edges = graph.chains.len();
+        let (mut leave_alone, mut reach_alone) = (vec![false; edges], vec![false; edges]);
+        for node in 0..model.diagram.nodes.len() {
+            let depth = if landscape {
+                model.sizes[node].0
+            } else {
+                model.sizes[node].1
+            };
+            for side in [Across::Low, Across::High] {
+                let meeting = |leaving: bool| -> Vec<usize> {
+                    (0..graph.chains.len())
+                        .filter(|&edge| {
+                            graph.chains[edge].as_ref().is_some_and(|chain| {
+                                let items = &chain.items;
+                                if leaving {
+                                    items[0] == node && model.across[edge].0 == Some(side)
+                                } else {
+                                    items[items.len() - 1] == node
+                                        && model.across[edge].1 == Some(side)
+                                }
+                            })
+                        })
+                        .collect()
+                };
+                let (reaching, leaving) = (meeting(false), meeting(true));
+                let ports = reaching.len() + leaving.len();
+                if ports == 0 {
+                    continue;
+                }
+                let step = if ports > 1 {
+                    (depth * 0.6 / count(ports - 1)).min(16.0)
+                } else {
+                    0.0
+                };
+                let sign = if side == Across::High { 1.0 } else { -1.0 };
+                let middle = count(ports - 1) / 2.0;
+                for (index, &edge) in reaching.iter().enumerate() {
+                    self.reach_along[edge] = Some((count(index) - middle) * step);
+                    self.reach[edge] =
+                        sign * (cross_size(node) / 2.0 + stub + TRACK * count(index));
+                    reach_alone[edge] = ports == 1;
+                }
+                for (index, &edge) in leaving.iter().enumerate() {
+                    let outside = leaving.len() - 1 - index;
+                    self.leave_along[edge] = Some((count(reaching.len() + index) - middle) * step);
+                    self.leave[edge] =
+                        sign * (cross_size(node) / 2.0 + stub + TRACK * count(outside));
+                    leave_alone[edge] = ports == 1;
+                }
+            }
+        }
+        // An edge alone on its side of a step runs on in line with what it leads to beside the
+        // step, where the step's layer leaves room: the item that carries it on, or its stub at
+        // the other end on the same side. It then needs no track to change course.
+        let room = |node: usize, offset: f64| {
+            let layer = &graph.layers[graph.layer[node]];
+            let position = graph.position[node];
+            let neighbour = if offset > 0.0 {
+                layer.get(position + 1)
+            } else {
+                position.checked_sub(1).map(|before| &layer[before])
+            };
+            neighbour.map_or(f64::INFINITY, |&other| {
+                (cross[other] - cross[node]).abs() - cross_size(other) / 2.0 - stub
+            })
+        };
+        let outer = |offset: f64, a: f64, b: f64| if offset > 0.0 { a.max(b) } else { a.min(b) };
+        for (edge, chain) in graph.chains.iter().enumerate() {
+            let Some(chain) = chain else { continue };
+            let items = &chain.items;
+            let (first, last) = (items[0], items[items.len() - 1]);
+            let (next, before) = (items[1], items[items.len() - 2]);
+            let (leave, reach) = (self.leave[edge], self.reach[edge]);
+            let fits =
+                |node: usize, at: f64| (at - cross[node]).abs() <= room(node, at - cross[node]);
+            if leave_alone[edge]
+                && reach_alone[edge]
+                && items.len() == 2
+                && model.across[edge].0 == model.across[edge].1
+            {
+                let at = outer(leave, cross[first] + leave, cross[last] + reach);
+                if fits(first, at) && fits(last, at) {
+                    self.leave[edge] = at - cross[first];
+                    self.reach[edge] = at - cross[last];
+                }
+                continue;
+            }
+            if leave_alone[edge] && graph.items[next].node.is_none() {
+                let at = outer(leave, cross[first] + leave, cross[next]);
+                if fits(first, at) {
+                    self.leave[edge] = at - cross[first];
+                }
+            }
+            if reach_alone[edge] && graph.items[before].node.is_none() {
+                let at = outer(reach, cross[last] + reach, cross[before]);
+                if fits(last, at) {
+                    self.reach[edge] = at - cross[last];
+                }
+            }
+        }
     }
 }
 
@@ -1958,6 +2300,52 @@ fn edge_depth(plan: &Plan, model: &Model, node: usize, offset: f64) -> f64 {
         main / 2.0 * (1.0 - 2.0 * offset.abs() / cross).max(0.0)
     } else {
         main / 2.0
+    }
+}
+
+/// Where an edge meets step `node`, whose middle lies at `middle` on the main axis, at `offset`
+/// across: on its far side when `leaving`, on its near side otherwise. An edge that meets the step
+/// across the flow, at `along`, meets the side of the step and runs along the end of its stub: the
+/// two points in the order the edge passes them.
+fn port_points(
+    plan: &Plan,
+    model: &Model,
+    (node, middle): (usize, f64),
+    (offset, along): (f64, Option<f64>),
+    leaving: bool,
+) -> Vec<(f64, f64)> {
+    let cross = plan.cross[node];
+    let Some(along) = along else {
+        let depth = edge_depth(plan, model, node, offset);
+        let main = if leaving {
+            middle + depth
+        } else {
+            middle - depth
+        };
+        return vec![(main, cross + offset)];
+    };
+    let side = side_depth(plan, model, node, along).copysign(offset);
+    let main = middle + along;
+    let mut points = vec![(main, cross + side), (main, cross + offset)];
+    if !leaving {
+        points.reverse();
+    }
+    points
+}
+
+/// How far the side of step `node` lies from its middle on the cross axis, at `along` on the main
+/// axis: half its width across the flow, less towards the corners of a diamond.
+fn side_depth(plan: &Plan, model: &Model, node: usize, along: f64) -> f64 {
+    let (width, height) = plan.sizes[node];
+    let (main, cross) = if plan.landscape {
+        (width, height)
+    } else {
+        (height, width)
+    };
+    if model.diagram.nodes[node].shape == Shape::Decision {
+        cross / 2.0 * (1.0 - 2.0 * along.abs() / main).max(0.0)
+    } else {
+        cross / 2.0
     }
 }
 
@@ -2016,7 +2404,13 @@ impl Gaps {
                 });
             }
             let lines = &model.edge_labels[edge];
-            if !lines.is_empty() {
+            // The label of an edge that meets its step across the flow stands beside the step.
+            let beside = if chain.reversed {
+                ports.reach_along[edge].is_some()
+            } else {
+                ports.leave_along[edge].is_some()
+            };
+            if !lines.is_empty() && !beside {
                 // In portrait, labels on the same side of a step stack along the flow.
                 let (node, offset) = if chain.reversed {
                     (items[items.len() - 1], ports.reach[edge])
@@ -2335,11 +2729,12 @@ fn route(
             let items = &chain.items;
             let first = items[0];
             let last = items[items.len() - 1];
-            let start = (
-                middle(first) + edge_depth(plan, model, first, ports.leave[edge]),
-                plan.cross[first] + ports.leave[edge],
-            );
-            let mut points = vec![start];
+            // An edge that meets its step across the flow leaves the side of the step, and runs
+            // along the flow on its stub beside it; its label goes beside the stub.
+            let (leave, reach) = (ports.leave[edge], ports.reach[edge]);
+            let leaving = (leave, ports.leave_along[edge]);
+            let mut points = port_points(plan, model, (first, middle(first)), leaving, true);
+            let start = points[points.len() - 1];
             for piece in gaps.pieces.iter().filter(|piece| piece.edge == edge) {
                 if let Some(track) = piece.track {
                     let main = gaps.track(piece.layer, track, plan.layers[piece.layer].1, stretch);
@@ -2347,15 +2742,14 @@ fn route(
                     points.push((main, piece.to));
                 }
             }
-            points.push((
-                middle(last) - edge_depth(plan, model, last, ports.reach[edge]),
-                plan.cross[last] + ports.reach[edge],
-            ));
-            let end = points[points.len() - 1];
+            let reaching = (reach, ports.reach_along[edge]);
+            let arrival = port_points(plan, model, (last, middle(last)), reaching, false);
+            let end = arrival[0];
+            points.extend(arrival);
             let (label_at, offset) = if chain.reversed {
-                (end, ports.reach[edge])
+                (end, reach)
             } else {
-                (start, ports.leave[edge])
+                (start, leave)
             };
             // A label in the middle goes to the side where no other edge meets the same side of
             // the step: right in portrait, above in landscape, unless that side is taken.

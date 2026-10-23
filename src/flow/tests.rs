@@ -768,3 +768,132 @@ fn a_group_split_by_the_order_of_the_specification_stays_together() {
     let output = svg(json);
     assert!(output.warnings.is_empty(), "{:?}", output.warnings);
 }
+
+/// The points of the line of the edge with `title`, from where it starts.
+fn edge_points(svg: &str, title: &str) -> Vec<(f64, f64)> {
+    let chunks: Vec<&str> = svg.split('<').collect();
+    let index = chunks
+        .iter()
+        .position(|chunk| *chunk == format!("title>{title}"))
+        .unwrap_or_else(|| panic!("{title} is drawn"));
+    let line = chunks[index - 1];
+    let start = line.find("points=\"").expect("a line has points") + 8;
+    line[start..]
+        .split('"')
+        .next()
+        .expect("points")
+        .split(' ')
+        .map(|pair| {
+            let (x, y) = pair.split_once(',').expect("a point");
+            (x.parse().expect("x"), y.parse().expect("y"))
+        })
+        .collect()
+}
+
+#[test]
+fn an_edge_meets_the_sides_it_names_in_either_orientation_and_on_a_phone() {
+    let json = SPEC
+        .replace(
+            r#""label": "again"}"#,
+            r#""label": "again", "fromSide": "right", "toSide": "right"}"#,
+        )
+        .replacen('{', r#"{"mobile": {"width": 360, "height": 640},"#, 1);
+    for (orientation, variant) in [
+        ("portrait", crate::Variant::Desktop),
+        ("landscape", crate::Variant::Desktop),
+        ("portrait", crate::Variant::Mobile),
+    ] {
+        let json = json.replace(
+            r#""mainPath""#,
+            &format!(r#""orientation": "{orientation}", "mainPath""#),
+        );
+        let options = RenderOptions {
+            variant,
+            ..RenderOptions::default()
+        };
+        let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        assert!(
+            output
+                .warnings
+                .iter()
+                .all(|warning| warning.code == "canvas_too_small"),
+            "{:?}",
+            output.warnings
+        );
+        let again = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        assert_eq!(again.content, output.content, "{orientation} {variant:?}");
+        let centers = centers(&output.content);
+        let center = |name: &str| {
+            let (_, x, y) = centers
+                .iter()
+                .find(|(title, _, _)| title == name)
+                .unwrap_or_else(|| panic!("{name} is drawn"));
+            (*x, *y)
+        };
+        let points = edge_points(&output.content, "Edit → Looks good?: again");
+        let (first, last) = (points[0], points[points.len() - 1]);
+        // Right is right on the page in portrait and the bottom in landscape: the edge leaves
+        // Edit and reaches the decision there, level with their middles.
+        for (point, name) in [(first, "Edit"), (last, "Looks good?")] {
+            let (x, y) = center(name);
+            let beside = if orientation == "landscape" {
+                (point.0 - x).abs() < 0.01 && point.1 > y + 10.0
+            } else {
+                (point.1 - y).abs() < 0.01 && point.0 > x + 10.0
+            };
+            assert!(beside, "{orientation} {variant:?}: {name} at {point:?}");
+        }
+    }
+}
+
+#[test]
+fn a_side_along_the_flow_that_turns_an_edge_back_is_reported() {
+    // Where the flow leads anyway, a side changes nothing.
+    let along = SPEC.replace(
+        r#"{"from": "start", "to": "check"}"#,
+        r#"{"from": "start", "to": "check", "fromSide": "end", "toSide": "start"}"#,
+    );
+    let output = svg(&along);
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    let first = |content: &str| edge_points(content, "Draft → Looks good?");
+    assert_eq!(first(&output.content), first(&svg(SPEC).content));
+    // The edge from Edit back to the decision leaves Edit on its start side, towards the steps
+    // before, and reaches the decision on its end side; the other way round would turn it back
+    // over both.
+    let back = SPEC.replace(
+        r#""label": "again"}"#,
+        r#""label": "again", "fromSide": "end", "toSide": "start"}"#,
+    );
+    let output = svg(&back);
+    let warnings: Vec<(&str, &str)> = output
+        .warnings
+        .iter()
+        .map(|warning| (warning.code, warning.path.as_str()))
+        .collect();
+    assert_eq!(
+        warnings,
+        [
+            ("port_side_ignored", "/flow/edges/3/fromSide"),
+            ("port_side_ignored", "/flow/edges/3/toSide")
+        ]
+    );
+    let back = |content: &str| edge_points(content, "Edit → Looks good?: again");
+    assert_eq!(back(&output.content), back(&svg(SPEC).content));
+}
+
+#[test]
+fn a_loop_takes_no_side() {
+    let json = SPEC.replace(
+        r#"{"from": "publish", "to": "done"}"#,
+        r#"{"from": "publish", "to": "done"}, {"from": "edit", "to": "edit", "toSide": "left"}"#,
+    );
+    assert_eq!(
+        error(&json),
+        ("option_not_supported", "/flow/edges/5/toSide".to_owned())
+    );
+    let json = SPEC.replace(r#""to": "done"}"#, r#""to": "done", "fromSide": "up"}"#);
+    assert_eq!(
+        error(&json),
+        ("invalid_spec", "/flow/edges/4/fromSide".to_owned())
+    );
+}

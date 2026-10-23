@@ -1451,7 +1451,9 @@
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
               "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
               "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
-              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" }
+              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" },
+              "fromSide": { "description": "The side of `from` the connection leaves.", "$ref": "#/$defs/portSide" },
+              "toSide": { "description": "The side of `to` the connection reaches.", "$ref": "#/$defs/portSide" }
             }
           }
         },
@@ -1631,8 +1633,14 @@
         "label": { "type": "string", "minLength": 1, "maxLength": 60 },
         "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
         "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
-        "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
+        "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
+        "fromSide": { "description": "The side of `from` the edge leaves.", "$ref": "#/$defs/portSide" },
+        "toSide": { "description": "The side of `to` the edge reaches.", "$ref": "#/$defs/portSide" }
       }
+    },
+    "portSide": {
+      "description": "A side of a node, named after the flow so that it holds in either orientation: start faces the nodes before, end the nodes after, left and right lie across the flow (left and right in portrait, top and bottom in landscape). Without it the layout chooses. A side along the flow against the edge is ignored (port_side_ignored); an edge from a node to itself takes none. An edge with a side never joins a shared trunk.",
+      "enum": ["start", "end", "left", "right"]
     },
     "diagramRole": {
       "description": "What a node or an edge means beyond its kind, alike in every diagram. critical: a strong red outline or line and a badge with !; planned: dashed, violet, badge +; deprecated: dotted, gray, badge −. The kind keeps its shape and fill; a legend below the diagram names the roles used, and the description and the table name every role.",

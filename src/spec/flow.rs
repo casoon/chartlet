@@ -217,6 +217,46 @@ pub struct FlowEdgeSpec {
     pub weight: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<DiagramRole>,
+    /// The side of `from` the edge leaves, and the side of `to` it reaches; where the layout
+    /// chooses when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_side: Option<PortSide>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_side: Option<PortSide>,
+}
+
+/// A side of a node, named after the direction of the flow so that it holds in either
+/// orientation: `start` faces the steps before, `end` the steps after, and `left` and `right` are
+/// the sides across the flow, left and right in portrait, top and bottom in landscape.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PortSide {
+    Start,
+    End,
+    Left,
+    Right,
+}
+
+/// Checks the sides an edge from `from` to `to` asks for: an edge from a node to itself is drawn
+/// as a loop beside it and takes none.
+pub(crate) fn validate_sides(
+    (from, to): (&str, &str),
+    sides: (Option<PortSide>, Option<PortSide>),
+    path: &str,
+) -> Result<(), ChartError> {
+    if from != to {
+        return Ok(());
+    }
+    let field = match sides {
+        (Some(_), _) => "fromSide",
+        (None, Some(_)) => "toSide",
+        (None, None) => return Ok(()),
+    };
+    Err(ChartError::new(
+        "option_not_supported",
+        format!("{path}/{field}"),
+        "an edge from a node to itself is drawn as a loop beside it; remove the side",
+    ))
 }
 
 /// What a node or an edge of a diagram means beyond its kind, the same in every diagram: each
@@ -725,6 +765,11 @@ impl FlowSpec {
             }
             validate_weight(edge.weight, &path)?;
             validate_role(edge.role, edge.dash, &path)?;
+            validate_sides(
+                (&edge.from, &edge.to),
+                (edge.from_side, edge.to_side),
+                &path,
+            )?;
         }
         Ok(())
     }

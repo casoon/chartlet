@@ -12,7 +12,7 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, End, Ends, Group, Node, Shape, layout_diagram},
+    flow::{Diagram, Edge, End, Ends, Group, Node, Shape, Sides, layout_diagram},
     metrics::TextMetrics,
     scene::Scene,
     spec::{ChartSpec, ClassesSpec, ConnectionDirection, RelationKind, RelationSpec},
@@ -138,6 +138,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
                 sign: relation.direction.map_or("→", ConnectionDirection::sign),
                 weight: None,
                 role: None,
+                sides: Sides::default(),
             }
         })
         .collect();

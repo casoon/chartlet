@@ -8,7 +8,7 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, Ends, Group, Node, Shape, layout_diagram, reading_order},
+    flow::{Diagram, Edge, Ends, Group, Node, Shape, Sides, layout_diagram, reading_order},
     metrics::TextMetrics,
     scene::Scene,
     spec::{ChartSpec, StateKind, StateSpec},
@@ -98,6 +98,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             sign: "→",
             weight: None,
             role: None,
+            sides: Sides::default(),
         });
     }
     let mut groups = Vec::new();
@@ -143,6 +144,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             sign: "→",
             weight: None,
             role: None,
+            sides: Sides::default(),
         });
     }
     Diagram {
