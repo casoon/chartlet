@@ -63,6 +63,7 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
                 shape: shape(component.kind),
                 lane: None,
                 group: boundary(&component.boundary),
+                id: Some(component.id.clone()),
                 path: format!("/architecture/components/{index}"),
                 compartments: Vec::new(),
                 value: None,

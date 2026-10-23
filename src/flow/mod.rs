@@ -216,6 +216,9 @@ pub(crate) struct Node {
     pub shape: Shape,
     pub lane: Option<usize>,
     pub group: Option<usize>,
+    /// The node's ID in the specification, which the hooks carry; `None` for a node the
+    /// specification does not name, such as the start dot of a state diagram.
+    pub id: Option<String>,
     /// Where the node stands in the specification, for warnings about its texts.
     pub path: String,
     /// The compartments of a class box below its name, each a list of lines such as the
@@ -356,6 +359,7 @@ impl Diagram {
                     shape: node.kind.into(),
                     lane: flow.lane_of(index),
                     group: flow.group_of(index),
+                    id: Some(node.id.clone()),
                     path: format!("/flow/nodes/{index}"),
                     compartments: Vec::new(),
                     value: node.value,
@@ -2201,7 +2205,10 @@ impl Plan {
             if let Some(step) = step {
                 classes.push_str(&heat::class(step));
             }
-            elements.push(Element::Group(classes));
+            elements.push(match &model.diagram.nodes[node].id {
+                Some(id) => Element::NodeGroup(classes, id.clone()),
+                None => Element::Group(classes),
+            });
             self.draw_node(model, node, elements);
             elements.push(Element::GroupEnd);
             let spec = &model.diagram.nodes[node];

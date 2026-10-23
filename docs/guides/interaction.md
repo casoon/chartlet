@@ -126,8 +126,29 @@ they are taken out again.
 | Root `<svg>` | `data-chartlet-type` (`time`, `multiples`, `line`, …), `data-chartlet-id` (its ID prefix) and `data-chartlet-locale` (`en` or `de`; the module labels its controls in that language) |
 | Plot of each pane (time, multiples, line) | An empty `<g data-chartlet-plot="" data-pane>` with `data-x-domain`/`data-x-range` and `data-y-domain`/`data-y-range`: values and the pixels they map to, linear between neighbouring pairs. A time axis lists Unix seconds — both ends of the span, or every observation when gaps are collapsed; a numeric time axis lists its numbers in millionths; a line chart lists category indices. A logarithmic value axis adds `data-y-scale="log"`: the mapping is then linear in the logarithm of the value. |
 | Data layers of a time chart or small multiples | `<g data-series data-pane data-name>` around a layer's line, area, band, candles and markers; `data-series` is the layer's index among all data layers |
+| Diagram nodes (flow, state, architecture, classes) | `data-chartlet-node` with the node's `id` from the specification on the group around the node's box and text; the start dot of a state diagram, which has no ID, carries none |
 | Annotation layers | `<g data-annotation data-pane>` around a reference line, zone or point marker; `data-annotation` is its index among all layers |
 | HTML data table | `data-chartlet-table` (the ID prefix) on `<table>`; `data-series`, `data-pane` and `data-part` (`value`, `lower`, `upper`, `open`, `high`, `low`, `close`) on each value column; `data-x` on each row (Unix seconds, or the row index); `data-value` with the unformatted number on each cell that has one |
 | SVG profile | The same table as `<script type="application/json" data-chartlet-data="">` inside the SVG: `{ "columns": [{ "name", "series", "pane", "part" }], "rows": [{ "x", "label", "text", "value" }] }`. A JSON data block is never executed, so CSP allows it. |
 
 The print variant carries no hooks.
+
+### Finding a diagram node
+
+`data-chartlet-node` is the `id` the specification gives a step, state, component or class — not
+its label, its position or its place in the list — so two classes both named `Order` stay apart,
+and reordering the specification changes nothing. It is not a DOM ID: the desktop and the mobile
+variant, or the same diagram embedded twice, carry the same value without a collision, so look it
+up within one figure. A host page needs no module for this:
+
+```js
+// Highlight the class `sales-order` in the figure that holds the domain model.
+const figure = document.querySelector('#model').closest('figure');
+for (const node of figure.querySelectorAll('[data-chartlet-node="sales-order"]')) {
+  node.classList.add('is-current');
+}
+```
+
+Edges carry no such hook yet: a relation has no ID of its own, and its place in the list is not a
+lasting identity. The hook only marks a group; it does not make it a button or a link, so a page
+that acts on a click also needs its own focusable control.

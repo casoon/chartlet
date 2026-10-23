@@ -906,6 +906,13 @@ fn emit_element(
         Element::Group(classes) => {
             write!(output, "<g class=\"{classes}\">").expect("write");
         }
+        Element::NodeGroup(classes, id) => {
+            write!(output, "<g class=\"{classes}\"").expect("write");
+            if hooks.is_some() {
+                write!(output, " data-chartlet-node=\"{}\"", escape(id)).expect("write");
+            }
+            output.push('>');
+        }
         Element::GroupEnd => output.push_str("</g>"),
         Element::Hotspot(_) => {}
     }

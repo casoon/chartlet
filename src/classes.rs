@@ -80,6 +80,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             shape: Shape::Class,
             lane: None,
             group: None,
+            id: Some(class.id.clone()),
             path: format!("/classes/classes/{index}"),
             compartments: vec![class.attributes.clone(), class.methods.clone()],
             value: None,
