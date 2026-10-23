@@ -26,6 +26,10 @@ pub(crate) enum Element {
     /// Opens a group whose classes tie what it holds to the diagram nodes it belongs to, for the
     /// focus of the HTML profile; [`Element::GroupEnd`] closes it.
     Group(String),
+    /// Opens a group like [`Element::Group`] around a diagram node that has an ID in the
+    /// specification: the classes, then that ID, which the `hooks` render option writes out as
+    /// `data-chartlet-node`. [`Element::GroupEnd`] closes it.
+    NodeGroup(String, String),
     GroupEnd,
     /// Draws nothing: where a diagram node stands, for the focus link the HTML profile lays over
     /// it.

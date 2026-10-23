@@ -86,8 +86,9 @@ pub struct RenderOptions {
     pub styles: Styles,
     /// Adds the `data-*` hooks that the optional interactive module of the npm package reads:
     /// chart type and ID on the root, the plot geometry of every pane, a group around what each
-    /// layer draws, and the unformatted values on the data table, or in a JSON data block in
-    /// the SVG profile. The print variant carries none.
+    /// layer draws, the specification ID of every diagram node of a flow chart, state,
+    /// architecture or class diagram, and the unformatted values on the data table, or in a
+    /// JSON data block in the SVG profile. The print variant carries none.
     pub hooks: bool,
 }
 

@@ -27,8 +27,9 @@ export interface RenderChartOptions {
   alternative?: boolean;
   /**
    * Add the `data-*` hooks that `@casoon/chartlet/interactive` reads: plot geometry, layer
-   * groups and unformatted values on the data table (or in a JSON data block in the SVG
-   * profile). Off by default; without it the output is unchanged.
+   * groups, the spec ID of each diagram node (`data-chartlet-node`) and unformatted values on
+   * the data table (or in a JSON data block in the SVG profile). Off by default; without it the
+   * output is unchanged.
    */
   hooks?: boolean;
   /** A `chartlet` executable to render with instead of the bundled WebAssembly build. */

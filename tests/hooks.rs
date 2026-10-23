@@ -82,6 +82,7 @@ fn without_hooks(content: &str) -> String {
         "data-chartlet-id",
         "data-chartlet-locale",
         "data-chartlet-table",
+        "data-chartlet-node",
         "data-part",
         "data-stacked",
         "data-x",
@@ -242,4 +243,115 @@ fn the_cli_writes_hooks_with_the_flag() {
     let svg = String::from_utf8(output.stdout).expect("UTF-8");
     assert!(svg.contains("data-chartlet-type=\"line\""));
     assert!(svg.contains("data-x-domain=\"0 5\""));
+}
+
+/// The group a diagram node's spec ID hooks onto, up to where its drawing starts.
+fn node_group<'a>(content: &'a str, id: &str) -> &'a str {
+    let hook = format!(" data-chartlet-node=\"{id}\">");
+    let end = content
+        .find(&hook)
+        .unwrap_or_else(|| panic!("a hook for {id}"))
+        + hook.len();
+    let group = &content[end..];
+    &group[..group.find("</g>").expect("a closed group")]
+}
+
+fn render_with(specification: &str, format: RenderFormat, id_prefix: &str) -> String {
+    render_json(
+        specification,
+        format,
+        &RenderOptions {
+            hooks: true,
+            id_prefix: Some(id_prefix.to_owned()),
+            ..RenderOptions::default()
+        },
+    )
+    .expect("the diagram renders")
+    .content
+}
+
+#[test]
+fn diagram_nodes_carry_their_spec_ids() {
+    // Two classes of the same name are told apart by their IDs.
+    let classes = r#"{"schemaVersion": 1, "type": "classes", "title": "Two orders",
+        "classes": {"classes": [
+            {"id": "sales-order", "label": "Order", "attributes": ["+ total: Money"]},
+            {"id": "stock_order", "label": "Order", "attributes": ["+ items: Int"]}
+        ], "relations": [{"from": "sales-order", "to": "stock_order", "kind": "association"}]}}"#;
+    let svg = render(classes, RenderFormat::Svg, true);
+    assert_eq!(svg.matches("data-chartlet-node=").count(), 2);
+    assert!(node_group(&svg, "sales-order").contains("+ total: Money"));
+    assert!(node_group(&svg, "stock_order").contains("+ items: Int"));
+    assert!(!render(classes, RenderFormat::Svg, false).contains("data-chartlet-node"));
+
+    // Flow charts and state diagrams take the same path; the start dot of a state diagram has
+    // no ID and so no hook.
+    let flow = render(
+        include_str!("../examples/order-flow.json"),
+        RenderFormat::Svg,
+        true,
+    );
+    assert!(node_group(&flow, "received").contains("Order"));
+    let states = include_str!("../examples/ticket-states.json");
+    let svg = render(states, RenderFormat::Svg, true);
+    assert!(node_group(&svg, "new").contains("New"));
+    let spec: serde_json::Value = serde_json::from_str(states).expect("JSON");
+    let composites = spec["state"]["states"]
+        .as_array()
+        .expect("states")
+        .iter()
+        .filter(|state| {
+            spec["state"]["states"]
+                .as_array()
+                .expect("states")
+                .iter()
+                .any(|inner| inner["in"] == state["id"])
+        })
+        .count();
+    assert_eq!(
+        svg.matches("data-chartlet-node=").count(),
+        spec["state"]["states"].as_array().expect("states").len() - composites
+    );
+}
+
+#[test]
+fn reordering_keeps_the_ids_of_diagram_nodes() {
+    let architecture = |components: &str| {
+        format!(
+            r#"{{"schemaVersion": 1, "type": "architecture", "title": "Shop",
+            "architecture": {{"components": [{components}],
+            "connections": [{{"from": "web", "to": "db"}}]}}}}"#
+        )
+    };
+    let (web, db) = (
+        r#"{"id": "web", "label": "Shop", "kind": "service"}"#,
+        r#"{"id": "db", "label": "Shop", "sublabel": "orders", "kind": "database"}"#,
+    );
+    for components in [format!("{web}, {db}"), format!("{db}, {web}")] {
+        let svg = render(&architecture(&components), RenderFormat::Svg, true);
+        assert!(!node_group(&svg, "web").contains("orders"));
+        assert!(node_group(&svg, "db").contains("orders"));
+    }
+}
+
+#[test]
+fn node_hooks_repeat_across_variants_and_embeds_without_dom_id_collisions() {
+    let specification = include_str!("../examples/tenant-architecture.json");
+    let page: Vec<String> = ["first", "second"]
+        .into_iter()
+        .map(|prefix| render_with(specification, RenderFormat::Html, prefix))
+        .collect();
+    // Each figure holds the desktop and the mobile variant, so every node is there twice.
+    let nodes = page[0].matches(" data-chartlet-node=\"proxy\"").count();
+    assert_eq!(nodes, 2);
+    let page = page.concat();
+    assert_eq!(page.matches(" data-chartlet-node=\"proxy\"").count(), 4);
+    let mut ids: Vec<&str> = page
+        .match_indices(" id=\"")
+        .map(|(start, _)| attribute(&page[start..], "id"))
+        .collect();
+    let all = ids.len();
+    ids.sort_unstable();
+    ids.dedup();
+    assert_eq!(ids.len(), all, "a DOM ID repeats");
 }
