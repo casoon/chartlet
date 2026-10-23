@@ -3,7 +3,7 @@ use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 81] = [
+const EXAMPLES: [(&str, &str, &str); 82] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -409,6 +409,11 @@ const EXAMPLES: [(&str, &str, &str); 81] = [
         include_str!("../examples/service-perspectives.json"),
         include_str!("../examples/service-perspectives.svg"),
     ),
+    (
+        "api-environments",
+        include_str!("../examples/api-environments.json"),
+        include_str!("../examples/api-environments.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -593,7 +598,7 @@ const SOCIAL_EXAMPLES: [(&str, &str, &str); 1] = [(
 )];
 
 /// Views of an architecture model besides its default view, and their reviewed SVGs.
-const VIEW_EXAMPLES: [(&str, &str, &str, &str); 2] = [
+const VIEW_EXAMPLES: [(&str, &str, &str, &str); 3] = [
     (
         "shop-views",
         "checkout",
@@ -605,6 +610,12 @@ const VIEW_EXAMPLES: [(&str, &str, &str, &str); 2] = [
         "debt",
         include_str!("../examples/service-perspectives.json"),
         include_str!("../examples/service-perspectives.debt.svg"),
+    ),
+    (
+        "api-environments",
+        "production",
+        include_str!("../examples/api-environments.json"),
+        include_str!("../examples/api-environments.production.svg"),
     ),
 ];
 

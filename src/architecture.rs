@@ -361,6 +361,17 @@ fn steps_in_order(architecture: &ArchitectureSpec) -> Vec<String> {
 /// For a view that leaves out part of its model, a sentence that says how much it shows, with a
 /// space in front; empty otherwise.
 fn view_scope(architecture: &ArchitectureSpec, locale: Locale) -> String {
+    if let Some((environment, components)) = &architecture.environment {
+        return format!(
+            " {}",
+            text::deployment(
+                locale,
+                environment,
+                architecture.components.len(),
+                *components
+            )
+        );
+    }
     match architecture.scope {
         Some(scope)
             if scope.components.0 < scope.components.1
@@ -572,6 +583,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         .iter()
         .any(|component| component.role.is_some());
     let mut columns = vec![words.component.to_owned(), words.message_kind.to_owned()];
+    let deployed = architecture.environment.is_some();
+    if deployed {
+        words.instance.clone_into(&mut columns[0]);
+    }
     if bounded {
         columns.push(words.boundary.to_owned());
     }

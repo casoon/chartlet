@@ -64,6 +64,10 @@ pub struct ArchitectureSpec {
     /// How much of its model a resolved view shows, for its description.
     #[serde(skip)]
     pub(crate) scope: Option<ViewScope>,
+    /// The environment a resolved deployment view shows, and how many components of the model
+    /// its instances run, for its description.
+    #[serde(skip)]
+    pub(crate) environment: Option<(String, usize)>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

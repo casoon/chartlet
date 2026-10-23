@@ -80,6 +80,8 @@ pub(crate) struct Words {
     pub component: &'static str,
     pub boundary: &'static str,
     pub connects_to: &'static str,
+    /// The instance column of a deployment view.
+    pub instance: &'static str,
     /// The package column of a class diagram's table.
     pub package: &'static str,
     /// The notes column of a class or architecture diagram's table.
@@ -254,6 +256,7 @@ const EN: Words = Words {
     yes: "yes",
     boundary: "Boundary",
     connects_to: "Connects to",
+    instance: "Instance",
     package: "Package",
     notes: "Notes",
     focus: "Focus",
@@ -377,6 +380,7 @@ const DE: Words = Words {
     yes: "ja",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
+    instance: "Instanz",
     package: "Paket",
     notes: "Notizen",
     focus: "Fokus",
@@ -1688,6 +1692,28 @@ pub(crate) fn view_scope(
             "Die Sicht zeigt {components} der {all_components} {} und {connections} der {all_connections} {} des Modells.",
             plural(all_components, "Komponente", "Komponenten"),
             plural(all_connections, "Verbindung", "Verbindungen"),
+        ),
+    }
+}
+
+/// What a deployment view shows: the environment and how many instances run how many
+/// components of the model.
+pub(crate) fn deployment(
+    locale: Locale,
+    environment: &str,
+    instances: usize,
+    components: usize,
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "It shows the environment {environment}: {instances} instance{} of {components} component{} of the model; only the connections listed for the instances are drawn.",
+            plural(instances, "", "s"),
+            plural(components, "", "s"),
+        ),
+        Locale::De => format!(
+            "Sie zeigt die Umgebung {environment}: {instances} {} von {components} {} des Modells; gezeichnet sind nur die für die Instanzen angegebenen Verbindungen.",
+            plural(instances, "Instanz", "Instanzen"),
+            plural(components, "Komponente", "Komponenten"),
         ),
     }
 }
