@@ -175,6 +175,8 @@ impl ArchitectureSpec {
             (view.connections.is_some(), "connections"),
             (!view.steps.is_empty(), "steps"),
             (!view.main_path.is_empty(), "mainPath"),
+            (!view.include.is_empty(), "include"),
+            (!view.exclude.is_empty(), "exclude"),
         ]
         .into_iter()
         .find_map(|(given, field)| given.then_some(field))
@@ -182,7 +184,7 @@ impl ArchitectureSpec {
             return Err(ChartError::new(
                 "option_not_supported",
                 format!("{path}/{field}"),
-                "a deployment view shows instances, hosts and instance connections; leave out components, connections, steps and mainPath",
+                "a deployment view shows instances, hosts and instance connections; leave out components, connections, steps, mainPath, include and exclude",
             ));
         }
         if view.instances.is_empty() {
@@ -393,6 +395,14 @@ mod tests {
                 edited(r#""environment": "Local","#, ""),
                 "option_not_supported",
                 "/architecture/views/1/hosts",
+            ),
+            (
+                edited(
+                    r#""environment": "Local","#,
+                    r#""environment": "Local", "include": ["db"],"#,
+                ),
+                "option_not_supported",
+                "/architecture/views/1/include",
             ),
             (
                 edited(

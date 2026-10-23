@@ -1430,7 +1430,8 @@
                 "enum": ["browser", "mobile", "api-gateway", "load-balancer", "cdn", "firewall", "identity", "container", "orchestrator", "function", "cloud", "cache", "object-storage", "message-broker", "search-index", "monitoring"]
               },
               "in": { "$ref": "#/$defs/identifier" },
-              "role": { "$ref": "#/$defs/diagramRole" }
+              "role": { "$ref": "#/$defs/diagramRole" },
+              "tags": { "description": "Names of groups the component belongs to, such as public or payments, by which views include or exclude it; not drawn.", "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } }
             }
           }
         },
@@ -1451,7 +1452,8 @@
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
               "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
               "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
-              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" }
+              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" },
+              "tags": { "description": "Names of groups the connection belongs to, by which views include or exclude it; not drawn.", "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } }
             }
           }
         },
@@ -1514,6 +1516,8 @@
               "width": { "description": "The width of the diagram the view renders, in place of the model's; checked like it.", "$ref": "#/properties/width" },
               "height": { "description": "The height of the diagram the view renders, in place of the model's; checked like it.", "$ref": "#/properties/height" },
               "mobile": { "description": "The mobile layout of the diagram the view renders, in place of the model's; checked like it.", "$ref": "#/properties/mobile" },
+              "include": { "description": "Tags that select more components: the view shows its listed components and every component carrying one of these tags and none of exclude. With connections, also the connections between shown components that carry one. Not with steps.", "type": "array", "items": { "$ref": "#/$defs/identifier" } },
+              "exclude": { "description": "Tags that leave out components and connections carrying one, unless the view lists them. A view with exclude but neither components nor include starts from every component. Not with steps.", "type": "array", "items": { "$ref": "#/$defs/identifier" } },
               "environment": { "description": "Makes the view a deployment view of this environment, such as Production: it shows instances on hosts joined by instance connections, in place of components, connections, steps and mainPath.", "type": "string", "minLength": 1, "maxLength": 60 },
               "hosts": { "description": "Deployment view: machines, clusters or zones, nested like boundaries; each holds an instance.", "type": "array", "items": { "$ref": "#/$defs/architecture/properties/boundaries/items" } },
               "instances": {

@@ -1123,6 +1123,21 @@ first — and never the whole model, so a view never passes for the complete sys
   by the optional `id` a connection carries. A view draws no connection the model does not have
   and leaves out every connection to a component it hides; it does not merge components into
   coarser ones.
+- **Tags.** Components and connections may carry `tags`, such as `"tags": ["public"]` — up to
+  eight, written like ids, never drawn. A view selects by them with `include` and `exclude`, in
+  addition to its lists, by one rule:
+  1. A component is shown when the view lists it in `components`, or when it carries a tag of
+     `include` and none of `exclude`. A view with `exclude` but neither `components` nor
+     `include` starts from every component.
+  2. Without `connections`, every connection between shown components comes along, except one
+     that carries a tag of `exclude`. With `connections`, the view shows those, and every
+     connection between shown components that carries a tag of `include` and none of `exclude`.
+
+  What a view lists by id is always shown; tags never take it away. The model's order stays.
+  `unknown_tag` for a tag no component or connection carries, `duplicate_tag` for one named
+  twice in `include` and `exclude` together, `invalid_tag`, `too_many_tags`, and `empty_view`
+  when the tags select no component. A dynamic or deployment view takes no tags
+  (`option_not_supported`).
 - **Boundaries** come along when they hold a shown component, directly or further in; the others
   are left out.
 - **Highlighting.** A view's `mainPath` is drawn stronger, along its own connections. Without
