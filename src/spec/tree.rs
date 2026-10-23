@@ -409,6 +409,7 @@ impl TreeSpec {
                 "the matrix has one row per label",
             );
         }
+        // Every row first: the symmetry check reads the rows below the one it checks.
         for (row, values) in distances.matrix.iter().enumerate() {
             if values.len() != count {
                 return invalid(
@@ -416,6 +417,8 @@ impl TreeSpec {
                     "every row has one distance per label",
                 );
             }
+        }
+        for (row, values) in distances.matrix.iter().enumerate() {
             for (column, value) in values.iter().enumerate() {
                 let path = format!("/tree/distances/matrix/{row}/{column}");
                 if row == column && *value != 0.0 {

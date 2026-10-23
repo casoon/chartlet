@@ -441,6 +441,13 @@ mod tests {
                 "invalid_matrix",
                 "/tree/distances/matrix/0",
             ),
+            // A short row below the one being checked for symmetry.
+            (
+                "[10, 9, 4, 0]",
+                "[]",
+                "invalid_matrix",
+                "/tree/distances/matrix/3",
+            ),
             (
                 r#""C", "D""#,
                 r#""C", "A""#,
