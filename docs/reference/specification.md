@@ -151,7 +151,7 @@ four deep (`boundaries_too_deep`); identifiers are unique among components and b
 without a circle (`boundary_cycle`), every boundary holds a component (`empty_boundary`), and
 connections and the main path name existing components (`unknown_node`, `main_path_gap`,
 `main_path_unreachable`), a `symbol` is one of the names above (`unknown_symbol`), and in flow charts and architecture diagrams a `planned` or `deprecated`
-edge takes no `dash` (`role_conflict`).. Connection ids are unique among connections (`duplicate_id`). Up to 20
+edge takes no `dash` (`role_conflict`). Connection ids are unique among connections (`duplicate_id`). Up to 20
 views (`too_many_views`) with unique keys (`duplicate_id`) and a title; a view lists components
 or steps (`empty_view`) that exist (`unknown_node`, `unknown_connection`), each listed
 connection or step joins shown components (`connection_outside_view`), a view with `steps` takes
