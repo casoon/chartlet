@@ -4,7 +4,7 @@
 use std::fmt::Write as _;
 
 use super::{
-    BRANCH, GROUP_HEAD, GROUP_PAD, LANE_HEAD, SUBLABEL_SIZE, blocks,
+    BRANCH, GROUP_HEAD, GROUP_PAD, LANE_HEAD, SUBLABEL_SIZE, WEIGHT_STEPS, blocks,
     measure::Model,
     model::{Diagram, Shape},
     place::Plan,
@@ -51,10 +51,6 @@ impl Model<'_> {
         focus_classes(None, &[from.min(to), from.max(to)])
     }
 }
-
-/// The number of width steps above the thinnest line of a weighted edge: every step adds half a
-/// pixel, from 1 px for no weight to 5 px for the heaviest edge.
-const WEIGHT_STEPS: f64 = 8.0;
 
 /// The width step of every edge with a weight: in proportion to its weight against the heaviest
 /// edge, from 0 to [`WEIGHT_STEPS`]. Edges without a weight keep the usual line.

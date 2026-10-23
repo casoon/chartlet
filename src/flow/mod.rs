@@ -93,6 +93,10 @@ const INTERFACE_LINE: f64 = 13.0;
 /// The room around the name of an interface on a chip below its ball, on a narrow canvas.
 const INTERFACE_PAD: f64 = 4.0;
 
+/// The number of width steps above the thinnest line of a weighted edge: every step adds half a
+/// pixel, from 1 px for no weight to 5 px for the heaviest edge.
+pub(crate) const WEIGHT_STEPS: f64 = 8.0;
+
 pub(crate) fn layout(
     spec: &ChartSpec,
     warnings: &mut Vec<ChartWarning>,
