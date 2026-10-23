@@ -82,7 +82,7 @@ export function viewPayload(input, result) {
   const format = input.format ?? "html";
   const idPrefix = result.manifest.idPrefix;
   const view = result.manifest.view;
-  const html = { format: /** @type {const} */ ("html"), idPrefix, table: input.table, view };
+  const html = { format: /** @type {const} */ ("html"), idPrefix, table: input.table, view, allViews: input.allViews };
   const figures =
     spec.theme === undefined
       ? {

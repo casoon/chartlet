@@ -1,9 +1,9 @@
-use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
+use chartlet::{ChartSpec, RenderFormat, RenderOptions, Variant, render_json};
 
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 83] = [
+const EXAMPLES: [(&str, &str, &str); 96] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -178,6 +178,11 @@ const EXAMPLES: [(&str, &str, &str); 83] = [
         "billing-migration",
         include_str!("../examples/billing-migration.json"),
         include_str!("../examples/billing-migration.svg"),
+    ),
+    (
+        "payment-redesign",
+        include_str!("../examples/payment-redesign.json"),
+        include_str!("../examples/payment-redesign.svg"),
     ),
     (
         "checkout-calls",
@@ -419,10 +424,70 @@ const EXAMPLES: [(&str, &str, &str); 83] = [
         include_str!("../examples/api-environments.json"),
         include_str!("../examples/api-environments.svg"),
     ),
+    (
+        "acceleration-indicators",
+        include_str!("../examples/acceleration-indicators.json"),
+        include_str!("../examples/acceleration-indicators.svg"),
+    ),
+    (
+        "audit-outcomes",
+        include_str!("../examples/audit-outcomes.json"),
+        include_str!("../examples/audit-outcomes.svg"),
+    ),
+    (
+        "deep-sea-isotopes",
+        include_str!("../examples/deep-sea-isotopes.json"),
+        include_str!("../examples/deep-sea-isotopes.svg"),
+    ),
+    (
+        "energy-mix",
+        include_str!("../examples/energy-mix.json"),
+        include_str!("../examples/energy-mix.svg"),
+    ),
+    (
+        "generation-mix",
+        include_str!("../examples/generation-mix.json"),
+        include_str!("../examples/generation-mix.svg"),
+    ),
+    (
+        "population-and-emissions",
+        include_str!("../examples/population-and-emissions.json"),
+        include_str!("../examples/population-and-emissions.svg"),
+    ),
+    (
+        "quake-frequency",
+        include_str!("../examples/quake-frequency.json"),
+        include_str!("../examples/quake-frequency.svg"),
+    ),
+    (
+        "resting-heart-rate",
+        include_str!("../examples/resting-heart-rate.json"),
+        include_str!("../examples/resting-heart-rate.svg"),
+    ),
+    (
+        "soil-animals",
+        include_str!("../examples/soil-animals.json"),
+        include_str!("../examples/soil-animals.svg"),
+    ),
+    (
+        "ticket-backlog",
+        include_str!("../examples/ticket-backlog.json"),
+        include_str!("../examples/ticket-backlog.svg"),
+    ),
+    (
+        "visitors-by-channel",
+        include_str!("../examples/visitors-by-channel.json"),
+        include_str!("../examples/visitors-by-channel.svg"),
+    ),
+    (
+        "warming-causes",
+        include_str!("../examples/warming-causes.json"),
+        include_str!("../examples/warming-causes.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 30] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 31] = [
     (
         "co-authors",
         include_str!("../examples/co-authors.json"),
@@ -569,6 +634,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 30] = [
         include_str!("../examples/data-tier.mobile.svg"),
     ),
     (
+        "warming-causes",
+        include_str!("../examples/warming-causes.json"),
+        include_str!("../examples/warming-causes.mobile.svg"),
+    ),
+    (
         "contract-review",
         include_str!("../examples/contract-review.json"),
         include_str!("../examples/contract-review.mobile.svg"),
@@ -608,7 +678,7 @@ const SOCIAL_EXAMPLES: [(&str, &str, &str); 1] = [(
 )];
 
 /// Views of an architecture model besides its default view, and their reviewed SVGs.
-const VIEW_EXAMPLES: [(&str, &str, &str, &str); 3] = [
+const VIEW_EXAMPLES: [(&str, &str, &str, &str); 4] = [
     (
         "shop-views",
         "checkout",
@@ -627,6 +697,12 @@ const VIEW_EXAMPLES: [(&str, &str, &str, &str); 3] = [
         include_str!("../examples/api-environments.json"),
         include_str!("../examples/api-environments.production.svg"),
     ),
+    (
+        "booking-deployment",
+        "logical",
+        include_str!("../examples/booking-deployment.json"),
+        include_str!("../examples/booking-deployment.logical.svg"),
+    ),
 ];
 
 /// The committed SVGs are the reviewed reference output. Each example must render to exactly the
@@ -639,6 +715,22 @@ fn every_example_matches_its_reviewed_svg() {
         assert_eq!(
             actual.content, expected,
             "{name} drifted from its reviewed SVG"
+        );
+    }
+}
+
+/// The HTML profile of every example is reference output too, read from `examples/` next to its
+/// SVG.
+#[test]
+fn every_example_matches_its_reviewed_html() {
+    for (name, specification, _) in EXAMPLES {
+        let expected = std::fs::read_to_string(format!("examples/{name}.html"))
+            .unwrap_or_else(|error| panic!("{name} should have a reviewed HTML file: {error}"));
+        let actual = render_json(specification, RenderFormat::Html, &RenderOptions::default())
+            .unwrap_or_else(|error| panic!("{name} should render its HTML: {error}"));
+        assert_eq!(
+            actual.content, expected,
+            "{name} drifted from its reviewed HTML"
         );
     }
 }
@@ -681,6 +773,93 @@ fn every_view_matches_its_reviewed_svg() {
             "{name} drifted from its reviewed SVG of the view {view}"
         );
     }
+}
+
+fn all_views(id_prefix: Option<&str>) -> RenderOptions {
+    RenderOptions {
+        all_views: true,
+        id_prefix: id_prefix.map(str::to_owned),
+        ..RenderOptions::default()
+    }
+}
+
+/// The page of all views of a model is reference output too.
+#[test]
+fn the_page_of_all_views_matches_its_reviewed_html() {
+    let actual = render_json(
+        include_str!("../examples/shop-views.json"),
+        RenderFormat::Html,
+        &all_views(None),
+    )
+    .expect("shop-views should render all its views");
+    assert_eq!(
+        actual.content,
+        include_str!("../examples/shop-views.all.html"),
+        "shop-views drifted from its reviewed page of all views"
+    );
+}
+
+/// The values of every `name="…"` attribute in `html`.
+fn attributes<'a>(html: &'a str, name: &str) -> Vec<&'a str> {
+    let marker = format!(" {name}=\"");
+    html.split(&marker)
+        .skip(1)
+        .map(|rest| &rest[..rest.find('"').expect("a closed attribute")])
+        .collect()
+}
+
+/// On the page of all views every ID is unique, every link of the navigation leads to a section
+/// on the page, the default view comes first, and the page renders the same bytes again.
+#[test]
+fn the_page_of_all_views_has_unique_ids_and_working_links() {
+    for (_, _, specification, _) in VIEW_EXAMPLES {
+        for prefix in [None, Some("arch")] {
+            let render = || {
+                render_json(specification, RenderFormat::Html, &all_views(prefix))
+                    .expect("every view should render")
+                    .content
+            };
+            let page = render();
+            assert_eq!(page, render(), "the page renders the same bytes again");
+            let ids = attributes(&page, "id");
+            let mut unique = ids.clone();
+            unique.sort_unstable();
+            unique.dedup();
+            assert_eq!(unique.len(), ids.len(), "an ID occurs twice");
+            let nav = &page[..page.find("</nav>").expect("a navigation")];
+            let links = attributes(nav, "href");
+            let views = ChartSpec::from_json(specification)
+                .expect("the example parses")
+                .view_keys()
+                .len();
+            assert_eq!(links.len(), views, "one link per view");
+            for link in links {
+                let target = link.strip_prefix('#').expect("an in-page link");
+                assert!(ids.contains(&target), "{target} is not on the page");
+                assert!(
+                    page.contains(&format!("<section class=\"chartlet-view\" id=\"{target}\""))
+                );
+            }
+            if let Some(prefix) = prefix {
+                assert!(
+                    page.starts_with(&format!("<div class=\"chartlet-views\" id=\"{prefix}\""))
+                );
+            }
+        }
+    }
+    let default = render_json(
+        include_str!("../examples/shop-views.json"),
+        RenderFormat::Html,
+        &RenderOptions::default(),
+    )
+    .expect("the default view renders")
+    .content;
+    let page = include_str!("../examples/shop-views.all.html");
+    let first = page.find("<figcaption>").expect("a figure");
+    assert_eq!(
+        &page[first..first + 40],
+        &default[default.find("<figcaption>").expect("a figure")..][..40]
+    );
 }
 
 fn print_options() -> RenderOptions {
@@ -777,6 +956,84 @@ fn every_social_variant_is_a_resolved_1200_by_630_canvas() {
     }
 }
 
+/// The examples without a reference in [`EXAMPLES`], as name and specification, by name.
+fn examples_without_reference() -> Vec<(String, String)> {
+    let mut missing: Vec<(String, String)> = example_files()
+        .into_iter()
+        .filter_map(|file| {
+            let name = file.strip_suffix(".json")?.to_owned();
+            (!EXAMPLES.iter().any(|(known, _, _)| *known == name)).then(|| {
+                let specification =
+                    std::fs::read_to_string(format!("examples/{file}")).expect("readable example");
+                (name, specification)
+            })
+        })
+        .collect();
+    missing.sort();
+    missing
+}
+
+/// The names of the files in `examples/`.
+fn example_files() -> Vec<String> {
+    std::fs::read_dir("examples")
+        .expect("the examples directory should exist")
+        .map(|entry| {
+            let entry = entry.expect("readable entry");
+            entry.file_name().to_str().expect("a UTF-8 name").to_owned()
+        })
+        .collect()
+}
+
+/// Every committed SVG and HTML file has its place in a catalog above, so none of them can
+/// drift unnoticed.
+#[test]
+fn every_rendered_example_has_a_reference() {
+    let missing: Vec<String> = examples_without_reference()
+        .into_iter()
+        .map(|(name, _)| format!("{name}.json"))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "examples without a reference: {missing:?}"
+    );
+
+    let mut catalogued: Vec<String> = Vec::new();
+    for (name, _, _) in EXAMPLES {
+        catalogued.extend([format!("{name}.svg"), format!("{name}.html")]);
+    }
+    for (catalog, suffix) in [
+        (&MOBILE_EXAMPLES[..], "mobile"),
+        (&PRINT_EXAMPLES[..], "print"),
+        (&SOCIAL_EXAMPLES[..], "social"),
+    ] {
+        catalogued.extend(
+            catalog
+                .iter()
+                .map(|(name, _, _)| format!("{name}.{suffix}.svg")),
+        );
+    }
+    catalogued.extend(
+        VIEW_EXAMPLES
+            .iter()
+            .map(|(name, view, _, _)| format!("{name}.{view}.svg")),
+    );
+    catalogued.push("shop-views.all.html".to_owned());
+    let mut unlisted: Vec<String> = example_files()
+        .into_iter()
+        .filter(|file| {
+            std::path::Path::new(file)
+                .extension()
+                .is_some_and(|extension| extension == "svg" || extension == "html")
+                && !catalogued.contains(file)
+        })
+        .collect();
+    unlisted.sort();
+    assert!(
+        unlisted.is_empty(),
+        "files in examples/ without an entry in tests/golden.rs: {unlisted:?}"
+    );
+}
+
 /// Writes a visual report of every reference above against the current rendering, plus the
 /// examples without one, to `target/tmp/golden-report/index.html`:
 /// `cargo test --test golden visual_report -- --ignored --nocapture`. It shows the changed
@@ -784,22 +1041,7 @@ fn every_social_variant_is_a_resolved_1200_by_630_canvas() {
 #[test]
 #[ignore = "writes a local report for review; run on demand"]
 fn visual_report() {
-    let mut missing: Vec<(String, String)> = std::fs::read_dir("examples")
-        .expect("the examples directory should exist")
-        .map(|entry| entry.expect("readable entry").path())
-        .filter(|path| {
-            path.extension()
-                .is_some_and(|extension| extension == "json")
-        })
-        .filter_map(|path| {
-            let name = path.file_stem()?.to_str()?.to_owned();
-            (!EXAMPLES.iter().any(|(known, _, _)| *known == name)).then(|| {
-                let specification = std::fs::read_to_string(&path).expect("readable example");
-                (name, specification)
-            })
-        })
-        .collect();
-    missing.sort();
+    let missing = examples_without_reference();
     let directory = report::directory();
     let summary = report::write(&directory, &report_entries(), &missing)
         .expect("the report should be written");

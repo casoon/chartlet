@@ -48,7 +48,13 @@ pub(crate) fn layout(
             .iter()
             .map(|connection| connection.role),
     );
-    roles::push_legend(&mut scene, spec.locale, &used, MARGIN, metrics);
+    roles::push_legend(
+        &mut scene,
+        spec.locale,
+        &used,
+        (MARGIN, roles::push_badge),
+        metrics,
+    );
     if let Some((perspective, categories)) = categories(architecture) {
         // The categories used, in the perspective's order, and not stated last.
         let mut entries: Vec<(&'static str, &str)> = (0..perspective.categories.len())
@@ -189,6 +195,7 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
             .map(|(index, connection)| Edge {
                 from: architecture.component(&connection.from).expect("validated"),
                 to: architecture.component(&connection.to).expect("validated"),
+                id: connection.id.clone(),
                 label: step_label(connection.step, connection.label.as_deref()),
                 technology: connection.technology.clone(),
                 dash: connection.dash,
@@ -212,6 +219,7 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
             .enumerate()
             .map(|(index, group)| Group {
                 label: group.label.clone(),
+                id: Some(group.id.clone()),
                 path: format!("/architecture/boundaries/{index}"),
                 parent: boundary(&group.parent),
             })

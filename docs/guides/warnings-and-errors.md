@@ -61,14 +61,15 @@ with `--allow-warning dense_chart` (npm: `allowWarnings: ["dense_chart"]`); it i
 
 ## Inspections
 
-`chartlet inspect model.json` checks an architecture model for gaps in its documentation — a
+`chartlet inspect model.json` checks an architecture model, a flow chart or a class diagram for
+gaps in its documentation — a
 separate, explicitly requested profile, apart from errors and warnings. A specification that
 renders keeps rendering: no inspection becomes a warning, and `--strict` and `--allow-warning` of
 `chartlet render` do not see them. Each finding has a stable code, a severity, a JSON Pointer to
-the component, connection or view, a message and a hint. A `gap` is documentation the
+the component, connection, view, step, edge or class, a message and a hint. A `gap` is documentation the
 specification has a field for; a `hint` is something to review that may well be intended.
 Findings only restate what the model says; they judge neither the architecture nor its
-security.
+security, nor whether a process or a class model is sound.
 
 | Code | Severity | Reported for | Not reported for |
 | --- | --- | --- | --- |
@@ -78,12 +79,19 @@ security.
 | `isolated_component` | hint | A component without any connection. | A model of a single component. |
 | `component_in_no_view` | gap | A component of a model with `views` that no view shows, so it is never drawn. | A model without views, which shows every component. |
 | `view_adds_nothing` | hint | A view whose components and connections another view shows as well; of two equal views the later one. | A dynamic view: the order of its steps is what it adds. |
+| `unlabelled_decision_branch` | gap | Flow: an edge without `label` out of a `decision` with two or more ways on. | A decision with a single way on, which has no branches to tell apart. |
+| `unreachable_step` | hint | Flow: a step that no chain of edges leads to from a `start` step. | A flow without a `start` step; a `store` or `external` step, which feeds in from outside. |
+| `flow_without_end` | hint | Flow: a flow with a `start` step but no `end` step. | A flow with neither, a part of a larger one. |
+| `class_without_members` | gap | Class diagram: a class without `attributes` and `methods`. | A diagram in which no class has members, an overview of names. |
+| `isolated_class` | hint | Class diagram: a class without a relation to another class; notes are no relations. | A diagram of a single class. |
 
 A rule that does not fit a model is left out with `--disable <code>`, for example
 `--disable connection_without_technology` for a model that leaves protocols to its components,
-or `--disable isolated_component` when a component stands apart on purpose. `chartlet inspect
---strict` fails only on gaps. Inspections are part of the CLI and of the Rust crate
-(`chartlet::inspect_json`); the npm package and the MCP server do not run them.
+`--disable isolated_component` when a component stands apart on purpose, or `--disable
+unreachable_step` for a flow with more than one way in. `chartlet inspect
+--strict` fails only on gaps. The Rust crate runs them with `chartlet::inspect_json`, the npm
+package with `inspectChart(spec, { disable })` and the MCP server with the tool
+`chartlet_inspect`, all with the same findings.
 
 ## Provenance
 
@@ -100,6 +108,7 @@ check in CI that a committed chart still matches its specification and the chart
 | `variant` | `desktop`, `mobile` or `print`. |
 | `idPrefix` | The ID prefix the chart was rendered with: `--id-prefix`, or the one derived from the specification. The mobile variant appends `-m` to it, the print variant `-p`. |
 | `view` | Only for an architecture model with `views`: the key of the view that was rendered (`--view`, or the default view). `specHash` stays the hash of the whole model. |
+| `views` | Only with `--all-views`: the keys of the views on the page, in its order. `idPrefix` is then the prefix of the page. |
 | `perspective` | Only for an architecture diagram that shows a perspective: its key. |
 | `warnings` | The warnings of the render, each with `code`, `path` and `message`. |
 

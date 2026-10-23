@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, DiagramSpacing, is_false, sequence::is_identifier,
-    validate_text,
+    ChartSpec, Dash, DiagramOrientation, DiagramRole, DiagramSpacing, flow::validate_role,
+    is_false, sequence::is_identifier, validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -46,6 +46,8 @@ pub struct StateNodeSpec {
     /// The `id` of the composite state this state lies in.
     #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// What a state is.
@@ -86,6 +88,8 @@ pub struct TransitionSpec {
     pub action: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dash: Option<Dash>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 impl TransitionSpec {
@@ -278,6 +282,13 @@ impl StateSpec {
                 ));
             }
             if self.is_composite(index) {
+                if state.role.is_some() {
+                    return Err(ChartError::new(
+                        "option_not_supported",
+                        format!("{path}/role"),
+                        "a composite state is a frame and takes no role; give the states inside it roles",
+                    ));
+                }
                 if state.is_final {
                     return Err(ChartError::new(
                         "option_not_supported",
@@ -344,6 +355,7 @@ impl StateSpec {
                     validate_text(text, &format!("{path}/{field}"), 40)?;
                 }
             }
+            validate_role(transition.role, transition.dash, &path)?;
         }
         Ok(())
     }

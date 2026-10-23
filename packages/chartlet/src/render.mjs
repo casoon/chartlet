@@ -28,11 +28,16 @@ function wasmRenderer() {
 // The CLI writes no text alternative; the bundled WebAssembly build derives the same one.
 function withAlternative(rendered, spec, options) {
   if (options.alternative) {
-    rendered.alternative = wasmRenderer().renderChartDetailed(spec, {
-      format: "svg",
+    const { alternative, alternatives } = wasmRenderer().renderChartDetailed(spec, {
+      format: options.allViews ? "html" : "svg",
       view: options.view,
+      allViews: options.allViews,
       alternative: true,
-    }).alternative;
+    });
+    rendered.alternative = alternative;
+    if (alternatives) {
+      rendered.alternatives = alternatives;
+    }
   }
   return rendered;
 }
@@ -90,6 +95,32 @@ export function renderChartDetailed(spec, options = {}) {
   return withAlternative(rendered, spec, options);
 }
 
+// The inspections of a model, as data: `{ ok: true, findings }`, or `{ ok: false, error }` for an
+// invalid specification or a type without inspections. The CLI reports the same findings.
+export function inspectChart(spec, options = {}) {
+  const binary = options.binary ?? process.env.CHARTLET_BIN;
+  if (!binary) {
+    return wasmRenderer().inspectChart(spec, options);
+  }
+  const args = ["inspect", "-", "--format", "json", "--diagnostics", "json"];
+  for (const code of options.disable ?? []) {
+    args.push("--disable", code);
+  }
+  const result = spawnSync(binary, args, {
+    input: typeof spec === "string" ? spec : JSON.stringify(spec),
+    encoding: "utf8",
+    maxBuffer: MAX_OUTPUT_BYTES,
+  });
+  if (result.error) {
+    throw cliError(result.error, binary);
+  }
+  const diagnostics = JSON.parse(result.stderr);
+  if (!diagnostics.ok) {
+    return { ok: false, error: diagnostics.error };
+  }
+  return { ok: true, findings: JSON.parse(result.stdout).findings };
+}
+
 function renderWithCli(binary, spec, options) {
   const { result, manifest } = runCli(binary, JSON.stringify(spec), options, []);
   if (result.status !== 0) {
@@ -125,6 +156,9 @@ function runCli(binary, input, options, extraArgs) {
   }
   if (options.view) {
     args.push("--view", options.view);
+  }
+  if (options.allViews) {
+    args.push("--all-views");
   }
   if (options.styles) {
     args.push("--styles", options.styles);
@@ -166,14 +200,18 @@ function runCli(binary, input, options, extraArgs) {
   }
 
   if (result.error) {
-    if (result.error.code === "ENOENT") {
-      throw new Error(
-        `chartlet executable not found at ${JSON.stringify(binary)}. Install the CLI, or unset CHARTLET_BIN to use the bundled WebAssembly build.`,
-      );
-    }
-    throw result.error;
+    throw cliError(result.error, binary);
   }
   return { result, manifest };
+}
+
+function cliError(error, binary) {
+  if (error.code === "ENOENT") {
+    return new Error(
+      `chartlet executable not found at ${JSON.stringify(binary)}. Install the CLI, or unset CHARTLET_BIN to use the bundled WebAssembly build.`,
+    );
+  }
+  return error;
 }
 
 // The same CSP source expressions the WebAssembly build returns: one per distinct `<style>`
