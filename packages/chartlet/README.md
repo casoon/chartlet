@@ -81,6 +81,25 @@ It reads values from the data table and geometry from `data-*` hooks, needs no i
 sets styles only through the CSSOM. See
 [Interaction](https://github.com/casoon/chartlet/blob/main/docs/guides/interaction.md#optional-javascript).
 
+## Architecture builder
+
+`@casoon/chartlet/builder` assembles an architecture specification in code and returns it as a
+plain object for `renderChart`. Ids are explicit or joined with `id(...)`; building blocks are
+plain functions; `fanOut` and `fanIn` connect one component with a list. Ids used twice and
+references to undeclared elements throw at the call.
+
+```js
+import { architecture } from '@casoon/chartlet/builder';
+
+const a = architecture();
+const api = a.component('api', 'API');
+const db = a.component('db', 'Orders', { kind: 'database' });
+a.connect(api, db, { label: 'reads, writes' });
+const spec = a.spec({ title: 'Orders' });
+```
+
+See [JavaScript runtimes](https://github.com/casoon/chartlet/blob/main/docs/guides/javascript.md#architecture-builder).
+
 ## Cloudflare Workers and Vite
 
 Runtimes that cannot compile WebAssembly from bytes, such as workerd, import the module and pass

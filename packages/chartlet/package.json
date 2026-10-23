@@ -29,6 +29,10 @@
       "types": "./src/interactive.d.mts",
       "import": "./src/interactive.mjs"
     },
+    "./builder": {
+      "types": "./src/builder.d.mts",
+      "import": "./src/builder.mjs"
+    },
     "./astro": "./src/Chart.astro"
   },
   "peerDependencies": {
