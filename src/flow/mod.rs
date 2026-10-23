@@ -137,7 +137,13 @@ pub(crate) fn layout(
         flow.nodes.iter().map(|node| node.role),
         flow.edges.iter().map(|edge| edge.role),
     );
-    roles::push_legend(&mut scene, spec.locale, &used, MARGIN, metrics);
+    roles::push_legend(
+        &mut scene,
+        spec.locale,
+        &used,
+        (MARGIN, roles::push_badge),
+        metrics,
+    );
     scene
 }
 

@@ -48,7 +48,13 @@ pub(crate) fn layout(
             .iter()
             .map(|connection| connection.role),
     );
-    roles::push_legend(&mut scene, spec.locale, &used, MARGIN, metrics);
+    roles::push_legend(
+        &mut scene,
+        spec.locale,
+        &used,
+        (MARGIN, roles::push_badge),
+        metrics,
+    );
     if let Some((perspective, categories)) = categories(architecture) {
         // The categories used, in the perspective's order, and not stated last.
         let mut entries: Vec<(&'static str, &str)> = (0..perspective.categories.len())

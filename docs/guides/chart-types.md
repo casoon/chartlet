@@ -1075,12 +1075,23 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
 - **Roles.** `role` on a component or a connection says what it means in this picture, beyond its
   kind: `critical` (a strong red outline or line, badge `!`), `planned` (dashed and violet, badge
   `+`) or `deprecated` (dotted and gray, badge `−`). Flow charts take the same roles on steps and
-  edges. Shape and fill stay those of the kind, so a role adds meaning rather than replacing it;
-  `external` stays a kind. The colors are the theme's role colors in light, dark, blueprint and
-  print, and the line or badge carries the role without color. A legend below the diagram names
-  only the roles used, the description lists what has each role, and the table gains a Role
-  column. A planned or deprecated connection takes no `dash` (`role_conflict`). Example
-  `billing-migration` shows a migration: the old path deprecated, the new one planned.
+  edges, state diagrams on states and transitions, trees on nodes, networks on nodes and edges,
+  and class diagrams on classes and relations. Shape and fill stay those of the kind, so a role
+  adds meaning rather than replacing it; `external` stays a kind. The colors are the theme's role
+  colors in light, dark, blueprint and print, and the line or badge carries the role without
+  color. A legend below the diagram names only the roles used, the description lists what has
+  each role, and the table gains a Role column. A planned or deprecated connection, edge or
+  transition takes no `dash` (`role_conflict`). Example `billing-migration` shows a migration: the
+  old path deprecated, the new one planned.
+  - A network's dot is too small for a badge: a ring around it, solid, dashed or dotted in the
+    role's color, says the role, and the dot keeps the color of its group.
+  - A composite state is a frame and takes no role (`option_not_supported`); give the states
+    inside it one.
+  - A relation keeps the marks of its kind: a hollow triangle or diamond stays hollow, and only
+    its outline and the line take the role's color. A realization or a dependency is dashed by
+    its kind, so it takes `critical` only; `planned` or `deprecated` would draw their own pattern
+    over it (`role_conflict`). Example `payment-redesign`: a planned payment class, a deprecated
+    invoice and the critical dependency of the order on payment.
 - **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
   classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
   (`option_not_supported`).

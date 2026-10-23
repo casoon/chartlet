@@ -15,8 +15,9 @@ use crate::{
     flow::{focus_classes, heaviest_edge},
     layout::{LABEL_SIZE, NARROW, count, fit_text, format_value, push_title, title_extra},
     metrics::TextMetrics,
+    roles,
     scene::{Circle, Element, Hotspot, Scene, Text, TextAnchor},
-    spec::{ChartSpec, NetworkLayout, NetworkOrder, NetworkSpec},
+    spec::{ChartSpec, DiagramRole, NetworkLayout, NetworkOrder, NetworkSpec},
     structure::{Facts, Structure},
     text,
 };
@@ -601,6 +602,15 @@ pub(crate) fn layout(
             DOT
         }
     };
+    // An edge ends outside the ring of a node's role.
+    let reach = |node: usize| {
+        dot(node)
+            + if network.nodes[node].role.is_some() {
+                roles::RING_GAP + 2.5
+            } else {
+                1.0
+            }
+    };
     let ends = network.ends();
     let widths = crate::flow::weight_widths_of(network.edges.iter().map(|edge| edge.weight));
     for (index, &(from, to)) in ends.iter().enumerate() {
@@ -609,12 +619,15 @@ pub(crate) fn layout(
         if let Some(width) = widths[index] {
             write!(classes, " chartlet-flow-w{width}").expect("writing to String cannot fail");
         }
+        if let Some(role) = edge.role {
+            classes.push_str(roles::class(role));
+        }
         elements.push(Element::Group(classes));
         let head = if network.directed { HEAD } else { 0.0 };
         let mut points = edge_points(
             &plan,
             (plan.point(&placement, from), plan.point(&placement, to)),
-            (dot(from) + 1.0, dot(to) + 1.0 + head),
+            (reach(from), reach(to) + head),
             !rings,
         );
         let joint = if network.directed { "→" } else { "–" };
@@ -676,9 +689,13 @@ pub(crate) fn layout(
             related.dedup();
             related
         };
-        elements.push(Element::Group(focus_classes(Some(node), &related)));
-        let (x, y) = plan.point(&placement, node);
         let spec_node = &network.nodes[node];
+        let mut classes = focus_classes(Some(node), &related);
+        if let Some(role) = spec_node.role {
+            classes.push_str(roles::class(role));
+        }
+        elements.push(Element::Group(classes));
+        let (x, y) = plan.point(&placement, node);
         let tooltip = match &spec_node.group {
             Some(group) => format!("{} ({group})", spec_node.label),
             None => spec_node.label.clone(),
@@ -693,6 +710,9 @@ pub(crate) fn layout(
             style_index: None,
             tooltip: Some(tooltip),
         }));
+        if spec_node.role.is_some() {
+            roles::push_ring((x, y), dot(node) + roles::RING_GAP, &mut elements);
+        }
         let (label_x, label_y, anchor) = plan.labels[node];
         elements.push(Element::Text(Text {
             x: label_x,
@@ -740,16 +760,33 @@ pub(crate) fn layout(
             content: groups[group].to_owned(),
         }));
     }
-    Scene {
+    let mut scene = Scene {
         width: pixels(plan.width),
         height: pixels(plan.height),
         elements,
-    }
+    };
+    let used = roles::used(
+        network.nodes.iter().map(|node| node.role),
+        network.edges.iter().map(|edge| edge.role),
+    );
+    roles::push_legend(
+        &mut scene,
+        spec.locale,
+        &used,
+        (margin, ring_sample),
+        metrics,
+    );
+    scene
+}
+
+/// The ring of a role as the legend shows it, as wide as a badge.
+fn ring_sample(_: DiagramRole, at: (f64, f64), elements: &mut Vec<Element>) {
+    roles::push_ring(at, diagram::BADGE - 1.0, elements);
 }
 
 /// Where a node leads, or whom it is connected with: labels in the order of the edges, each with
-/// its weight.
-fn neighbours(spec: &ChartSpec, node: usize) -> Vec<String> {
+/// its weight and, `with_roles`, the role of the edge.
+fn neighbours(spec: &ChartSpec, node: usize, with_roles: bool) -> Vec<String> {
     let network = network(spec);
     network
         .ends()
@@ -762,12 +799,22 @@ fn neighbours(spec: &ChartSpec, node: usize) -> Vec<String> {
                 _ => return None,
             };
             let label = &network.nodes[other].label;
-            Some(match edge.weight {
-                Some(weight) => format!(
-                    "{label} ({})",
+            let notes: Vec<String> = edge
+                .weight
+                .map(|weight| {
                     text::edge_weight(spec.locale, &format_value(weight, spec.number_style()))
-                ),
-                None => label.clone(),
+                })
+                .into_iter()
+                .chain(
+                    edge.role
+                        .filter(|_| with_roles)
+                        .map(|role| text::role(spec.locale, role).to_owned()),
+                )
+                .collect();
+            Some(if notes.is_empty() {
+                label.clone()
+            } else {
+                format!("{label} ({})", notes.join(", "))
             })
         })
         .collect()
@@ -846,12 +893,47 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
                 &spec_node.label,
                 spec_node.group.as_deref(),
                 network.directed,
-                &neighbours(spec, node),
+                &neighbours(spec, node, false),
             )
         )
         .expect("writing to String cannot fail");
     }
+    if let Some(sentence) = roles::sentence(locale, &with_roles(network, &placement)) {
+        description.push(' ');
+        description.push_str(&sentence);
+    }
     description
+}
+
+/// Every node with a role, in reading order, then every edge with one, as `From → To` or, in a
+/// network without direction, `From – To`.
+fn with_roles(network: &NetworkSpec, placement: &Placement) -> Vec<(DiagramRole, String)> {
+    let joint = if network.directed { "→" } else { "–" };
+    placement
+        .order
+        .iter()
+        .filter_map(|&node| {
+            let spec_node = &network.nodes[node];
+            spec_node.role.map(|role| (role, spec_node.label.clone()))
+        })
+        .chain(
+            network
+                .ends()
+                .into_iter()
+                .zip(&network.edges)
+                .filter_map(|((from, to), edge)| {
+                    edge.role.map(|role| {
+                        (
+                            role,
+                            format!(
+                                "{} {joint} {}",
+                                network.nodes[from].label, network.nodes[to].label
+                            ),
+                        )
+                    })
+                }),
+        )
+        .collect()
 }
 
 /// One row per node in reading order: its label, group and ring where the network has them, and
@@ -868,6 +950,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     }
     if rings {
         columns.push(words.ring.to_owned());
+    }
+    let with_roles = network.nodes.iter().any(|node| node.role.is_some());
+    if with_roles {
+        columns.push(words.role.to_owned());
     }
     columns.push(if network.directed {
         words.leads_to.to_owned()
@@ -893,7 +979,14 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             if let Some(reached) = &reached {
                 row.push(text::ring_name(spec.locale, reached[node]));
             }
-            row.push(neighbours(spec, node).join(", "));
+            if with_roles {
+                row.push(
+                    spec_node
+                        .role
+                        .map_or_else(String::new, |role| text::role(spec.locale, role).to_owned()),
+                );
+            }
+            row.push(neighbours(spec, node, true).join(", "));
             row
         })
         .collect();
@@ -1112,5 +1205,78 @@ mod tests {
         ] {
             assert_eq!(error(&json), (code, path.to_owned()), "{json}");
         }
+    }
+
+    #[test]
+    fn nodes_and_edges_take_roles_as_rings_and_lines_with_a_legend() {
+        let json = SPEC
+            .replace(
+                r#"{"id": "eli", "label": "Eli"}"#,
+                r#"{"id": "eli", "label": "Eli", "role": "planned"}"#,
+            )
+            .replace(
+                r#"{"from": "ana", "to": "dora"}"#,
+                r#"{"from": "ana", "to": "dora", "role": "critical", "weight": 4}"#,
+            );
+        let output =
+            render_json(&json, RenderFormat::Svg, &RenderOptions::default()).expect("renders");
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        // The ring around Eli's dot, and one in the legend.
+        assert_eq!(
+            output
+                .content
+                .matches("class=\"chartlet-flow-node chartlet-net-role\"")
+                .count(),
+            2
+        );
+        assert!(
+            output
+                .content
+                .contains(" chartlet-flow-w8 chartlet-flow-role-critical")
+        );
+        assert!(output.content.contains(">Planned</text>"));
+        assert!(output.content.contains(">Critical</text>"));
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .ends_with("Roles: critical: Ana – Dora; planned: Eli."),
+            "{}",
+            alternative.description
+        );
+        assert_eq!(
+            alternative.table.columns,
+            ["Node", "Group", "Role", "Connects to"]
+        );
+        let ana = alternative
+            .table
+            .rows
+            .iter()
+            .find(|row| row[0] == "Ana")
+            .expect("a row");
+        assert_eq!(ana[2], "");
+        assert!(ana[3].contains("Dora (weight 4, critical)"), "{ana:?}");
+        let german = json.replace(
+            "\"schemaVersion\": 1,",
+            "\"schemaVersion\": 1, \"locale\": \"de\",",
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .ends_with("Rollen: kritisch: Ana – Dora; geplant: Eli."),
+            "{}",
+            alternative.description
+        );
+        let dotted = SPEC.replace(
+            r#"{"from": "ben", "to": "cem"}"#,
+            r#"{"from": "ben", "to": "cem", "role": "deprecated", "dash": "dotted"}"#,
+        );
+        assert_eq!(
+            error(&dotted),
+            ("role_conflict", "/network/edges/1/dash".to_owned())
+        );
     }
 }

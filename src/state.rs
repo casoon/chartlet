@@ -8,10 +8,11 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, Ends, Group, Node, Shape, layout_diagram, reading_order},
+    flow::{Diagram, Edge, Ends, Group, MARGIN, Node, Shape, layout_diagram, reading_order},
     metrics::TextMetrics,
+    roles,
     scene::Scene,
-    spec::{ChartSpec, StateKind, StateSpec},
+    spec::{ChartSpec, DiagramRole, StateKind, StateSpec},
     text,
 };
 
@@ -20,7 +21,20 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
-    layout_diagram(spec, &diagram(spec), warnings, metrics)
+    let machine = machine(spec);
+    let mut scene = layout_diagram(spec, &diagram(spec), warnings, metrics);
+    let used = roles::used(
+        machine.states.iter().map(|state| state.role),
+        machine.transitions.iter().map(|transition| transition.role),
+    );
+    roles::push_legend(
+        &mut scene,
+        spec.locale,
+        &used,
+        (MARGIN, roles::push_badge),
+        metrics,
+    );
+    scene
 }
 
 fn machine(spec: &ChartSpec) -> &StateSpec {
@@ -126,7 +140,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             value: None,
             parts: Vec::new(),
             symbol: None,
-            role: None,
+            role: state.role,
             category: None,
         });
     }
@@ -142,7 +156,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             ends: Ends::arrow(),
             sign: "→",
             weight: None,
-            role: None,
+            role: transition.role,
         });
     }
     Diagram {
@@ -249,7 +263,38 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&text::choices(locale, &choices));
     }
+    if let Some(sentence) = roles::sentence(locale, &with_roles(spec)) {
+        description.push(' ');
+        description.push_str(&sentence);
+    }
     description
+}
+
+/// Every state with a role, in reading order, then every transition with one, as `From → To`, in
+/// reading order too.
+fn with_roles(spec: &ChartSpec) -> Vec<(DiagramRole, String)> {
+    let machine = machine(spec);
+    let label = |id: &str| {
+        machine.states[machine.state(id).expect("validated")]
+            .label
+            .as_str()
+    };
+    states_in_order(spec)
+        .into_iter()
+        .filter_map(|index| {
+            let state = &machine.states[index];
+            state.role.map(|role| (role, state.label.clone()))
+        })
+        .chain(transitions_in_order(spec).into_iter().filter_map(|index| {
+            let transition = &machine.transitions[index];
+            transition.role.map(|role| {
+                (
+                    role,
+                    format!("{} → {}", label(&transition.from), label(&transition.to)),
+                )
+            })
+        }))
+        .collect()
 }
 
 /// One row per transition in reading order: the state it leaves, its event, guard and action,
@@ -257,12 +302,20 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let machine = machine(spec);
     let words = spec.locale.words();
+    // A state with a role is named with it, `Locked (critical)`; the role of a transition has a
+    // column of its own.
     let label = |id: &str| {
-        machine.states[machine.state(id).expect("validated")]
-            .label
-            .clone()
+        let state = &machine.states[machine.state(id).expect("validated")];
+        match state.role {
+            Some(role) => format!("{} ({})", state.label, text::role(spec.locale, role)),
+            None => state.label.clone(),
+        }
     };
-    let columns = [
+    let with_roles = machine
+        .transitions
+        .iter()
+        .any(|transition| transition.role.is_some());
+    let mut columns: Vec<String> = [
         words.sender,
         words.event,
         words.guard,
@@ -272,25 +325,40 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     .iter()
     .map(|word| (*word).to_owned())
     .collect();
+    if with_roles {
+        columns.push(words.role.to_owned());
+    }
     let mut rows = Vec::new();
     if let Some(initial) = &machine.initial {
-        rows.push(vec![
+        let mut row = vec![
             words.start.to_owned(),
             String::new(),
             String::new(),
             String::new(),
             label(initial),
-        ]);
+        ];
+        if with_roles {
+            row.push(String::new());
+        }
+        rows.push(row);
     }
     for index in transitions_in_order(spec) {
         let transition = &machine.transitions[index];
-        rows.push(vec![
+        let mut row = vec![
             label(&transition.from),
             transition.event.clone().unwrap_or_default(),
             transition.guard.clone().unwrap_or_default(),
             transition.action.clone().unwrap_or_default(),
             label(&transition.to),
-        ]);
+        ];
+        if with_roles {
+            row.push(
+                transition
+                    .role
+                    .map_or_else(String::new, |role| text::role(spec.locale, role).to_owned()),
+            );
+        }
+        rows.push(row);
     }
     DataTable {
         caption: format!("{} {}", words.data_for, spec.title),
@@ -537,5 +605,78 @@ mod tests {
         }
         let missing = r#"{"schemaVersion": 1, "type": "state", "title": "Empty"}"#;
         assert_eq!(error(missing), ("missing_state", "/state".to_owned()));
+    }
+
+    #[test]
+    fn states_and_transitions_take_roles_in_picture_legend_and_text() {
+        let json = SPEC
+            .replace(
+                r#"{"id": "locked", "label": "Locked"}"#,
+                r#"{"id": "locked", "label": "Locked", "role": "critical"}"#,
+            )
+            .replace(
+                r#"{"from": "locked", "to": "gone", "event": "dismantle"}"#,
+                r#"{"from": "locked", "to": "gone", "event": "dismantle", "role": "deprecated"}"#,
+            );
+        let output = svg(&json);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(output.content.contains("chartlet-flow-role-critical"));
+        assert!(output.content.contains("chartlet-flow-role-deprecated"));
+        assert!(output.content.contains(">!</text>"));
+        assert!(output.content.contains(">Critical</text>"));
+        assert!(output.content.contains(">Deprecated</text>"));
+        assert!(!output.content.contains(">Planned</text>"));
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .ends_with("Roles: critical: Locked; deprecated: Locked → Removed."),
+            "{}",
+            alternative.description
+        );
+        assert_eq!(
+            alternative.table.columns,
+            ["From", "Event", "Guard", "Action", "To", "Role"]
+        );
+        assert!(alternative.table.rows.contains(&vec![
+            "Locked (critical)".to_owned(),
+            "dismantle".to_owned(),
+            String::new(),
+            String::new(),
+            "Removed".to_owned(),
+            "deprecated".to_owned(),
+        ]));
+        let german = json.replace(
+            "\"schemaVersion\": 1,",
+            "\"schemaVersion\": 1, \"locale\": \"de\",",
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .ends_with("Rollen: kritisch: Locked; veraltet: Locked → Removed."),
+            "{}",
+            alternative.description
+        );
+        assert_eq!(alternative.table.columns[5], "Rolle");
+        let dashed = SPEC.replace(
+            r#""event": "release"}"#,
+            r#""event": "release", "role": "planned", "dash": "dashed"}"#,
+        );
+        assert_eq!(
+            error(&dashed),
+            ("role_conflict", "/state/transitions/1/dash".to_owned())
+        );
+        let framed = SPEC.replace(
+            r#"{"id": "closed", "label": "Closed"},"#,
+            r#"{"id": "shut", "label": "Shut", "kind": "composite", "role": "planned"},
+                {"id": "closed", "label": "Closed", "in": "shut"},"#,
+        );
+        assert_eq!(
+            error(&framed),
+            ("option_not_supported", "/state/states/0/role".to_owned())
+        );
     }
 }

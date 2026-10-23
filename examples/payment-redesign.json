@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "type": "classes",
+  "title": "Payments after the redesign",
+  "source": "Illustrative domain model",
+  "width": 900,
+  "height": 600,
+  "classes": {
+    "classes": [
+      { "id": "order", "label": "Order", "attributes": ["+ id: Int", "+ total: Money"], "methods": ["+ pay(): Receipt"], "role": "critical" },
+      { "id": "payment", "label": "Payment", "kind": "interface", "methods": ["+ charge(amount: Money): Receipt"] },
+      { "id": "card", "label": "CardPayment", "attributes": ["- token: String"], "methods": ["+ charge(amount: Money): Receipt"] },
+      { "id": "wallet", "label": "WalletPayment", "attributes": ["- walletId: String"], "methods": ["+ charge(amount: Money): Receipt"], "role": "planned" },
+      { "id": "invoice", "label": "PaperInvoice", "attributes": ["+ number: String", "+ dueAt: Date"], "role": "deprecated" },
+      { "id": "receipt", "label": "Receipt", "attributes": ["+ id: String", "+ paidAt: Date"] }
+    ],
+    "relations": [
+      { "from": "order", "to": "payment", "kind": "dependency", "label": "paid by", "role": "critical" },
+      { "from": "card", "to": "payment", "kind": "realization" },
+      { "from": "wallet", "to": "payment", "kind": "realization" },
+      { "from": "order", "to": "invoice", "fromCardinality": "1", "toCardinality": "0..1", "role": "deprecated" },
+      { "from": "order", "to": "receipt", "kind": "composition", "fromCardinality": "1", "toCardinality": "0..*", "role": "planned" }
+    ]
+  }
+}

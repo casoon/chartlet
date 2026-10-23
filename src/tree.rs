@@ -20,10 +20,11 @@ use crate::{
     heat,
     layout::{NARROW, count, format_value, push_title, title_extra},
     metrics::TextMetrics,
-    parts,
+    parts, roles,
     scene::{Element, Hotspot, Scene, Text, TextAnchor},
     spec::{
-        ChartSpec, DiagramOrientation, NumberStyle, PartSpec, TreeLayout, TreeNodeKind, TreeSpec,
+        ChartSpec, DiagramOrientation, DiagramRole, NumberStyle, PartSpec, TreeLayout,
+        TreeNodeKind, TreeSpec,
     },
     text,
 };
@@ -105,6 +106,14 @@ fn layout_all(
     );
     let names = parts::names(tree.nodes.iter().map(|node| node.parts.as_slice()));
     parts::push_legend(&mut scene, &names, margin, metrics);
+    let used = roles::used(tree.nodes.iter().map(|node| node.role), std::iter::empty());
+    roles::push_legend(
+        &mut scene,
+        spec.locale,
+        &used,
+        (margin, roles::push_badge),
+        metrics,
+    );
     scene
 }
 
@@ -918,6 +927,9 @@ fn draw_nodes(
         if let Some(step) = heat[node] {
             classes.push_str(&heat::class(step));
         }
+        if let Some(role) = spec.role {
+            classes.push_str(roles::class(role));
+        }
         elements.push(Element::Group(classes));
         let (x, y, width, height) = node_box(node);
         let tooltip = Some(match &spec.sublabel {
@@ -950,6 +962,9 @@ fn draw_nodes(
                 0.0,
                 elements,
             );
+        }
+        if let Some(role) = spec.role {
+            roles::push_badge(role, (x, y), elements);
         }
         elements.push(Element::GroupEnd);
         elements.push(Element::Hotspot(Hotspot {
@@ -1092,6 +1107,18 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&text::tree_collapsed(locale, &collapsed));
     }
+    let with_roles: Vec<(DiagramRole, String)> = tree
+        .reading_order()
+        .into_iter()
+        .filter_map(|node| {
+            let spec_node = &tree.nodes[node];
+            spec_node.role.map(|role| (role, spec_node.label.clone()))
+        })
+        .collect();
+    if let Some(sentence) = roles::sentence(locale, &with_roles) {
+        description.push(' ');
+        description.push_str(&sentence);
+    }
     description
 }
 
@@ -1122,6 +1149,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let with_parts = tree.nodes.iter().any(|node| !node.parts.is_empty());
     if with_parts {
         columns.push(words.parts.to_owned());
+    }
+    let with_roles = tree.nodes.iter().any(|node| node.role.is_some());
+    if with_roles {
+        columns.push(words.role.to_owned());
     }
     columns.push(words.children.to_owned());
     let folded = tree.nodes.iter().any(|node| node.collapsed);
@@ -1155,6 +1186,13 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             }
             if with_parts {
                 row.push(parts::listed(spec.number_style(), &tree.nodes[node].parts));
+            }
+            if with_roles {
+                row.push(
+                    tree.nodes[node]
+                        .role
+                        .map_or_else(String::new, |role| text::role(spec.locale, role).to_owned()),
+                );
             }
             row.push(
                 tree.children(node)
@@ -1688,5 +1726,61 @@ mod tests {
                 "{to}"
             );
         }
+    }
+
+    #[test]
+    fn nodes_take_roles_with_a_badge_a_legend_and_a_column() {
+        let json = SPEC
+            .replace(
+                r#"{"id": "ops", "label": "Operations", "parent": "ceo"}"#,
+                r#"{"id": "ops", "label": "Operations", "parent": "ceo", "role": "deprecated"}"#,
+            )
+            .replace(
+                r#"{"id": "mobile", "label": "Mobile", "parent": "apps"}"#,
+                r#"{"id": "mobile", "label": "Mobile", "parent": "apps", "role": "planned"}"#,
+            );
+        let output = svg(&json);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(output.content.contains(" chartlet-flow-role-deprecated\">"));
+        assert!(output.content.contains(">+</text>"));
+        assert!(output.content.contains(">−</text>"));
+        assert!(output.content.contains(">Planned</text>"));
+        assert!(output.content.contains(">Deprecated</text>"));
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .ends_with("Roles: planned: Mobile; deprecated: Operations."),
+            "{}",
+            alternative.description
+        );
+        let role = alternative
+            .table
+            .columns
+            .iter()
+            .position(|column| column == "Role")
+            .expect("a role column");
+        let ops = alternative
+            .table
+            .rows
+            .iter()
+            .find(|row| row[0] == "Operations")
+            .expect("a row");
+        assert_eq!(ops[role], "deprecated");
+        let german = json.replace(
+            "\"schemaVersion\": 1,",
+            "\"schemaVersion\": 1, \"locale\": \"de\",",
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            alternative
+                .description
+                .ends_with("Rollen: geplant: Mobile; veraltet: Operations."),
+            "{}",
+            alternative.description
+        );
+        assert!(alternative.table.columns.contains(&"Rolle".to_owned()));
     }
 }
