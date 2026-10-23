@@ -110,7 +110,8 @@ pub(crate) struct ResolvedView {
     /// The shared ranks the view keeps: the place of each in the model and the places of its
     /// shown members in it.
     pub(super) same_rank: Vec<(usize, Vec<usize>)>,
-    /// The notes the view keeps, those on shown components, by their places in the model.
+    /// The notes the view keeps, those on the whole diagram and on shown components and
+    /// boundaries, by their places in the model.
     pub(super) notes: Vec<usize>,
     /// The connections are the steps of the view, in order.
     pub(super) dynamic: bool,
@@ -280,7 +281,12 @@ impl ChartSpec {
                     .collect()
             })
             .collect();
-        let notes = shown_notes(model, &is_shown);
+        let notes = shown_notes(model, |id| {
+            is_shown(id)
+                || boundaries
+                    .iter()
+                    .any(|&boundary| model.boundaries[boundary].id == id)
+        });
         architecture.notes = notes
             .iter()
             .map(|&note| model.notes[note].clone())
@@ -342,11 +348,11 @@ fn shown_ranks(
         .collect()
 }
 
-/// The places in the model of the notes a view keeps: a note stays with its component, and one
-/// on a hidden component is left out.
-fn shown_notes(model: &ArchitectureSpec, is_shown: &impl Fn(&str) -> bool) -> Vec<usize> {
+/// The places in the model of the notes a view keeps: a note on the whole diagram stays in every
+/// view, one on a component or boundary stays with it, and one on a hidden one is left out.
+pub(super) fn shown_notes(model: &ArchitectureSpec, is_shown: impl Fn(&str) -> bool) -> Vec<usize> {
     (0..model.notes.len())
-        .filter(|&note| is_shown(&model.notes[note].on))
+        .filter(|&note| model.notes[note].on.as_deref().is_none_or(&is_shown))
         .collect()
 }
 
@@ -597,6 +603,17 @@ impl ResolvedView {
             ] {
                 if let Some(rest) = path.strip_prefix(&format!("/architecture/{list}")) {
                     return format!("{view}/{own}{rest}");
+                }
+            }
+            // The notes on the whole diagram are the model's.
+            if let Some(rest) = path.strip_prefix("/architecture/notes/") {
+                let (number, rest) = rest.split_at(rest.find('/').unwrap_or(rest.len()));
+                if let Some(place) = number
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|at| self.notes.get(at))
+                {
+                    return format!("/architecture/notes/{place}{rest}");
                 }
             }
             return path.to_owned();
@@ -1093,12 +1110,14 @@ mod tests {
             r#""mainPath": ["reader", "site", "api", "db"],
                "notes": [
                    {"on": "db", "text": "Replaced next year"},
-                   {"on": "files", "text": "Kept for ten years"}
+                   {"on": "files", "text": "Kept for ten years"},
+                   {"on": "mailzone", "text": "Run by a partner"},
+                   {"text": "Draft for review"}
                ],"#,
         );
         let spec = ChartSpec::from_json(&json).unwrap();
         spec.validate().unwrap();
-        let ons = |key: &str| -> Vec<String> {
+        let ons = |key: &str| -> Vec<Option<String>> {
             let view = spec.view(Some(key)).unwrap();
             architecture(&view)
                 .notes
@@ -1106,18 +1125,25 @@ mod tests {
                 .map(|note| note.on.clone())
                 .collect()
         };
-        assert_eq!(ons("overview"), ["db"]);
-        assert_eq!(ons("media"), ["files"]);
+        // A note on the whole diagram stays in every view; one on a hidden boundary does not.
+        assert_eq!(ons("overview"), [Some("db".to_owned()), None]);
+        assert_eq!(ons("media"), [Some("files".to_owned()), None]);
         let svg = render(&json, Some("media")).unwrap().content;
         assert!(svg.contains(">Kept for ten years<"));
+        assert!(svg.contains(">Draft for review<"));
         assert!(!svg.contains("Replaced next year"));
-        // The media view keeps only the model's second note.
+        assert!(!svg.contains("Run by a partner"));
+        // The media view keeps the model's second and fourth notes.
         let media = spec.resolve_view(Some("media")).unwrap().unwrap();
         assert_eq!(
             media.model_path("/architecture/notes/0/text"),
             "/architecture/notes/1/text"
         );
-        let unknown = json.replace(r#"{"on": "files""#, r#"{"on": "cloud""#);
+        assert_eq!(
+            media.model_path("/architecture/notes/1/text"),
+            "/architecture/notes/3/text"
+        );
+        let unknown = json.replace(r#"{"on": "files""#, r#"{"on": "nowhere""#);
         let error = error(&unknown);
         assert_eq!(
             (error.code, error.path.as_str()),

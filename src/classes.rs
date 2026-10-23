@@ -3,16 +3,20 @@
 //! by the layered layout of flow charts. A relation that makes one class the parent of another
 //! (inheritance, realization) is laid out from the parent, so that the parent stands first.
 //! Packages frame the classes that name them, nested like the boundaries of an architecture.
-//! Notes stand beside the classes they explain, joined by a dotted line that is no relation.
+//! Notes stand beside the classes they explain, joined by a dotted line that is no relation, at
+//! the head of a package, or below the diagram when they explain it as a whole.
 //! The description and the data table give every class with its package, its members, its
-//! relations and its notes.
+//! relations and its notes; the table's caption carries the notes no class row does.
 
 use std::fmt::Write as _;
 
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, End, Ends, Group, Node, Shape, layout_diagram},
+    flow::{
+        Diagram, Edge, End, Ends, Group, Node, Shape, layout_diagram,
+        notes::{self, Target},
+    },
     metrics::TextMetrics,
     scene::Scene,
     spec::{ChartSpec, ClassesSpec, ConnectionDirection, RelationKind, RelationSpec},
@@ -25,7 +29,10 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
-    layout_diagram(spec, &diagram(spec), warnings, metrics)
+    let mut scene = layout_diagram(spec, &diagram(spec), warnings, metrics);
+    let notes = &classes(spec).notes;
+    notes::push_band(&mut scene, spec, (notes, "classes"), metrics, warnings);
+    scene
 }
 
 fn classes(spec: &ChartSpec) -> &ClassesSpec {
@@ -78,10 +85,12 @@ fn ends(relation: &RelationSpec) -> Ends {
 fn diagram(spec: &ChartSpec) -> Diagram {
     let classes = classes(spec);
     let mut diagram = model_diagram(spec);
-    for (index, note) in classes.notes.iter().enumerate() {
-        let target = classes.class(&note.on).expect("validated");
-        diagram.push_note(target, &note.text, format!("/classes/notes/{index}"));
-    }
+    notes::push_notes(&mut diagram, &classes.notes, "classes", |id| {
+        classes.class(id).map_or_else(
+            || Target::Frame(classes.package(id).expect("validated")),
+            Target::Node,
+        )
+    });
     diagram
 }
 
@@ -270,18 +279,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         )
         .expect("writing to String cannot fail");
     }
-    let notes: Vec<(&str, &str)> = classes
-        .notes
-        .iter()
-        .map(|note| {
-            let target = classes.class(&note.on).expect("validated");
-            (classes.classes[target].label.as_str(), note.text.as_str())
-        })
-        .collect();
-    if !notes.is_empty() {
-        description.push(' ');
-        description.push_str(&text::notes(spec.locale, &notes));
-    }
+    description.push_str(&notes::sentences(spec.locale, &classes.notes, |id| {
+        label(classes, id)
+    }));
     description
 }
 
@@ -291,7 +291,11 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let classes = classes(spec);
     let words = spec.locale.words();
     let packaged = !classes.packages.is_empty();
-    let with_notes = !classes.notes.is_empty();
+    let with_notes = classes.notes.iter().any(|note| {
+        note.on
+            .as_deref()
+            .is_some_and(|on| classes.class(on).is_some())
+    });
     let rows = classes
         .classes
         .iter()
@@ -316,13 +320,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 relations.join("; "),
             ]);
             if with_notes {
-                let notes: Vec<&str> = classes
-                    .notes
-                    .iter()
-                    .filter(|note| note.on == class.id)
-                    .map(|note| note.text.as_str())
-                    .collect();
-                row.push(notes.join("; "));
+                row.push(notes::of(&classes.notes, &class.id));
             }
             row
         })
@@ -340,10 +338,24 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         columns.push(words.notes.to_owned());
     }
     DataTable {
-        caption: format!("{} {}", words.data_for, spec.title),
+        caption: notes::caption(
+            format!("{} {}", words.data_for, spec.title),
+            spec.locale,
+            &classes.notes,
+            |id| classes.class(id).is_some(),
+            |id| label(classes, id),
+        ),
         columns,
         rows,
     }
+}
+
+/// The label of the class or package `id`.
+fn label<'a>(classes: &'a ClassesSpec, id: &str) -> &'a str {
+    classes.class(id).map_or_else(
+        || &classes.packages[classes.package(id).expect("validated")].label,
+        |class| &classes.classes[class].label,
+    )
 }
 
 #[cfg(test)]

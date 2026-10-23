@@ -649,8 +649,11 @@ related.
   marks. The line only says “explains”: it is no relation, so the most connected classes,
   bottlenecks and relations read the same with and without notes. The text (up to 160
   characters) wraps onto as many lines as it needs; up to 12 notes, each on an existing class
-  (`unknown_node`). Architecture diagrams take the same `notes` on components. Example
-  `subscription-model`.
+  or package (`unknown_node`). A note on a package (`"on": "ordering"`) stands inside its frame,
+  at the head of its classes, without a line; a note without `on` explains the whole diagram and
+  stands in a band below it. Architecture diagrams take the same `notes` on components,
+  boundaries and the whole diagram, flow charts on steps and the whole chart. Examples
+  `subscription-model`, `payment-notes`.
 - **Layout.** The layered layout and the canvas rules of flow charts apply: `orientation`
   (`auto`, `portrait`, `landscape`) and the warning `canvas_too_small` when the diagram needs a
   bigger canvas.
@@ -660,8 +663,9 @@ related.
   has one row per class with its kind, attributes, methods and relations. With packages, the
   description names every package with what it holds (`Ordering (in Shop): Order, OrderLine.`)
   and the table gains a Package column with the path of packages (`Shop › Ordering`). Notes
-  follow the classes in the description (`Note on Card: Stores only a token.`) and fill a Notes
-  column of the table.
+  follow the classes in the description (`Note on Card: Stores only a token.`, `Note: …` for one
+  on the whole diagram) and fill a Notes column of the table; notes on packages and on the whole
+  diagram belong to no row and follow the table's caption.
 
 ## Reference lines
 
@@ -885,6 +889,11 @@ releases.
   against it is drawn back like the edge that closes a loop. A set names at least two steps
   (`empty_data`), a step lies in one set at most (`duplicate_member`), and no edge joins two steps
   of one set (`same_rank_edge`), since an edge always crosses from one layer to another.
+- **Notes** work as in class diagrams: `"notes": [{ "on": "edit", "text": "At most two rounds" },
+  { "text": "Applies to every article" }]` puts the first beside the step, joined by a dotted line
+  that is no edge, and the second, without `on`, in a band below the chart. The description ends
+  with them (`Note on Edit: …`, `Note: …`); a note on a step fills a Notes column of the table, a
+  note on the whole chart follows the table's caption.
 - **Values.** A node with a `value` is filled from a scale of six blues, light for the smallest
   value of the diagram and dark for the largest; `valueLabel` names what the values stand for
   (`Budget (m €)`) in the key below the diagram and in the table. Every step fixes its text color,
@@ -1051,6 +1060,12 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   "billingDb"]]` puts the databases of a data tier at one position along the flow. Without it,
   each database follows its own service, and a `Data tier` boundary around them would stretch
   over three layers and the services between them; with it, the frame is one layer deep.
+- **Notes** explain a component, a boundary or the whole diagram, as in class diagrams:
+  `"notes": [{ "on": "vault", "text": "…" }, { "on": "pci", "text": "…" }, { "text": "…" }]`.
+  The first stands beside the component, joined by a dotted line that is no connection; the
+  second inside the boundary, at the head of its components, without a line; the third in a band
+  below the diagram. A view keeps the notes without `on` and those on what it shows. Example
+  `payment-notes`.
 - **Connections** carry a `label` for what they do and a `technology` for how, written in
   brackets on a line below it. A `step` from 1 to 99 numbers the connection in a sequence of
   calls; the number is written before the label, every number is used once (`duplicate_step`,
@@ -1230,7 +1245,7 @@ them.
   join instances of that connection's ends (`instance_mismatch`) and takes the label, technology,
   dash and role it leaves out from it.
 - **Hosts** replace the model's boundaries in the view; the model's main path, shared ranks and
-  notes stay out of it.
+  notes stay out of it, except notes without `on`, which every view keeps.
 - **Text.** The description names the environment and how many instances run how many
   components; the table's first column is the instance.
 - **Limits and diagnostics.** The resolved diagram is checked like any other — at most 40

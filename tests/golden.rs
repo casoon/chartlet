@@ -3,7 +3,7 @@ use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 82] = [
+const EXAMPLES: [(&str, &str, &str); 83] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -414,10 +414,15 @@ const EXAMPLES: [(&str, &str, &str); 82] = [
         include_str!("../examples/api-environments.json"),
         include_str!("../examples/api-environments.svg"),
     ),
+    (
+        "payment-notes",
+        include_str!("../examples/payment-notes.json"),
+        include_str!("../examples/payment-notes.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 29] = [
+const MOBILE_EXAMPLES: [(&str, &str, &str); 30] = [
     (
         "co-authors",
         include_str!("../examples/co-authors.json"),
@@ -562,6 +567,11 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 29] = [
         "data-tier",
         include_str!("../examples/data-tier.json"),
         include_str!("../examples/data-tier.mobile.svg"),
+    ),
+    (
+        "payment-notes",
+        include_str!("../examples/payment-notes.json"),
+        include_str!("../examples/payment-notes.mobile.svg"),
     ),
 ];
 
