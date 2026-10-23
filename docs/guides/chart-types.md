@@ -634,6 +634,10 @@ related.
   `dependency` a dashed line with an open arrowhead at `to`. A relation may have a `label`,
   and `fromCardinality` and `toCardinality` (such as `1` or `0..*`) stand at its ends. The parent
   of an inheritance is laid out before its child.
+- **Navigability.** An association may say which way it can be navigated: `"direction":
+  "forward"` draws an open arrowhead at `to` (`from` knows `to`), `"both"` one at either end,
+  and `"none"` a plain line. The description adds “navigable to Order” or “navigable both ways”.
+  The other kinds keep their fixed ends and refuse a `direction` (`option_not_supported`).
 - **Packages** group classes into modules: `"packages": [{ "id": "ordering", "label": "Ordering",
   "in": "shop" }]` draws a frame named `Ordering` inside the frame of `shop`, and a class lies in
   it with `"in": "ordering"`. Packages nest up to four deep, at most 12; every package holds a
@@ -1051,6 +1055,23 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   brackets on a line below it. A `step` from 1 to 99 numbers the connection in a sequence of
   calls; the number is written before the label, every number is used once (`duplicate_step`,
   `invalid_step`), and the description lists the steps in order.
+- **Direction.** A connection runs from `from` to `to`, with an arrowhead at `to`. With
+  `"direction": "both"` it runs both ways — an arrowhead at either end, such as a socket or a
+  synchronisation — and with `"direction": "none"` it has no direction and no arrowhead, such as
+  replication between peers or a shared link. Either stays one connection: it is listed once, under
+  its `from` component, as “both ways” or “without direction”, and the tooltip joins its ends with
+  `↔` or `—`. Once a connection has no single direction, the description no longer names where
+  nothing leads in or out, nor loops.
+- **Shared trunks.** With `"sharedTrunks": true`, connections that leave one component for
+  components of the next layer, or reach one from components of the layer before, are drawn on
+  one line that branches on a track of its own, with a dot at every branch — a gateway that
+  calls many services, services that all log to one store. Only connections that read the same on
+  the shared part share it: no `label`, `technology` or `step`, the usual direction, the same
+  `dash`, `weight` and `role`, off the main path, and their other ends in the same boundary, so that they
+  cross the same frames. Anything else, such as a second connection between the same two
+  components, keeps a line of its own. Every connection is still drawn from end to end with its
+  tooltip, and the description and the table list every one as before. Example
+  `service-fan-out`.
 - **Roles.** `role` on a component or a connection says what it means in this picture, beyond its
   kind: `critical` (a strong red outline or line, badge `!`), `planned` (dashed and violet, badge
   `+`) or `deprecated` (dotted and gray, badge `−`). Flow charts take the same roles on steps and

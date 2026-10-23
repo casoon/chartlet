@@ -4,8 +4,8 @@
 use std::fmt::Write as _;
 
 use crate::spec::{
-    ComponentKind, DiagramRole, FragmentSpec, Linkage, Locale, MessageKind, NodeKind,
-    ParticipantKind, Quadrant,
+    ComponentKind, ConnectionDirection, DiagramRole, FragmentSpec, Linkage, Locale, MessageKind,
+    NodeKind, ParticipantKind, Quadrant,
 };
 
 pub(crate) struct Words {
@@ -1707,6 +1707,38 @@ pub(crate) const fn component_kind(locale: Locale, kind: ComponentKind) -> &'sta
         (Locale::De, ComponentKind::Security) => "Sicherheit",
         (Locale::De, ComponentKind::Node) => "Knoten",
         (Locale::De, ComponentKind::Artifact) => "Artefakt",
+    }
+}
+
+/// Which way a connection runs, for a parenthesis; nothing for the usual way, from `from` to `to`.
+pub(crate) const fn connection_direction(
+    locale: Locale,
+    direction: ConnectionDirection,
+) -> Option<&'static str> {
+    match (locale, direction) {
+        (_, ConnectionDirection::Forward) => None,
+        (Locale::En, ConnectionDirection::Both) => Some("both ways"),
+        (Locale::En, ConnectionDirection::None) => Some("without direction"),
+        (Locale::De, ConnectionDirection::Both) => Some("in beide Richtungen"),
+        (Locale::De, ConnectionDirection::None) => Some("ohne Richtung"),
+    }
+}
+
+/// Which way an association can be navigated, given the class at its `to` end: `navigable to
+/// Order`; nothing when that is not said.
+pub(crate) fn navigable(
+    locale: Locale,
+    direction: ConnectionDirection,
+    to: &str,
+) -> Option<String> {
+    match (locale, direction) {
+        (_, ConnectionDirection::None) => None,
+        (Locale::En, ConnectionDirection::Forward) => Some(format!("navigable to {to}")),
+        (Locale::En, ConnectionDirection::Both) => Some("navigable both ways".to_owned()),
+        (Locale::De, ConnectionDirection::Forward) => Some(format!("navigierbar zu {to}")),
+        (Locale::De, ConnectionDirection::Both) => {
+            Some("in beide Richtungen navigierbar".to_owned())
+        }
     }
 }
 

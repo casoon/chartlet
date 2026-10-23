@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, NoteSpec, flow::validate_notes, sequence::is_identifier,
-    validate_text,
+    ChartSpec, ConnectionDirection, Dash, DiagramOrientation, NoteSpec, flow::validate_notes,
+    sequence::is_identifier, validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -109,6 +109,10 @@ pub struct RelationSpec {
     pub from_cardinality: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub to_cardinality: Option<String>,
+    /// Which way an association can be navigated: to `to` (`forward`), both ways, or, like
+    /// without it, not said (`none`). The other kinds have fixed ends and take none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub direction: Option<ConnectionDirection>,
 }
 
 /// How two classes are related; each kind has its own marks at the line's ends.
@@ -372,6 +376,13 @@ impl ClassesSpec {
             }
             if let Some(label) = &relation.label {
                 validate_text(label, &format!("{path}/label"), 60)?;
+            }
+            if relation.direction.is_some() && relation.kind != RelationKind::Association {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    format!("{path}/direction"),
+                    "only an association takes a direction; the other kinds have fixed ends",
+                ));
             }
             for (name, cardinality) in [
                 ("fromCardinality", &relation.from_cardinality),

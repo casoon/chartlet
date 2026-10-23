@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Gateway fan-out with shared logging",
+  "source": "Platform handbook, request path",
+  "width": 960,
+  "height": 640,
+  "architecture": {
+    "boundaries": [
+      { "id": "cluster", "label": "Cluster" },
+      { "id": "services", "label": "Services", "in": "cluster" },
+      { "id": "ops", "label": "Operations" }
+    ],
+    "components": [
+      { "id": "client", "label": "Client", "kind": "frontend" },
+      { "id": "gateway", "label": "Gateway", "sublabel": "routes requests", "in": "cluster" },
+      { "id": "auth", "label": "Sign-in", "kind": "security", "in": "cluster" },
+      { "id": "catalog", "label": "Catalog", "in": "services" },
+      { "id": "search", "label": "Search", "in": "services" },
+      { "id": "cart", "label": "Cart", "in": "services" },
+      { "id": "orders", "label": "Orders", "in": "services" },
+      { "id": "logs", "label": "Log store", "kind": "storage", "in": "ops" }
+    ],
+    "connections": [
+      { "from": "client", "to": "gateway", "label": "calls", "technology": "HTTPS" },
+      { "from": "gateway", "to": "auth", "label": "checks token" },
+      { "from": "gateway", "to": "catalog" },
+      { "from": "gateway", "to": "search" },
+      { "from": "gateway", "to": "cart" },
+      { "from": "gateway", "to": "orders" },
+      { "from": "catalog", "to": "logs", "dash": "dashed" },
+      { "from": "search", "to": "logs", "dash": "dashed" },
+      { "from": "cart", "to": "logs", "dash": "dashed" },
+      { "from": "orders", "to": "logs", "dash": "dashed" }
+    ],
+    "mainPath": ["client", "gateway", "orders"],
+    "sharedTrunks": true
+  }
+}

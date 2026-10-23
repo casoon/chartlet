@@ -1041,7 +1041,8 @@
               "kind": { "enum": ["association", "inheritance", "realization", "composition", "aggregation", "dependency"], "default": "association" },
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "fromCardinality": { "type": "string", "minLength": 1, "maxLength": 12 },
-              "toCardinality": { "type": "string", "minLength": 1, "maxLength": 12 }
+              "toCardinality": { "type": "string", "minLength": 1, "maxLength": 12 },
+              "direction": { "description": "Associations only: navigable to `to` (forward, an open arrowhead at `to`), both ways (open arrowheads at either end), or not said (none, a plain line).", "enum": ["forward", "both", "none"] }
             }
           }
         },
@@ -1449,7 +1450,8 @@
               "step": { "type": "integer", "minimum": 1, "maximum": 99 },
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
               "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
-              "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
+              "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
+              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" }
             }
           }
         },
@@ -1478,6 +1480,7 @@
         },
         "notes": { "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
+        "sharedTrunks": { "description": "Draws connections that leave a component together, or reach one together, on one shared line that branches with a dot at every branch: only those without label, technology or step, in the usual direction, off the main path, with the same dash, weight and role and their other ends in the same boundary. Every connection is still drawn and listed.", "type": "boolean", "default": false },
         "views": {
           "description": "Views on this model. A specification with views renders one of them, chosen by its key, or the default view; never the whole model. A view resolves to an architecture diagram of its own: the listed components in the order of the model, the connections between them (or only the listed ones), the boundaries that hold at least one of them, and the model's main path when the view shows all of it. Nothing outside the view is drawn or described, and no connection is drawn that the model does not have.",
           "type": "array",

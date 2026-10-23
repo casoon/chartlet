@@ -10,14 +10,17 @@ use crate::{
     DataTable,
     error::ChartWarning,
     flow::{
-        Diagram, Edge, Ends, Group, MARGIN, Node, Shape, heaviest_edge, layout_diagram,
+        Diagram, Edge, End, Ends, Group, MARGIN, Node, Shape, heaviest_edge, layout_with_trunks,
         reading_order,
     },
     layout::format_value,
     metrics::TextMetrics,
     roles,
     scene::Scene,
-    spec::{ArchitectureSpec, ChartSpec, ComponentKind, ComponentSpec, DiagramRole, Locale},
+    spec::{
+        ArchitectureSpec, ChartSpec, ComponentKind, ComponentSpec, ConnectionDirection,
+        ConnectionSpec, DiagramRole, Locale,
+    },
     structure::{Facts, Structure},
     symbols, text,
 };
@@ -28,7 +31,13 @@ pub(crate) fn layout(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let architecture = architecture(spec);
-    let mut scene = layout_diagram(spec, &diagram(architecture), warnings, metrics);
+    let mut scene = layout_with_trunks(
+        spec,
+        &diagram(architecture),
+        architecture.shared_trunks,
+        warnings,
+        metrics,
+    );
     let used = roles::used(
         architecture
             .components
@@ -123,7 +132,8 @@ fn model_diagram(architecture: &ArchitectureSpec) -> Diagram {
                 dash: connection.dash,
                 main: architecture.on_main_path(index),
                 label_path: format!("/architecture/connections/{index}/label"),
-                ends: Ends::arrow(),
+                ends: ends(connection.direction),
+                sign: connection.direction.sign(),
                 weight: connection.weight,
                 role: connection.role,
             })
@@ -149,6 +159,21 @@ fn model_diagram(architecture: &ArchitectureSpec) -> Diagram {
             })
             .collect(),
         orientation: architecture.orientation,
+    }
+}
+
+/// The arrowheads of a connection: at its end, at both ends, or none.
+fn ends(direction: ConnectionDirection) -> Ends {
+    let (tail, head) = match direction {
+        ConnectionDirection::Forward => return Ends::arrow(),
+        ConnectionDirection::Both => (End::Arrow, End::Arrow),
+        ConnectionDirection::None => (End::None, End::None),
+    };
+    Ends {
+        tail,
+        head,
+        tail_text: None,
+        head_text: None,
     }
 }
 
@@ -212,10 +237,10 @@ fn connects_to(spec: &ChartSpec, component: usize, with_roles: bool) -> Vec<Stri
                 connection.label.as_deref(),
                 connection.technology.as_deref(),
             );
-            let notes: Vec<String> = connection
-                .step
-                .map(|step| text::step_number(locale, step))
+            let notes: Vec<String> = text::connection_direction(locale, connection.direction)
+                .map(str::to_owned)
                 .into_iter()
+                .chain(connection.step.map(|step| text::step_number(locale, step)))
                 .chain(note)
                 .chain(connection.weight.map(|weight| {
                     text::edge_weight(locale, &format_value(weight, spec.number_style()))
@@ -236,6 +261,21 @@ fn connects_to(spec: &ChartSpec, component: usize, with_roles: bool) -> Vec<Stri
         .collect()
 }
 
+/// A connection by the labels of its ends: `API → Posts`, `API ↔ Images`.
+fn written(architecture: &ArchitectureSpec, connection: &ConnectionSpec) -> String {
+    let label = |id: &str| {
+        architecture.components[architecture.component(id).expect("validated")]
+            .label
+            .as_str()
+    };
+    format!(
+        "{} {} {}",
+        label(&connection.from),
+        connection.direction.sign(),
+        label(&connection.to)
+    )
+}
+
 /// The numbered connections in the order of their steps, as `1 Reader → Site (reads)`.
 fn steps_in_order(architecture: &ArchitectureSpec) -> Vec<String> {
     let mut numbered: Vec<_> = architecture
@@ -247,12 +287,7 @@ fn steps_in_order(architecture: &ArchitectureSpec) -> Vec<String> {
     numbered
         .into_iter()
         .map(|(step, connection)| {
-            let label = |id: &str| {
-                architecture.components[architecture.component(id).expect("validated")]
-                    .label
-                    .as_str()
-            };
-            let ends = format!("{} → {}", label(&connection.from), label(&connection.to));
+            let ends = written(architecture, connection);
             match &connection.label {
                 Some(note) => format!("{step} {ends} ({note})"),
                 None => format!("{step} {ends}"),
@@ -338,7 +373,11 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         architecture.components.len(),
         &ends,
         &[],
-        Facts { directed: true },
+        // Where a connection runs both ways or none, there are no sources, sinks or loops to
+        // tell.
+        Facts {
+            directed: architecture.is_directed(),
+        },
     )
     .sentences(locale, |component| {
         architecture.components[component].label.clone()
@@ -353,11 +392,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .map(|connection| connection.weight)
         .collect();
     if let Some(heaviest) = heaviest_edge(spec, &weights, |edge| {
-        let (from, to) = ends[edge];
-        (
-            architecture.components[from].label.clone(),
-            architecture.components[to].label.clone(),
-        )
+        written(architecture, &architecture.connections[edge])
     }) {
         description.push(' ');
         description.push_str(&heaviest);
@@ -770,6 +805,265 @@ mod tests {
             .description;
         assert!(text.contains("Steps: 1 Reader → Site (reads); 2 Site → API (loads)."));
         assert!(text.contains("API (step 2, loads, via HTTPS)"));
+    }
+
+    #[test]
+    fn a_connection_runs_both_ways_or_has_no_direction_in_picture_and_text() {
+        let both = SPEC.replace(
+            r#"{"from": "api", "to": "files", "label": "stores"}"#,
+            r#"{"from": "api", "to": "files", "label": "stores", "direction": "both", "step": 1}"#,
+        );
+        let none = both.replace(
+            r#"{"from": "api", "to": "mail", "label": "notifies"}"#,
+            r#"{"from": "api", "to": "mail", "label": "notifies", "direction": "none"}"#,
+        );
+        let heads = |json: &str| svg(json).content.matches("chartlet-flow-head").count();
+        assert_eq!(heads(&both), heads(SPEC) + 1);
+        assert_eq!(heads(&none), heads(SPEC));
+        let output = svg(&none);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(
+            output
+                .content
+                .contains("<title>API ↔ Images: 1. stores</title>")
+        );
+        assert!(
+            output
+                .content
+                .contains("<title>API — Mail service: notifies</title>")
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&none).expect("parses")).expect("valid");
+        // One connection each, listed once, with the way it runs.
+        assert!(
+            alternative
+                .description
+                .starts_with("Architecture diagram with 6 components and 5 connections")
+        );
+        assert!(
+            alternative
+                .description
+                .contains("Steps: 1 API ↔ Images (stores).")
+        );
+        let api = alternative
+            .table
+            .rows
+            .iter()
+            .find(|row| row[0] == "API")
+            .expect("a row");
+        assert_eq!(
+            api[3],
+            "Posts (via SQL), Images (both ways, step 1, stores), Mail service (without direction, notifies)"
+        );
+        // Without one way for every connection, nothing is a source or a sink.
+        let directed = text_alternative(&ChartSpec::from_json(SPEC).expect("parses"))
+            .expect("valid")
+            .description;
+        assert!(directed.contains("Nothing leads into Reader."));
+        assert!(!alternative.description.contains("Nothing leads"));
+        let forward = SPEC.replace(
+            r#""label": "stores"}"#,
+            r#""label": "stores", "direction": "forward"}"#,
+        );
+        assert_eq!(svg(&forward).content, svg(SPEC).content);
+    }
+
+    const FAN_OUT: &str = include_str!("../examples/service-fan-out.json");
+
+    fn branches(content: &str) -> usize {
+        content
+            .matches("r=\"3\" class=\"chartlet-flow-head\"")
+            .count()
+    }
+
+    #[test]
+    fn shared_trunks_branch_with_dots_and_keep_every_connection() {
+        let separate = FAN_OUT.replace("\"sharedTrunks\": true", "\"sharedTrunks\": false");
+        let unset = FAN_OUT.replace(",\n    \"sharedTrunks\": true", "");
+        assert_ne!(unset, FAN_OUT);
+        assert_eq!(svg(&separate).content, svg(&unset).content);
+        assert_eq!(branches(&svg(&unset).content), 0);
+        for orientation in ["portrait", "landscape"] {
+            let json = FAN_OUT.replace(
+                "\"sharedTrunks\"",
+                &format!("\"orientation\": \"{orientation}\", \"sharedTrunks\""),
+            );
+            let output = svg(&json);
+            assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+            // Out of the gateway: two inner branches on one side; into the log store: two inner
+            // branches and the trunk, where the edges come from both sides.
+            assert_eq!(branches(&output.content), 5, "{orientation}");
+            assert_eq!(svg(&json).content, output.content);
+            // Every connection is still drawn on its own, with its tooltip.
+            for title in [
+                "<title>Gateway → Catalog</title>",
+                "<title>Gateway → Cart</title>",
+                "<title>Cart → Log store</title>",
+                "<title>Orders → Log store</title>",
+                "<title>Gateway → Sign-in: checks token</title>",
+            ] {
+                assert_eq!(output.content.matches(title).count(), 1, "{title}");
+            }
+        }
+        let shared =
+            text_alternative(&ChartSpec::from_json(FAN_OUT).expect("parses")).expect("valid");
+        let own = text_alternative(&ChartSpec::from_json(&unset).expect("parses")).expect("valid");
+        assert_eq!(shared.description, own.description);
+        assert_eq!(shared.table.rows, own.table.rows);
+    }
+
+    #[test]
+    fn only_connections_that_read_the_same_share_a_trunk() {
+        let separate = FAN_OUT.replace("\"sharedTrunks\": true", "\"sharedTrunks\": false");
+        // Labels, a second pattern, a weight, a direction or a second connection between the
+        // same two components each keep a line of their own; what is left shares no trunk.
+        for (from, to) in [
+            (
+                r#""to": "search" }"#,
+                r#""to": "search", "label": "finds" }"#,
+            ),
+            (
+                r#""to": "search" }"#,
+                r#""to": "search", "dash": "dotted" }"#,
+            ),
+            (r#""to": "search" }"#, r#""to": "search", "weight": 3 }"#),
+            (
+                r#""to": "search" }"#,
+                r#""to": "search", "direction": "both" }"#,
+            ),
+            (
+                r#""to": "search" }"#,
+                r#""to": "search", "role": "critical" }"#,
+            ),
+            (
+                r#"{ "from": "gateway", "to": "cart" },"#,
+                r#"{ "from": "gateway", "to": "catalog" },"#,
+            ),
+        ] {
+            assert!(FAN_OUT.contains(from), "{from}");
+            // The log store's trunk keeps its three branches; the gateway's has at most one left.
+            let all = |json: &str| branches(&svg(&json.replace(from, to)).content);
+            assert!((3..5).contains(&all(FAN_OUT)), "{to}");
+            assert_eq!(all(&separate), 0, "{to}");
+        }
+    }
+
+    #[test]
+    fn connections_of_one_role_share_a_trunk() {
+        let planned = FAN_OUT
+            .replace(
+                r#""to": "catalog" }"#,
+                r#""to": "catalog", "role": "planned" }"#,
+            )
+            .replace(
+                r#""to": "search" }"#,
+                r#""to": "search", "role": "planned" }"#,
+            );
+        let output = svg(&planned);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        // Catalog and Search share a planned trunk, Cart goes alone; the log store keeps its own.
+        assert_eq!(branches(&output.content), 1 + 3);
+    }
+
+    #[test]
+    fn shared_trunks_keep_to_shared_ranks() {
+        for set in [r#"[["auth", "catalog"]]"#, r#"[["auth", "logs"]]"#] {
+            let json = FAN_OUT.replace(
+                "\"sharedTrunks\"",
+                &format!("\"sameRank\": {set}, \"sharedTrunks\""),
+            );
+            let output = svg(&json);
+            for title in [
+                "<title>Gateway → Catalog</title>",
+                "<title>Gateway → Search</title>",
+                "<title>Gateway → Cart</title>",
+                "<title>Gateway → Orders</title>",
+                "<title>Search → Log store</title>",
+                "<title>Gateway → Sign-in: checks token</title>",
+            ] {
+                assert_eq!(output.content.matches(title).count(), 1, "{set} {title}");
+            }
+            assert_eq!(svg(&json).content, output.content);
+        }
+    }
+
+    #[test]
+    fn a_view_keeps_the_direction_of_its_connections() {
+        let json = FAN_OUT
+            .replace(r#""to": "search" }"#, r#""to": "search", "direction": "both" }"#)
+            .replace(
+                "\"sharedTrunks\": true",
+                r#""sharedTrunks": true, "views": [{"key": "search", "title": "Search", "components": ["gateway", "search", "logs"]}]"#,
+            );
+        let view = ChartSpec::from_json(&json)
+            .expect("parses")
+            .view(Some("search"))
+            .expect("a view");
+        let architecture = view.architecture.as_ref().expect("an architecture");
+        assert_eq!(
+            architecture.connections[0].direction,
+            crate::ConnectionDirection::Both
+        );
+        let options = RenderOptions {
+            view: Some("search".to_owned()),
+            ..RenderOptions::default()
+        };
+        let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        assert!(output.content.contains("<title>Gateway ↔ Search</title>"));
+        assert!(output.content.contains("(both ways)"));
+    }
+
+    #[test]
+    fn note_lines_never_join_a_shared_trunk() {
+        let notes = r#""notes": [
+                {"on": "gateway", "text": "Routes by path"},
+                {"on": "gateway", "text": "Retries twice"},
+                {"on": "logs", "text": "Kept for a day"}
+            ],
+            "sharedTrunks""#;
+        let json = FAN_OUT.replace("\"sharedTrunks\"", notes);
+        let content = svg(&json).content;
+        assert!(branches(&content) > 0);
+        // No arrowhead on a note line: as many as without notes.
+        let arrowheads = |content: &str| {
+            content.matches("class=\"chartlet-flow-head").count() - branches(content)
+        };
+        assert_eq!(arrowheads(&content), arrowheads(&svg(FAN_OUT).content));
+        // Every note line leaves on its own, apart from the gateway's trunk, without a tooltip.
+        let start = |line: &str| line.split(' ').next().expect("a point").to_owned();
+        let notes: Vec<String> = content
+            .split("<polyline points=\"")
+            .filter(|line| line.contains("chartlet-flow-dotted\"/>"))
+            .map(start)
+            .collect();
+        assert_eq!(notes.len(), 3);
+        let trunk = content
+            .split("<polyline points=\"")
+            .find(|line| line.contains("<title>Gateway → Catalog</title>"))
+            .map(start)
+            .expect("drawn");
+        assert!(notes.iter().all(|note| *note != trunk));
+        assert_ne!(notes[0], notes[1]);
+    }
+
+    #[test]
+    fn shared_trunks_work_on_a_phone() {
+        let json = FAN_OUT.replace(
+            "\"source\"",
+            "\"mobile\": { \"width\": 360, \"height\": 900 }, \"source\"",
+        );
+        let options = RenderOptions {
+            variant: crate::Variant::Mobile,
+            ..RenderOptions::default()
+        };
+        let output = render_json(&json, RenderFormat::Svg, &options).expect("renders");
+        assert_eq!(branches(&output.content), 5);
+        assert_eq!(
+            output.content,
+            render_json(&json, RenderFormat::Svg, &options)
+                .expect("renders")
+                .content
+        );
     }
 
     #[test]

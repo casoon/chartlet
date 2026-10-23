@@ -8,6 +8,7 @@
 //! a cycle is drawn back the other way.
 
 mod graph;
+mod trunks;
 
 use std::fmt::Write as _;
 
@@ -31,6 +32,7 @@ use crate::{
     text,
 };
 use graph::{Graph, settle};
+use trunks::Trunks;
 
 pub(crate) const MARGIN: f64 = 24.0;
 const BOTTOM: f64 = 16.0;
@@ -68,6 +70,9 @@ const LANE_HEAD: f64 = 26.0;
 const INITIAL: f64 = 20.0;
 /// How far the loop of an edge from a step to itself reaches out.
 const LOOP: f64 = 22.0;
+/// Radius of the dot where a shared trunk branches.
+const BRANCH: f64 = 3.0;
+
 /// The spacing of a diagram: roomy on a wide canvas, compact below [`NARROW`] pixels, such as a
 /// mobile variant, where steps get narrower and wrap their labels sooner, and the space around
 /// and between them shrinks.
@@ -143,11 +148,26 @@ pub(crate) fn layout_diagram(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
+    layout_with_trunks(spec, diagram, false, warnings, metrics)
+}
+
+/// [`layout_diagram`], with the edges that leave or reach a step together drawn on shared trunks
+/// when `shared_trunks` (see [`trunks`]).
+pub(crate) fn layout_with_trunks(
+    spec: &ChartSpec,
+    diagram: &Diagram,
+    shared_trunks: bool,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Scene {
     let width = f64::from(spec.width);
     let spacing = Spacing::for_width(spec.width);
     let margin = spacing.margin;
     let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
-    let model = Model::new(diagram, (spacing, spec.number_style()), metrics, warnings);
+    let mut model = Model::new(diagram, (spacing, spec.number_style()), metrics, warnings);
+    if shared_trunks {
+        model.trunks = Trunks::of(diagram, &model.graph);
+    }
     let landscape = match diagram.orientation {
         DiagramOrientation::Portrait => false,
         DiagramOrientation::Landscape => true,
@@ -257,6 +277,9 @@ pub(crate) struct Edge {
     pub label_path: String,
     /// What is drawn at either end of the line.
     pub ends: Ends,
+    /// The sign between the two ends in the edge's tooltip: `→`, or `↔` and `—` for an edge
+    /// that runs both ways or has no direction.
+    pub sign: &'static str,
     /// How much the edge carries; the line is drawn stronger the more.
     pub weight: Option<f64>,
     /// What the edge means beyond its kind: the color and pattern of its line.
@@ -401,6 +424,7 @@ impl Diagram {
                     main: flow.on_main_path(index),
                     label_path: format!("/flow/edges/{index}/label"),
                     ends: Ends::arrow(),
+                    sign: "→",
                     weight: edge.weight,
                     role: edge.role,
                 })
@@ -460,6 +484,7 @@ impl Diagram {
                 tail_text: None,
                 head_text: None,
             },
+            sign: "—",
             weight: None,
             role: None,
         });
@@ -509,6 +534,8 @@ struct Model<'a> {
     loop_lines: Vec<Vec<String>>,
     /// How the values of the parts of a step are written.
     number_style: NumberStyle,
+    /// The edges drawn on shared trunks.
+    trunks: Trunks,
 }
 
 impl<'a> Model<'a> {
@@ -576,6 +603,7 @@ impl<'a> Model<'a> {
             loops,
             loop_lines,
             number_style,
+            trunks: Trunks::none(diagram.edges.len()),
         }
     }
 }
@@ -1841,7 +1869,7 @@ impl Ports {
         let mut reach = vec![0.0; edges];
         for node in 0..model.diagram.nodes.len() {
             for (outgoing, offsets) in [(true, &mut leave), (false, &mut reach)] {
-                let mut edges: Vec<(f64, usize)> = graph
+                let edges: Vec<(f64, usize)> = graph
                     .chains
                     .iter()
                     .enumerate()
@@ -1855,6 +1883,24 @@ impl Ports {
                         };
                         (end == node).then_some((cross[next], edge))
                     })
+                    .collect();
+                // The edges of a shared trunk take one port, where they lie on average.
+                let mut shared: Vec<(f64, Vec<usize>)> = Vec::new();
+                for (at, edge) in edges {
+                    let trunk = model.trunks.at(edge, outgoing);
+                    match shared.iter_mut().find(|(_, members)| {
+                        trunk.is_some() && model.trunks.at(members[0], outgoing) == trunk
+                    }) {
+                        Some((sum, members)) => {
+                            *sum += at;
+                            members.push(edge);
+                        }
+                        None => shared.push((at, vec![edge])),
+                    }
+                }
+                let mut edges: Vec<(f64, Vec<usize>)> = shared
+                    .into_iter()
+                    .map(|(sum, members)| (sum / count(members.len()), members))
                     .collect();
                 crate::sort::by(&mut edges, |a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
                 let ports = count(edges.len());
@@ -1875,13 +1921,15 @@ impl Ports {
                 // others keep their order on either side of it.
                 let main = edges
                     .iter()
-                    .position(|(_, edge)| model.diagram.edges[*edge].main)
+                    .position(|(_, members)| model.diagram.edges[members[0]].main)
                     .map(count);
                 let middle = main.unwrap_or((ports - 1.0) / 2.0);
                 let reach = (middle).max(ports - 1.0 - middle);
                 let step = step.min((size / 2.0 - 8.0) / reach);
-                for (index, (_, edge)) in edges.iter().enumerate() {
-                    offsets[*edge] = (count(index) - middle) * step;
+                for (index, (_, members)) in edges.iter().enumerate() {
+                    for edge in members {
+                        offsets[*edge] = (count(index) - middle) * step;
+                    }
                 }
             }
         }
@@ -1986,12 +2034,14 @@ impl Gaps {
             }
         }
         let mut tracks = vec![0; gaps];
+        let trunks = &model.trunks;
+        let shared = |piece: &Piece| {
+            trunks.leave[piece.edge].is_some() || trunks.reach[piece.edge].is_some()
+        };
         for (gap, tracks) in tracks.iter_mut().enumerate() {
+            let bends = |piece: &Piece| piece.layer == gap && (piece.from - piece.to).abs() > 0.5;
             let mut bending: Vec<usize> = (0..pieces.len())
-                .filter(|index| {
-                    pieces[*index].layer == gap
-                        && (pieces[*index].from - pieces[*index].to).abs() > 0.5
-                })
+                .filter(|index| bends(&pieces[*index]) && !shared(&pieces[*index]))
                 .collect();
             crate::sort::by(&mut bending, |a, b| {
                 let low = |piece: &Piece| piece.from.min(piece.to);
@@ -1999,7 +2049,8 @@ impl Gaps {
                     .total_cmp(&low(&pieces[*b]))
                     .then(pieces[*a].edge.cmp(&pieces[*b].edge))
             });
-            let assigned = assign_tracks(&pieces, &bending);
+            let mut assigned = assign_tracks(&pieces, &bending);
+            assigned.extend(trunk_tracks(&pieces, &assigned, trunks, &bends));
             for (index, track) in &assigned {
                 pieces[*index].track = Some(*track);
             }
@@ -2206,6 +2257,53 @@ fn assign_tracks(pieces: &[Piece], order: &[usize]) -> Vec<(usize, usize)> {
     result
 }
 
+/// The tracks of the shared trunks in one gap, given the tracks `assigned` to the other pieces
+/// there: the pieces of a trunk that `bend` there take one track together, the first whose pieces
+/// keep clear of the trunk's whole run.
+fn trunk_tracks(
+    pieces: &[Piece],
+    assigned: &[(usize, usize)],
+    trunks: &Trunks,
+    bends: &impl Fn(&Piece) -> bool,
+) -> Vec<(usize, usize)> {
+    let range = |piece: &Piece| (piece.from.min(piece.to), piece.from.max(piece.to));
+    let mut on_track: Vec<Vec<(f64, f64)>> = Vec::new();
+    for &(index, track) in assigned {
+        if on_track.len() <= track {
+            on_track.resize(track + 1, Vec::new());
+        }
+        on_track[track].push(range(&pieces[index]));
+    }
+    let mut result = Vec::new();
+    for trunk in &trunks.shared {
+        let members: Vec<usize> = (0..pieces.len())
+            .filter(|&index| bends(&pieces[index]) && trunk.edges.contains(&pieces[index].edge))
+            .collect();
+        let Some((low, high)) = members
+            .iter()
+            .map(|&index| range(&pieces[index]))
+            .reduce(|(low, high), (l, h)| (low.min(l), high.max(h)))
+        else {
+            continue;
+        };
+        let track = (0..=on_track.len())
+            .find(|&track| {
+                on_track.get(track).is_none_or(|ranges| {
+                    ranges
+                        .iter()
+                        .all(|&(l, h)| h + 10.0 < low || high + 10.0 < l)
+                })
+            })
+            .expect("a track past the last is free");
+        if on_track.len() <= track {
+            on_track.resize(track + 1, Vec::new());
+        }
+        on_track[track].push((low, high));
+        result.extend(members.into_iter().map(|index| (index, track)));
+    }
+    result
+}
+
 /// The way of every edge: out of its first step, along each piece and its track, into its last
 /// step; an edge the layout turned around runs back the other way.
 fn route(
@@ -2335,6 +2433,7 @@ impl Plan {
             self.draw_edge(model, edge, elements, &mut labels);
             elements.push(Element::GroupEnd);
         }
+        self.draw_branches(model, elements);
         for node in 0..model.diagram.nodes.len() {
             elements.push(Element::Group(model.node_classes(node)));
             self.draw_loop(model, node, elements, &mut labels);
@@ -2381,6 +2480,62 @@ impl Plan {
             }
         }
         reach
+    }
+
+    /// A dot at every branch of a shared trunk, tied to the steps of all its edges.
+    fn draw_branches(&self, model: &Model, elements: &mut Vec<Element>) {
+        for trunk in &model.trunks.shared {
+            let routes: Vec<&Route> = trunk
+                .edges
+                .iter()
+                .filter_map(|&edge| self.routes[edge].as_ref())
+                .collect();
+            let Some(bus) = routes
+                .iter()
+                .find(|route| route.points.len() == 4)
+                .map(|route| route.points[1].0)
+            else {
+                continue;
+            };
+            let shared = if trunk.leaving {
+                routes[0].points[0].1
+            } else {
+                routes[0].points[routes[0].points.len() - 1].1
+            };
+            let others: Vec<f64> = routes
+                .iter()
+                .map(|route| match (route.points.len(), trunk.leaving) {
+                    (4, true) => route.points[2].1,
+                    (4, false) => route.points[1].1,
+                    _ => shared,
+                })
+                .collect();
+            let points = trunks::branches(shared, bus, &others);
+            if points.is_empty() {
+                continue;
+            }
+            let mut related: Vec<usize> = trunk
+                .edges
+                .iter()
+                .flat_map(|&edge| [model.ends[edge].0, model.ends[edge].1])
+                .collect();
+            related.sort_unstable();
+            elements.push(Element::Group(focus_classes(None, &related)));
+            for point in points {
+                let (cx, cy) = self.page(point);
+                elements.push(Element::Circle(Circle {
+                    cx,
+                    cy,
+                    radius: BRANCH,
+                    class: "chartlet-flow-head",
+                    topic: None,
+                    series_index: None,
+                    style_index: None,
+                    tooltip: None,
+                }));
+            }
+            elements.push(Element::GroupEnd);
+        }
     }
 
     fn draw_lanes(&self, model: &Model, elements: &mut Vec<Element>) {
@@ -2605,6 +2760,11 @@ impl Plan {
             start.0 - tail_direction.0 * tail_length,
             start.1 - tail_direction.1 * tail_length,
         );
+        // Edges that share the way into a step are drawn from there, so that a dashed pattern
+        // runs in step on the shared part.
+        if model.trunks.reach[edge].is_some() {
+            points.reverse();
+        }
         let main = spec.main;
         let class = match (main, spec.dash) {
             (true, _) => "chartlet-flow-edge chartlet-flow-main",
@@ -2622,8 +2782,8 @@ impl Plan {
         // The line to a note only points at it; the note carries its own text.
         let tooltip = match note {
             _ if diagram.nodes[to].shape == Shape::Note => None,
-            Some(note) => Some(format!("{from_label} → {to_label}: {note}")),
-            None => Some(format!("{from_label} → {to_label}")),
+            Some(note) => Some(format!("{from_label} {} {to_label}: {note}", spec.sign)),
+            None => Some(format!("{from_label} {} {to_label}", spec.sign)),
         };
         elements.push(Element::Polyline(diagram::polyline(points, class, tooltip)));
         let head_class = if main {
@@ -3504,11 +3664,11 @@ fn next_steps(
 }
 
 /// The edge with the largest weight, as a sentence, when at least two edges have one; the first
-/// at a tie. `ends` gives the labels at both ends of every edge.
+/// at a tie. `ends` writes every edge with the labels at both ends, as `A → B`.
 pub(crate) fn heaviest_edge(
     spec: &ChartSpec,
     weights: &[Option<f64>],
-    ends: impl Fn(usize) -> (String, String),
+    ends: impl Fn(usize) -> String,
 ) -> Option<String> {
     if weights.iter().flatten().count() < 2 {
         return None;
@@ -3524,10 +3684,9 @@ pub(crate) fn heaviest_edge(
                 _ => Some((edge, weight)),
             },
         )?;
-    let (from, to) = ends(edge);
     Some(text::heaviest_edge(
         spec.locale,
-        &format!("{from} → {to}"),
+        &ends(edge),
         &format_value(weight, spec.number_style()),
     ))
 }
@@ -3563,7 +3722,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let weights: Vec<Option<f64>> = flow.edges.iter().map(|edge| edge.weight).collect();
     if let Some(heaviest) = heaviest_edge(spec, &weights, |edge| {
         let (from, to) = ends[edge];
-        (flow.nodes[from].label.clone(), flow.nodes[to].label.clone())
+        format!("{} → {}", flow.nodes[from].label, flow.nodes[to].label)
     }) {
         description.push(' ');
         description.push_str(&heaviest);

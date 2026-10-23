@@ -260,6 +260,8 @@ const KINDS = {
       label: "what it does",
       technology: "how, in brackets below the label",
       step: "1-99, each once: numbers the connection in a sequence of calls, written before the label",
+      direction: "forward (default, arrowhead at to), both (one connection both ways, arrowheads at either end) or none (no direction, no arrowhead)",
+      sharedTrunks: "on architecture: true draws connections that leave or reach one component together on one branching line; only unlabeled ones with the same dash, weight and role whose other ends share a boundary",
       id: "optional stable name by which views select the connection",
     },
     view: {
@@ -292,6 +294,7 @@ const KINDS = {
       composition: "filled diamond at from, the whole",
       aggregation: "hollow diamond at from",
       dependency: "dashed line with an open arrowhead at to",
+      direction: "on an association only: forward (navigable to to, open arrowhead there), both or none (plain line)",
     },
     package: { package: "frame around the classes that name it with in; packages nest with in, up to four deep; relations join classes, never packages" },
     note: { note: "on a class id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no relation; up to 12" },
