@@ -507,7 +507,7 @@ const VALUE_LABEL_CLEARANCE: f64 = 2.0;
 
 /// Which categories leave out their value labels. `bar_and_label` gives the bar of one series in
 /// one category, as left, top, width and height, and its value label. A label is measured with
-/// [`FALLBACK_RESERVE`] and [`VALUE_LABEL_CLEARANCE`]; when it overlaps another value label or another bar of its own
+/// `FALLBACK_RESERVE` (in `labels.rs`) and [`VALUE_LABEL_CLEARANCE`]; when it overlaps another value label or another bar of its own
 /// category or of a neighbouring one, its category shows none of its value labels. All or nothing
 /// per category, so that a gap in the labels never reads as a missing value; overlapping labels
 /// of two neighbouring categories leave out the labels of both.

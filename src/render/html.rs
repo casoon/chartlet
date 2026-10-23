@@ -62,7 +62,7 @@ fn panel_roots(panels: &[Panel]) -> Vec<&str> {
         .collect()
 }
 
-/// The ID of an SVG's root element, which [`svg`] always writes as the root's first `id`.
+/// The ID of an SVG's root element, which [`svg`](super::svg::svg) always writes as the root's first `id`.
 fn root_id(svg: &str) -> Option<&str> {
     let start = svg.find(" id=\"")? + 5;
     let end = start + svg[start..].find('"')?;

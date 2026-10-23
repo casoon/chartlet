@@ -52,7 +52,7 @@ const TIME_INSET: f64 = 6.0;
 /// markers and their labels would sit closer together than about eleven pixels, and every marker
 /// and tooltip costs bytes in the output; the line and the data table carry the values instead.
 const MAX_TIME_MARKERS: usize = 60;
-/// The weight classes of a line, by [`Stroke`].
+/// The weight classes of a line, by [`Stroke`](crate::spec::Stroke).
 const LINE_WEIGHTS: [&str; 4] = [
     "",
     " chartlet-line-thin",

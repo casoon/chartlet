@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Writes the data table; with `hooks`, the chart's ID prefix, it also carries the
-/// [`TableHooks`] as `data-*` attributes.
+/// [`TableHooks`](super::hooks::TableHooks) as `data-*` attributes.
 pub(super) fn render_data_table(
     output: &mut String,
     spec: &ChartSpec,

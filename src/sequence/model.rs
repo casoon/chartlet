@@ -35,7 +35,7 @@ pub(super) struct Model<'a> {
     pub(super) box_widths: Vec<f64>,
     /// Height of the band that holds the participants' names.
     pub(super) band: f64,
-    /// Whether the diagram is narrower than [`COMPACT_BELOW`]: participant names wrap, margins shrink.
+    /// Whether the diagram is narrower than [`COMPACT_BELOW`](super::COMPACT_BELOW): participant names wrap, margins shrink.
     pub(super) compact: bool,
     pub(super) margin: f64,
     pub(super) has_actor: bool,

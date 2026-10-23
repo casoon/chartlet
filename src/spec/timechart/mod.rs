@@ -14,7 +14,7 @@ pub(crate) use validate::{LayerContext, validate_layer_name};
 
 /// Per layer, measured against the size and the render time of the SVG and the HTML profile.
 pub(crate) const MAX_TIME_POINTS_PER_LAYER: usize = 2_000;
-/// Data layers per pane. Beyond the palette's [`MAX_SERIES`] colors a layer has to bring its own
+/// Data layers per pane. Beyond the palette's [`MAX_SERIES`](super::MAX_SERIES) colors a layer has to bring its own
 /// color, and past six lines the legend and the plot stop being readable.
 pub(crate) const MAX_TIME_LAYERS: usize = 6;
 /// Data layers of a stacked pane: stacked areas lie side by side instead of crossing, so a few
