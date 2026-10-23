@@ -288,6 +288,7 @@ const KINDS = {
       composition: "filled diamond at from, the whole",
       aggregation: "hollow diamond at from",
       dependency: "dashed line with an open arrowhead at to",
+      direction: "on an association only: forward (navigable to to, open arrowhead there), both or none (plain line)",
     },
   },
 };

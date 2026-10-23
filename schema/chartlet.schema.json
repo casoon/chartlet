@@ -1021,7 +1021,8 @@
               "kind": { "enum": ["association", "inheritance", "realization", "composition", "aggregation", "dependency"], "default": "association" },
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "fromCardinality": { "type": "string", "minLength": 1, "maxLength": 12 },
-              "toCardinality": { "type": "string", "minLength": 1, "maxLength": 12 }
+              "toCardinality": { "type": "string", "minLength": 1, "maxLength": 12 },
+              "direction": { "description": "Associations only: navigable to `to` (forward, an open arrowhead at `to`), both ways (open arrowheads at either end), or not said (none, a plain line).", "enum": ["forward", "both", "none"] }
             }
           }
         },

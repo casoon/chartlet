@@ -1670,6 +1670,24 @@ pub(crate) const fn connection_direction(
     }
 }
 
+/// Which way an association can be navigated, given the class at its `to` end: `navigable to
+/// Order`; nothing when that is not said.
+pub(crate) fn navigable(
+    locale: Locale,
+    direction: ConnectionDirection,
+    to: &str,
+) -> Option<String> {
+    match (locale, direction) {
+        (_, ConnectionDirection::None) => None,
+        (Locale::En, ConnectionDirection::Forward) => Some(format!("navigable to {to}")),
+        (Locale::En, ConnectionDirection::Both) => Some("navigable both ways".to_owned()),
+        (Locale::De, ConnectionDirection::Forward) => Some(format!("navigierbar zu {to}")),
+        (Locale::De, ConnectionDirection::Both) => {
+            Some("in beide Richtungen navigierbar".to_owned())
+        }
+    }
+}
+
 /// What a connection does and how, for a parenthesis: `reads, via SQL`.
 pub(crate) fn connection_note(
     locale: Locale,

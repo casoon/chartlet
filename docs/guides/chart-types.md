@@ -633,6 +633,10 @@ related.
   `dependency` a dashed line with an open arrowhead at `to`. A relation may have a `label`,
   and `fromCardinality` and `toCardinality` (such as `1` or `0..*`) stand at its ends. The parent
   of an inheritance is laid out before its child.
+- **Navigability.** An association may say which way it can be navigated: `"direction":
+  "forward"` draws an open arrowhead at `to` (`from` knows `to`), `"both"` one at either end,
+  and `"none"` a plain line. The description adds “navigable to Order” or “navigable both ways”.
+  The other kinds keep their fixed ends and refuse a `direction` (`option_not_supported`).
 - **Layout.** The layered layout and the canvas rules of flow charts apply: `orientation`
   (`auto`, `portrait`, `landscape`) and the warning `canvas_too_small` when the diagram needs a
   bigger canvas.
