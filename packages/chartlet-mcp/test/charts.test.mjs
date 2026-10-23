@@ -78,6 +78,17 @@ test("renders the view of an architecture model it is asked for", () => {
   assert.deepEqual([unknown.error.code, unknown.error.path], ["unknown_view", "/render/view"]);
 });
 
+test("shows the perspective of an architecture model it is asked for", () => {
+  const spec = example("service-perspectives");
+  const debt = renderSpec({ spec, format: "svg", view: "owners", perspective: "debt" });
+  assert.equal(debt.ok, true);
+  assert.equal(debt.content, renderChart(spec, { format: "svg", view: "owners", perspective: "debt" }).content);
+  assert.equal(debt.manifest.perspective, "debt");
+  assert.equal(renderSpec({ spec, format: "svg", view: "owners" }).manifest.perspective, "owner");
+  const unknown = renderSpec({ spec, perspective: "cost" });
+  assert.deepEqual([unknown.error.code, unknown.error.path], ["unknown_perspective", "/render/perspective"]);
+});
+
 test("writes to outputPath inside the root and returns path and size", () => {
   const root = mkdtempSync(join(tmpdir(), "chartlet-mcp-"));
   try {

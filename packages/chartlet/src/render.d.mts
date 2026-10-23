@@ -17,6 +17,11 @@ export interface RenderChartOptions {
    * view. Every variant renders the same view.
    */
   view?: string;
+  /**
+   * The `key` of the perspective of an architecture diagram to show, in place of the one the
+   * model or the rendered view selects. Every variant shows the same perspective.
+   */
+  perspective?: string;
   /** Fail on any warning, except those whose code is listed in `allowWarnings`. */
   strict?: boolean;
   /** Warning codes that `strict` lets through, such as `"dense_chart"`. They are still reported. */

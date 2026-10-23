@@ -286,6 +286,24 @@ test("renders the view it is asked for, alike from WebAssembly and the CLI", () 
   assert.equal(unknown.error.path, "/render/view");
 });
 
+test("shows the perspective it is asked for, alike from WebAssembly and the CLI", () => {
+  const spec = JSON.parse(readExample("service-perspectives.json"));
+  const debt = { format: "svg", view: "owners", perspective: "debt", manifest: true, alternative: true };
+  const fromWasm = renderChart(spec, debt);
+  const fromCli = renderChart(spec, { ...debt, binary });
+  assert.equal(fromCli.content, fromWasm.content);
+  assert.deepEqual(fromCli.manifest, fromWasm.manifest);
+  assert.deepEqual(fromCli.alternative, fromWasm.alternative);
+  assert.match(fromWasm.content, />Technical debt:<\/text>/);
+  assert.equal(fromWasm.manifest.perspective, "debt");
+  assert.match(fromWasm.alternative.description, /Perspective Technical debt: /);
+
+  const unknown = renderChartDetailed(spec, { perspective: "cost" });
+  assert.equal(unknown.ok, false);
+  assert.equal(unknown.error.code, "unknown_perspective");
+  assert.equal(unknown.error.path, "/render/perspective");
+});
+
 test("hooks are written alike by the WebAssembly build and the CLI, and only on request", () => {
   const spec = JSON.parse(readExample("sensor-readings.json"));
   for (const format of ["svg", "html"]) {

@@ -312,6 +312,51 @@ impl ArchitectureSpec {
 }
 
 impl ChartSpec {
+    /// The specification with the perspective `key` shown in place of the one the model and
+    /// each of its views select, as a render with [`crate::RenderOptions::perspective`] shows it.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured error when the specification is invalid, and `unknown_perspective`
+    /// at `/render/perspective` when it has no perspective `key`.
+    pub fn with_perspective(&self, key: &str) -> Result<Self, ChartError> {
+        self.validate()?;
+        let keys: Vec<&str> = self
+            .architecture
+            .iter()
+            .flat_map(|architecture| &architecture.perspectives)
+            .map(|perspective| perspective.key.as_str())
+            .collect();
+        if !keys.contains(&key) {
+            let message = if keys.is_empty() {
+                "the specification has no perspectives; only an architecture diagram with perspectives has them"
+                    .to_owned()
+            } else {
+                format!(
+                    "no perspective has the key \"{key}\"; the perspectives are {}",
+                    keys.iter()
+                        .map(|key| format!("\"{key}\""))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            };
+            return Err(ChartError::new(
+                "unknown_perspective",
+                "/render/perspective",
+                message,
+            ));
+        }
+        let mut spec = self.clone();
+        // Only an architecture diagram has the perspective.
+        if let Some(architecture) = &mut spec.architecture {
+            architecture.perspective = Some(key.to_owned());
+            for view in &mut architecture.views {
+                view.perspective = Some(key.to_owned());
+            }
+        }
+        Ok(spec)
+    }
+
     /// Whether an architecture diagram shows a perspective.
     pub(crate) fn has_perspective(&self) -> bool {
         self.architecture

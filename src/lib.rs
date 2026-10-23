@@ -98,6 +98,9 @@ pub struct RenderOptions {
     /// The `key` of the view of an architecture model to render; without one, its default view.
     /// Every variant renders the same view.
     pub view: Option<String>,
+    /// The `key` of the perspective of an architecture diagram to show, in place of the one the
+    /// model or the rendered view selects. Every variant shows the same perspective.
+    pub perspective: Option<String>,
 }
 
 /// Where a chart's styles live.
@@ -344,6 +347,17 @@ pub fn render_with_metrics(
     options: &RenderOptions,
     metrics: &impl TextMetrics,
 ) -> Result<RenderOutput, ChartError> {
+    // A perspective asked for takes the place of the one the model and its views select; the
+    // manifest still hashes the model as given.
+    let model = spec;
+    let selected;
+    let spec = match &options.perspective {
+        Some(key) => {
+            selected = spec.with_perspective(key)?;
+            &selected
+        }
+        None => spec,
+    };
     // A model with views renders one of them, resolved to a diagram of its own; diagnostics
     // point into the model.
     let view = if spec.has_views() || options.view.is_some() {
@@ -375,7 +389,7 @@ pub fn render_with_metrics(
         output.manifest = Some(Manifest {
             chartlet: env!("CARGO_PKG_VERSION"),
             schema_version: spec.schema_version,
-            spec_hash: format!("sha256:{}", sha256::hex(&sha256(&canonical_json(spec)?))),
+            spec_hash: format!("sha256:{}", sha256::hex(&sha256(&canonical_json(model)?))),
             output_hash: format!("sha256:{}", sha256::hex(&sha256(output.content.as_bytes()))),
             format,
             variant: options.variant,

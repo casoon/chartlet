@@ -498,6 +498,50 @@ fn cli_renders_the_view_it_is_asked_for() {
 }
 
 #[test]
+fn cli_shows_the_perspective_it_is_asked_for() {
+    let directory =
+        std::env::temp_dir().join(format!("chartlet-cli-perspective-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory should be writable");
+    let manifest = directory.join("manifest.json");
+    let render = |perspective: &str| {
+        Command::new(env!("CARGO_BIN_EXE_chartlet"))
+            .args([
+                "render",
+                "examples/service-perspectives.json",
+                "--view",
+                "owners",
+                "--perspective",
+                perspective,
+                "--manifest",
+                manifest.to_str().expect("UTF-8 path"),
+            ])
+            .output()
+            .expect("chartlet CLI should start")
+    };
+
+    let debt = render("debt");
+    assert!(debt.status.success(), "{debt:?}");
+    let svg = String::from_utf8(debt.stdout).expect("SVG output should be UTF-8");
+    // The view's own perspective gives way to the one asked for.
+    assert!(svg.contains(">Technical debt:</text>") && !svg.contains(">Team:</text>"));
+    assert!(svg.contains("Booking platform: who runs what"));
+    let recorded: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&manifest).expect("the manifest should be written"))
+            .expect("the manifest should be JSON");
+    assert_eq!(recorded["view"], "owners");
+    assert_eq!(recorded["perspective"], "debt");
+
+    let unknown = render("cost");
+    assert!(!unknown.status.success());
+    let stderr = String::from_utf8(unknown.stderr).expect("errors should be UTF-8");
+    assert!(
+        stderr.contains("unknown_perspective at /render/perspective"),
+        "{stderr}"
+    );
+    std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
+}
+
+#[test]
 fn manifest_records_the_view() {
     let directory = std::env::temp_dir().join(format!("chartlet-cli-view-{}", std::process::id()));
     std::fs::create_dir_all(&directory).expect("temporary directory should be writable");

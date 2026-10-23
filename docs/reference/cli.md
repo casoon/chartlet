@@ -22,6 +22,7 @@ chartlet render <spec.json | -> [options]
 | `--variant print` | Renders the chart as SVG with literal colors instead of CSS custom properties, for PDF pipelines and renderers outside the browser; IDs end in `-p`. SVG format only. See [Print and PDF](../../guides/print/). |
 | `--variant social` | Renders the chart on a 1200 × 630 canvas for link previews such as Open Graph images: title drawn large, source below, literal colors, no tooltips; IDs end in `-s`. SVG format only. See [Social images and PNG](../../guides/social-and-png/). |
 | `--view <key>` | Renders this view of an architecture model with `views`; without it, its default view. Every variant and format renders the same view; `unknown_view` at `/render/view` for a key no view has, or a specification without views. See [Views on one model](../../guides/chart-types/#views-on-one-model). |
+| `--perspective <key>` | Shows this perspective of an architecture diagram in place of the one the model or the view selects, in every view, variant and format; `unknown_perspective` at `/render/perspective` for a key no perspective has. See [Perspectives](../../guides/chart-types/#perspectives). |
 | `-o <path>` | Writes to a file instead of standard output. |
 | `--manifest <path>` | Also writes a provenance manifest of the render as JSON to `<path>`, see [Provenance](../../guides/warnings-and-errors/#provenance). |
 | `--strict` | Fails on any warning. Useful in CI. |
@@ -70,7 +71,8 @@ chartlet render revenue.json -o revenue.svg --manifest revenue.manifest.json
 }
 ```
 
-A render of a view of an architecture model also records `"view": "<key>"`, after `idPrefix`.
+A render of a view of an architecture model also records `"view": "<key>"`, after `idPrefix`, and
+one that shows a perspective `"perspective": "<key>"` after it.
 The fields are described under [Provenance](../../guides/warnings-and-errors/#provenance).
 
 The SVG scales with its container, uses CSS classes for all styling and embeds no fonts, scripts or

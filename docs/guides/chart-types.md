@@ -1153,7 +1153,8 @@ The same diagram can answer different questions: which team runs each component,
 technical debt is high. A model keeps the answers as stated metadata, apart from its components
 and from how it is drawn: `perspectives` names the questions, each with its categories and the
 components in each. Nothing is drawn until a perspective is selected — by `perspective` on the
-model, or on a view, which takes the place of the model's.
+model, or on a view, which takes the place of the model's, or at render time
+(`--perspective debt`, `perspective: 'debt'`), which takes the place of both in every view.
 
 ```json
 "perspectives": [

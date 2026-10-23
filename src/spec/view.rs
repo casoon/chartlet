@@ -1189,6 +1189,70 @@ mod tests {
     }
 
     #[test]
+    fn a_render_option_shows_its_perspective_in_every_view() {
+        let json = include_str!("../../examples/service-perspectives.json");
+        let options = |view: &str, perspective: Option<&str>| RenderOptions {
+            perspective: perspective.map(str::to_owned),
+            manifest: true,
+            ..with(Some(view))
+        };
+        let debt = render_json(json, RenderFormat::Svg, &options("debt", None)).unwrap();
+        let owners =
+            render_json(json, RenderFormat::Svg, &options("owners", Some("debt"))).unwrap();
+        assert!(owners.content.contains(">Technical debt:</text>"));
+        assert!(!owners.content.contains(">Team:</text>"));
+        let manifest = owners.manifest.unwrap();
+        assert_eq!(manifest.perspective.as_deref(), Some("debt"));
+        assert_eq!(manifest.view.as_deref(), Some("owners"));
+        // The hash is that of the model as given.
+        assert_eq!(manifest.spec_hash, debt.manifest.unwrap().spec_hash);
+        // The same perspective asked for again changes nothing.
+        let same = render_json(json, RenderFormat::Svg, &options("debt", Some("debt"))).unwrap();
+        assert_eq!(same.content, debt.content);
+        // A plain diagram with perspectives but none selected shows the one asked for.
+        let mut plain = ChartSpec::from_json(json)
+            .unwrap()
+            .view(Some("debt"))
+            .unwrap();
+        plain.architecture.as_mut().unwrap().perspective = None;
+        let plain = serde_json::to_string(&plain).unwrap();
+        let shown = render_json(
+            &plain,
+            RenderFormat::Svg,
+            &RenderOptions {
+                perspective: Some("debt".to_owned()),
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap();
+        assert!(shown.content.contains(">Technical debt:</text>"));
+
+        let error =
+            render_json(json, RenderFormat::Svg, &options("owners", Some("cost"))).unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("unknown_perspective", "/render/perspective")
+        );
+        assert!(
+            error
+                .message
+                .contains("the perspectives are \"owner\", \"debt\""),
+            "{}",
+            error.message
+        );
+        let error = ChartSpec::from_json(MODEL)
+            .unwrap()
+            .with_perspective("cost")
+            .unwrap_err();
+        assert_eq!(error.code, "unknown_perspective");
+        assert!(
+            error
+                .message
+                .contains("the specification has no perspectives")
+        );
+    }
+
+    #[test]
     fn diagnostics_of_a_view_point_into_the_model() {
         let spec = ChartSpec::from_json(MODEL).unwrap();
         spec.validate().unwrap();

@@ -183,6 +183,10 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
           .string()
           .optional()
           .describe("The key of a view of an architecture model (architecture.views) to render; its default view when omitted. Each view is a diagram of its own with its own title, description and table; the manifest names the view."),
+        perspective: z
+          .string()
+          .optional()
+          .describe("The key of a perspective of an architecture model (architecture.perspectives) to show, in place of the one the model or the view selects; the manifest names it."),
         idPrefix: z
           .string()
           .optional()

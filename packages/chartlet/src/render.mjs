@@ -31,6 +31,7 @@ function withAlternative(rendered, spec, options) {
     rendered.alternative = wasmRenderer().renderChartDetailed(spec, {
       format: "svg",
       view: options.view,
+      perspective: options.perspective,
       alternative: true,
     }).alternative;
   }
@@ -125,6 +126,9 @@ function runCli(binary, input, options, extraArgs) {
   }
   if (options.view) {
     args.push("--view", options.view);
+  }
+  if (options.perspective) {
+    args.push("--perspective", options.perspective);
   }
   if (options.styles) {
     args.push("--styles", options.styles);

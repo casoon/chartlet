@@ -1533,7 +1533,7 @@
         },
         "defaultView": { "description": "The key of the view rendered when none is asked for; without it, the first view.", "$ref": "#/$defs/identifier" },
         "perspectives": {
-          "description": "Questions the model can be seen under, such as which team runs a component or how much technical debt it carries, each with its categories and the components in each. A diagram shows one perspective only when it is selected (perspective here or on a view), with a stripe in the category's color and its name in every box, a legend of the categories used, and the perspective in the description and the table. A component no category lists is shown as not stated. Nothing is derived.",
+          "description": "Questions the model can be seen under, such as which team runs a component or how much technical debt it carries, each with its categories and the components in each. A diagram shows one perspective only when it is selected (perspective here or on a view, or the perspective render option in place of both), with a stripe in the category's color and its name in every box, a legend of the categories used, and the perspective in the description and the table. A component no category lists is shown as not stated. Nothing is derived.",
           "type": "array",
           "maxItems": 8,
           "items": {
