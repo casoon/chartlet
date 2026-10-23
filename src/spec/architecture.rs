@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, DiagramRole, MainPath,
+    ChartSpec, Dash, DiagramOrientation, DiagramRole, MainPath, NoteSpec,
+    flow::validate_notes,
     sequence::is_identifier,
     validate_text,
     view::{ViewScope, ViewSpec},
@@ -29,6 +30,9 @@ pub struct ArchitectureSpec {
     /// drawn stronger.
     #[serde(default, skip_serializing_if = "MainPath::is_empty")]
     pub main_path: MainPath,
+    /// Notes beside components, such as an assumption or a limitation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<NoteSpec>,
     /// Sets of component ids that share one rank: each set lies at one position along the flow.
     /// A layout hint only; it adds no connection.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -225,6 +229,12 @@ impl ChartSpec {
         architecture.validate_boundaries()?;
         architecture.validate_components()?;
         architecture.validate_connections()?;
+        validate_notes(
+            &architecture.notes,
+            "architecture",
+            |id| architecture.component(id).is_some(),
+            "component",
+        )?;
         self.validate_views()?;
         Ok(Vec::new())
     }

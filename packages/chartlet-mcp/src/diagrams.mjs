@@ -266,6 +266,7 @@ const KINDS = {
       components: "architecture.views[]: a key, a title and the components shown; connections between them come along, or only the listed connections",
       steps: "a dynamic view: connection ids in the order they occur, each with optional step text, numbered from 1; a connection may occur again",
     },
+    note: { note: "on a component id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no connection; up to 12" },
   },
   tree: {
     node: {
@@ -292,6 +293,8 @@ const KINDS = {
       aggregation: "hollow diamond at from",
       dependency: "dashed line with an open arrowhead at to",
     },
+    package: { package: "frame around the classes that name it with in; packages nest with in, up to four deep; relations join classes, never packages" },
+    note: { note: "on a class id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no relation; up to 12" },
   },
 };
 
@@ -361,6 +364,7 @@ export function diagramCounts(spec) {
         components: length(spec.architecture?.components),
         connections: length(spec.architecture?.connections),
         boundaries: length(spec.architecture?.boundaries),
+        notes: length(spec.architecture?.notes),
       };
     case "tree":
       return { nodes: length(spec.tree?.nodes) };
@@ -368,6 +372,8 @@ export function diagramCounts(spec) {
       return {
         classes: length(spec.classes?.classes),
         relations: length(spec.classes?.relations),
+        packages: length(spec.classes?.packages),
+        notes: length(spec.classes?.notes),
       };
     default:
       return null;

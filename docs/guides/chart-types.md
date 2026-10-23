@@ -634,13 +634,30 @@ related.
   `dependency` a dashed line with an open arrowhead at `to`. A relation may have a `label`,
   and `fromCardinality` and `toCardinality` (such as `1` or `0..*`) stand at its ends. The parent
   of an inheritance is laid out before its child.
+- **Packages** group classes into modules: `"packages": [{ "id": "ordering", "label": "Ordering",
+  "in": "shop" }]` draws a frame named `Ordering` inside the frame of `shop`, and a class lies in
+  it with `"in": "ordering"`. Packages nest up to four deep, at most 12; every package holds a
+  class, directly or in a package inside it, and classes outside every package stay free.
+  Relations still join classes, also across package borders; a relation that names a package is
+  `unknown_node`. Example `shop-modules`.
+- **Notes** explain a class: `"notes": [{ "on": "card", "text": "Stores only a token" }]`
+  draws a pale box with a folded corner beside the class, joined to it by a dotted line without
+  marks. The line only says “explains”: it is no relation, so the most connected classes,
+  bottlenecks and relations read the same with and without notes. The text (up to 160
+  characters) wraps onto as many lines as it needs; up to 12 notes, each on an existing class
+  (`unknown_node`). Architecture diagrams take the same `notes` on components. Example
+  `subscription-model`.
 - **Layout.** The layered layout and the canvas rules of flow charts apply: `orientation`
   (`auto`, `portrait`, `landscape`) and the warning `canvas_too_small` when the diagram needs a
   bigger canvas.
 - **Text alternative.** The description gives every class with the number of its attributes and
   methods and the relations it starts, in words (`Dog inherits from Animal`), after the most
   connected classes and the bottlenecks (see [Graph structure](#graph-structure)); the data table
-  has one row per class with its kind, attributes, methods and relations.
+  has one row per class with its kind, attributes, methods and relations. With packages, the
+  description names every package with what it holds (`Ordering (in Shop): Order, OrderLine.`)
+  and the table gains a Package column with the path of packages (`Shop › Ordering`). Notes
+  follow the classes in the description (`Note on Card: Stores only a token.`) and fill a Notes
+  column of the table.
 
 ## Reference lines
 

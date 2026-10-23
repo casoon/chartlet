@@ -76,6 +76,8 @@ pub(crate) struct ResolvedView {
     /// The shared ranks the view keeps: the place of each in the model and the places of its
     /// shown members in it.
     same_rank: Vec<(usize, Vec<usize>)>,
+    /// The notes the view keeps, those on shown components, by their places in the model.
+    notes: Vec<usize>,
     /// The connections are the steps of the view, in order.
     dynamic: bool,
     own_main_path: bool,
@@ -227,19 +229,7 @@ impl ChartSpec {
         } else {
             view.main_path.clone()
         };
-        // A shared rank keeps its shown members, and only while they are two or more.
-        let same_rank: Vec<(usize, Vec<usize>)> = model
-            .same_rank
-            .iter()
-            .enumerate()
-            .map(|(set, members)| {
-                let shown = (0..members.len())
-                    .filter(|&member| is_shown(&members[member]))
-                    .collect::<Vec<_>>();
-                (set, shown)
-            })
-            .filter(|(_, shown)| shown.len() >= 2)
-            .collect();
+        let same_rank = shown_ranks(model, &is_shown);
         architecture.same_rank = same_rank
             .iter()
             .map(|(set, shown)| {
@@ -248,6 +238,11 @@ impl ChartSpec {
                     .map(|&member| model.same_rank[*set][member].clone())
                     .collect()
             })
+            .collect();
+        let notes = shown_notes(model, &is_shown);
+        architecture.notes = notes
+            .iter()
+            .map(|&note| model.notes[note].clone())
             .collect();
         architecture.views = Vec::new();
         architecture.default_view = None;
@@ -271,10 +266,39 @@ impl ChartSpec {
             connections,
             boundaries,
             same_rank,
+            notes,
             dynamic,
             own_main_path: !view.main_path.is_empty(),
         }
     }
+}
+
+/// The shared ranks a view keeps, by their places in the model, each with the places of its
+/// shown members: a rank keeps its shown members, and only while they are two or more.
+fn shown_ranks(
+    model: &ArchitectureSpec,
+    is_shown: &impl Fn(&str) -> bool,
+) -> Vec<(usize, Vec<usize>)> {
+    model
+        .same_rank
+        .iter()
+        .enumerate()
+        .map(|(set, members)| {
+            let shown = (0..members.len())
+                .filter(|&member| is_shown(&members[member]))
+                .collect::<Vec<_>>();
+            (set, shown)
+        })
+        .filter(|(_, shown)| shown.len() >= 2)
+        .collect()
+}
+
+/// The places in the model of the notes a view keeps: a note stays with its component, and one
+/// on a hidden component is left out.
+fn shown_notes(model: &ArchitectureSpec, is_shown: &impl Fn(&str) -> bool) -> Vec<usize> {
+    (0..model.notes.len())
+        .filter(|&note| is_shown(&model.notes[note].on))
+        .collect()
 }
 
 fn unknown_view(key: &str, keys: &[&str]) -> ChartError {
@@ -498,7 +522,7 @@ impl ArchitectureSpec {
 
 impl ResolvedView {
     /// A JSON pointer into the resolved diagram as a pointer into the model: its components,
-    /// connections and boundaries at their places in the model, its title, description and
+    /// connections, boundaries and notes at their places in the model, its title, description and
     /// main path, and the label of a step, in the view.
     pub(crate) fn model_path(&self, path: &str) -> String {
         let view = format!("/architecture/views/{}", self.index);
@@ -531,10 +555,11 @@ impl ResolvedView {
                 None => format!("/architecture/sameRank/{place}"),
             };
         }
-        let lists: [(&str, &[usize]); 3] = [
+        let lists: [(&str, &[usize]); 4] = [
             ("components", &self.components),
             ("connections", &self.connections),
             ("boundaries", &self.boundaries),
+            ("notes", &self.notes),
         ];
         for (list, places) in lists {
             let Some(rest) = path.strip_prefix(&format!("/architecture/{list}/")) else {
@@ -978,6 +1003,45 @@ mod tests {
         assert_eq!(
             resolved.model_path("/architecture/sameRank/0"),
             "/architecture/sameRank/1"
+        );
+    }
+
+    #[test]
+    fn a_view_keeps_the_notes_on_shown_components() {
+        let json = edited(
+            r#""mainPath": ["reader", "site", "api", "db"],"#,
+            r#""mainPath": ["reader", "site", "api", "db"],
+               "notes": [
+                   {"on": "db", "text": "Replaced next year"},
+                   {"on": "files", "text": "Kept for ten years"}
+               ],"#,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        spec.validate().unwrap();
+        let ons = |key: &str| -> Vec<String> {
+            let view = spec.view(Some(key)).unwrap();
+            architecture(&view)
+                .notes
+                .iter()
+                .map(|note| note.on.clone())
+                .collect()
+        };
+        assert_eq!(ons("overview"), ["db"]);
+        assert_eq!(ons("media"), ["files"]);
+        let svg = render(&json, Some("media")).unwrap().content;
+        assert!(svg.contains(">Kept for ten years<"));
+        assert!(!svg.contains("Replaced next year"));
+        // The media view keeps only the model's second note.
+        let media = spec.resolve_view(Some("media")).unwrap().unwrap();
+        assert_eq!(
+            media.model_path("/architecture/notes/0/text"),
+            "/architecture/notes/1/text"
+        );
+        let unknown = json.replace(r#"{"on": "files""#, r#"{"on": "cloud""#);
+        let error = error(&unknown);
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("unknown_node", "/architecture/notes/1/on")
         );
     }
 

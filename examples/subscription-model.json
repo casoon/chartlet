@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "type": "classes",
+  "title": "Subscription model",
+  "source": "Illustrative domain model",
+  "width": 900,
+  "height": 780,
+  "classes": {
+    "classes": [
+      {
+        "id": "customer",
+        "label": "Customer",
+        "attributes": [
+          "+ id: Int",
+          "+ email: String"
+        ]
+      },
+      {
+        "id": "subscription",
+        "label": "Subscription",
+        "attributes": [
+          "+ startsOn: Date",
+          "+ renewsOn: Date"
+        ],
+        "methods": [
+          "+ renew()",
+          "+ cancel()"
+        ]
+      },
+      {
+        "id": "plan",
+        "label": "Plan",
+        "attributes": [
+          "+ name: String",
+          "+ monthly: Money"
+        ]
+      },
+      {
+        "id": "invoice",
+        "label": "Invoice",
+        "attributes": [
+          "+ number: String",
+          "+ total: Money"
+        ]
+      },
+      {
+        "id": "method",
+        "label": "PaymentMethod",
+        "kind": "interface",
+        "methods": [
+          "+ charge(amount: Money)"
+        ]
+      },
+      {
+        "id": "card",
+        "label": "Card",
+        "attributes": [
+          "- token: String"
+        ]
+      }
+    ],
+    "relations": [
+      {
+        "from": "customer",
+        "to": "subscription",
+        "fromCardinality": "1",
+        "toCardinality": "0..*",
+        "label": "holds"
+      },
+      {
+        "from": "subscription",
+        "to": "plan",
+        "fromCardinality": "*",
+        "toCardinality": "1"
+      },
+      {
+        "from": "subscription",
+        "to": "invoice",
+        "kind": "composition",
+        "fromCardinality": "1",
+        "toCardinality": "0..*"
+      },
+      {
+        "from": "invoice",
+        "to": "method",
+        "kind": "dependency",
+        "label": "paid with"
+      },
+      {
+        "from": "card",
+        "to": "method",
+        "kind": "realization"
+      }
+    ],
+    "notes": [
+      {
+        "on": "subscription",
+        "text": "Renews on the same day each month; a cancelled subscription runs to the end of its period."
+      },
+      {
+        "on": "plan",
+        "text": "Prices are net; tax is added on the invoice."
+      },
+      {
+        "on": "card",
+        "text": "Stores only a token from the payment provider, never the card number."
+      }
+    ]
+  }
+}
