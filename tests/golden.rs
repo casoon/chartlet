@@ -946,6 +946,84 @@ fn every_social_variant_is_a_resolved_1200_by_630_canvas() {
     }
 }
 
+/// The examples without a reference in [`EXAMPLES`], as name and specification, by name.
+fn examples_without_reference() -> Vec<(String, String)> {
+    let mut missing: Vec<(String, String)> = example_files()
+        .into_iter()
+        .filter_map(|file| {
+            let name = file.strip_suffix(".json")?.to_owned();
+            (!EXAMPLES.iter().any(|(known, _, _)| *known == name)).then(|| {
+                let specification =
+                    std::fs::read_to_string(format!("examples/{file}")).expect("readable example");
+                (name, specification)
+            })
+        })
+        .collect();
+    missing.sort();
+    missing
+}
+
+/// The names of the files in `examples/`.
+fn example_files() -> Vec<String> {
+    std::fs::read_dir("examples")
+        .expect("the examples directory should exist")
+        .map(|entry| {
+            let entry = entry.expect("readable entry");
+            entry.file_name().to_str().expect("a UTF-8 name").to_owned()
+        })
+        .collect()
+}
+
+/// Every committed SVG and HTML file has its place in a catalog above, so none of them can
+/// drift unnoticed.
+#[test]
+fn every_rendered_example_has_a_reference() {
+    let missing: Vec<String> = examples_without_reference()
+        .into_iter()
+        .map(|(name, _)| format!("{name}.json"))
+        .collect();
+    assert!(
+        missing.is_empty(),
+        "examples without a reference: {missing:?}"
+    );
+
+    let mut catalogued: Vec<String> = Vec::new();
+    for (name, _, _) in EXAMPLES {
+        catalogued.extend([format!("{name}.svg"), format!("{name}.html")]);
+    }
+    for (catalog, suffix) in [
+        (&MOBILE_EXAMPLES[..], "mobile"),
+        (&PRINT_EXAMPLES[..], "print"),
+        (&SOCIAL_EXAMPLES[..], "social"),
+    ] {
+        catalogued.extend(
+            catalog
+                .iter()
+                .map(|(name, _, _)| format!("{name}.{suffix}.svg")),
+        );
+    }
+    catalogued.extend(
+        VIEW_EXAMPLES
+            .iter()
+            .map(|(name, view, _, _)| format!("{name}.{view}.svg")),
+    );
+    catalogued.push("shop-views.all.html".to_owned());
+    let mut unlisted: Vec<String> = example_files()
+        .into_iter()
+        .filter(|file| {
+            std::path::Path::new(file)
+                .extension()
+                .is_some_and(|extension| extension == "svg" || extension == "html")
+                && !catalogued.contains(file)
+        })
+        .collect();
+    unlisted.sort();
+    assert!(
+        unlisted.is_empty(),
+        "files in examples/ without an entry in tests/golden.rs: {unlisted:?}"
+    );
+}
+
 /// Writes a visual report of every reference above against the current rendering, plus the
 /// examples without one, to `target/tmp/golden-report/index.html`:
 /// `cargo test --test golden visual_report -- --ignored --nocapture`. It shows the changed
@@ -953,22 +1031,7 @@ fn every_social_variant_is_a_resolved_1200_by_630_canvas() {
 #[test]
 #[ignore = "writes a local report for review; run on demand"]
 fn visual_report() {
-    let mut missing: Vec<(String, String)> = std::fs::read_dir("examples")
-        .expect("the examples directory should exist")
-        .map(|entry| entry.expect("readable entry").path())
-        .filter(|path| {
-            path.extension()
-                .is_some_and(|extension| extension == "json")
-        })
-        .filter_map(|path| {
-            let name = path.file_stem()?.to_str()?.to_owned();
-            (!EXAMPLES.iter().any(|(known, _, _)| *known == name)).then(|| {
-                let specification = std::fs::read_to_string(&path).expect("readable example");
-                (name, specification)
-            })
-        })
-        .collect();
-    missing.sort();
+    let missing = examples_without_reference();
     let directory = report::directory();
     let summary = report::write(&directory, &report_entries(), &missing)
         .expect("the report should be written");
