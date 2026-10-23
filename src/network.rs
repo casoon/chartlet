@@ -676,7 +676,10 @@ pub(crate) fn layout(
             related.dedup();
             related
         };
-        elements.push(Element::Group(focus_classes(Some(node), &related)));
+        elements.push(Element::NodeGroup(
+            focus_classes(Some(node), &related),
+            network.nodes[node].id.clone(),
+        ));
         let (x, y) = plan.point(&placement, node);
         let spec_node = &network.nodes[node];
         let tooltip = match &spec_node.group {

@@ -932,6 +932,13 @@ fn emit_element(
             }
             output.push('>');
         }
+        Element::EdgeGroup(classes, id) => {
+            write!(output, "<g class=\"{classes}\"").expect("write");
+            if hooks.is_some() {
+                write!(output, " data-chartlet-edge=\"{}\"", escape(id)).expect("write");
+            }
+            output.push('>');
+        }
         Element::GroupEnd => output.push_str("</g>"),
         Element::Hotspot(_) => {}
         Element::Symbol(symbol) => write!(
@@ -1004,6 +1011,9 @@ fn emit_hook(hook: &Hook, spec: &ChartSpec, output: &mut String) {
                 )
                 .expect("write");
             }
+        }
+        Hook::Object(attribute, id) => {
+            write!(output, "<g {attribute}=\"{}\">", escape(id)).expect("write");
         }
         Hook::End => output.push_str("</g>"),
     }

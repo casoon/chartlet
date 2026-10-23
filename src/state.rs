@@ -89,6 +89,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         edges.push(Edge {
             from: 0,
             to: node(initial),
+            id: None,
             label: None,
             technology: None,
             dash: None,
@@ -105,6 +106,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         if machine.is_composite(index) {
             groups.push(Group {
                 label: state.label.clone(),
+                id: Some(state.id.clone()),
                 path: format!("/state/states/{index}"),
                 parent: frame(state),
             });
@@ -134,6 +136,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         edges.push(Edge {
             from: node(&transition.from),
             to: node(&transition.to),
+            id: None,
             label: transition.label(),
             technology: None,
             dash: transition.dash,
