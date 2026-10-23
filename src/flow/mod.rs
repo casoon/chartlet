@@ -240,6 +240,9 @@ pub(crate) struct Edge {
     pub label_path: String,
     /// What is drawn at either end of the line.
     pub ends: Ends,
+    /// The sign between the two ends in the edge's tooltip: `→`, or `↔` and `—` for an edge
+    /// that runs both ways or has no direction.
+    pub sign: &'static str,
     /// How much the edge carries; the line is drawn stronger the more.
     pub weight: Option<f64>,
 }
@@ -376,6 +379,7 @@ impl Diagram {
                     main: flow.on_main_path(index),
                     label_path: format!("/flow/edges/{index}/label"),
                     ends: Ends::arrow(),
+                    sign: "→",
                     weight: edge.weight,
                 })
                 .collect(),
@@ -2457,8 +2461,8 @@ impl Plan {
         };
         let (from_label, to_label) = (&diagram.nodes[from].label, &diagram.nodes[to].label);
         let tooltip = match note {
-            Some(note) => format!("{from_label} → {to_label}: {note}"),
-            None => format!("{from_label} → {to_label}"),
+            Some(note) => format!("{from_label} {} {to_label}: {note}", spec.sign),
+            None => format!("{from_label} {} {to_label}", spec.sign),
         };
         elements.push(Element::Polyline(diagram::polyline(
             points,
@@ -3282,11 +3286,11 @@ fn next_steps(spec: &ChartSpec, ends: &[(usize, usize)], node: usize) -> Vec<Str
 }
 
 /// The edge with the largest weight, as a sentence, when at least two edges have one; the first
-/// at a tie. `ends` gives the labels at both ends of every edge.
+/// at a tie. `ends` writes every edge with the labels at both ends, as `A → B`.
 pub(crate) fn heaviest_edge(
     spec: &ChartSpec,
     weights: &[Option<f64>],
-    ends: impl Fn(usize) -> (String, String),
+    ends: impl Fn(usize) -> String,
 ) -> Option<String> {
     if weights.iter().flatten().count() < 2 {
         return None;
@@ -3302,10 +3306,9 @@ pub(crate) fn heaviest_edge(
                 _ => Some((edge, weight)),
             },
         )?;
-    let (from, to) = ends(edge);
     Some(text::heaviest_edge(
         spec.locale,
-        &format!("{from} → {to}"),
+        &ends(edge),
         &format_value(weight, spec.number_style()),
     ))
 }
@@ -3341,7 +3344,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let weights: Vec<Option<f64>> = flow.edges.iter().map(|edge| edge.weight).collect();
     if let Some(heaviest) = heaviest_edge(spec, &weights, |edge| {
         let (from, to) = ends[edge];
-        (flow.nodes[from].label.clone(), flow.nodes[to].label.clone())
+        format!("{} → {}", flow.nodes[from].label, flow.nodes[to].label)
     }) {
         description.push(' ');
         description.push_str(&heaviest);

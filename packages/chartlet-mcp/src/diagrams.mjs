@@ -260,6 +260,7 @@ const KINDS = {
       label: "what it does",
       technology: "how, in brackets below the label",
       step: "1-99, each once: numbers the connection in a sequence of calls, written before the label",
+      direction: "forward (default, arrowhead at to), both (one connection both ways, arrowheads at either end) or none (no direction, no arrowhead)",
     },
   },
   tree: {

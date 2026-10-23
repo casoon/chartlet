@@ -1421,7 +1421,8 @@
               "technology": { "type": "string", "minLength": 1, "maxLength": 40 },
               "step": { "type": "integer", "minimum": 1, "maximum": 99 },
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
-              "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 }
+              "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
+              "direction": { "description": "Which way the connection runs: forward from `from` to `to` (an arrowhead at `to`), both ways as one connection (arrowheads at either end), or none (no arrowhead).", "enum": ["forward", "both", "none"], "default": "forward" }
             }
           }
         },

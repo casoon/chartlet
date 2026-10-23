@@ -8,11 +8,13 @@ use std::fmt::Write as _;
 use crate::{
     DataTable,
     error::ChartWarning,
-    flow::{Diagram, Edge, Ends, Group, Node, Shape, heaviest_edge, layout_diagram, reading_order},
+    flow::{
+        Diagram, Edge, End, Ends, Group, Node, Shape, heaviest_edge, layout_diagram, reading_order,
+    },
     layout::format_value,
     metrics::TextMetrics,
     scene::Scene,
-    spec::{ArchitectureSpec, ChartSpec, ComponentKind},
+    spec::{ArchitectureSpec, ChartSpec, ComponentKind, ConnectionDirection, ConnectionSpec},
     structure::{Facts, Structure},
     text,
 };
@@ -81,7 +83,8 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
                 dash: connection.dash,
                 main: architecture.on_main_path(index),
                 label_path: format!("/architecture/connections/{index}/label"),
-                ends: Ends::arrow(),
+                ends: ends(connection.direction),
+                sign: connection.direction.sign(),
                 weight: connection.weight,
             })
             .collect(),
@@ -97,6 +100,21 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
             })
             .collect(),
         orientation: architecture.orientation,
+    }
+}
+
+/// The arrowheads of a connection: at its end, at both ends, or none.
+fn ends(direction: ConnectionDirection) -> Ends {
+    let (tail, head) = match direction {
+        ConnectionDirection::Forward => return Ends::arrow(),
+        ConnectionDirection::Both => (End::Arrow, End::Arrow),
+        ConnectionDirection::None => (End::None, End::None),
+    };
+    Ends {
+        tail,
+        head,
+        tail_text: None,
+        head_text: None,
     }
 }
 
@@ -141,10 +159,10 @@ fn connects_to(spec: &ChartSpec, component: usize) -> Vec<String> {
                 connection.label.as_deref(),
                 connection.technology.as_deref(),
             );
-            let notes: Vec<String> = connection
-                .step
-                .map(|step| text::step_number(locale, step))
+            let notes: Vec<String> = text::connection_direction(locale, connection.direction)
+                .map(str::to_owned)
                 .into_iter()
+                .chain(connection.step.map(|step| text::step_number(locale, step)))
                 .chain(note)
                 .chain(connection.weight.map(|weight| {
                     text::edge_weight(locale, &format_value(weight, spec.number_style()))
@@ -159,6 +177,21 @@ fn connects_to(spec: &ChartSpec, component: usize) -> Vec<String> {
         .collect()
 }
 
+/// A connection by the labels of its ends: `API → Posts`, `API ↔ Images`.
+fn written(architecture: &ArchitectureSpec, connection: &ConnectionSpec) -> String {
+    let label = |id: &str| {
+        architecture.components[architecture.component(id).expect("validated")]
+            .label
+            .as_str()
+    };
+    format!(
+        "{} {} {}",
+        label(&connection.from),
+        connection.direction.sign(),
+        label(&connection.to)
+    )
+}
+
 /// The numbered connections in the order of their steps, as `1 Reader → Site (reads)`.
 fn steps_in_order(architecture: &ArchitectureSpec) -> Vec<String> {
     let mut numbered: Vec<_> = architecture
@@ -170,12 +203,7 @@ fn steps_in_order(architecture: &ArchitectureSpec) -> Vec<String> {
     numbered
         .into_iter()
         .map(|(step, connection)| {
-            let label = |id: &str| {
-                architecture.components[architecture.component(id).expect("validated")]
-                    .label
-                    .as_str()
-            };
-            let ends = format!("{} → {}", label(&connection.from), label(&connection.to));
+            let ends = written(architecture, connection);
             match &connection.label {
                 Some(note) => format!("{step} {ends} ({note})"),
                 None => format!("{step} {ends}"),
@@ -242,7 +270,11 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         architecture.components.len(),
         &ends,
         &[],
-        Facts { directed: true },
+        // Where a connection runs both ways or none, there are no sources, sinks or loops to
+        // tell.
+        Facts {
+            directed: architecture.is_directed(),
+        },
     )
     .sentences(locale, |component| {
         architecture.components[component].label.clone()
@@ -257,11 +289,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .map(|connection| connection.weight)
         .collect();
     if let Some(heaviest) = heaviest_edge(spec, &weights, |edge| {
-        let (from, to) = ends[edge];
-        (
-            architecture.components[from].label.clone(),
-            architecture.components[to].label.clone(),
-        )
+        written(architecture, &architecture.connections[edge])
     }) {
         description.push(' ');
         description.push_str(&heaviest);
@@ -595,6 +623,67 @@ mod tests {
             .description;
         assert!(text.contains("Steps: 1 Reader → Site (reads); 2 Site → API (loads)."));
         assert!(text.contains("API (step 2, loads, via HTTPS)"));
+    }
+
+    #[test]
+    fn a_connection_runs_both_ways_or_has_no_direction_in_picture_and_text() {
+        let both = SPEC.replace(
+            r#"{"from": "api", "to": "files", "label": "stores"}"#,
+            r#"{"from": "api", "to": "files", "label": "stores", "direction": "both", "step": 1}"#,
+        );
+        let none = both.replace(
+            r#"{"from": "api", "to": "mail", "label": "notifies"}"#,
+            r#"{"from": "api", "to": "mail", "label": "notifies", "direction": "none"}"#,
+        );
+        let heads = |json: &str| svg(json).content.matches("chartlet-flow-head").count();
+        assert_eq!(heads(&both), heads(SPEC) + 1);
+        assert_eq!(heads(&none), heads(SPEC));
+        let output = svg(&none);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        assert!(
+            output
+                .content
+                .contains("<title>API ↔ Images: 1. stores</title>")
+        );
+        assert!(
+            output
+                .content
+                .contains("<title>API — Mail service: notifies</title>")
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&none).expect("parses")).expect("valid");
+        // One connection each, listed once, with the way it runs.
+        assert!(
+            alternative
+                .description
+                .starts_with("Architecture diagram with 6 components and 5 connections")
+        );
+        assert!(
+            alternative
+                .description
+                .contains("Steps: 1 API ↔ Images (stores).")
+        );
+        let api = alternative
+            .table
+            .rows
+            .iter()
+            .find(|row| row[0] == "API")
+            .expect("a row");
+        assert_eq!(
+            api[3],
+            "Posts (via SQL), Images (both ways, step 1, stores), Mail service (without direction, notifies)"
+        );
+        // Without one way for every connection, nothing is a source or a sink.
+        let directed = text_alternative(&ChartSpec::from_json(SPEC).expect("parses"))
+            .expect("valid")
+            .description;
+        assert!(directed.contains("Nothing leads into Reader."));
+        assert!(!alternative.description.contains("Nothing leads"));
+        let forward = SPEC.replace(
+            r#""label": "stores"}"#,
+            r#""label": "stores", "direction": "forward"}"#,
+        );
+        assert_eq!(svg(&forward).content, svg(SPEC).content);
     }
 
     #[test]

@@ -105,6 +105,40 @@ pub struct ConnectionSpec {
     /// stronger as it carries more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight: Option<f64>,
+    /// Which way the connection runs; `forward`, from `from` to `to`, when absent.
+    #[serde(default, skip_serializing_if = "ConnectionDirection::is_forward")]
+    pub direction: ConnectionDirection,
+}
+
+/// Which way a connection runs. A connection both ways stays one connection: one relationship
+/// that is used in either direction, such as a socket or a synchronisation.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ConnectionDirection {
+    /// From `from` to `to`: an arrowhead at `to`.
+    #[default]
+    Forward,
+    /// Both ways: an arrowhead at either end.
+    Both,
+    /// Without a direction, such as replication between peers: no arrowhead.
+    None,
+}
+
+impl ConnectionDirection {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub(crate) const fn is_forward(&self) -> bool {
+        matches!(self, Self::Forward)
+    }
+
+    /// The sign between the two ends of a connection: `→`, `↔` or `—`.
+    pub(crate) const fn sign(self) -> &'static str {
+        match self {
+            Self::Forward => "→",
+            Self::Both => "↔",
+            Self::None => "—",
+        }
+    }
 }
 
 /// A frame around components, such as a cloud region, a network, a zone or a system. Boundaries
@@ -129,6 +163,13 @@ impl ArchitectureSpec {
         self.boundaries
             .iter()
             .position(|boundary| boundary.id == id)
+    }
+
+    /// Whether every connection runs one way, from `from` to `to`.
+    pub(crate) fn is_directed(&self) -> bool {
+        self.connections
+            .iter()
+            .all(|connection| connection.direction.is_forward())
     }
 
     /// Whether connection `index` joins two consecutive components of the main path.

@@ -828,9 +828,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let weights: Vec<Option<f64>> = network.edges.iter().map(|edge| edge.weight).collect();
     if let Some(heaviest) = heaviest_edge(spec, &weights, |edge| {
         let (from, to) = ends[edge];
-        (
-            network.nodes[from].label.clone(),
-            network.nodes[to].label.clone(),
+        format!(
+            "{} → {}",
+            network.nodes[from].label, network.nodes[to].label
         )
     }) {
         description.push(' ');

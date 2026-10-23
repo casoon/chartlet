@@ -1021,6 +1021,13 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   brackets on a line below it. A `step` from 1 to 99 numbers the connection in a sequence of
   calls; the number is written before the label, every number is used once (`duplicate_step`,
   `invalid_step`), and the description lists the steps in order.
+- **Direction.** A connection runs from `from` to `to`, with an arrowhead at `to`. With
+  `"direction": "both"` it runs both ways — an arrowhead at either end, such as a socket or a
+  synchronisation — and with `"direction": "none"` it has no direction and no arrowhead, such as
+  replication between peers or a shared link. Either stays one connection: it is listed once, under
+  its `from` component, as “both ways” or “without direction”, and the tooltip joins its ends with
+  `↔` or `—`. Once a connection has no single direction, the description no longer names where
+  nothing leads in or out, nor loops.
 - **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
   classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
   (`option_not_supported`).
