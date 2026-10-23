@@ -4,7 +4,10 @@
 //! are the hosts and whose connections are only those the view lists; limits and diagnostics are
 //! those of that diagram, pointing into the view.
 
-use super::{ArchitectureSpec, ChartSpec, MainPath, ViewSpec, validate_text, view::ResolvedView};
+use super::{
+    ArchitectureSpec, ChartSpec, MainPath, ViewSpec, sequence::is_identifier, validate_text,
+    view::ResolvedView,
+};
 use crate::error::ChartError;
 
 impl ChartSpec {
@@ -182,11 +185,22 @@ impl ArchitectureSpec {
             ));
         }
         for (at, instance) in view.instances.iter().enumerate() {
-            if self.component(&instance.of).is_none() {
+            let Some(component) = self.component(&instance.of) else {
                 return Err(ChartError::new(
                     "unknown_node",
                     format!("{path}/instances/{at}/of"),
                     format!("no component has the id \"{}\"", instance.of),
+                ));
+            };
+            // The instance is drawn as "Label (id)", which has to fit like any label.
+            let label = format!("{} ({})", self.components[component].label, instance.id);
+            if is_identifier(&instance.id) && label.chars().count() > 60 {
+                return Err(ChartError::new(
+                    "text_too_long",
+                    format!("{path}/instances/{at}/id"),
+                    format!(
+                        "the instance is labelled \"{label}\", the label of its component and its id, which must not exceed 60 characters; shorten the id or the component's label"
+                    ),
                 ));
             }
         }
@@ -387,6 +401,30 @@ mod tests {
         for (json, code, path) in cases {
             assert_eq!(error(&json), (code, path.to_owned()));
         }
+    }
+
+    #[test]
+    fn a_too_long_instance_label_points_to_the_instance() {
+        // "Orders API (" and ")" leave 47 characters for the id.
+        let id = format!("api-{}", "x".repeat(44));
+        let json = edited(r#""id": "api-dev""#, &format!(r#""id": "{id}""#))
+            .replace(r#""from": "api-dev""#, &format!(r#""from": "{id}""#));
+        let error = ChartSpec::from_json(&json)
+            .and_then(|spec| spec.view(None))
+            .unwrap_err();
+        assert_eq!(
+            (error.code, error.path.as_str()),
+            ("text_too_long", "/architecture/views/1/instances/0/id")
+        );
+        assert!(error.message.contains(&format!("\"Orders API ({id})\"")));
+        assert!(
+            error
+                .message
+                .contains("shorten the id or the component's label")
+        );
+        // One character less fits.
+        let fits = json.replace(&id, &id[1..]);
+        ChartSpec::from_json(&fits).unwrap().view(None).unwrap();
     }
 
     #[test]

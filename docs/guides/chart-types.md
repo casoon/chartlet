@@ -1237,7 +1237,8 @@ them.
   instances, 80 instance connections and 12 hosts nested four deep — and every diagnostic points
   into the view: `unknown_node` for an `of`, `from` or `to` that names nothing, `unknown_boundary`
   for a host, `duplicate_id` for an id used twice among instances and hosts,
-  `unknown_connection` for an `id` the model does not have. A deployment view takes no
+  `unknown_connection` for an `id` the model does not have, `text_too_long` at an instance's `id`
+  when its label `Label (id)` exceeds 60 characters. A deployment view takes no
   `components`, `connections`, `steps` or `mainPath`, and another view no `hosts`, `instances`
   or `instanceConnections` (`option_not_supported`).
 
