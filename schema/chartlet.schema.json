@@ -1488,11 +1488,43 @@
                     "label": { "description": "What happens in this step, in place of the connection's label.", "type": "string", "minLength": 1, "maxLength": 60 }
                   }
                 }
+              },
+              "perspective": { "description": "The key of the perspective the view shows, in place of the model's.", "$ref": "#/$defs/identifier" }
+            }
+          }
+        },
+        "defaultView": { "description": "The key of the view rendered when none is asked for; without it, the first view.", "$ref": "#/$defs/identifier" },
+        "perspectives": {
+          "description": "Questions the model can be seen under, such as which team runs a component or how much technical debt it carries, each with its categories and the components in each. A diagram shows one perspective only when it is selected (perspective here or on a view), with a stripe in the category's color and its name in every box, a legend of the categories used, and the perspective in the description and the table. A component no category lists is shown as not stated. Nothing is derived.",
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "title", "categories"],
+            "properties": {
+              "key": { "description": "A stable name of the perspective; unique among perspectives.", "$ref": "#/$defs/identifier" },
+              "title": { "description": "What the perspective is called in the legend, the description and the table, such as Team.", "type": "string", "minLength": 1, "maxLength": 40 },
+              "description": { "description": "A sentence that says what the perspective means, added to the description.", "type": "string", "minLength": 1, "maxLength": 200 },
+              "categories": {
+                "description": "The categories in their order, which fixes their colors in every view. A component lies in at most one category of a perspective.",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["label", "components"],
+                  "properties": {
+                    "label": { "description": "The name of the category, unique in the perspective, such as a team.", "type": "string", "minLength": 1, "maxLength": 40 },
+                    "components": { "description": "The ids of the components in the category.", "type": "array", "items": { "$ref": "#/$defs/identifier" } }
+                  }
+                }
               }
             }
           }
         },
-        "defaultView": { "description": "The key of the view rendered when none is asked for; without it, the first view.", "$ref": "#/$defs/identifier" }
+        "perspective": { "description": "The key of the perspective the diagram shows, and every view without one of its own.", "$ref": "#/$defs/identifier" }
       }
     },
     "sameRank": {

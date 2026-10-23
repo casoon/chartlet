@@ -21,7 +21,12 @@ const LEGEND_ROW: f64 = 22.0;
 
 pub(crate) const STYLE: &str = ".chartlet-root{--chartlet-part-5:#0f766e;--chartlet-part-6:#6d28d9;--chartlet-part-7:#b45309;--chartlet-part-8:#be185d}.chartlet-root.chartlet-theme-dark{--chartlet-part-5:#2dd4bf;--chartlet-part-6:#b69cff;--chartlet-part-7:#fbbf24;--chartlet-part-8:#f472b6}.chartlet-part{stroke:none}.chartlet-part-1{fill:var(--chartlet-color-1)}.chartlet-part-2{fill:var(--chartlet-color-2)}.chartlet-part-3{fill:var(--chartlet-color-3)}.chartlet-part-4{fill:var(--chartlet-color-4)}.chartlet-part-5{fill:var(--chartlet-part-5)}.chartlet-part-6{fill:var(--chartlet-part-6)}.chartlet-part-7{fill:var(--chartlet-part-7)}.chartlet-part-8{fill:var(--chartlet-part-8)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 
-const CLASSES: [&str; 8] = [
+/// The stripe of a component whose category a perspective does not state: an outline without
+/// a color of its own.
+pub(crate) const UNSTATED_STYLE: &str = ".chartlet-part-none{fill:none;stroke:var(--chartlet-muted);stroke-width:1;stroke-dasharray:2 2}";
+pub(crate) const UNSTATED: &str = "chartlet-part chartlet-part-none";
+
+pub(crate) const CLASSES: [&str; 8] = [
     "chartlet-part chartlet-part-1",
     "chartlet-part chartlet-part-2",
     "chartlet-part chartlet-part-3",
@@ -109,6 +114,27 @@ pub(crate) fn push_stripe(
     }
 }
 
+/// A stripe of class `class` across the bottom of a box `(x, y, width, height)`, named by its
+/// tooltip; `lift` raises it above a curved bottom.
+pub(crate) fn push_band(
+    class: &'static str,
+    name: &str,
+    (x, y, width, height): (f64, f64, f64, f64),
+    lift: f64,
+    elements: &mut Vec<Element>,
+) {
+    elements.push(Element::Rect(Rect {
+        x: x + INSET,
+        y: y + height - LIFT - lift - STRIPE,
+        width: width - 2.0 * INSET,
+        height: STRIPE,
+        class,
+        series_index: None,
+        style_index: None,
+        tooltip: Some(name.to_owned()),
+    }));
+}
+
 /// The legend of the parts below a diagram, entries in rows that fit; the canvas grows by its
 /// height.
 pub(crate) fn push_legend(
@@ -117,13 +143,40 @@ pub(crate) fn push_legend(
     margin: f64,
     metrics: &impl TextMetrics,
 ) {
-    if names.is_empty() {
+    let entries: Vec<(&'static str, &str)> = names
+        .iter()
+        .enumerate()
+        .map(|(index, name)| (CLASSES[index], *name))
+        .collect();
+    push_entries(scene, None, &entries, margin, metrics);
+}
+
+/// A legend of stripes below a diagram: a `title` in front, then each entry as the class of its
+/// stripe and its name, in rows that fit; the canvas grows by its height.
+pub(crate) fn push_entries(
+    scene: &mut Scene,
+    title: Option<&str>,
+    entries: &[(&'static str, &str)],
+    margin: f64,
+    metrics: &impl TextMetrics,
+) {
+    if entries.is_empty() {
         return;
     }
     let room = f64::from(scene.width) - 2.0 * margin;
     let top = f64::from(scene.height) + 4.0;
     let (mut x, mut row) = (0.0, 0);
-    for (index, name) in names.iter().enumerate() {
+    if let Some(title) = title {
+        scene.elements.push(Element::Text(Text {
+            x: margin,
+            y: top + 14.0,
+            class: "chartlet-legend",
+            anchor: TextAnchor::Start,
+            content: format!("{title}:"),
+        }));
+        x = metrics.width(title, LABEL_SIZE) + 16.0;
+    }
+    for &(class, name) in entries {
         let width = 22.0 + metrics.width(name, LABEL_SIZE) + 20.0;
         if x > 0.0 && x + width > room {
             x = 0.0;
@@ -135,7 +188,7 @@ pub(crate) fn push_legend(
             y: y - 8.0,
             width: 16.0,
             height: STRIPE + 2.0,
-            class: CLASSES[index],
+            class,
             series_index: None,
             style_index: None,
             tooltip: None,

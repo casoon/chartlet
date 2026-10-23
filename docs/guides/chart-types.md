@@ -1109,6 +1109,48 @@ first — and never the whole model, so a view never passes for the complete sys
 Up to 20 views and 99 steps per view. Example `shop-views` (overview, and checkout as
 `shop-views.checkout.svg`).
 
+### Perspectives
+
+The same diagram can answer different questions: which team runs each component, where
+technical debt is high. A model keeps the answers as stated metadata, apart from its components
+and from how it is drawn: `perspectives` names the questions, each with its categories and the
+components in each. Nothing is drawn until a perspective is selected — by `perspective` on the
+model, or on a view, which takes the place of the model's.
+
+```json
+"perspectives": [
+  { "key": "owner", "title": "Team", "description": "The team named in the service catalogue runs each component.",
+    "categories": [
+      { "label": "Bookings", "components": ["api"] },
+      { "label": "Platform", "components": ["db"] }
+    ] },
+  { "key": "debt", "title": "Technical debt",
+    "categories": [{ "label": "low", "components": ["db"] }, { "label": "high", "components": ["api"] }] }
+],
+"views": [
+  { "key": "owners", "title": "Who runs what", "components": ["api", "db"], "perspective": "owner" },
+  { "key": "debt", "title": "Technical debt", "components": ["api", "db"], "perspective": "debt" }
+]
+```
+
+- **Drawing.** Every box carries a stripe in the color of its category and names the category
+  after its sublabel, so the meaning does not rest on color alone. The colors follow the order of
+  `categories`, the same in every view. Shapes, roles and the layout stay as they are.
+- **Not stated.** A component that no category of the shown perspective lists is drawn with an
+  outlined stripe and named “not stated” — never as the lowest category. A component lies in at
+  most one category of a perspective. A view keeps in each category only the components it shows.
+- **Legend.** Below the diagram, after the perspective's title: the categories used, in their
+  order, and “not stated” when it occurs.
+- **Text.** The description ends with the perspective: each category with the components that
+  have it, then the perspective's own description. The data table has a column named after the
+  perspective. The manifest names it in `perspective`.
+- **Nothing derived.** Categories are only what the specification states; chartlet does not
+  rate components or infer categories from the topology or the names. A model with perspectives
+  but none selected renders exactly as without them.
+
+Up to 8 perspectives with 1–8 categories each. Example `service-perspectives` (who runs what,
+and technical debt as `service-perspectives.debt.svg`).
+
 ## Trees
 
 A tree (`"type": "tree"`) draws a root and the nodes below it: an organization chart, an

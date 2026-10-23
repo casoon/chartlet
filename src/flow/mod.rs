@@ -242,6 +242,16 @@ pub(crate) struct Node {
     pub symbol: Option<&'static Symbol>,
     /// What the node means beyond its kind: its outline and a badge on its corner.
     pub role: Option<DiagramRole>,
+    /// The node's category in the perspective a diagram shows, as the class of the stripe drawn
+    /// across the bottom of its box and the category's name.
+    pub category: Option<(&'static str, String)>,
+}
+
+impl Node {
+    /// Whether a stripe runs inside the bottom of the box: of parts, or of a category.
+    fn has_stripe(&self) -> bool {
+        !self.parts.is_empty() || self.category.is_some()
+    }
 }
 
 pub(crate) struct Edge {
@@ -382,6 +392,7 @@ impl Diagram {
                     parts: node.parts.clone(),
                     symbol: None,
                     role: node.role,
+                    category: None,
                 })
                 .collect(),
             edges: flow
@@ -612,11 +623,7 @@ fn node_boxes(
         let width = (text + 2.0 * PAD)
             .clamp(spacing.min_node, spacing.max_node.max(room + 2.0 * PAD))
             + extra_width;
-        let stripe = if node.parts.is_empty() {
-            0.0
-        } else {
-            parts::ROOM
-        };
+        let stripe = if node.has_stripe() { parts::ROOM } else { 0.0 };
         let symbol = if node.symbol.is_some() {
             symbols::ROOM
         } else {
@@ -2746,9 +2753,12 @@ impl Plan {
             return;
         }
         Self::node_text(model, node, (x, y, width, height), elements);
+        let lift = if spec.shape == Shape::Store { 6.0 } else { 0.0 };
+        if let Some((class, name)) = &spec.category {
+            parts::push_band(class, name, (x, y, width, height), lift, elements);
+        }
         if !spec.parts.is_empty() {
             let names = parts::names(model.diagram.nodes.iter().map(|node| node.parts.as_slice()));
-            let lift = if spec.shape == Shape::Store { 6.0 } else { 0.0 };
             parts::push_stripe(
                 model.number_style,
                 (&spec.parts, &names),
@@ -2836,10 +2846,10 @@ impl Plan {
             Shape::Frontend => 6.0,
             Shape::Shield => -6.0,
             _ => 0.0,
-        } - if spec.parts.is_empty() {
-            0.0
-        } else {
+        } - if spec.has_stripe() {
             parts::ROOM / 2.0
+        } else {
+            0.0
         };
         // A symbol stands centered above the label, in the room the box grew by.
         let first = middle_y - block / 2.0

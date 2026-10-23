@@ -32,7 +32,8 @@ use crate::{
     time::TimeValue,
 };
 pub use architecture::{
-    ArchitectureSpec, BoundarySpec, ComponentKind, ComponentSpec, ConnectionSpec,
+    ArchitectureSpec, BoundarySpec, CategorySpec, ComponentKind, ComponentSpec, ConnectionSpec,
+    PerspectiveSpec,
 };
 pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
 pub(crate) use boxplot::BoxSummary;

@@ -14,6 +14,9 @@ pub(crate) const MAX_CONNECTIONS: usize = 80;
 pub(crate) const MAX_BOUNDARIES: usize = 12;
 /// How deeply boundaries may nest inside each other.
 pub(crate) const MAX_BOUNDARY_DEPTH: usize = 4;
+/// Perspectives of one model, and categories of one perspective: one color each.
+const MAX_PERSPECTIVES: usize = 8;
+const MAX_CATEGORIES: usize = 8;
 
 /// An architecture diagram: components joined by connections, inside nested boundaries such as
 /// a cloud region, a network or a system, laid out like a flow chart.
@@ -43,6 +46,13 @@ pub struct ArchitectureSpec {
     /// The `key` of the view rendered when none is asked for; the first view without it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_view: Option<String>,
+    /// Questions the model can be seen under, such as which team runs a component: each names
+    /// its categories, and components state theirs by the perspective's `key`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub perspectives: Vec<PerspectiveSpec>,
+    /// The `key` of the perspective the diagram shows, and every view without one of its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub perspective: Option<String>,
     /// How much of its model a resolved view shows, for its description.
     #[serde(skip)]
     pub(crate) scope: Option<ViewScope>,
@@ -67,6 +77,32 @@ pub struct ComponentSpec {
     pub boundary: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<DiagramRole>,
+}
+
+/// A question the model can be seen under, such as who runs a component or how much technical
+/// debt it carries, with the categories that answer it and the components in each. Only what
+/// the categories list is shown; nothing is derived.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PerspectiveSpec {
+    /// A stable name of the perspective, by which views and the model select it.
+    pub key: String,
+    /// What the perspective is called in the legend, the description and the table: `Team`.
+    pub title: String,
+    /// A sentence that says what the perspective means, for the description.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// The categories in their order, which also fixes their colors: at most eight. A component
+    /// that none lists is shown as not stated.
+    pub categories: Vec<CategorySpec>,
+}
+
+/// A category of a perspective, such as a team, and the ids of the components in it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct CategorySpec {
+    pub label: String,
+    pub components: Vec<String>,
 }
 
 /// What a component is; every kind has its own shape.
@@ -160,6 +196,30 @@ impl ArchitectureSpec {
             .position(|boundary| boundary.id == id)
     }
 
+    /// The perspective the diagram shows, if any.
+    pub(crate) fn shown_perspective(&self) -> Option<&PerspectiveSpec> {
+        let key = self.perspective.as_deref()?;
+        self.perspectives
+            .iter()
+            .find(|perspective| perspective.key == key)
+    }
+
+    /// The perspective `key`, named at `path`: one the model has.
+    pub(crate) fn check_perspective(&self, key: &str, path: &str) -> Result<(), ChartError> {
+        if self
+            .perspectives
+            .iter()
+            .any(|perspective| perspective.key == key)
+        {
+            return Ok(());
+        }
+        Err(ChartError::new(
+            "unknown_perspective",
+            path,
+            format!("no perspective has the key \"{key}\""),
+        ))
+    }
+
     /// Whether connection `index` joins two consecutive components of the main path.
     pub(crate) fn on_main_path(&self, index: usize) -> bool {
         let connection = &self.connections[index];
@@ -199,6 +259,13 @@ impl ArchitectureSpec {
 }
 
 impl ChartSpec {
+    /// Whether an architecture diagram shows a perspective.
+    pub(crate) fn has_perspective(&self) -> bool {
+        self.architecture
+            .as_ref()
+            .is_some_and(|architecture| architecture.perspective.is_some())
+    }
+
     /// Whether an architecture diagram has a component with a symbol.
     pub(crate) fn has_component_symbols(&self) -> bool {
         self.architecture.as_ref().is_some_and(|architecture| {
@@ -225,6 +292,7 @@ impl ChartSpec {
         architecture.validate_boundaries()?;
         architecture.validate_components()?;
         architecture.validate_connections()?;
+        architecture.validate_perspectives()?;
         self.validate_views()?;
         Ok(Vec::new())
     }
@@ -458,6 +526,82 @@ impl ArchitectureSpec {
             &self.connection_ids(),
             "component",
         )?;
+        Ok(())
+    }
+
+    /// Perspectives with well-formed keys used once, a title and one to eight distinct
+    /// categories, each listing existing components, none of them twice in one perspective; and
+    /// a shown perspective the model has.
+    fn validate_perspectives(&self) -> Result<(), ChartError> {
+        if self.perspectives.len() > MAX_PERSPECTIVES {
+            return Err(ChartError::new(
+                "too_many_perspectives",
+                "/architecture/perspectives",
+                format!("at most {MAX_PERSPECTIVES} perspectives are supported"),
+            ));
+        }
+        for (index, perspective) in self.perspectives.iter().enumerate() {
+            let path = format!("/architecture/perspectives/{index}");
+            if !is_identifier(&perspective.key)
+                || self.perspectives[..index]
+                    .iter()
+                    .any(|other| other.key == perspective.key)
+            {
+                return Err(ChartError::new(
+                    "invalid_id",
+                    format!("{path}/key"),
+                    "use a key of its own: 1–64 ASCII letters, digits, hyphens, or underscores, starting with a letter",
+                ));
+            }
+            validate_text(&perspective.title, &format!("{path}/title"), 40)?;
+            if let Some(description) = &perspective.description {
+                validate_text(description, &format!("{path}/description"), 200)?;
+            }
+            let categories = &perspective.categories;
+            if categories.is_empty() || categories.len() > MAX_CATEGORIES {
+                return Err(ChartError::new(
+                    "invalid_categories",
+                    format!("{path}/categories"),
+                    format!("a perspective has 1 to {MAX_CATEGORIES} categories"),
+                ));
+            }
+            let mut listed: Vec<&str> = Vec::new();
+            for (at, category) in categories.iter().enumerate() {
+                let path = format!("{path}/categories/{at}");
+                validate_text(&category.label, &format!("{path}/label"), 40)?;
+                if categories[..at]
+                    .iter()
+                    .any(|other| other.label == category.label)
+                {
+                    return Err(ChartError::new(
+                        "duplicate_category",
+                        format!("{path}/label"),
+                        format!("the category \"{}\" is already listed", category.label),
+                    ));
+                }
+                for (member, id) in category.components.iter().enumerate() {
+                    let path = format!("{path}/components/{member}");
+                    if self.component(id).is_none() {
+                        return Err(ChartError::new(
+                            "unknown_node",
+                            path,
+                            format!("no component has the id \"{id}\""),
+                        ));
+                    }
+                    if listed.contains(&id.as_str()) {
+                        return Err(ChartError::new(
+                            "duplicate_member",
+                            path,
+                            format!("\"{id}\" already has a category in this perspective"),
+                        ));
+                    }
+                    listed.push(id);
+                }
+            }
+        }
+        if let Some(key) = &self.perspective {
+            self.check_perspective(key, "/architecture/perspective")?;
+        }
         Ok(())
     }
 }

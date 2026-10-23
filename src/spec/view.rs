@@ -43,6 +43,9 @@ pub struct ViewSpec {
     /// same connection may occur more than once.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub steps: Vec<ViewStepSpec>,
+    /// The `key` of the perspective the view shows, in place of the model's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub perspective: Option<String>,
 }
 
 /// One occurrence of a connection in a dynamic view.
@@ -169,6 +172,7 @@ impl ChartSpec {
     }
 
     /// The view at `index` of a model whose views were checked.
+    #[allow(clippy::too_many_lines)]
     fn resolved(&self, index: usize) -> ResolvedView {
         let model = self
             .architecture
@@ -251,6 +255,13 @@ impl ChartSpec {
             .collect();
         architecture.views = Vec::new();
         architecture.default_view = None;
+        architecture.perspective = view.perspective.clone().or(architecture.perspective);
+        // A category keeps the components the view shows.
+        for perspective in &mut architecture.perspectives {
+            for category in &mut perspective.categories {
+                category.components.retain(|id| is_shown(id));
+            }
+        }
         let mut distinct = connections.clone();
         distinct.sort_unstable();
         distinct.dedup();
@@ -394,6 +405,9 @@ impl ArchitectureSpec {
             ));
         }
         validate_text(&view.title, &format!("{path}/title"), 200)?;
+        if let Some(key) = &view.perspective {
+            self.check_perspective(key, &format!("{path}/perspective"))?;
+        }
         if view.components.is_empty() && view.steps.is_empty() {
             return Err(ChartError::new(
                 "empty_view",
@@ -934,6 +948,14 @@ mod tests {
                 "empty_text",
                 "/architecture/views/0/title",
             ),
+            (
+                edited(
+                    r#""title": "Blog media","#,
+                    r#""title": "Blog media", "perspective": "team","#,
+                ),
+                "unknown_perspective",
+                "/architecture/views/1/perspective",
+            ),
         ];
         for (json, code, path) in cases {
             let error = error(&json);
@@ -1007,6 +1029,41 @@ mod tests {
             "no node hook for api"
         );
         assert!(!svg.contains(r#"data-chartlet-node="files""#));
+    }
+
+    #[test]
+    fn a_view_shows_its_own_perspective_or_the_model_s() {
+        let json = edited(
+            r#""mainPath": ["#,
+            r#""perspectives": [
+                {"key": "team", "title": "Team", "categories": [
+                    {"label": "Web", "components": ["site", "files"]},
+                    {"label": "Core", "components": ["api", "mail"]}]},
+                {"key": "debt", "title": "Debt", "categories": [
+                    {"label": "low", "components": ["files"]},
+                    {"label": "high", "components": ["api"]}]}
+               ], "perspective": "team", "mainPath": ["#,
+        )
+        .replacen(
+            r#""title": "Blog media","#,
+            r#""title": "Blog media", "perspective": "debt","#,
+            1,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        let shown = |view: &str| {
+            architecture(&spec.view(Some(view)).unwrap())
+                .perspective
+                .clone()
+        };
+        assert_eq!(shown("overview").as_deref(), Some("team"));
+        assert_eq!(shown("media").as_deref(), Some("debt"));
+        let media = render(&json, Some("media")).unwrap().content;
+        assert!(media.contains(">Debt:</text>") && !media.contains(">Team:</text>"));
+        // A category keeps only the components the view shows.
+        let overview = spec.view(Some("overview")).unwrap();
+        let team = &architecture(&overview).perspectives[0];
+        assert_eq!(team.categories[0].components, ["site"]);
+        assert_eq!(team.categories[1].components, ["api"]);
     }
 
     #[test]

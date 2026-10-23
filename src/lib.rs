@@ -53,22 +53,22 @@ pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
-    CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ClassKind,
-    ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionSpec, Corner, Curve, Dash,
-    DataPoint, DiagramOrientation, DiagramRole, DistancesSpec, FlowEdgeSpec, FlowNodeSpec,
-    FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement,
-    Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
-    NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, OhlcPoint, Orientation,
-    PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec,
-    ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder,
-    SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
-    ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack,
-    StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke,
-    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
-    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec, ViolinScale,
-    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, CategorySpec, ChartSpec,
+    ChartType, ClassKind, ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionSpec,
+    Corner, Curve, Dash, DataPoint, DiagramOrientation, DiagramRole, DistancesSpec, FlowEdgeSpec,
+    FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec,
+    LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec,
+    NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind,
+    OhlcPoint, Orientation, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
+    PartySpec, PerspectiveSpec, RangeSpec, ReferenceSpec, RelationKind, RelationSpec,
+    SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec,
+    ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec,
+    SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind,
+    StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme,
+    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec,
+    TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec,
+    ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -194,13 +194,17 @@ pub struct Manifest {
     /// The `key` of the view of an architecture model that was rendered; `None` for a
     /// specification without views. `spec_hash` is the hash of the whole model.
     pub view: Option<String>,
+    /// The `key` of the perspective of an architecture diagram that was shown; `None` without
+    /// one.
+    pub perspective: Option<String>,
     pub warnings: Vec<ChartWarning>,
 }
 
 impl Manifest {
     /// The manifest as a pretty-printed JSON object, its keys in a fixed order:
     /// `chartlet`, `schemaVersion`, `specHash`, `outputHash`, `format`, `variant`, `idPrefix`,
-    /// `view` (only when a view was rendered), `warnings` (each with `code`, `path`, `message`).
+    /// `view` (only when a view was rendered), `perspective` (only when one was shown),
+    /// `warnings` (each with `code`, `path`, `message`).
     ///
     /// # Panics
     ///
@@ -219,6 +223,8 @@ impl Manifest {
             id_prefix: &'a str,
             #[serde(skip_serializing_if = "Option::is_none")]
             view: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            perspective: Option<&'a str>,
             warnings: Vec<Warning<'a>>,
         }
         #[derive(serde::Serialize)]
@@ -244,6 +250,7 @@ impl Manifest {
             },
             id_prefix: &self.id_prefix,
             view: self.view.as_deref(),
+            perspective: self.perspective.as_deref(),
             warnings: self
                 .warnings
                 .iter()
@@ -358,6 +365,10 @@ pub fn render_with_metrics(
             Some(id_prefix) => id_prefix.clone(),
             None => default_id_prefix(shown)?,
         };
+        let perspective = shown
+            .architecture
+            .as_ref()
+            .and_then(|architecture| architecture.perspective.clone());
         output.manifest = Some(Manifest {
             chartlet: env!("CARGO_PKG_VERSION"),
             schema_version: spec.schema_version,
@@ -367,6 +378,7 @@ pub fn render_with_metrics(
             variant: options.variant,
             id_prefix,
             view: view.map(|view| view.key),
+            perspective,
             warnings: output.warnings.clone(),
         });
     }

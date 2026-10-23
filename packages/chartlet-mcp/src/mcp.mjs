@@ -39,6 +39,7 @@ const manifest = z
     variant: z.string(),
     idPrefix: z.string(),
     view: z.string().optional().describe("The key of the view of an architecture model that was rendered."),
+    perspective: z.string().optional().describe("The key of the perspective an architecture diagram showed."),
     warnings: z.array(diagnostic),
   })
   .describe("Provenance of the render: compiler version and SHA-256 of specification and output.");

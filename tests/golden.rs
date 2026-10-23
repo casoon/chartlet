@@ -3,7 +3,7 @@ use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 74] = [
+const EXAMPLES: [(&str, &str, &str); 75] = [
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -374,6 +374,11 @@ const EXAMPLES: [(&str, &str, &str); 74] = [
         include_str!("../examples/shop-views.json"),
         include_str!("../examples/shop-views.svg"),
     ),
+    (
+        "service-perspectives",
+        include_str!("../examples/service-perspectives.json"),
+        include_str!("../examples/service-perspectives.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -558,12 +563,20 @@ const SOCIAL_EXAMPLES: [(&str, &str, &str); 1] = [(
 )];
 
 /// Views of an architecture model besides its default view, and their reviewed SVGs.
-const VIEW_EXAMPLES: [(&str, &str, &str, &str); 1] = [(
-    "shop-views",
-    "checkout",
-    include_str!("../examples/shop-views.json"),
-    include_str!("../examples/shop-views.checkout.svg"),
-)];
+const VIEW_EXAMPLES: [(&str, &str, &str, &str); 2] = [
+    (
+        "shop-views",
+        "checkout",
+        include_str!("../examples/shop-views.json"),
+        include_str!("../examples/shop-views.checkout.svg"),
+    ),
+    (
+        "service-perspectives",
+        "debt",
+        include_str!("../examples/service-perspectives.json"),
+        include_str!("../examples/service-perspectives.debt.svg"),
+    ),
+];
 
 /// The committed SVGs are the reviewed reference output. Each example must render to exactly the
 /// bytes that are checked into `examples/`, on every supported platform.

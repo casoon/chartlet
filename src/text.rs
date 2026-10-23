@@ -1387,6 +1387,24 @@ pub(crate) fn roles(locale: Locale, roles: &[String]) -> String {
     }
 }
 
+/// What stands for a category a component does not state in a perspective.
+pub(crate) const fn not_stated(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => "not stated",
+        Locale::De => "nicht angegeben",
+    }
+}
+
+/// The sentence of the perspective a diagram shows: its title, then each category with what has
+/// it, as `Payments: API, Orders`.
+pub(crate) fn perspective(locale: Locale, title: &str, entries: &[String]) -> String {
+    let entries = entries.join("; ");
+    match locale {
+        Locale::En => format!("Perspective {title}: {entries}."),
+        Locale::De => format!("Perspektive {title}: {entries}."),
+    }
+}
+
 /// How a linkage measures the distance between two clusters, as a phrase.
 const fn linkage_phrase(locale: Locale, linkage: Linkage) -> &'static str {
     match (locale, linkage) {
