@@ -390,135 +390,86 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_topicmap = spec.chart_type == ChartType::Topicmap;
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = matches!(spec.theme, Theme::Dark | Theme::Blueprint);
-    format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
-        if is_dark { DARK_STYLE } else { "" },
-        if has_series { SERIES_STYLE } else { "" },
-        if has_series && !print {
-            FILTER_STYLE
-        } else {
-            ""
-        },
-        if is_time || several_lines {
-            LINE_SERIES_STYLE
-        } else {
-            ""
-        },
-        if (is_time && needs_layer_extras(spec)) || several_lines {
-            LAYER_EXTRA_STYLE
-        } else {
-            ""
-        },
-        if (is_time && needs_mark_extras(spec)) || several_lines {
-            MARK_EXTRA_STYLE
-        } else {
-            ""
-        },
-        if is_time && spec.layers().any(|layer| layer.stroke == Stroke::Medium) {
-            MEDIUM_LINE_STYLE
-        } else {
-            ""
-        },
-        if is_time && needs_annotation_extras(spec) {
-            ANNOTATION_EXTRA_STYLE
-        } else {
-            ""
-        },
-        if is_multiples { MULTIPLES_STYLE } else { "" },
-        if is_multiples && spec.panes.iter().any(|pane| pane.note.is_some()) {
-            PANEL_NOTE_STYLE
-        } else {
-            ""
-        },
-        if is_diverging {
-            crate::diverging::STYLE
-        } else {
-            ""
-        },
-        if is_calendar { CALENDAR_STYLE } else { "" },
-        if is_rangebar { RANGEBAR_STYLE } else { "" },
+    let diagram = diagram_style(spec.chart_type);
+    let roles = if spec.has_roles() {
+        crate::roles::style(spec.chart_type)
+    } else {
+        String::new()
+    };
+    // The groups in their order; a group that does not apply is left out.
+    [
+        STYLE,
+        when(is_dark, DARK_STYLE),
+        when(has_series, SERIES_STYLE),
+        when(has_series && !print, FILTER_STYLE),
+        when(is_time || several_lines, LINE_SERIES_STYLE),
+        when(
+            (is_time && needs_layer_extras(spec)) || several_lines,
+            LAYER_EXTRA_STYLE,
+        ),
+        when(
+            (is_time && needs_mark_extras(spec)) || several_lines,
+            MARK_EXTRA_STYLE,
+        ),
+        when(
+            is_time && spec.layers().any(|layer| layer.stroke == Stroke::Medium),
+            MEDIUM_LINE_STYLE,
+        ),
+        when(
+            is_time && needs_annotation_extras(spec),
+            ANNOTATION_EXTRA_STYLE,
+        ),
+        when(is_multiples, MULTIPLES_STYLE),
+        when(
+            is_multiples && spec.panes.iter().any(|pane| pane.note.is_some()),
+            PANEL_NOTE_STYLE,
+        ),
+        when(is_diverging, crate::diverging::STYLE),
+        when(is_calendar, CALENDAR_STYLE),
+        when(is_rangebar, RANGEBAR_STYLE),
         type_style(spec.chart_type),
-        if spec.has_error_bars() {
-            ERROR_STYLE
-        } else {
-            ""
-        },
-        if is_rangebar && spec.ranges.iter().any(|range| range.group.is_some()) {
-            RANGE_GROUP_STYLE
-        } else {
-            ""
-        },
-        if spec.references.is_empty() {
-            ""
-        } else {
-            REFERENCE_STYLE
-        },
-        if spec.patterns { OUTLINE_STYLE } else { "" },
-        if spec.width < crate::layout::NARROW {
-            SMALL_TITLE_STYLE
-        } else {
-            ""
-        },
-        if is_topicmap { TOPICMAP_STYLE } else { "" },
-        if is_atlas { ATLAS_STYLE } else { "" },
-        diagram_style(spec.chart_type),
+        when(spec.has_error_bars(), ERROR_STYLE),
+        when(
+            is_rangebar && spec.ranges.iter().any(|range| range.group.is_some()),
+            RANGE_GROUP_STYLE,
+        ),
+        when(!spec.references.is_empty(), REFERENCE_STYLE),
+        when(spec.patterns, OUTLINE_STYLE),
+        when(spec.width < crate::layout::NARROW, SMALL_TITLE_STYLE),
+        when(is_topicmap, TOPICMAP_STYLE),
+        when(is_atlas, ATLAS_STYLE),
+        &diagram,
         // Before the roles: a role keeps its color on a connection in a category.
-        if spec.has_connection_categories() {
-            crate::parts::CONNECTION_STYLE
-        } else {
-            ""
-        },
-        if spec.has_roles() {
-            crate::roles::style(spec.chart_type)
-        } else {
-            String::new()
-        },
-        if spec.has_edge_weights() {
-            WEIGHT_STYLE
-        } else {
-            ""
-        },
-        if spec.has_node_values() {
-            crate::heat::STYLE
-        } else {
-            ""
-        },
-        if spec.has_node_parts() || spec.has_perspective() {
-            crate::parts::STYLE
-        } else {
-            ""
-        },
-        if spec.has_perspective() {
-            crate::parts::UNSTATED_STYLE
-        } else {
-            ""
-        },
-        if spec.has_component_symbols() {
-            crate::symbols::STYLE
-        } else {
-            ""
-        },
-        if spec.has_interfaces() {
-            INTERFACE_STYLE
-        } else {
-            ""
-        },
-        if spec.has_interfaces() && spec.has_connection_categories() {
-            INTERFACE_CATEGORY_STYLE
-        } else {
-            ""
-        },
-        if spec.theme == Theme::Blueprint {
-            BLUEPRINT_STYLE
-        } else {
-            ""
-        },
-        if is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc) {
-            OHLC_STYLE
-        } else {
-            ""
-        },
-    )
+        when(
+            spec.has_connection_categories(),
+            crate::parts::CONNECTION_STYLE,
+        ),
+        &roles,
+        when(spec.has_edge_weights(), WEIGHT_STYLE),
+        when(spec.has_node_values(), crate::heat::STYLE),
+        when(
+            spec.has_node_parts() || spec.has_perspective(),
+            crate::parts::STYLE,
+        ),
+        when(spec.has_perspective(), crate::parts::UNSTATED_STYLE),
+        when(spec.has_component_symbols(), crate::symbols::STYLE),
+        when(spec.has_interfaces(), INTERFACE_STYLE),
+        when(
+            spec.has_interfaces() && spec.has_connection_categories(),
+            INTERFACE_CATEGORY_STYLE,
+        ),
+        when(spec.theme == Theme::Blueprint, BLUEPRINT_STYLE),
+        when(
+            is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc),
+            OHLC_STYLE,
+        ),
+    ]
+    .concat()
+}
+
+/// `style` where `condition` holds, nothing otherwise.
+const fn when(condition: bool, style: &str) -> &str {
+    if condition { style } else { "" }
 }
 
 /// Every style group for each of `chart_types` that can use it, in the order of [`base_style`].
@@ -534,7 +485,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
         Topicmap, Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 50] = [
+    let groups: &[(&str, &[ChartType])] = &[
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),

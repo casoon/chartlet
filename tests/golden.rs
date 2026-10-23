@@ -3,7 +3,7 @@ use chartlet::{ChartSpec, RenderFormat, RenderOptions, Variant, render_json};
 mod report;
 
 /// Every example as name, specification and reviewed SVG.
-const EXAMPLES: [(&str, &str, &str); 100] = [
+const EXAMPLES: &[(&str, &str, &str)] = &[
     (
         "monthly-revenue",
         include_str!("../examples/monthly-revenue.json"),
@@ -507,7 +507,7 @@ const EXAMPLES: [(&str, &str, &str); 100] = [
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
-const MOBILE_EXAMPLES: [(&str, &str, &str); 33] = [
+const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
     (
         "co-authors",
         include_str!("../examples/co-authors.json"),
@@ -677,7 +677,7 @@ const MOBILE_EXAMPLES: [(&str, &str, &str); 33] = [
 
 /// Examples with a reviewed print variant: hatched bands and modeled lines on a light chart, and
 /// a dark chart with a color declared as a CSS variable.
-const PRINT_EXAMPLES: [(&str, &str, &str); 4] = [
+const PRINT_EXAMPLES: &[(&str, &str, &str)] = &[
     (
         "temperature-projection",
         include_str!("../examples/temperature-projection.json"),
@@ -701,14 +701,14 @@ const PRINT_EXAMPLES: [(&str, &str, &str); 4] = [
 ];
 
 /// Examples with a reviewed social variant.
-const SOCIAL_EXAMPLES: [(&str, &str, &str); 1] = [(
+const SOCIAL_EXAMPLES: &[(&str, &str, &str)] = &[(
     "temperature-projection",
     include_str!("../examples/temperature-projection.json"),
     include_str!("../examples/temperature-projection.social.svg"),
 )];
 
 /// Views of an architecture model besides its default view, and their reviewed SVGs.
-const VIEW_EXAMPLES: [(&str, &str, &str, &str); 4] = [
+const VIEW_EXAMPLES: &[(&str, &str, &str, &str)] = &[
     (
         "shop-views",
         "checkout",
@@ -739,7 +739,7 @@ const VIEW_EXAMPLES: [(&str, &str, &str, &str); 4] = [
 /// bytes that are checked into `examples/`, on every supported platform.
 #[test]
 fn every_example_matches_its_reviewed_svg() {
-    for (name, specification, expected) in EXAMPLES {
+    for &(name, specification, expected) in EXAMPLES {
         let actual = render_json(specification, RenderFormat::Svg, &RenderOptions::default())
             .unwrap_or_else(|error| panic!("{name} should render: {error}"));
         assert_eq!(
@@ -753,7 +753,7 @@ fn every_example_matches_its_reviewed_svg() {
 /// SVG.
 #[test]
 fn every_example_matches_its_reviewed_html() {
-    for (name, specification, _) in EXAMPLES {
+    for &(name, specification, _) in EXAMPLES {
         let expected = std::fs::read_to_string(format!("examples/{name}.html"))
             .unwrap_or_else(|error| panic!("{name} should have a reviewed HTML file: {error}"));
         let actual = render_json(specification, RenderFormat::Html, &RenderOptions::default())
@@ -768,7 +768,7 @@ fn every_example_matches_its_reviewed_html() {
 /// The mobile variant is reference output too.
 #[test]
 fn every_mobile_variant_matches_its_reviewed_svg() {
-    for (name, specification, expected) in MOBILE_EXAMPLES {
+    for &(name, specification, expected) in MOBILE_EXAMPLES {
         let actual = render_json(
             specification,
             RenderFormat::Svg,
@@ -788,7 +788,7 @@ fn every_mobile_variant_matches_its_reviewed_svg() {
 /// The views besides the default view are reference output too.
 #[test]
 fn every_view_matches_its_reviewed_svg() {
-    for (name, view, specification, expected) in VIEW_EXAMPLES {
+    for &(name, view, specification, expected) in VIEW_EXAMPLES {
         let actual = render_json(
             specification,
             RenderFormat::Svg,
@@ -842,7 +842,7 @@ fn attributes<'a>(html: &'a str, name: &str) -> Vec<&'a str> {
 /// on the page, the default view comes first, and the page renders the same bytes again.
 #[test]
 fn the_page_of_all_views_has_unique_ids_and_working_links() {
-    for (_, _, specification, _) in VIEW_EXAMPLES {
+    for &(_, _, specification, _) in VIEW_EXAMPLES {
         for prefix in [None, Some("arch")] {
             let render = || {
                 render_json(specification, RenderFormat::Html, &all_views(prefix))
@@ -902,7 +902,7 @@ fn print_options() -> RenderOptions {
 /// The print variant is reference output too.
 #[test]
 fn every_print_variant_matches_its_reviewed_svg() {
-    for (name, specification, expected) in PRINT_EXAMPLES {
+    for &(name, specification, expected) in PRINT_EXAMPLES {
         let actual = render_json(specification, RenderFormat::Svg, &print_options())
             .unwrap_or_else(|error| panic!("{name} should render its print variant: {error}"));
         assert_eq!(
@@ -916,7 +916,7 @@ fn every_print_variant_matches_its_reviewed_svg() {
 /// that needs a browser.
 #[test]
 fn every_print_variant_carries_literal_colors_only() {
-    for (name, specification, _) in EXAMPLES {
+    for &(name, specification, _) in EXAMPLES {
         let svg = render_json(specification, RenderFormat::Svg, &print_options())
             .unwrap_or_else(|error| panic!("{name} should render its print variant: {error}"))
             .content;
@@ -939,7 +939,7 @@ fn every_print_variant_carries_literal_colors_only() {
 /// The social variant is reference output too.
 #[test]
 fn every_social_variant_matches_its_reviewed_svg() {
-    for (name, specification, expected) in SOCIAL_EXAMPLES {
+    for &(name, specification, expected) in SOCIAL_EXAMPLES {
         let actual = render_json(
             specification,
             RenderFormat::Svg,
@@ -960,7 +960,7 @@ fn every_social_variant_matches_its_reviewed_svg() {
 /// tooltips of its marks.
 #[test]
 fn every_social_variant_is_a_resolved_1200_by_630_canvas() {
-    for (name, specification, _) in EXAMPLES {
+    for &(name, specification, _) in EXAMPLES {
         let svg = render_json(
             specification,
             RenderFormat::Svg,
@@ -1028,13 +1028,13 @@ fn every_rendered_example_has_a_reference() {
     );
 
     let mut catalogued: Vec<String> = Vec::new();
-    for (name, _, _) in EXAMPLES {
+    for &(name, _, _) in EXAMPLES {
         catalogued.extend([format!("{name}.svg"), format!("{name}.html")]);
     }
     for (catalog, suffix) in [
-        (&MOBILE_EXAMPLES[..], "mobile"),
-        (&PRINT_EXAMPLES[..], "print"),
-        (&SOCIAL_EXAMPLES[..], "social"),
+        (MOBILE_EXAMPLES, "mobile"),
+        (PRINT_EXAMPLES, "print"),
+        (SOCIAL_EXAMPLES, "social"),
     ] {
         catalogued.extend(
             catalog
@@ -1088,10 +1088,10 @@ fn visual_report() {
 /// Every reference of the catalogs above, with the options its variant renders with.
 fn report_entries() -> Vec<report::Entry<'static>> {
     let catalogs = [
-        ("desktop", &EXAMPLES[..], Variant::Desktop),
-        ("mobile", &MOBILE_EXAMPLES[..], Variant::Mobile),
-        ("print", &PRINT_EXAMPLES[..], Variant::Print),
-        ("social", &SOCIAL_EXAMPLES[..], Variant::Social),
+        ("desktop", EXAMPLES, Variant::Desktop),
+        ("mobile", MOBILE_EXAMPLES, Variant::Mobile),
+        ("print", PRINT_EXAMPLES, Variant::Print),
+        ("social", SOCIAL_EXAMPLES, Variant::Social),
     ];
     catalogs
         .into_iter()
