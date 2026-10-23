@@ -73,6 +73,9 @@ pub(crate) struct ResolvedView {
     components: Vec<usize>,
     connections: Vec<usize>,
     boundaries: Vec<usize>,
+    /// The shared ranks the view keeps: the place of each in the model and the places of its
+    /// shown members in it.
+    same_rank: Vec<(usize, Vec<usize>)>,
     /// The connections are the steps of the view, in order.
     dynamic: bool,
     own_main_path: bool,
@@ -224,6 +227,28 @@ impl ChartSpec {
         } else {
             view.main_path.clone()
         };
+        // A shared rank keeps its shown members, and only while they are two or more.
+        let same_rank: Vec<(usize, Vec<usize>)> = model
+            .same_rank
+            .iter()
+            .enumerate()
+            .map(|(set, members)| {
+                let shown = (0..members.len())
+                    .filter(|&member| is_shown(&members[member]))
+                    .collect::<Vec<_>>();
+                (set, shown)
+            })
+            .filter(|(_, shown)| shown.len() >= 2)
+            .collect();
+        architecture.same_rank = same_rank
+            .iter()
+            .map(|(set, shown)| {
+                shown
+                    .iter()
+                    .map(|&member| model.same_rank[*set][member].clone())
+                    .collect()
+            })
+            .collect();
         architecture.views = Vec::new();
         architecture.default_view = None;
         let mut distinct = connections.clone();
@@ -245,6 +270,7 @@ impl ChartSpec {
             components,
             connections,
             boundaries,
+            same_rank,
             dynamic,
             own_main_path: !view.main_path.is_empty(),
         }
@@ -485,6 +511,24 @@ impl ResolvedView {
                 format!("{view}/mainPath{rest}")
             } else {
                 "/architecture/mainPath".to_owned()
+            };
+        }
+        if let Some(rest) = path.strip_prefix("/architecture/sameRank/") {
+            let (set, rest) = rest.split_at(rest.find('/').unwrap_or(rest.len()));
+            let Some((place, members)) = set
+                .parse::<usize>()
+                .ok()
+                .and_then(|at| self.same_rank.get(at))
+            else {
+                return path.to_owned();
+            };
+            let Some(rest) = rest.strip_prefix('/') else {
+                return format!("/architecture/sameRank/{place}{rest}");
+            };
+            let (member, rest) = rest.split_at(rest.find('/').unwrap_or(rest.len()));
+            return match member.parse::<usize>().ok().and_then(|at| members.get(at)) {
+                Some(member) => format!("/architecture/sameRank/{place}/{member}{rest}"),
+                None => format!("/architecture/sameRank/{place}"),
             };
         }
         let lists: [(&str, &[usize]); 3] = [
@@ -900,6 +944,69 @@ mod tests {
                 error.message
             );
         }
+    }
+
+    #[test]
+    fn a_view_keeps_shown_members_of_shared_ranks() {
+        let json = edited(
+            r#""mainPath": ["reader", "site", "api", "db"],"#,
+            r#""mainPath": ["reader", "site", "api", "db"],
+               "sameRank": [["reader", "api"], ["mail", "db", "files"]],"#,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        let media = spec.view(Some("media")).unwrap();
+        // Of the first set only api is shown, of the second only files: both are dropped.
+        assert!(architecture(&media).same_rank.is_empty());
+        let json = json.replace(
+            r#"["api", "files", "site"]"#,
+            r#"["api", "files", "site", "db"]"#,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        let media = spec.view(Some("media")).unwrap();
+        assert_eq!(architecture(&media).same_rank, [["db", "files"]]);
+        spec.validate().unwrap();
+        let resolved = spec.resolve_view(Some("media")).unwrap().unwrap();
+        // The view's only set is the model's second, without its first member.
+        assert_eq!(
+            resolved.model_path("/architecture/sameRank/0/0"),
+            "/architecture/sameRank/1/1"
+        );
+        assert_eq!(
+            resolved.model_path("/architecture/sameRank/0/1"),
+            "/architecture/sameRank/1/2"
+        );
+        assert_eq!(
+            resolved.model_path("/architecture/sameRank/0"),
+            "/architecture/sameRank/1"
+        );
+    }
+
+    #[test]
+    fn a_view_keeps_roles_symbols_and_node_hooks() {
+        let json = edited(
+            r#"{"id": "api", "label": "API", "in": "private"}"#,
+            r#"{"id": "api", "label": "API", "in": "private", "role": "critical", "symbol": "container"}"#,
+        );
+        let full = ChartSpec::from_json(&json).unwrap();
+        let model = architecture(&full).components[2].clone();
+        let overview = full.view(Some("overview")).unwrap();
+        let shown = &architecture(&overview).components[2];
+        assert_eq!(shown.id, "api");
+        assert_eq!(shown.role, model.role);
+        assert_eq!(shown.symbol, model.symbol);
+        assert!(shown.role.is_some() && shown.symbol.is_some());
+        let options = RenderOptions {
+            hooks: true,
+            ..with(Some("overview"))
+        };
+        let svg = render_json(&json, RenderFormat::Svg, &options)
+            .unwrap()
+            .content;
+        assert!(
+            svg.contains(r#"data-chartlet-node="api""#),
+            "no node hook for api"
+        );
+        assert!(!svg.contains(r#"data-chartlet-node="files""#));
     }
 
     #[test]

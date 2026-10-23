@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Billing moves from the monolith to its own service",
+  "source": "Architecture review, migration plan",
+  "width": 1400,
+  "height": 420,
+  "architecture": {
+    "boundaries": [
+      { "id": "platform", "label": "Platform" }
+    ],
+    "components": [
+      { "id": "customer", "label": "Customer", "kind": "person" },
+      { "id": "portal", "label": "Customer portal", "kind": "frontend" },
+      { "id": "gateway", "label": "API gateway", "kind": "security", "in": "platform", "role": "critical" },
+      { "id": "monolith", "label": "Monolith", "sublabel": "billing module", "in": "platform", "role": "deprecated" },
+      { "id": "billing", "label": "Billing service", "in": "platform", "role": "planned" },
+      { "id": "events", "label": "Invoice events", "kind": "queue", "in": "platform", "role": "planned" },
+      { "id": "db", "label": "Accounts", "sublabel": "Postgres", "kind": "database", "in": "platform", "role": "critical" },
+      { "id": "psp", "label": "Payment provider", "kind": "external" }
+    ],
+    "connections": [
+      { "from": "customer", "to": "portal", "label": "pays" },
+      { "from": "portal", "to": "gateway", "label": "calls", "technology": "HTTPS" },
+      { "from": "gateway", "to": "monolith", "label": "routes today", "role": "deprecated" },
+      { "from": "gateway", "to": "billing", "label": "routes after", "role": "planned" },
+      { "from": "monolith", "to": "db", "technology": "SQL", "role": "deprecated" },
+      { "from": "billing", "to": "db", "technology": "SQL", "role": "planned" },
+      { "from": "billing", "to": "events", "label": "publishes", "role": "planned" },
+      { "from": "billing", "to": "psp", "label": "charges", "technology": "HTTPS", "role": "critical" }
+    ]
+  }
+}

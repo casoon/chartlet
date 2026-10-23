@@ -889,6 +889,10 @@
           "description": "The usual way through the flow, as step ids joined by edges, or as {from, to}: the shortest way along the edges between two steps (at a tie the first in the order of the edges). Kept in line and drawn stronger.",
           "$ref": "#/$defs/mainPath"
         },
+        "sameRank": {
+          "description": "Sets of step ids that lie at one position along the flow, such as parallel reviews or all end steps. A layout hint: it adds no edge. A step lies in at most one set, and no edge joins two steps of one set.",
+          "$ref": "#/$defs/sameRank"
+        },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
         "valueLabel": { "description": "What the value of the nodes stands for: the name of the color key and of the table column.", "type": "string", "minLength": 1, "maxLength": 40 }
       }
@@ -1403,7 +1407,12 @@
                 "enum": ["person", "frontend", "service", "database", "queue", "storage", "cache", "external", "security", "node", "artifact"],
                 "default": "service"
               },
-              "in": { "$ref": "#/$defs/identifier" }
+              "symbol": {
+                "description": "A generic symbol drawn above the label that names the component's technology category; the kind keeps its shape and meaning. The description and the data table name the category after the kind.",
+                "enum": ["browser", "mobile", "api-gateway", "load-balancer", "cdn", "firewall", "identity", "container", "orchestrator", "function", "cloud", "cache", "object-storage", "message-broker", "search-index", "monitoring"]
+              },
+              "in": { "$ref": "#/$defs/identifier" },
+              "role": { "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -1422,7 +1431,8 @@
               "technology": { "type": "string", "minLength": 1, "maxLength": 40 },
               "step": { "type": "integer", "minimum": 1, "maximum": 99 },
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
-              "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 }
+              "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
+              "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
             }
           }
         },
@@ -1444,6 +1454,10 @@
         "mainPath": {
           "description": "The usual way a request takes, as component ids joined by connections, or as {from, to}: the shortest way along the connections between two components (at a tie the first in the order of the connections). Kept in line and drawn stronger.",
           "$ref": "#/$defs/mainPath"
+        },
+        "sameRank": {
+          "description": "Sets of component ids that lie at one position along the flow, such as the databases of a data tier. A layout hint: it adds no connection. A component lies in at most one set, and no connection joins two components of one set.",
+          "$ref": "#/$defs/sameRank"
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
         "views": {
@@ -1481,6 +1495,15 @@
         "defaultView": { "description": "The key of the view rendered when none is asked for; without it, the first view.", "$ref": "#/$defs/identifier" }
       }
     },
+    "sameRank": {
+      "type": "array",
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "uniqueItems": true,
+        "items": { "$ref": "#/$defs/identifier" }
+      }
+    },
     "mainPath": {
       "oneOf": [
         { "type": "array", "items": { "$ref": "#/$defs/identifier" } },
@@ -1510,7 +1533,8 @@
         },
         "lane": { "$ref": "#/$defs/identifier" },
         "value": { "description": "A number that colors the node's fill, from light for the smallest value to dark for the largest.", "type": "number" },
-        "parts": { "description": "The parts of what the node holds, drawn as a stripe inside the bottom of its box; at most 6 per node and 8 names per diagram; a decision takes none.", "type": "array", "maxItems": 6, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "value": { "type": "number", "minimum": 0 } } } }
+        "parts": { "description": "The parts of what the node holds, drawn as a stripe inside the bottom of its box; at most 6 per node and 8 names per diagram; a decision takes none.", "type": "array", "maxItems": 6, "items": { "type": "object", "additionalProperties": false, "required": ["label", "value"], "properties": { "label": { "type": "string", "minLength": 1, "maxLength": 40 }, "value": { "type": "number", "minimum": 0 } } } },
+        "role": { "$ref": "#/$defs/diagramRole" }
       }
     },
     "flowEdge": {
@@ -1522,8 +1546,13 @@
         "to": { "$ref": "#/$defs/identifier" },
         "label": { "type": "string", "minLength": 1, "maxLength": 60 },
         "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
-        "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 }
+        "weight": { "description": "How much the edge carries, at least 0; the line is drawn from 1 px for nothing to 5 px for the heaviest edge.", "type": "number", "minimum": 0 },
+        "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
       }
+    },
+    "diagramRole": {
+      "description": "What a node or an edge means beyond its kind, alike in every diagram. critical: a strong red outline or line and a badge with !; planned: dashed, violet, badge +; deprecated: dotted, gray, badge −. The kind keeps its shape and fill; a legend below the diagram names the roles used, and the description and the table name every role.",
+      "enum": ["critical", "planned", "deprecated"]
     },
     "participant": {
       "description": "A participant; each kind has its own shape.",

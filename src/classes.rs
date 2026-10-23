@@ -80,10 +80,13 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             shape: Shape::Class,
             lane: None,
             group: None,
+            id: Some(class.id.clone()),
             path: format!("/classes/classes/{index}"),
             compartments: vec![class.attributes.clone(), class.methods.clone()],
             value: None,
             parts: Vec::new(),
+            symbol: None,
+            role: None,
         })
         .collect();
     let edges = classes
@@ -110,6 +113,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
                 label_path: format!("/classes/relations/{index}/label"),
                 ends: ends(relation),
                 weight: None,
+                role: None,
             }
         })
         .collect();
@@ -118,6 +122,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
         edges,
         lanes: Vec::new(),
         groups: Vec::new(),
+        ranks: Vec::new(),
         orientation: classes.orientation,
     }
 }

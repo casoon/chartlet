@@ -27,6 +27,10 @@ pub struct FlowSpec {
     /// two steps: kept in line and drawn stronger.
     #[serde(default, skip_serializing_if = "MainPath::is_empty")]
     pub main_path: MainPath,
+    /// Sets of step ids that share one rank: each set lies at one position along the flow. A
+    /// layout hint only; it adds no edge.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub same_rank: Vec<Vec<String>>,
     /// Which way the flow runs: down in portrait, right in landscape.
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
@@ -162,6 +166,8 @@ pub struct FlowNodeSpec {
     /// The parts of what the step holds, drawn as a stripe inside the bottom of its box.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parts: Vec<PartSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// What a step is; every kind has its own shape.
@@ -209,6 +215,47 @@ pub struct FlowEdgeSpec {
     /// it carries more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
+}
+
+/// What a node or an edge of a diagram means beyond its kind, the same in every diagram: each
+/// role has its own color and a sign that does not depend on color, a pattern or a badge, and
+/// the legend below the diagram names the roles it uses.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "lowercase")]
+pub enum DiagramRole {
+    /// Something the whole depends on, or that is at risk: a strong red outline or line and a
+    /// badge with `!`.
+    Critical,
+    /// Something not built yet: a dashed outline or line and a badge with `+`.
+    Planned,
+    /// Something on its way out: a dotted outline or line and a badge with `−`.
+    Deprecated,
+}
+
+impl DiagramRole {
+    /// Whether the role draws the line of an edge in a pattern of its own, which leaves no room
+    /// for a `dash` of the edge.
+    pub(crate) const fn has_pattern(self) -> bool {
+        matches!(self, Self::Planned | Self::Deprecated)
+    }
+}
+
+/// Checks that an edge with a role whose line has a pattern of its own declares no `dash`.
+pub(crate) fn validate_role(
+    role: Option<DiagramRole>,
+    dash: Option<Dash>,
+    path: &str,
+) -> Result<(), ChartError> {
+    match (role, dash) {
+        (Some(role), Some(_)) if role.has_pattern() => Err(ChartError::new(
+            "role_conflict",
+            format!("{path}/dash"),
+            "a planned or deprecated edge is drawn in the pattern of its role; remove dash",
+        )),
+        _ => Ok(()),
+    }
 }
 
 /// One part of what a node holds: a name and a value of at least 0.
@@ -284,6 +331,63 @@ pub(crate) fn validate_weight(weight: Option<f64>, path: &str) -> Result<(), Cha
         )),
         _ => Ok(()),
     }
+}
+
+/// Checks the `sameRank` sets of a diagram whose nodes `known` recognizes and whose edges join the
+/// pairs of ids in `edges`; `section` is the block in the JSON path and `noun` names a node in
+/// messages. Every set names at least two known nodes, no node lies in two sets or twice in one,
+/// and no edge joins two nodes of one set: the layout only draws edges between ranks.
+pub(crate) fn validate_same_rank<'a>(
+    sets: &[Vec<String>],
+    section: &str,
+    known: impl Fn(&str) -> bool,
+    edges: &(impl Iterator<Item = (&'a str, &'a str)> + Clone),
+    noun: &str,
+) -> Result<(), ChartError> {
+    for (index, set) in sets.iter().enumerate() {
+        let path = format!("/{section}/sameRank/{index}");
+        if set.len() < 2 {
+            return Err(ChartError::new(
+                "empty_data",
+                path,
+                format!("a shared rank names at least two {noun}s"),
+            ));
+        }
+        for (member_index, id) in set.iter().enumerate() {
+            let member_path = format!("{path}/{member_index}");
+            if !known(id) {
+                return Err(ChartError::new(
+                    "unknown_node",
+                    member_path,
+                    format!("no {noun} has the id \"{id}\""),
+                ));
+            }
+            if sets[..index].iter().any(|other| other.contains(id))
+                || set[..member_index].contains(id)
+            {
+                return Err(ChartError::new(
+                    "duplicate_member",
+                    member_path,
+                    format!("the {noun} \"{id}\" already lies on a shared rank"),
+                ));
+            }
+            let joined = set[..member_index].iter().find(|other| {
+                edges
+                    .clone()
+                    .any(|(from, to)| (from == *other && to == id) || (from == id && to == *other))
+            });
+            if let Some(other) = joined {
+                return Err(ChartError::new(
+                    "same_rank_edge",
+                    member_path,
+                    format!(
+                        "an edge joins \"{other}\" and \"{id}\"; {noun}s that share a rank cannot be joined"
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -368,6 +472,23 @@ impl ChartSpec {
                 .is_some_and(|tree| tree.nodes.iter().any(|node| !node.parts.is_empty()))
     }
 
+    /// Whether a flow chart or an architecture diagram gives a node or an edge a role.
+    pub(crate) fn has_roles(&self) -> bool {
+        self.flow.as_ref().is_some_and(|flow| {
+            flow.nodes.iter().any(|node| node.role.is_some())
+                || flow.edges.iter().any(|edge| edge.role.is_some())
+        }) || self.architecture.as_ref().is_some_and(|architecture| {
+            architecture
+                .components
+                .iter()
+                .any(|component| component.role.is_some())
+                || architecture
+                    .connections
+                    .iter()
+                    .any(|connection| connection.role.is_some())
+        })
+    }
+
     /// Whether a flow chart or a tree has a node with a value.
     pub(crate) fn has_node_values(&self) -> bool {
         self.flow
@@ -412,6 +533,13 @@ impl ChartSpec {
         flow.validate_edges()?;
         flow.validate_groups()?;
         flow.validate_main_path()?;
+        validate_same_rank(
+            &flow.same_rank,
+            "flow",
+            |id| flow.node(id).is_some(),
+            &flow.edge_ids(),
+            "step",
+        )?;
         if let Some(label) = &flow.value_label {
             validate_text(label, "/flow/valueLabel", 40)?;
         }
@@ -552,6 +680,7 @@ impl FlowSpec {
                 validate_text(label, &format!("{path}/label"), 60)?;
             }
             validate_weight(edge.weight, &path)?;
+            validate_role(edge.role, edge.dash, &path)?;
         }
         Ok(())
     }

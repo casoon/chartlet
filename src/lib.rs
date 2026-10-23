@@ -25,6 +25,7 @@ pub mod qr;
 mod rangebar;
 mod reference;
 mod render;
+mod roles;
 mod sankey;
 mod scatter;
 mod scene;
@@ -37,6 +38,7 @@ mod state;
 mod stripes;
 mod structure;
 mod survival;
+mod symbols;
 mod text;
 mod time;
 mod timeline;
@@ -53,9 +55,9 @@ pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
     CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ClassKind,
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionSpec, Corner, Curve, Dash,
-    DataPoint, DiagramOrientation, DistancesSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec,
-    FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage,
-    MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
+    DataPoint, DiagramOrientation, DiagramRole, DistancesSpec, FlowEdgeSpec, FlowNodeSpec,
+    FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement,
+    Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
     NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, OhlcPoint, Orientation,
     PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec,
     ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder,
@@ -86,8 +88,9 @@ pub struct RenderOptions {
     pub styles: Styles,
     /// Adds the `data-*` hooks that the optional interactive module of the npm package reads:
     /// chart type and ID on the root, the plot geometry of every pane, a group around what each
-    /// layer draws, and the unformatted values on the data table, or in a JSON data block in
-    /// the SVG profile. The print variant carries none.
+    /// layer draws, the specification ID of every diagram node of a flow chart, state,
+    /// architecture or class diagram, and the unformatted values on the data table, or in a
+    /// JSON data block in the SVG profile. The print variant carries none.
     pub hooks: bool,
     /// The `key` of the view of an architecture model to render; without one, its default view.
     /// Every variant renders the same view.

@@ -11,6 +11,9 @@ use chartlet::{
 };
 use serde_json::{Value, json};
 
+mod preview;
+mod watch;
+
 /// A failure of the CLI: a code for machine-readable diagnostics, the location in the
 /// specification where there is one, and the message.
 struct Failure {
@@ -29,6 +32,15 @@ impl From<String> for Failure {
     }
 }
 
+impl std::fmt::Display for Failure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match &self.path {
+            Some(path) => write!(formatter, "{} at {path}: {}", self.code, self.message),
+            None => formatter.write_str(&self.message),
+        }
+    }
+}
+
 fn main() {
     let json_diagnostics = env::args().any(|argument| argument == "--diagnostics=json")
         || env::args()
@@ -37,29 +49,71 @@ fn main() {
             .any(|pair| pair[0] == "--diagnostics" && pair[1] == "json");
     let mut warnings = Vec::new();
     let result = run(&mut warnings, json_diagnostics);
-    if json_diagnostics {
-        let error = result.as_ref().err().map(|failure| {
-            json!({ "code": failure.code, "path": failure.path, "message": failure.message })
-        });
-        let report = json!({
-            "ok": result.is_ok(),
-            "error": error,
-            "warnings": warnings.iter().map(warning_json).collect::<Vec<Value>>(),
-        });
-        eprintln!("{report}");
-    } else if let Err(failure) = &result {
-        match &failure.path {
-            Some(path) => eprintln!("chartlet: {} at {path}: {}", failure.code, failure.message),
-            None => eprintln!("chartlet: {}", failure.message),
-        }
-    }
+    report_result(result.as_ref().err(), &warnings, json_diagnostics);
     if result.is_err() {
         process::exit(1);
     }
 }
 
+/// Writes the outcome of one render to stderr: with JSON diagnostics as one JSON document of the
+/// failure and the warnings, otherwise the failure as a line of text.
+fn report_result(failure: Option<&Failure>, warnings: &[ChartWarning], json_diagnostics: bool) {
+    if json_diagnostics {
+        let error = failure.map(|failure| {
+            json!({ "code": failure.code, "path": failure.path, "message": failure.message })
+        });
+        let report = json!({
+            "ok": failure.is_none(),
+            "error": error,
+            "warnings": warnings.iter().map(warning_json).collect::<Vec<Value>>(),
+        });
+        eprintln!("{report}");
+    } else if let Some(failure) = failure {
+        eprintln!("chartlet: {failure}");
+    }
+}
+
 fn warning_json(warning: &ChartWarning) -> Value {
     json!({ "code": warning.code, "path": warning.path, "message": warning.message })
+}
+
+/// What `chartlet render` is asked to render, and where to.
+struct Job {
+    input: PathBuf,
+    format: RenderFormat,
+    png: bool,
+    scale: Option<f32>,
+    output: Option<PathBuf>,
+    manifest: Option<PathBuf>,
+    options: RenderOptions,
+    /// The allowed warning codes in strict mode, `None` outside it.
+    strict: Option<Vec<String>>,
+}
+
+/// The rendered content, its warnings and, if asked for, its manifest.
+type Rendered = (Content, Vec<ChartWarning>, Option<chartlet::Manifest>);
+
+/// Renders the specification `input` as `job` asks.
+fn render_job(job: &Job, input: &str) -> Result<Rendered, Failure> {
+    if job.png {
+        let (png, warnings) = render_png(
+            input,
+            job.options.view.as_deref(),
+            job.options.variant,
+            job.scale,
+            job.manifest.is_some(),
+        )?;
+        Ok((Content::Png(png), warnings, None))
+    } else if job.scale.is_some() {
+        Err("--scale requires --format png".to_owned().into())
+    } else {
+        let rendered = render_json(input, job.format, &job.options).map_err(spec_failure)?;
+        Ok((
+            Content::Text(rendered.content),
+            rendered.warnings,
+            rendered.manifest,
+        ))
+    }
 }
 
 #[allow(
@@ -92,6 +146,9 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut png = false;
     let mut scale = None;
     let mut view = None;
+    let mut watch = false;
+    let mut preview = false;
+    let mut port = None;
 
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
@@ -134,54 +191,50 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                 _ => return Err("--diagnostics must be text or json".to_owned().into()),
             },
             "--diagnostics=json" | "--diagnostics=text" => {}
+            "--watch" => watch = true,
+            "--preview" => preview = true,
+            "--port" => port = Some(parse_port(arguments.next().as_deref())?),
             "-h" | "--help" => return Ok(write_stdout(&usage())?),
             unknown => return Err(format!("unknown argument {unknown:?}\n\n{}", usage()).into()),
         }
     }
 
-    let input_content = read_input(&input)?;
-    let (content, rendered_warnings, rendered_manifest) = if png {
-        let (png, warnings) = render_png(
-            &input_content,
-            view.as_deref(),
+    let job = Job {
+        input,
+        format,
+        png,
+        scale,
+        output,
+        options: RenderOptions {
+            id_prefix,
+            table_mode,
             variant,
-            scale,
-            manifest.is_some(),
-        )?;
-        (Content::Png(png), warnings, None)
-    } else if scale.is_some() {
-        return Err("--scale requires --format png".to_owned().into());
-    } else {
-        let rendered = render_json(
-            &input_content,
-            format,
-            &RenderOptions {
-                id_prefix,
-                table_mode,
-                variant,
-                manifest: manifest.is_some(),
-                styles,
-                hooks,
-                view,
-            },
-        )
-        .map_err(spec_failure)?;
-        (
-            Content::Text(rendered.content),
-            rendered.warnings,
-            rendered.manifest,
-        )
+            manifest: manifest.is_some(),
+            styles,
+            hooks,
+            view,
+        },
+        manifest,
+        strict: strict.then_some(allowed),
     };
+    if watch || preview {
+        return watch::run(&job, preview.then(|| port.unwrap_or(0)), json_diagnostics);
+    } else if port.is_some() {
+        return Err("--port requires --preview".to_owned().into());
+    }
+
+    let input_content = read_input(&job.input)?;
+    let (content, rendered_warnings, rendered_manifest) = render_job(&job, &input_content)?;
     report_warnings(
         rendered_warnings,
         warnings,
         json_diagnostics,
-        strict.then_some(&allowed),
+        job.strict.as_ref(),
     )?;
 
-    content.write(output)?;
-    if let (Some(path), Some(manifest)) = (manifest, rendered_manifest) {
-        fs::write(&path, manifest.to_json() + "\n")
+    content.write(job.output.as_deref())?;
+    if let (Some(path), Some(manifest)) = (&job.manifest, rendered_manifest) {
+        fs::write(path, manifest.to_json() + "\n")
             .map_err(|error| format!("could not write {}: {error}", path.display()))?;
     }
     Ok(())
@@ -215,17 +268,18 @@ enum Content {
 }
 
 impl Content {
+    fn bytes(&self) -> &[u8] {
+        match self {
+            Self::Text(text) => text.as_bytes(),
+            Self::Png(png) => png,
+        }
+    }
+
     /// Writes the content to `output`, or to stdout without one.
-    fn write(&self, output: Option<PathBuf>) -> Result<(), String> {
+    fn write(&self, output: Option<&Path>) -> Result<(), String> {
         match (output, self) {
-            (Some(output), content) => {
-                let bytes = match content {
-                    Self::Text(text) => text.as_bytes(),
-                    Self::Png(png) => png,
-                };
-                fs::write(&output, bytes)
-                    .map_err(|error| format!("could not write {}: {error}", output.display()))
-            }
+            (Some(output), content) => fs::write(output, content.bytes())
+                .map_err(|error| format!("could not write {}: {error}", output.display())),
             (None, Self::Text(text)) => write_stdout(text),
             (None, Self::Png(png)) => write_stdout_bytes(png),
         }
@@ -275,6 +329,12 @@ fn render_png(
             .to_owned()
             .into(),
     )
+}
+
+fn parse_port(value: Option<&str>) -> Result<u16, String> {
+    value
+        .and_then(|value| value.parse::<u16>().ok())
+        .ok_or_else(|| "--port requires a port number such as 4000".to_owned())
 }
 
 fn parse_scale(value: Option<&str>) -> Result<f32, String> {
@@ -373,7 +433,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json]
+    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
        chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
 }
 
