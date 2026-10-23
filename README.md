@@ -16,19 +16,21 @@ Nothing runs in the browser: no chart JavaScript, no hydration, no layout shift.
   diffed and cached like any other build artifact.
 - **Honest about problems:** invalid input is rejected with a code, a path and a fix; layout
   compromises such as shortened labels are reported as warnings instead of happening silently.
-- **Diagrams laid out for you:** sequence, flow, state, architecture and tree diagrams come from a
-  description of what is connected; chartlet places every box and routes every edge, in portrait
-  or landscape, and lists the whole structure in the data table.
+- **Diagrams laid out for you:** sequence, flow, state, architecture, class, tree and network
+  diagrams come from a description of what is connected; chartlet places every box and routes
+  every edge, in portrait or landscape, and lists the whole structure in the data table.
+- **Models, not only pictures:** one architecture model yields several views, deployments per
+  environment and perspectives such as ownership, and `chartlet inspect` points out what its
+  documentation leaves open.
 
-> **Status:** 0.19. Bar charts (single, grouped, colored by group and stacked, vertical and horizontal),
-> categorical line charts, time series with uncertainty bands, reference lines, points and stacked
-> areas, warming stripes, calendar heatmaps, range bars, box plots and small multiples (of time series and of
-> bars) are supported, waterfalls, waffle charts, parliament charts, treemaps, Sankey diagrams, Kaplan-Meier curves, scatter plots and timelines, and sequence, architecture, class and tree diagrams, plus experimental flow and state diagrams. Until 1.0, a minor release (0.19, 0.20, …) may still change the specification; a
-> patch release never does.
+> **Status:** before 1.0. Until 1.0, a minor release may still change the specification; a patch
+> release never does. Flow, state and class diagrams, topic maps and knowledge landscapes are
+> experimental: their layout may change between minor releases.
 
 ## Quick start
 
-Install the CLI from crates.io (Rust 1.88 or newer):
+Install the CLI from crates.io (Rust 1.88 or newer), or build it from a clone with
+`cargo install --path .`:
 
 ```sh
 cargo install chartlet
@@ -49,22 +51,19 @@ Save a minimal specification as `spec.json`:
 }
 ```
 
-Render it:
+Render it, or keep a live preview open while you edit:
 
 ```sh
 chartlet render spec.json --format html -o chart.html
+chartlet render spec.json --format html --preview
 ```
-
-To build from a clone of this repository instead, run `cargo install --path .`.
 
 ## Website and documentation
 
 The [project website](https://casoon.github.io/chartlet/) has the documentation, every example
 chart with its specification next to the rendered output, and the support matrix for embedding
-contexts, browsers, and screen readers.
-
-The site is built with Astro on the shared CASOON Pages theme and renders every chart with
-`@casoon/chartlet` at build time. Its source lives in [`site/`](site/), the documentation in
+contexts, browsers and screen readers. It is built with Astro and renders every chart with
+`@casoon/chartlet` at build time; its source lives in [`site/`](site/), the documentation in
 [`docs/`](docs/).
 
 ## Chart types
@@ -74,11 +73,16 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Bar, vertical | `"type": "bar"` with `data` | [monthly-revenue](examples/monthly-revenue.json) |
 | Bar, horizontal, with negative values | `"orientation": "horizontal"` | [quarterly-change](examples/quarterly-change.json) |
 | Grouped bar, up to four series | `categories` and `series` instead of `data` | [budget-vs-actual](examples/budget-vs-actual.json) |
+| Bars colored by group, one legend entry per group | `"group"` on every `data` point | [benefit-and-harm](examples/benefit-and-harm.json) |
+| Grouped bars with error bars | `lower` and `upper` arrays on each `series` | [satisfaction-by-quarter](examples/satisfaction-by-quarter.json) |
+| Bars with error bars (confidence intervals) | `lower` and `upper` on every `data` point | [satisfaction-scores](examples/satisfaction-scores.json) |
+| Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
+| Small multiples of bars: one panel per measure over shared categories, each with its own value axis | `"type": "multiples"` with `categories` and a `values` array per pane | [framework-benchmarks](examples/framework-benchmarks.json) |
+| Small multiples with a finding under each panel, one column on phones | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
 | Line with gaps for missing values | `"type": "line"`, `null` values | [monthly-trend](examples/monthly-trend.json) |
+| Line chart with error bars | `lower` and `upper` on every `data` point of a `line` chart | [monthly-satisfaction](examples/monthly-satisfaction.json) |
 | Time series on a calendar axis | `"type": "time"` with `panes` and `layers` | [daily-orders](examples/daily-orders.json) |
 | Time series, dark theme, declared colors | `"theme": "dark"`, `color` per layer | [revenue-vs-forecast](examples/revenue-vs-forecast.json) |
-| Topic map: separate landmasses, area by value (experimental) | `"type": "topicmap"` with `topics` | [topicmap-sample](examples/topicmap-sample.json) |
-| Knowledge landscape: one land, position by kinship (experimental) | `"type": "atlas"` with `realms` | [knowledge-landscape](examples/knowledge-landscape.json) |
 | Time series with uncertainty band, modeled (hatched, dashed) | `lower`/`upper` per point, `"modeled": true` per layer | [temperature-projection](examples/temperature-projection.json) |
 | Reference lines: threshold and date marker | `"mark": "annotation"` with `value` or `time` and `label` | [annual-mean-threshold](examples/annual-mean-threshold.json) |
 | Time series with area, gaps, line patterns and zoom | `"mark": "area"`, `null` values, `dash`, `"stroke": "bold"`, `zoomSteps` by time | [sensor-readings](examples/sensor-readings.json) |
@@ -88,138 +92,54 @@ The site is built with Astro on the shared CASOON Pages theme and renders every 
 | Candlesticks with a volume pane on one time axis, weekends closed up | `"mark": "ohlc"` with `data`; up to four `panes` with `heightRatio`; `"gaps": "collapse"` | [share-price](examples/share-price.json) |
 | Warming stripes on a diverging scale | `"type": "stripes"` with `stripes` | [warming-stripes](examples/warming-stripes.json) |
 | Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
+| Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
+| Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Forest plot: squares by weight, a summary diamond, the line of no effect | `"type": "rangebar"` with `weight`, `summary`, `references` | [trial-effects](examples/trial-effects.json) |
 | Timeline: phases, milestones, today's marker and dependencies (Gantt, roadmap) | `"type": "timeline"` with `items`, `markers` | [product-roadmap](examples/product-roadmap.json) |
 | Waterfall: a total made up of rises, falls and subtotals | `"type": "waterfall"` with `waterfall.steps` | [revenue-to-profit](examples/revenue-to-profit.json) |
 | Waffle chart: shares of a whole as squares, with the rest | `"type": "waffle"` with `waffle.parts` and `total` | [energy-sources](examples/energy-sources.json) |
 | Parliament chart: seats by party, the majority line, a coalition ringed | `"type": "parliament"` with `parliament.parties`, `majority`, `coalition` | [election-result](examples/election-result.json) |
+| Nested treemap: sectors and departments | `children` on `treemap.items` | [budget-by-sector](examples/budget-by-sector.json) |
+| Treemap: many parts of a whole as rectangles by value, in groups | `"type": "treemap"` with `treemap.items` | [budget-by-department](examples/budget-by-department.json) |
+| Sankey diagram: flows between stages as bands | `"type": "sankey"` with `sankey.links` | [energy-flow](examples/energy-flow.json) |
+| Sankey diagram with a flow back (recycling) as a loop | `"back": true` on a Sankey link | [water-cycle](examples/water-cycle.json) |
+| Sankey diagram with fixed columns, order and colors (voter movement) | `sankey.nodes` with `column`, `color`, `"order": "listed"` | [voter-movement](examples/voter-movement.json) |
 | Scatter plot: points in groups with threshold lines and names (volcano, Manhattan) | `"type": "scatter"` with `scatter.points`, `lines` | [gene-expression](examples/gene-expression.json) |
 | Scatter plot with a regression line and logarithmic axes | `"regression": true`, `"xScale": "log"` on a `scatter` | [allometry](examples/allometry.json) |
 | Manhattan plot: scatter with named x ticks and fixed ranges | `scatter.xTicks`, `xRange` | [genome-scan](examples/genome-scan.json) |
 | Impact and effort matrix: scatter in four named quadrants | `scatter.quadrants` | [feature-priorities](examples/feature-priorities.json) |
-| Class diagram and entity-relationship diagram: classes with compartments, relations with cardinalities | `"type": "classes"` with `classes.classes` and `relations` | [order-model](examples/order-model.json), [shop-schema](examples/shop-schema.json) |
 | Kaplan-Meier curves: survival by group, censoring marks, confidence band, number at risk | `"type": "survival"` with `survival.groups` | [overall-survival](examples/overall-survival.json) |
-| Sankey diagram: flows between stages as bands | `"type": "sankey"` with `sankey.links` | [energy-flow](examples/energy-flow.json) |
-| Study selection (PRISMA) and chains of courts as flow charts (presets) | `"type": "flow"` | [study-selection](examples/study-selection.json), [court-instances](examples/court-instances.json) |
-| Sankey diagram with a flow back (recycling) as a loop | `"back": true` on a Sankey link | [water-cycle](examples/water-cycle.json) |
-| Sankey diagram with fixed columns, order and colors (voter movement) | `sankey.nodes` with `column`, `color`, `"order": "listed"` | [voter-movement](examples/voter-movement.json) |
-| Nested treemap: sectors and departments | `children` on `treemap.items` | [budget-by-sector](examples/budget-by-sector.json) |
-| Treemap: many parts of a whole as rectangles by value, in groups | `"type": "treemap"` with `treemap.items` | [budget-by-department](examples/budget-by-department.json) |
 | Box plot from observations, with a box given by its five numbers | `"type": "boxplot"` with `boxes` | [response-times](examples/response-times.json) |
 | Grouped box plots: boxes colored by group with a legend | `group` on every box | [latency-by-region](examples/latency-by-region.json) |
 | Violins and strips from the same observations | `"boxDisplay": "violin"` on a `boxplot` | [response-distribution](examples/response-distribution.json) |
-| Grouped bars with error bars | `lower` and `upper` arrays on each `series` | [satisfaction-by-quarter](examples/satisfaction-by-quarter.json) |
-| Line chart with error bars | `lower` and `upper` on every `data` point of a `line` chart | [monthly-satisfaction](examples/monthly-satisfaction.json) |
-| Bars with error bars (confidence intervals) | `lower` and `upper` on every `data` point | [satisfaction-scores](examples/satisfaction-scores.json) |
-| Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
-| Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
-| Small multiples with a shared value axis | `"type": "multiples"` with titled `panes` | [emission-pathways](examples/emission-pathways.json) |
-| Small multiples of bars: one panel per measure over shared categories, each with its own value axis | `"type": "multiples"` with `categories` and a `values` array per pane | [framework-benchmarks](examples/framework-benchmarks.json) |
-| Bars colored by group, one legend entry per group | `"group"` on every `data` point | [benefit-and-harm](examples/benefit-and-harm.json) |
-| Small multiples with a finding under each panel, one column on phones | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
-| Sequence diagram, portrait | `"type": "sequence"` with `participants`, `messages`, `fragments` | [cache-lookup](examples/cache-lookup.json) |
-| Sequence diagram, landscape | `"orientation": "landscape"` | [async-export](examples/async-export.json) |
-| Flow chart in lanes with loops back and a group (experimental) | `"type": "flow"` with `nodes`, `edges`, `lanes`, `groups`, `mainPath` | [release-flow](examples/release-flow.json) |
-| Flow chart turned landscape by a wide canvas (experimental) | `"orientation": "auto"` | [order-flow](examples/order-flow.json) |
-| State diagram with a composite state, a choice and final states (experimental) | `"type": "state"` with `states`, `transitions`, `initial` | [ticket-states](examples/ticket-states.json) |
-| Architecture diagram in nested boundaries | `"type": "architecture"` with `components`, `connections`, `boundaries` | [shop-architecture](examples/shop-architecture.json) |
-| Sequence diagram with a phone variant: sign-in with a backend for frontend | `"type": "sequence"`, `"mobile"` | [sign-in-sequence](examples/sign-in-sequence.json) |
-| Architecture diagram with numbered steps | `"type": "architecture"`, `connections[].step` | [checkout-calls](examples/checkout-calls.json) |
-| Deployment diagram in the blueprint look | `kind: "node"`, `"artifact"`, `"theme": "blueprint"` | [shop-deployment](examples/shop-deployment.json) |
-| Architecture diagram with weighted connections | `connections[].weight`, `mainPath: {from, to}` | [request-volume](examples/request-volume.json) |
-| Architecture diagram with its databases on one rank, with a phone variant | `sameRank` | [data-tier](examples/data-tier.json) |
-| Architecture diagram with roles: critical, planned, deprecated | `role` on components and connections | [billing-migration](examples/billing-migration.json) |
-| Tree with boxes colored by value | `value`, `valueLabel` on `tree` and `flow` | [department-budgets](examples/department-budgets.json) |
-| Flow chart with the shares of each step as a stripe | `parts` on `flow` and `tree` nodes | [claim-handling](examples/claim-handling.json) |
-| Dendrogram built from a distance matrix | `"type": "tree"` with `distances`, `linkage` | [climate-similarity](examples/climate-similarity.json) |
-| Network on a circle, groups together, edges by weight | `"type": "network"`, `group`, `weight` | [co-authors](examples/co-authors.json) |
-| Network in rings around one node | `"layout": "rings"`, `center`, `"directed": true` | [service-dependencies](examples/service-dependencies.json) |
-| Architecture diagram with a phone variant: a multi-tenant application | `"type": "architecture"`, `"mobile"` | [tenant-architecture](examples/tenant-architecture.json) |
-| Tree: an ownership structure with shares, with a phone variant | `"type": "tree"` with `nodes`, each with a `parent` and a `link` | [ownership-structure](examples/ownership-structure.json) |
-| Family tree: couples side by side, persons and an external node | `"type": "tree"` with `partner` and `kind` | [family-tree](examples/family-tree.json) |
-| Mind map: the root in the middle, branches on rings around it | `"layout": "radial"` on a `tree` | [product-strategy](examples/product-strategy.json) |
+| Topic map: separate landmasses, area by value (experimental) | `"type": "topicmap"` with `topics` | [topicmap-sample](examples/topicmap-sample.json) |
+| Knowledge landscape: one land, position by kinship (experimental) | `"type": "atlas"` with `realms` | [knowledge-landscape](examples/knowledge-landscape.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
-| Compact chart for a panel in a grid of columns | `"width": 240`, `"height": 180` (from 200 × 160 px: narrower gutter, same text size), `"timeAxis": { "step": 50, "min": "1850" }` for the ticks the panel's claim needs, `"stroke": "medium"`, `"valueAxis": { "unit": "W/m²" }` at the top tick instead of an axis title | – |
 
-Each example has its rendered `.svg` and `.html` next to it. The SVG files are also the
-reference output of the test suite.
-
-### Missing values
-
-In a line chart, `null` marks an observation that does not exist. chartlet leaves a visible gap
-instead of drawing a line across it. In a grouped bar chart, `null` leaves out that bar. The data
-table shows these cells as “Missing”. A single-series bar chart requires a value for every
-category.
-
-### Several series
-
-Replace `data` with `categories` and `series`. Every series needs exactly one value per category.
-A legend is added automatically, and the data table gets one column per series.
-
-### Time series
-
-`"type": "time"` replaces categories with timestamps and draws lines on a calendar axis. Each
-observation is `{ "time": …, "value": … }`, where `time` is Unix seconds or an ISO 8601 date; a
-timestamp without its own offset is read as wall-clock time in `timeAxis.timezone` (a fixed UTC
-offset, `UTC` by default). Layers live in `panes` and may name their own color. See the
-[time series guide](docs/guides/time-series.md) for the contract, the theme, and the measured
-limits for dense series.
-
-A line layer can carry an uncertainty band: give every point `lower` and `upper`. With
-`"modeled": true` the line is dashed, its band hatched, and legend, description and data table
-say “modelled”. An `"annotation"` layer draws a labelled reference line: `value` for a horizontal
-threshold, `time` for a vertical marker. A bare year such as `"1850"` is a valid timestamp, and
-annual data is labelled by year. `null` as a value breaks the line, its band and its area.
-`"mark": "area"` fills the region between a line and zero, and `"stack": "normal"` on a pane
-stacks its areas; `"mark": "point"` draws dots without a line, `"markers": false` a line without
-dots; `"curve": "step"` with `stepEnd` draws period values such as annual means; `precision` per
-layer names yearly means by their year beside monthly values; `timeAxis.step` sets the distance
-between time ticks and `timeAxis.min`/`max` extend the axis to a round position; `dash` (`solid`, `dashed`, `dotted`)
-and `stroke` (`thin`, `medium`, `regular`, `bold`) tell lines apart beyond color. A pane holds up to six
-data layers, four of them in palette colors, and `zoomSteps` take timestamps on a time chart.
-`"mark": "ohlc"` draws candlesticks from `data: [{ time, open, high, low, close }]` — hollow when
-rising, filled when falling — and up to four `panes` stack on one shared time axis, each with its
-own value axis and a share of the height by `heightRatio`; volume goes in a second pane as an
-`area` layer.
-`"type": "multiples"` lays out 2 to 12 titled panes as small
-time charts in a grid (`columns`), sharing one value axis and one legend.
-
-### Stripes, calendars and range bars
-
-`"type": "stripes"` draws one stripe per year (`stripes.firstYear`, `stripes.values`);
-`"type": "calendar"` one cell per day of `calendar.year` (`layout`: `months` or `weeks`). Both
-color on a diverging scale of eight equal steps either side of `reference` (default 0), whose
-outermost steps begin at `min` and `max` (default: the largest distance from the reference). A
-missing value leaves an empty stripe or an outlined cell. `"type": "rangebar"` draws one span per
-entry of `ranges` (`low`, `high`, optional `mid` and `modeled`), vertical or horizontal.
-
-```json
-{
-  "schemaVersion": 1,
-  "type": "bar",
-  "title": "Budget and actual costs",
-  "categories": ["January", "February", "March"],
-  "series": [
-    { "name": "Budget", "values": [120, 150, 140] },
-    { "name": "Actual", "values": [130, 145, null] }
-  ]
-}
-```
+Each example has its rendered `.svg` and `.html` next to it; the SVG files are also the reference
+output of the test suite. In a line chart, `null` leaves a visible gap instead of a line across a
+missing observation; in a grouped bar chart it leaves out the bar, and the data table says
+“Missing”. Time series take Unix seconds or ISO 8601 dates on a calendar axis with a fixed time
+zone, up to four panes on one time axis and up to six layers per pane. See
+[Chart types](docs/guides/chart-types.md) and the [time series guide](docs/guides/time-series.md)
+for every field.
 
 ## Software diagrams
 
-Four diagram types describe software rather than data. The specification says only what exists
-and what is connected; chartlet lays the diagram out — layers along the flow, edges routed around
-the boxes, the main path kept straight, cycles drawn back against the flow — and writes the same
-accessible output as for a chart.
+Seven diagram types describe software and structure rather than data. The specification says only
+what exists and what is connected; chartlet lays the diagram out — layers along the flow, edges
+routed around the boxes, the main path kept straight, cycles drawn back against the flow — and
+writes the same accessible output as for a chart.
 
-| Type | Elements |
-|---|---|
-| `sequence` | participants (`service`, `actor`, `database`, `queue`, `external`), messages (`call`, `reply`, `async`), activation bars, fragments (`alt` with `else`, `opt`, `loop`, `par`, `critical`, `break`), numbered messages |
-| `flow` | steps (`process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external`), labelled edges, lanes, groups, a main path |
-| `state` | states, choices, composite and final states, an initial state, transitions `event [guard] / action` |
-| `architecture` | components (`person`, `frontend`, `service`, `database`, `queue`, `storage`, `cache`, `security`, `external`, `node`, `artifact`), connections with a technology and an optional `step` number, nested boundaries; `theme: "blueprint"` for the blueprint look |
-| `tree` | a root and the nodes below it, each naming its parent, with an optional link label such as a share; kinds (`unit`, `person`, `external`) and couples for family trees |
+| Type | Elements | Examples |
+|---|---|---|
+| `sequence` | participants (`service`, `actor`, `database`, `queue`, `external`), messages (`call`, `reply`, `async`), activation bars, fragments (`alt`, `opt`, `loop`, `par`, `critical`, `break`), numbered messages | [cache-lookup](examples/cache-lookup.json), [async-export](examples/async-export.json), [sign-in-sequence](examples/sign-in-sequence.json) |
+| `flow` | steps (`process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external`), labelled edges, lanes, groups, a main path; presets for study selection (PRISMA) and chains of courts | [release-flow](examples/release-flow.json), [order-flow](examples/order-flow.json), [contract-review](examples/contract-review.json), [order-fulfilment](examples/order-fulfilment.json), [study-selection](examples/study-selection.json), [court-instances](examples/court-instances.json) |
+| `state` | states, choices, composite and final states, an initial state, transitions `event [guard] / action` | [ticket-states](examples/ticket-states.json) |
+| `architecture` | components (`person`, `frontend`, `service`, `database`, `queue`, `storage`, `cache`, `security`, `external`, `node`, `artifact`), connections with a technology, a direction and an optional `step` number, nested boundaries; `theme: "blueprint"` | [shop-architecture](examples/shop-architecture.json), [checkout-calls](examples/checkout-calls.json), [shop-deployment](examples/shop-deployment.json), [tenant-architecture](examples/tenant-architecture.json) |
+| `classes` | classes, interfaces, abstract classes, enums and entities with attribute and method compartments, relations with their marks, cardinalities and navigability, nested packages | [order-model](examples/order-model.json), [shop-schema](examples/shop-schema.json), [shop-modules](examples/shop-modules.json), [invoice-model](examples/invoice-model.json) |
+| `tree` | a root and the nodes below it with optional link labels such as shares; couples for family trees; a radial mind map; a dendrogram from a distance matrix | [ownership-structure](examples/ownership-structure.json), [family-tree](examples/family-tree.json), [product-strategy](examples/product-strategy.json), [climate-similarity](examples/climate-similarity.json) |
+| `network` | nodes as dots on a circle or in rings around a center, groups, weighted and directed edges | [co-authors](examples/co-authors.json), [service-dependencies](examples/service-dependencies.json) |
 
 ```json
 {
@@ -244,58 +164,70 @@ accessible output as for a chart.
 }
 ```
 
+Modeling an architecture:
+
+- **Views:** one model, several diagrams. A view lists the components it shows, or selects them
+  by `tags`; a dynamic view numbers `steps` along existing connections. `--view` renders one,
+  `--all-views` every view on one HTML page — [shop-views](examples/shop-views.json).
+- **Deployments:** a view with an `environment` places `instances` of components on nested
+  `hosts`, with instance connections listed or derived from the model —
+  [api-environments](examples/api-environments.json),
+  [booking-deployment](examples/booking-deployment.json).
+- **Perspectives:** stated categories such as the owning team or technical debt, shown as a
+  colored, named stripe with a legend, per view or with `--perspective` —
+  [service-perspectives](examples/service-perspectives.json).
+- **Interfaces and symbols:** a component `provides` interfaces drawn as balls, a connection with
+  `toInterface` requires one; 16 generic `symbol`s mark gateways, caches, brokers and the like —
+  [payment-interfaces](examples/payment-interfaces.json), [shop-symbols](examples/shop-symbols.json).
+- **Levels:** the MCP starters `context`, `containers` and `deployment` begin a model at one level
+  of abstraction — [booking-context](examples/booking-context.json),
+  [booking-containers](examples/booking-containers.json).
+
+In every diagram that has them:
+
+- **Notes** explain an element, a frame or the whole diagram without adding an edge (flow, class
+  and architecture) — [payment-notes](examples/payment-notes.json),
+  [subscription-model](examples/subscription-model.json).
+- **Roles** `critical`, `planned` and `deprecated` look alike across flow, state, architecture,
+  class, tree and network diagrams, with a sign that does not rest on color —
+  [billing-migration](examples/billing-migration.json),
+  [payment-redesign](examples/payment-redesign.json).
+- **Layout hints:** `mainPath` (as a list or from one step to another), `sameRank`, the sides an
+  edge leaves and reaches (`fromSide`, `toSide`), `spacing`, `weight` for line width and
+  `sharedTrunks` for fan-outs on one branching line —
+  [data-tier](examples/data-tier.json), [request-volume](examples/request-volume.json),
+  [service-fan-out](examples/service-fan-out.json).
+- **Values and parts** fill flow and tree boxes by value or with a stripe of shares —
+  [department-budgets](examples/department-budgets.json),
+  [claim-handling](examples/claim-handling.json).
 - **Portrait or landscape:** `orientation` runs a diagram down or right; `auto` picks what fits
   the canvas, and a mobile variant decides again. Below 480 pixels diagrams turn compact.
-- **Shapes and roles:** every kind has its own shape and a role color on top of it, so meaning
-  never rests on color alone; the colors are CSS custom properties a page can override.
-- **Text alternative:** the description and the data table list every message, step, transition
-  or component in reading order.
-- **Focus:** in the HTML output a click on a node, or a choice in the "Focus" list, keeps the node
+- **Text alternative:** the description lists every message, step, transition or component in
+  reading order, and names the shape of the graph where it says more; the table holds the whole
+  structure.
+- **Focus:** in the HTML output, a click on a node or a choice in the "Focus" list keeps the node
   and its neighbours and fades the rest — without a script.
+- **Hooks:** with `hooks: true`, nodes, frames, lanes and architecture connections carry their
+  specification id as `data-chartlet-*` attributes, so a page finds them by id, not by position.
 
-See [Chart types](docs/guides/chart-types.md#sequence-diagrams) for every field.
+See [Chart types](docs/guides/chart-types.md#architecture-diagrams) for every field.
 
 ## Interaction without JavaScript
 
 The HTML output can add native controls and CSS-based interaction. No chart JavaScript is
 shipped.
 
-- **Series filter:** a grouped chart gets a checkbox per series. Deselecting one hides its bars
-  and value labels with CSS `:has()`; the axis does not rescale. The data table and description always
-  show the full data. Browsers without `:has()` support simply keep every series visible.
-- **Zoom steps:** add two to four `zoomSteps` to pre-compute narrower views of the same chart. The HTML
-  output renders one variant per step and switches between them with radio buttons. Each step
-  costs its own SVG in the output file. A bar or line chart names categories by index; a `time`
-  chart names a window by timestamps (`"from": "2026-03-22", "to": "2026-03-28"`).
-- **Tooltips:** every bar and point carries a native `<title>` (`Month: value`, or
-  `Month – Series: value`) that browsers can show on hover. The chart description and data table,
-  rather than these hover-only tooltips, remain the assistive-technology alternative.
+- **Series filter:** a grouped chart gets a checkbox per series that hides its marks with CSS
+  `:has()`; the data table and description always show the full data.
+- **Zoom steps:** two to four `zoomSteps` pre-compute narrower views of the same chart, switched
+  with radio buttons.
+- **Tooltips:** every bar, point and diagram element carries a native `<title>`; the description
+  and data table remain the assistive-technology alternative.
 
-The pure SVG profile stays a single static chart; filtering and stepped zoom are HTML-only.
-
-For what CSS cannot do, the npm package has an optional, additive browser module,
-`@casoon/chartlet/interactive`: a crosshair that reads out values by pointer and keyboard, series
-toggles on time charts, scroll stations and playback. It reads charts rendered with `hooks: true`
-(CLI `--hooks`) and lays nothing out again; without it the output is unchanged. See
-[Interaction](docs/guides/interaction.md#optional-javascript).
-
-```json
-{
-  "schemaVersion": 1,
-  "type": "bar",
-  "title": "Quarterly revenue",
-  "data": [
-    { "label": "Q1", "value": 320 },
-    { "label": "Q2", "value": 345 },
-    { "label": "Q3", "value": 380 },
-    { "label": "Q4", "value": 410 }
-  ],
-  "zoomSteps": [
-    { "label": "First half", "from": 0, "to": 1 },
-    { "label": "All", "from": 0, "to": 3 }
-  ]
-}
-```
+The pure SVG profile stays a single static chart. For what CSS cannot do, the optional browser
+module `@casoon/chartlet/interactive` adds a crosshair that reads out values by pointer and
+keyboard, series toggles on time charts, scroll stations and playback; it reads charts rendered
+with `hooks: true` and lays nothing out again. See [Interaction](docs/guides/interaction.md).
 
 ## Specification
 
@@ -303,35 +235,30 @@ toggles on time charts, scroll stations and playback. It reads charts rendered w
 used for editor validation. Every field, per chart type, and every limit is listed in the
 [specification reference](docs/reference/specification.md).
 
-Limits: up to 100 categories and four series. Labels must be unique. Values must be zero or have
-a magnitude between `1e-100` and `1e100`. A `time` chart carries up to four panes, each with up to six data layers of
-2000 observations or candles (at most four layers of the chart in palette colors) and up to six
-zones, reference lines and point markers; markers and value labels are drawn
-up to 60 observations per layer, and beyond one observation per plot pixel the rendering is
-reported as `dense_chart`. Small multiples take 2 to 12 panes.
+## Command line
 
-## Output
+```sh
+chartlet render <spec.json | -> [options]
+chartlet inspect <spec.json | -> [--format text|json] [--strict]
+chartlet stylesheet [--types bar,time,...]
+```
 
-| Option | Effect |
+| Option of `render` | Effect |
 |---|---|
-| `--format svg` | Standalone SVG with `<title>` and `<desc>` and the title drawn in the chart (default). |
-| `--format html` | `<figure>` with caption, SVG, source and data table; the caption is the visible title, the SVG draws none. With `mobile` in the specification, both variants behind a container query. |
-| `--format png` | PNG of the print, social or mobile variant with a bundled font, `--scale` 0.25–4. Optional: `cargo install chartlet --features png`. |
-| `--table details` | Puts the HTML data table in a native, initially closed `<details>` (default). |
-| `--table visible` | Shows the data table permanently. |
-| `--id-prefix <prefix>` | Stable ID of the chart root and prefix for its other IDs; needed when the same chart appears twice on one page. |
-| `--variant mobile` | Renders the mobile variant alone as SVG, for a `<picture>` source; requires `mobile` in the specification (`missing_mobile`) and the SVG format. `desktop` (default) renders the chart at `width` × `height`. |
-| `--variant print` | Renders the chart as SVG with literal colors instead of CSS custom properties, for PDF pipelines and renderers outside the browser; IDs end in `-p`. SVG format only. See [Print and PDF](docs/guides/print.md). |
-| `--variant social` | Renders the chart on a 1200 × 630 canvas for Open Graph images, title drawn large, literal colors; IDs end in `-s`. SVG format only. See [Social images and PNG](docs/guides/social-and-png.md). |
-| `-o <path>` | Writes to a file instead of standard output. |
-| `--manifest <path>` | Also writes a provenance manifest as JSON: chartlet version, SHA-256 of the canonical specification and of the output, format, variant, ID prefix and warnings; no timestamp. |
-| `--strict` | Fails on any warning. Useful in CI. |
-| `--diagnostics json` | Writes errors and warnings to standard error as one JSON document instead of text lines. |
+| `--format svg\|html\|png` | Standalone SVG (default); an HTML `<figure>` with caption, SVG, source and data table, both layouts behind a container query when the specification has `mobile`; or a PNG (`cargo install chartlet --features png`, `--scale` 0.25–4). |
+| `--variant mobile\|print\|social` | The phone layout alone, literal colors for PDF and print, or a 1200 × 630 Open Graph image. |
+| `--view <key>`, `--all-views`, `--perspective <key>` | One view of an architecture model, every view on one HTML page, or a perspective to show. |
+| `--table details\|visible` | The HTML data table in a closed `<details>` (default) or always shown. |
+| `--id-prefix <prefix>` | Stable IDs, for the same chart twice on one page. |
+| `--hooks`, `--styles external` | `data-*` hooks for scripts and tests; a chart without its shared stylesheet, which `chartlet stylesheet` prints once per page. |
+| `--manifest <path>` | A provenance manifest: version, hashes of specification and output, warnings; no timestamp. |
+| `--strict`, `--diagnostics json` | Fail on any warning; errors and warnings as one JSON document. |
+| `--watch`, `--preview [--port <port>]` | Render again on every change of the file; also serve the latest chart with its warnings on a local page that reloads. |
 
-Pass `-` instead of a file name to read the specification from standard input.
-
-The SVG scales with its container, uses CSS classes for all styling and embeds no fonts, scripts
-or external resources.
+`chartlet inspect` checks an architecture model, a flow chart or a class diagram for gaps in its
+documentation without rendering it — unlabelled connections and decision branches, components in
+no view, unreachable steps — each with a JSON Pointer and a hint. See
+[CLI options](docs/reference/cli.md).
 
 ## Accessibility
 
@@ -361,27 +288,12 @@ Errors stop rendering and name a code, the location in the specification as a JS
 chartlet: series_length_mismatch at /series/0/values: expected 2 values, one per category; use null for a missing value
 ```
 
-Warnings are written to standard error, and the chart is still produced:
+Warnings go to standard error and the chart is still produced: shortened text
+(`text_truncated`), omitted value labels, thinned category labels, dense charts, overlapping
+annotation labels, a diagram that needed a larger canvas (`canvas_too_small`) and more. Every
+code is listed in [Warnings and errors](docs/guides/warnings-and-errors.md).
 
-| Code | Meaning |
-|---|---|
-| `text_truncated` | A label or title was shortened to fit. Titles (drawn only in the SVG profile) and the category labels of bar and range bar charts wrap onto a second line first; what does not fit on two lines is shortened. |
-| `value_labels_omitted` | Some value labels had no room next to their bars. On a bar chart a category shows all of its value labels or none: none when one of them would overlap another value label or another bar of its own or a neighbouring category. |
-| `labels_thinned` | More than 16 categories whose labels do not fit their bands even on two lines: only every few categories are labelled, each with the room of several bands. The data table lists every category. |
-| `dense_chart` | More than 16 categories, or more observations in a time layer than the plot has horizontal pixels; the chart may be hard to read at this size. |
-| `color_not_supported` | A layer's `color` was outside the contract and replaced by the neutral gray. |
-| `color_not_resolved` | Print and social variants only: a layer declares its color as `var(--name)`, which they cannot resolve; it is drawn in the text color. Declare a literal color so that layers stay distinguishable. |
-| `topic_too_small_for_label` | A topic map area is too small to hold its own name. |
-| `label_does_not_fit` | A region of a knowledge landscape has no room for its name; the area keeps its tooltip. |
-| `places_did_not_fit` | A region declares more places than it has ground. |
-| `realm_without_structure` | A realm holds a single region, so it has no inner structure to show. |
-| `more_places_than_value` | A region lists more places than its value. |
-| `label_overlap` | The label of a zone, reference line or point marker overlaps another annotation label, crosses a data line, or reaches outside the plot; the label is kept. |
-| `canvas_too_small` | A diagram does not fit its canvas in either orientation and was drawn larger; the message names the size it needs. |
-| `group_overlap` | A step outside a group or boundary lies inside its frame. |
-| `unreachable_state` | A state diagram has an initial state, and no transition leads to this state. |
-
-## Astro
+## Astro and JavaScript
 
 The npm package [`@casoon/chartlet`](packages/chartlet/README.md) renders charts while Astro
 builds the site and ships no JavaScript to the browser. It carries the renderer as WebAssembly,
@@ -400,16 +312,20 @@ import revenue from '../data/monthly-revenue.json';
 <Chart id="monthly-revenue" spec={revenue} />
 ```
 
-To render with an installed CLI instead, set `CHARTLET_BIN` to its path. For Node.js without
-Astro, Cloudflare Workers and Vite, see [JavaScript runtimes](docs/guides/javascript.md).
+`renderChart` and `inspectChart` do the same outside Astro — in Node.js, Cloudflare Workers and
+Vite, see [JavaScript runtimes](docs/guides/javascript.md) — and `@casoon/chartlet/builder`
+assembles architecture and flow specifications in code, with ids checked at the call. To render
+with an installed CLI instead, set `CHARTLET_BIN` to its path.
 
 ## AI agents
 
 [`@casoon/chartlet-mcp`](packages/chartlet-mcp/README.md) is an MCP server for AI assistants:
 the assistant inspects the data and drafts a specification, chartlet validates and compiles it.
-No model runs in the server and the data is never changed. For software diagrams,
-`chartlet_diagram_starter` and `chartlet_chart_starter` hand the assistant a valid starting
-specification per type, and `chartlet_inspect_data` suggests the types that fit a table. See [AI agents](docs/guides/ai-agents.md).
+No model runs in the server and the data is never changed. `chartlet_inspect_data` suggests the
+types that fit a table, `chartlet_chart_starter` and `chartlet_diagram_starter` hand over a valid
+starting specification per type (for architecture at the context, container or deployment level),
+`chartlet_validate_spec`, `chartlet_render`, `chartlet_explain` and `chartlet_inspect` check,
+compile, describe and inspect it. See [AI agents](docs/guides/ai-agents.md).
 
 ## Rust
 
@@ -429,11 +345,14 @@ std::fs::write("chart.html", output.content)?;
 ```
 
 `render_with_metrics` accepts your own `TextMetrics` implementation if your pages use a font whose
-widths differ noticeably from the built-in profile.
+widths differ noticeably from the built-in profile; `inspect_json` runs the inspections, and
+`chartlet::qr` draws a QR code as SVG. See [Rust](docs/reference/rust.md).
 
 ## When chartlet is not the right tool
 
-- You need continuous zooming, panning, cross-filtering or live updates. (A crosshair with values, series toggles, scroll stations and step-by-step playback come from the optional `@casoon/chartlet/interactive` module, which only reads the static output.)
+- You need continuous zooming, panning, cross-filtering or live updates. (A crosshair with values,
+  series toggles, scroll stations and step-by-step playback come from the optional
+  `@casoon/chartlet/interactive` module, which only reads the static output.)
 - The data changes at runtime rather than at build time.
 - You need geographic maps, 3D charts or chart types beyond the ones listed above, or diagrams
   you place by hand, with more than about 40 boxes.
