@@ -9,10 +9,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -20,10 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
-          targets: wasm32-unknown-unknown
+      # The version, components and targets come from rust-toolchain.toml.
+      - name: Rust toolchain
+        run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@v2
 
@@ -36,31 +40,13 @@ jobs:
           cargo clippy --all-targets --features png -- -D warnings
           cargo clippy -p chartlet-wasm --target wasm32-unknown-unknown -- -D warnings
 
-      # The golden tests compare against the committed SVGs, so this also checks that the
-      # output is byte-identical on every platform.
+      # The golden tests compare every example (SVG, HTML and their variants) against the
+      # committed files, and fail for a file they do not know, so this also checks that the
+      # examples are up to date and the output is byte-identical on every platform.
       - name: Test
         run: |
           cargo test
-          cargo test --features png
-
-      - name: Examples are up to date
-        run: |
-          cargo build
-          for spec in examples/*.json; do
-            base="${spec%.json}"
-            ./target/debug/chartlet render "$spec" --format svg -o "$base.svg"
-            ./target/debug/chartlet render "$spec" --format html -o "$base.html"
-            if [ -f "$base.mobile.svg" ]; then
-              ./target/debug/chartlet render "$spec" --variant mobile -o "$base.mobile.svg"
-            fi
-            if [ -f "$base.print.svg" ]; then
-              ./target/debug/chartlet render "$spec" --variant print -o "$base.print.svg"
-            fi
-            if [ -f "$base.social.svg" ]; then
-              ./target/debug/chartlet render "$spec" --variant social -o "$base.social.svg"
-            fi
-          done
-          git diff --exit-code -- examples/
+          cargo test --features png --test png --test cli
 
       - uses: actions/setup-node@v7
         with:

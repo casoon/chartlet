@@ -1,5 +1,15 @@
 # Contributing
 
+## Rust version
+
+`rust-toolchain.toml` names the Rust version for development and CI; rustup installs it with
+its components and the WebAssembly target on the first `cargo` call (or with
+`rustup toolchain install`). A new stable release can bring new lints, so the version moves only
+on purpose: change `channel`, run `cargo fmt --check`, the three `cargo clippy` calls and
+`cargo test` from `.github/workflows/ci.yml`, fix what they report, and commit that alone.
+
+The crate declares no `rust-version`: only the pinned version is built and tested.
+
 ## Reviewing changes to the rendered examples
 
 `tests/golden.rs` checks that every example in `examples/` renders to exactly its committed SVG,

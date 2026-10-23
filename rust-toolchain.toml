@@ -1,0 +1,6 @@
+# The Rust version for development and CI. A new stable release can bring new lints; raise the
+# version here on purpose, in a commit of its own (see CONTRIBUTING.md).
+[toolchain]
+channel = "1.99.1"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]

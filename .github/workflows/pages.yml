@@ -17,11 +17,14 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
-      # The site renders every chart with the chartlet CLI.
-      - uses: dtolnay/rust-toolchain@stable
+      # The site renders every chart with the chartlet CLI; the version comes from
+      # rust-toolchain.toml.
+      - name: Rust toolchain
+        run: rustup toolchain install
 
       - uses: Swatinem/rust-cache@v2
 
@@ -55,6 +58,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
