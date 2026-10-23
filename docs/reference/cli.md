@@ -21,6 +21,7 @@ chartlet render <spec.json | -> [options]
 | `--variant mobile` | Renders the mobile variant alone as SVG, for a `<picture>` source; requires `mobile` in the specification (`missing_mobile`) and the SVG format. `desktop` (default) renders the chart at `width` × `height`. |
 | `--variant print` | Renders the chart as SVG with literal colors instead of CSS custom properties, for PDF pipelines and renderers outside the browser; IDs end in `-p`. SVG format only. See [Print and PDF](../../guides/print/). |
 | `--variant social` | Renders the chart on a 1200 × 630 canvas for link previews such as Open Graph images: title drawn large, source below, literal colors, no tooltips; IDs end in `-s`. SVG format only. See [Social images and PNG](../../guides/social-and-png/). |
+| `--view <key>` | Renders this view of an architecture model with `views`; without it, its default view. Every variant and format renders the same view; `unknown_view` at `/render/view` for a key no view has, or a specification without views. See [Views on one model](../../guides/chart-types/#views-on-one-model). |
 | `-o <path>` | Writes to a file instead of standard output. |
 | `--manifest <path>` | Also writes a provenance manifest of the render as JSON to `<path>`, see [Provenance](../../guides/warnings-and-errors/#provenance). |
 | `--strict` | Fails on any warning. Useful in CI. |
@@ -28,6 +29,9 @@ chartlet render <spec.json | -> [options]
 | `--styles inline\|external` | `inline` (default): the chart carries its whole stylesheet. `external`: only its own declared colors; the page loads the output of `chartlet stylesheet` once. |
 | `--hooks` | Adds the `data-*` hooks that the optional `@casoon/chartlet/interactive` module reads; see [Interaction](../../guides/interaction/#optional-javascript). Without it the output is unchanged. |
 | `--diagnostics json` | Writes errors and warnings to standard error as one JSON document instead of text lines. |
+| `--watch` | Renders again whenever the specification file changes, until Ctrl-C; see [Watching](#watching-and-preview). |
+| `--preview` | Watches and shows the latest render on a local page; see [Watching](#watching-and-preview). |
+| `--port <port>` | With `--preview`: the port to serve on (default: a free one). |
 
 Pass `-` instead of a file name to read the specification from standard input.
 
@@ -66,10 +70,32 @@ chartlet render revenue.json -o revenue.svg --manifest revenue.manifest.json
 }
 ```
 
+A render of a view of an architecture model also records `"view": "<key>"`, after `idPrefix`.
 The fields are described under [Provenance](../../guides/warnings-and-errors/#provenance).
 
 The SVG scales with its container, uses CSS classes for all styling and embeds no fonts, scripts or
 external resources.
+
+## Watching and preview
+
+```sh
+chartlet render revenue.json -o revenue.svg --watch
+chartlet render revenue.json --format html --preview
+```
+
+`--watch` renders once and again after every change of the specification file, with all other
+options, until Ctrl-C. It needs a file, not `-`, and `-o`. Saves that come in several writes, and
+editors that replace the file, count as one change. Each render reports its warnings and errors as
+a single render does — with `--diagnostics json`, one JSON document per line and render. A render
+that fails, also through `--strict`, leaves the last output and manifest in place; a successful one
+replaces them in one step, so a reader never sees half a file. The output is byte for byte what a
+single `chartlet render` writes.
+
+`--preview` watches too, and serves a page on `127.0.0.1` only, at the address printed to standard
+output. The page shows the latest chart with its warnings and reloads after every render. After a
+failed render it shows the error and marks the previous chart as stale. `-o` is optional with it;
+the page itself is never part of the output. It shows SVG and HTML, not `--format png`; with
+`--styles external` it loads the shared stylesheet itself. Ctrl-C stops the watch and the page.
 
 ## chartlet stylesheet
 

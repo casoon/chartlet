@@ -20,6 +20,7 @@ mod timeline;
 mod topicmap;
 mod tree;
 mod treemap;
+mod view;
 mod waffle;
 mod waterfall;
 
@@ -42,7 +43,8 @@ pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use classes::{ClassKind, ClassSpec, ClassesSpec, RelationKind, RelationSpec};
 pub use flow::{
-    FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, MainPath, NodeKind, PartSpec,
+    DiagramRole, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec, MainPath, NodeKind,
+    PartSpec,
 };
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
@@ -74,6 +76,7 @@ pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec
 pub use tree::{DistancesSpec, Linkage, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec};
 pub(crate) use treemap::{TmNode, TmTree};
 pub use treemap::{TreemapItemSpec, TreemapSpec};
+pub use view::{ViewSpec, ViewStepSpec};
 pub use waffle::{WafflePartSpec, WaffleSpec};
 pub(crate) use waterfall::WaterfallBar;
 pub use waterfall::{StepKind, StepSpec, WaterfallSpec};

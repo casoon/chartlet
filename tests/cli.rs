@@ -468,3 +468,265 @@ fn manifest_records_the_provenance_of_the_render() {
 
     std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
 }
+
+#[test]
+fn cli_renders_the_view_it_is_asked_for() {
+    let render = |view: Option<&str>| {
+        let mut args = vec!["render", "examples/shop-views.json", "--format", "svg"];
+        args.extend(view.iter().flat_map(|view| ["--view", view]));
+        Command::new(env!("CARGO_BIN_EXE_chartlet"))
+            .args(&args)
+            .output()
+            .expect("chartlet CLI should start")
+    };
+
+    let checkout = render(Some("checkout"));
+    assert!(checkout.status.success(), "{checkout:?}");
+    let svg = String::from_utf8(checkout.stdout).expect("SVG output should be UTF-8");
+    assert_eq!(
+        svg,
+        format!("{}\n", include_str!("../examples/shop-views.checkout.svg"))
+    );
+    let default = String::from_utf8(render(None).stdout).expect("SVG output should be UTF-8");
+    assert!(default.contains("Web shop: overview"));
+    assert!(!default.contains("Session cache"));
+
+    let unknown = render(Some("deploy"));
+    assert!(!unknown.status.success());
+    let stderr = String::from_utf8(unknown.stderr).expect("errors should be UTF-8");
+    assert!(stderr.contains("unknown_view at /render/view"), "{stderr}");
+}
+
+#[test]
+fn manifest_records_the_view() {
+    let directory = std::env::temp_dir().join(format!("chartlet-cli-view-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory should be writable");
+    let manifest = directory.join("manifest.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+        .args([
+            "render",
+            "examples/shop-views.json",
+            "--view",
+            "checkout",
+            "-o",
+            directory.join("chart.svg").to_str().expect("UTF-8 path"),
+            "--manifest",
+            manifest.to_str().expect("UTF-8 path"),
+        ])
+        .output()
+        .expect("chartlet CLI should start");
+    assert!(output.status.success(), "{output:?}");
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&manifest).expect("the manifest should be written"))
+            .expect("the manifest should be JSON");
+    assert_eq!(manifest["view"], "checkout");
+    std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
+}
+
+/// The CLI writes the same bytes as the library: the reviewed SVG of an architecture diagram
+/// with symbols.
+#[test]
+fn cli_renders_component_symbols_like_the_library() {
+    let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+        .args(["render", "examples/shop-symbols.json"])
+        .output()
+        .expect("chartlet CLI should start");
+
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("SVG output should be UTF-8");
+    assert_eq!(
+        stdout.trim_end(),
+        include_str!("../examples/shop-symbols.svg")
+    );
+}
+
+/// A `chartlet render --watch` process whose output lines arrive on channels; it is killed when
+/// dropped, as Ctrl-C would stop it.
+struct Watcher {
+    child: std::process::Child,
+    stdout: std::sync::mpsc::Receiver<String>,
+    stderr: std::sync::mpsc::Receiver<String>,
+}
+
+impl Watcher {
+    fn start(args: &[&str]) -> Self {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("chartlet CLI should start");
+        let lines = |stream: Box<dyn std::io::Read + Send>| {
+            let (sender, receiver) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                for line in std::io::BufRead::lines(std::io::BufReader::new(stream)) {
+                    let Ok(line) = line else { break };
+                    if sender.send(line).is_err() {
+                        break;
+                    }
+                }
+            });
+            receiver
+        };
+        let stdout = lines(Box::new(
+            child.stdout.take().expect("stdout should be piped"),
+        ));
+        let stderr = lines(Box::new(
+            child.stderr.take().expect("stderr should be piped"),
+        ));
+        Self {
+            child,
+            stdout,
+            stderr,
+        }
+    }
+
+    /// The next line on stderr, within ten seconds.
+    fn next_line(&self) -> String {
+        self.stderr
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .expect("chartlet should report within ten seconds")
+    }
+
+    /// Skips stderr lines up to the first that contains `needle`, and returns it.
+    fn wait_for(&self, needle: &str) -> String {
+        loop {
+            let line = self.next_line();
+            if line.contains(needle) {
+                return line;
+            }
+        }
+    }
+}
+
+impl Drop for Watcher {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+/// An empty temporary directory for one test.
+fn temporary_directory(name: &str) -> std::path::PathBuf {
+    let directory = std::env::temp_dir().join(format!("chartlet-{name}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&directory);
+    std::fs::create_dir_all(&directory).expect("temporary directory should be writable");
+    directory
+}
+
+fn path_text(path: &std::path::Path) -> &str {
+    path.to_str().expect("UTF-8 path")
+}
+
+#[test]
+fn watch_renders_every_change_and_keeps_the_last_output_on_error() {
+    let directory = temporary_directory("watch");
+    let (spec, svg) = (directory.join("spec.json"), directory.join("chart.svg"));
+    let single = directory.join("single.svg");
+    // What a single `chartlet render` writes for `specification`.
+    let render_once = |specification: &str| {
+        let output = run_with_stdin(&["render", "-", "-o", path_text(&single)], specification);
+        assert!(output.status.success(), "{output:?}");
+        std::fs::read(&single).expect("the single render")
+    };
+    let first = include_str!("../examples/monthly-revenue.json");
+    let second = include_str!("../examples/quarterly-change.json");
+    std::fs::write(&spec, first).expect("the specification should be written");
+    let watcher = Watcher::start(&["render", path_text(&spec), "-o", path_text(&svg), "--watch"]);
+
+    watcher.wait_for("chartlet: wrote");
+    assert_eq!(std::fs::read(&svg).expect("the SVG"), render_once(first));
+    // Writing the output does not count as a change of the specification.
+    assert!(
+        watcher
+            .stderr
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .is_err()
+    );
+
+    std::fs::write(&spec, "{").expect("the specification should be written");
+    let error = watcher.next_line();
+    assert!(error.starts_with("chartlet: invalid_json at /"), "{error}");
+    assert_eq!(std::fs::read(&svg).expect("the SVG"), render_once(first));
+
+    // Editors save by writing a new file and renaming it over the old one.
+    let replacement = directory.join("spec.json.new");
+    std::fs::write(&replacement, second).expect("the specification should be written");
+    std::fs::rename(&replacement, &spec).expect("the specification should be replaced");
+    watcher.wait_for("chartlet: wrote");
+    assert_eq!(std::fs::read(&svg).expect("the SVG"), render_once(second));
+
+    drop(watcher);
+    std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
+}
+
+#[test]
+fn watch_refuses_standard_input_and_a_missing_output() {
+    let output = run_with_stdin(&["render", "-", "--watch", "-o", "chart.svg"], "{}");
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("cannot watch standard input"));
+
+    let output = run_with_stdin(&["render", "examples/monthly-revenue.json", "--watch"], "");
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--watch needs -o <path>"));
+}
+
+/// Sends a GET request for `target` to the preview at `port` with the given `Host` header.
+fn get(port: u16, target: &str, host: &str) -> String {
+    let mut stream =
+        std::net::TcpStream::connect(("127.0.0.1", port)).expect("the preview should listen");
+    write!(stream, "GET {target} HTTP/1.1\r\nHost: {host}\r\n\r\n")
+        .expect("the request should be sent");
+    let mut response = String::new();
+    std::io::Read::read_to_string(&mut stream, &mut response).expect("a response");
+    response
+}
+
+#[test]
+fn preview_shows_the_chart_and_marks_it_stale_after_an_error() {
+    let directory = temporary_directory("preview");
+    let spec = directory.join("spec.json");
+    std::fs::write(&spec, include_str!("../examples/monthly-revenue.json"))
+        .expect("the specification should be written");
+    let watcher = Watcher::start(&[
+        "render",
+        path_text(&spec),
+        "--preview",
+        "--diagnostics",
+        "json",
+    ]);
+    let address = watcher
+        .stdout
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("the preview address");
+    let port: u16 = address
+        .strip_prefix("chartlet: preview at http://127.0.0.1:")
+        .and_then(|rest| rest.strip_suffix('/'))
+        .and_then(|port| port.parse().ok())
+        .unwrap_or_else(|| panic!("unexpected address line {address}"));
+    let report: serde_json::Value =
+        serde_json::from_str(&watcher.next_line()).expect("one JSON report per render");
+    assert_eq!(report["ok"], true);
+    let host = format!("127.0.0.1:{port}");
+
+    let page = get(port, "/", &host);
+    assert!(page.starts_with("HTTP/1.1 200 OK"), "{page}");
+    assert!(page.contains("Rendered, 0 warning(s)."));
+    assert!(page.contains("<main><svg"));
+    assert!(get(port, "/version", &host).ends_with("\r\n\r\n1"));
+
+    std::fs::write(&spec, "{").expect("the specification should be written");
+    let report: serde_json::Value =
+        serde_json::from_str(&watcher.next_line()).expect("one JSON report per render");
+    assert_eq!(report["error"]["code"], "invalid_json");
+    let page = get(port, "/", &host);
+    assert!(page.contains("invalid_json at /"));
+    assert!(page.contains("Stale:"));
+    assert!(page.contains("<main class=\"stale\"><svg"));
+
+    assert!(get(port, "/", "attacker.example").starts_with("HTTP/1.1 403"));
+    assert!(get(port, "/spec.json", &host).starts_with("HTTP/1.1 404"));
+
+    drop(watcher);
+    std::fs::remove_dir_all(&directory).expect("temporary directory should be removable");
+}

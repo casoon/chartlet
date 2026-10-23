@@ -18,7 +18,8 @@ const { content, warnings } = renderChart(spec, { format: 'svg', idPrefix: 'reve
 ```
 
 The options are those of the CLI: `format`, `table`, `idPrefix`, `variant` (`desktop`, `mobile`
-or `print`), `strict`, `allowWarnings`, `manifest` and `hooks`. When
+or `print`), `view` (the key of a view of an architecture model), `strict`, `allowWarnings`,
+`manifest` and `hooks`. When
 `options.binary` or the environment variable `CHARTLET_BIN` names a `chartlet` executable,
 `renderChart` calls that CLI instead.
 
@@ -144,6 +145,65 @@ comes first; each type's part styles only charts of that type, mostly through `.
 so the parts of two types never style the same element and load in any order after the common part. The full stylesheet for some
 types is the common part followed by the part of each type in the order named. Rust has the same
 as `stylesheet_common()` and `stylesheet_types(&[…])`.
+
+## Architecture builder
+
+`@casoon/chartlet/builder` assembles an architecture specification in code. It builds nothing but
+the regular JSON specification: `spec()` returns a plain object to inspect, serialize or pass to
+`renderChart`, so the JSON stays the way out. Importing it renders and writes nothing, and it
+keeps no state between builders.
+
+```js
+import { architecture, id } from '@casoon/chartlet/builder';
+import { renderChart } from '@casoon/chartlet';
+
+// A building block is a plain function that derives its ids from a name.
+function workers(a, name, region) {
+  const zone = a.boundary(id(name, 'zone'), `Region ${name}`, { in: region });
+  const queue = a.component(id(name, 'queue'), 'Jobs', { kind: 'queue', in: zone });
+  const pool = [1, 2, 3].map((n) => a.component(id(name, 'worker', n), `Worker ${n}`, { in: zone }));
+  a.fanOut(queue, pool, { label: 'delivers' });
+  return { queue, pool };
+}
+
+const a = architecture({ orientation: 'portrait' });
+const cloud = a.boundary('cloud', 'Cloud');
+const api = a.component('api', 'API', { in: cloud });
+const db = a.component('db', 'Orders', { kind: 'database' });
+for (const name of ['eu', 'us']) {
+  const { queue, pool } = workers(a, name, cloud);
+  a.connect(api, queue, { label: 'enqueues' }).fanIn(pool, db, { label: 'writes' });
+}
+
+const spec = a.spec({ title: 'Workers in two regions' });
+const { content } = renderChart(spec, { format: 'svg' });
+```
+
+| Call | Adds |
+|---|---|
+| `boundary(id, label, fields)`, `component(id, label, fields)` | One element; returns its id |
+| `connect(from, to, fields)` | One connection |
+| `fanOut(from, [to, …], fields)`, `fanIn([from, …], to, fields)` | One connection per listed component, in their order |
+| `chain([a, b, c, …], fields)` | A connection from each component to the next |
+| `mainPath([…])` or `mainPath({ from, to })` | The main path |
+| `spec(fields)` | Returns the specification with `fields` at the top level (`title`, `width`, `mobile`, …) |
+
+Ids are always yours: written out, or joined from parts with `id(...)`, so the same code gives the
+same ids in the same order, the order of the calls. There is no connection between two lists:
+`connect` takes one component on each side, `fanOut` and `fanIn` one list on one side. `fields`
+are copied into the specification as they are (`kind`, `sublabel`, `technology`, `dash`,
+`weight`, `step` and fields added later), and `architecture(settings)` puts `settings` into the
+`architecture` object. The builder checks only what it adds: an id used twice, an id that is
+not one, a reference to an element not declared before (`in` to a boundary, connections and the
+main path to components), and a list where one id is expected all throw at the call. Everything
+else is the validation of `renderChart`, against the same schema.
+
+When to use it: a diagram written once, like the examples `shop-architecture` and
+`tenant-architecture`, reads as well as JSON or an object literal — rebuilt with the builder it
+is no shorter, since nothing repeats. The builder pays off where parts repeat: a building block
+used for several regions returns its ids instead of making the caller repeat them in templates
+and merge three lists, and a wrong reference is reported at the call that made it rather than as
+a path into the finished specification.
 
 ## Interactive module
 

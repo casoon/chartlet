@@ -1,17 +1,23 @@
 //! Shared trunks: edges that leave one step for steps of the next layer, or reach one step from
 //! steps of the layer before, drawn as one line out of the step that branches on a track of its
 //! own, with a dot at every branch. Only edges that read the same on the shared part share it:
-//! the usual arrowhead, no label, the same pattern and weight, off the main path, and with their
-//! other ends in the same frame, so that they cross the same frames. Every edge is still drawn,
-//! from end to end, with its tooltip; where an edge would be ambiguous on the shared line, such
-//! as a second edge between the same two steps, it keeps a line of its own.
+//! the usual arrowhead, no label, the same pattern, weight and role, off the main path, and with
+//! their other ends in the same frame, so that they cross the same frames. Every edge is still
+//! drawn, from end to end, with its tooltip; where an edge would be ambiguous on the shared line,
+//! such as a second edge between the same two steps, it keeps a line of its own.
 
 use super::{Diagram, Ends, Graph};
-use crate::spec::Dash;
+use crate::spec::{Dash, DiagramRole};
 
-/// What the edges of a trunk share: the step, the frame of their other ends, their pattern and
-/// their weight.
-type Key = (usize, Option<usize>, Option<Dash>, Option<u64>);
+/// What the edges of a trunk share: the step, the frame of their other ends, their pattern, their
+/// weight and their role.
+type Key = (
+    usize,
+    Option<usize>,
+    Option<Dash>,
+    Option<u64>,
+    Option<DiagramRole>,
+);
 
 /// The edges drawn on a shared trunk.
 pub(super) struct Trunks {
@@ -69,6 +75,7 @@ impl Trunks {
                     diagram.nodes[other].group,
                     spec.dash,
                     spec.weight.map(f64::to_bits),
+                    spec.role,
                 );
                 match candidates
                     .iter_mut()

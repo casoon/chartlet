@@ -267,6 +267,25 @@ test("returns the same provenance manifest from WebAssembly and the CLI", () => 
   }
 });
 
+test("renders the view it is asked for, alike from WebAssembly and the CLI", () => {
+  const spec = JSON.parse(readExample("shop-views.json"));
+  const checkout = { format: "svg", view: "checkout", manifest: true, alternative: true };
+  const fromWasm = renderChart(spec, checkout);
+  const fromCli = renderChart(spec, { ...checkout, binary });
+  assert.equal(fromWasm.content, readExample("shop-views.checkout.svg"));
+  assert.equal(fromCli.content, fromWasm.content);
+  assert.deepEqual(fromCli.manifest, fromWasm.manifest);
+  assert.equal(fromWasm.manifest.view, "checkout");
+  assert.deepEqual(fromCli.alternative, fromWasm.alternative);
+  assert.match(fromWasm.alternative.description, /shows 9 of the model's 11 components/);
+  assert.equal(renderChart(spec, { format: "svg", manifest: true }).manifest.view, "overview");
+
+  const unknown = renderChartDetailed(spec, { view: "deploy" });
+  assert.equal(unknown.ok, false);
+  assert.equal(unknown.error.code, "unknown_view");
+  assert.equal(unknown.error.path, "/render/view");
+});
+
 test("hooks are written alike by the WebAssembly build and the CLI, and only on request", () => {
   const spec = JSON.parse(readExample("sensor-readings.json"));
   for (const format of ["svg", "html"]) {

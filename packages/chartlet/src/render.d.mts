@@ -12,6 +12,11 @@ export interface RenderChartOptions {
   table?: TableMode;
   idPrefix?: string;
   variant?: ChartVariant;
+  /**
+   * The `key` of the view of an architecture model to render; without it, the model's default
+   * view. Every variant renders the same view.
+   */
+  view?: string;
   /** Fail on any warning, except those whose code is listed in `allowWarnings`. */
   strict?: boolean;
   /** Warning codes that `strict` lets through, such as `"dense_chart"`. They are still reported. */
@@ -27,8 +32,9 @@ export interface RenderChartOptions {
   alternative?: boolean;
   /**
    * Add the `data-*` hooks that `@casoon/chartlet/interactive` reads: plot geometry, layer
-   * groups and unformatted values on the data table (or in a JSON data block in the SVG
-   * profile). Off by default; without it the output is unchanged.
+   * groups, the spec ID of each diagram node (`data-chartlet-node`) and unformatted values on
+   * the data table (or in a JSON data block in the SVG profile). Off by default; without it the
+   * output is unchanged.
    */
   hooks?: boolean;
   /** A `chartlet` executable to render with instead of the bundled WebAssembly build. */
@@ -57,6 +63,8 @@ export interface ChartManifest {
   variant: ChartVariant;
   /** The ID prefix passed in, or the one derived from the specification. */
   idPrefix: string;
+  /** The key of the view of an architecture model that was rendered; absent without views. */
+  view?: string;
   warnings: ChartManifestWarning[];
 }
 

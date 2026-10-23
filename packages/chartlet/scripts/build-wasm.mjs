@@ -46,7 +46,7 @@ if (optimized.error?.code === "ENOENT") {
 
 // The size of the module as shipped. The budget is what a Worker or a page would have to load;
 // when a feature pushes the module over it, raise it on purpose in the same commit.
-const budgetGzip = 600_000;
+const budgetGzip = 640_000;
 const shipped = readFileSync(output);
 const gzipped = gzipSync(shipped, { level: 9 }).length;
 const kilobytes = (bytes) => `${(bytes / 1000).toFixed(1)} KB`;

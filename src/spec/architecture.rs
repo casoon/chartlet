@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, MainPath, sequence::is_identifier, validate_text,
+    ChartSpec, Dash, DiagramOrientation, DiagramRole, MainPath,
+    sequence::is_identifier,
+    validate_text,
+    view::{ViewScope, ViewSpec},
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -26,12 +29,27 @@ pub struct ArchitectureSpec {
     /// drawn stronger.
     #[serde(default, skip_serializing_if = "MainPath::is_empty")]
     pub main_path: MainPath,
+    /// Sets of component ids that share one rank: each set lies at one position along the flow.
+    /// A layout hint only; it adds no connection.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub same_rank: Vec<Vec<String>>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
     /// Whether connections that leave a component together, or reach one together, are drawn on
     /// one shared line that branches; only those that read the same on the shared part.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub shared_trunks: bool,
+    /// Views on this model: each shows a selection of its components and connections as a
+    /// diagram of its own. A specification with views renders one of them, never the whole
+    /// model.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub views: Vec<ViewSpec>,
+    /// The `key` of the view rendered when none is asked for; the first view without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_view: Option<String>,
+    /// How much of its model a resolved view shows, for its description.
+    #[serde(skip)]
+    pub(crate) scope: Option<ViewScope>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,9 +62,15 @@ pub struct ComponentSpec {
     pub sublabel: Option<String>,
     #[serde(default, skip_serializing_if = "ComponentKind::is_service")]
     pub kind: ComponentKind,
+    /// The name of a symbol drawn above the label, which names the component's technology
+    /// category, such as `cache` or `load-balancer`; the kind keeps its shape.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbol: Option<String>,
     /// The `id` of the boundary the component lies in.
     #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
     pub boundary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// What a component is; every kind has its own shape.
@@ -91,6 +115,9 @@ impl ComponentKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ConnectionSpec {
+    /// A stable name by which views select the connection.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub from: String,
     pub to: String,
     /// What the connection does, such as `reads orders`.
@@ -109,6 +136,8 @@ pub struct ConnectionSpec {
     /// stronger as it carries more.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weight: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
     /// Which way the connection runs; `forward`, from `from` to `to`, when absent.
     #[serde(default, skip_serializing_if = "ConnectionDirection::is_forward")]
     pub direction: ConnectionDirection,
@@ -215,9 +244,20 @@ impl ArchitectureSpec {
 }
 
 impl ChartSpec {
+    /// Whether an architecture diagram has a component with a symbol.
+    pub(crate) fn has_component_symbols(&self) -> bool {
+        self.architecture.as_ref().is_some_and(|architecture| {
+            architecture
+                .components
+                .iter()
+                .any(|component| component.symbol.is_some())
+        })
+    }
+
     /// An architecture diagram: components and boundaries with identifiers unique among both,
     /// connections between components, boundaries that nest without a circle and each hold at
-    /// least one component, and a main path along connections.
+    /// least one component, a main path along connections, and views that each resolve to a
+    /// valid diagram.
     pub(super) fn validate_architecture(&self) -> Result<Vec<ChartWarning>, ChartError> {
         self.reject_map_options("an architecture diagram", "architecture.components")?;
         let Some(architecture) = &self.architecture else {
@@ -230,6 +270,7 @@ impl ChartSpec {
         architecture.validate_boundaries()?;
         architecture.validate_components()?;
         architecture.validate_connections()?;
+        self.validate_views()?;
         Ok(Vec::new())
     }
 }
@@ -252,6 +293,29 @@ fn validate_id<'a>(
             "duplicate_id",
             format!("{path}/id"),
             format!("the id \"{id}\" is already taken by an earlier component or boundary"),
+        ));
+    }
+    Ok(())
+}
+
+/// The `id` of a connection: well formed, and not taken by an `earlier` connection.
+fn validate_connection_id(
+    id: &str,
+    earlier: &[ConnectionSpec],
+    path: &str,
+) -> Result<(), ChartError> {
+    if !is_identifier(id) {
+        return Err(ChartError::new(
+            "invalid_id",
+            format!("{path}/id"),
+            "use 1–64 ASCII letters, digits, hyphens, or underscores, starting with a letter",
+        ));
+    }
+    if earlier.iter().any(|other| other.id.as_deref() == Some(id)) {
+        return Err(ChartError::new(
+            "duplicate_id",
+            format!("{path}/id"),
+            format!("the id \"{id}\" is already taken by an earlier connection"),
         ));
     }
     Ok(())
@@ -343,6 +407,18 @@ impl ArchitectureSpec {
                     format!("no boundary has the id \"{boundary}\""),
                 ));
             }
+            if let Some(symbol) = &component.symbol
+                && crate::symbols::find(symbol).is_none()
+            {
+                return Err(ChartError::new(
+                    "unknown_symbol",
+                    format!("{path}/symbol"),
+                    format!(
+                        "no symbol is named \"{symbol}\"; use one of {}",
+                        crate::symbols::names()
+                    ),
+                ));
+            }
         }
         for (index, boundary) in self.boundaries.iter().enumerate() {
             let holds = self.components.iter().any(|component| {
@@ -374,6 +450,9 @@ impl ArchitectureSpec {
         }
         for (index, connection) in self.connections.iter().enumerate() {
             let path = format!("/architecture/connections/{index}");
+            if let Some(id) = &connection.id {
+                validate_connection_id(id, &self.connections[..index], &path)?;
+            }
             for (field, id) in [("from", &connection.from), ("to", &connection.to)] {
                 if self.component(id).is_none() {
                     return Err(ChartError::new(
@@ -387,6 +466,7 @@ impl ArchitectureSpec {
                 validate_text(label, &format!("{path}/label"), 60)?;
             }
             super::flow::validate_weight(connection.weight, &path)?;
+            super::flow::validate_role(connection.role, connection.dash, &path)?;
             if let Some(technology) = &connection.technology {
                 validate_text(technology, &format!("{path}/technology"), 40)?;
             }
@@ -415,6 +495,13 @@ impl ArchitectureSpec {
             |id| self.component(id).is_some(),
             &self.connection_ids(),
             ("component", "connection"),
+        )?;
+        super::flow::validate_same_rank(
+            &self.same_rank,
+            "architecture",
+            |id| self.component(id).is_some(),
+            &self.connection_ids(),
+            "component",
         )?;
         Ok(())
     }

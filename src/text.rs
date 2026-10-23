@@ -4,8 +4,8 @@
 use std::fmt::Write as _;
 
 use crate::spec::{
-    ComponentKind, ConnectionDirection, FragmentSpec, Linkage, Locale, MessageKind, NodeKind,
-    ParticipantKind, Quadrant,
+    ComponentKind, ConnectionDirection, DiagramRole, FragmentSpec, Linkage, Locale, MessageKind,
+    NodeKind, ParticipantKind, Quadrant,
 };
 
 pub(crate) struct Words {
@@ -133,6 +133,8 @@ pub(crate) struct Words {
     pub ring: &'static str,
     /// The column of the parts of a node.
     pub parts: &'static str,
+    /// The column of the role of a node.
+    pub role: &'static str,
     /// The columns of a dendrogram's table.
     pub joins: &'static str,
     pub distance: &'static str,
@@ -252,6 +254,7 @@ const EN: Words = Words {
     show_all: "Show all",
     ring: "Ring",
     parts: "Parts",
+    role: "Role",
     joins: "Joins",
     distance: "Distance",
     items: "Items",
@@ -372,6 +375,7 @@ const DE: Words = Words {
     show_all: "Alle zeigen",
     ring: "Ring",
     parts: "Anteile",
+    role: "Rolle",
     joins: "Verbindet",
     distance: "Abstand",
     items: "Elemente",
@@ -1362,6 +1366,27 @@ pub(crate) fn node_parts(locale: Locale, nodes: &[String]) -> String {
     }
 }
 
+/// The name of a role of a diagram's nodes and edges.
+pub(crate) const fn role(locale: Locale, role: DiagramRole) -> &'static str {
+    match (locale, role) {
+        (Locale::En, DiagramRole::Critical) => "critical",
+        (Locale::En, DiagramRole::Planned) => "planned",
+        (Locale::En, DiagramRole::Deprecated) => "deprecated",
+        (Locale::De, DiagramRole::Critical) => "kritisch",
+        (Locale::De, DiagramRole::Planned) => "geplant",
+        (Locale::De, DiagramRole::Deprecated) => "veraltet",
+    }
+}
+
+/// The sentence with the roles of a diagram, each as `role: what has it`.
+pub(crate) fn roles(locale: Locale, roles: &[String]) -> String {
+    let roles = roles.join("; ");
+    match locale {
+        Locale::En => format!("Roles: {roles}."),
+        Locale::De => format!("Rollen: {roles}."),
+    }
+}
+
 /// How a linkage measures the distance between two clusters, as a phrase.
 const fn linkage_phrase(locale: Locale, linkage: Linkage) -> &'static str {
     match (locale, linkage) {
@@ -1621,6 +1646,26 @@ pub(crate) fn architecture_opening(
     }
 }
 
+/// How much of its model a view shows: `(shown, in all)` components and connections.
+pub(crate) fn view_scope(
+    locale: Locale,
+    (components, all_components): (usize, usize),
+    (connections, all_connections): (usize, usize),
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "It is a view that shows {components} of the model's {all_components} component{} and {connections} of its {all_connections} connection{}.",
+            plural(all_components, "", "s"),
+            plural(all_connections, "", "s"),
+        ),
+        Locale::De => format!(
+            "Die Sicht zeigt {components} der {all_components} {} und {connections} der {all_connections} {} des Modells.",
+            plural(all_components, "Komponente", "Komponenten"),
+            plural(all_connections, "Verbindung", "Verbindungen"),
+        ),
+    }
+}
+
 /// A boundary and what it holds, components and boundaries, as a sentence.
 /// The same in English and German.
 pub(crate) fn boundary(label: &str, parent: Option<&str>, held: &[&str]) -> String {
@@ -1707,13 +1752,7 @@ pub(crate) fn connection_note(
 }
 
 /// A component as a sentence: its label and kind, and where it connects to.
-pub(crate) fn component(
-    locale: Locale,
-    label: &str,
-    kind: ComponentKind,
-    next: &[String],
-) -> String {
-    let kind = component_kind(locale, kind);
+pub(crate) fn component(locale: Locale, label: &str, kind: &str, next: &[String]) -> String {
     let next = match (locale, next.is_empty()) {
         (Locale::En, true) => "no outgoing connection".to_owned(),
         (Locale::De, true) => "keine ausgehende Verbindung".to_owned(),

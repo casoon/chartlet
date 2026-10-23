@@ -25,6 +25,7 @@ pub mod qr;
 mod rangebar;
 mod reference;
 mod render;
+mod roles;
 mod sankey;
 mod scatter;
 mod scene;
@@ -37,6 +38,7 @@ mod state;
 mod stripes;
 mod structure;
 mod survival;
+mod symbols;
 mod text;
 mod time;
 mod timeline;
@@ -53,20 +55,20 @@ pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
     CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, ChartSpec, ChartType, ClassKind,
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionDirection, ConnectionSpec,
-    Corner, Curve, Dash, DataPoint, DiagramOrientation, DistancesSpec, FlowEdgeSpec, FlowNodeSpec,
-    FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement,
-    Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
-    NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, OhlcPoint, Orientation,
-    PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec, RangeSpec,
-    ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder,
-    SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
-    ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack,
-    StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke,
-    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
-    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale, WafflePartSpec,
-    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    Corner, Curve, Dash, DataPoint, DiagramOrientation, DiagramRole, DistancesSpec, FlowEdgeSpec,
+    FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec,
+    LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec,
+    NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind,
+    OhlcPoint, Orientation, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
+    PartySpec, RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec,
+    SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec,
+    ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec,
+    SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec,
+    Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
+    TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec,
+    TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec,
+    ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -86,9 +88,13 @@ pub struct RenderOptions {
     pub styles: Styles,
     /// Adds the `data-*` hooks that the optional interactive module of the npm package reads:
     /// chart type and ID on the root, the plot geometry of every pane, a group around what each
-    /// layer draws, and the unformatted values on the data table, or in a JSON data block in
-    /// the SVG profile. The print variant carries none.
+    /// layer draws, the specification ID of every diagram node of a flow chart, state,
+    /// architecture or class diagram, and the unformatted values on the data table, or in a
+    /// JSON data block in the SVG profile. The print variant carries none.
     pub hooks: bool,
+    /// The `key` of the view of an architecture model to render; without one, its default view.
+    /// Every variant renders the same view.
+    pub view: Option<String>,
 }
 
 /// Where a chart's styles live.
@@ -185,13 +191,16 @@ pub struct Manifest {
     /// specification. The mobile variant appends `-m` to it, the print variant `-p`, the social
     /// variant `-s`.
     pub id_prefix: String,
+    /// The `key` of the view of an architecture model that was rendered; `None` for a
+    /// specification without views. `spec_hash` is the hash of the whole model.
+    pub view: Option<String>,
     pub warnings: Vec<ChartWarning>,
 }
 
 impl Manifest {
     /// The manifest as a pretty-printed JSON object, its keys in a fixed order:
     /// `chartlet`, `schemaVersion`, `specHash`, `outputHash`, `format`, `variant`, `idPrefix`,
-    /// `warnings` (each with `code`, `path`, `message`).
+    /// `view` (only when a view was rendered), `warnings` (each with `code`, `path`, `message`).
     ///
     /// # Panics
     ///
@@ -208,6 +217,8 @@ impl Manifest {
             format: &'a str,
             variant: &'a str,
             id_prefix: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            view: Option<&'a str>,
             warnings: Vec<Warning<'a>>,
         }
         #[derive(serde::Serialize)]
@@ -232,6 +243,7 @@ impl Manifest {
                 Variant::Social => "social",
             },
             id_prefix: &self.id_prefix,
+            view: self.view.as_deref(),
             warnings: self
                 .warnings
                 .iter()
@@ -264,13 +276,17 @@ pub struct DataTable {
     pub rows: Vec<Vec<String>>,
 }
 
-/// Validates a chart specification and returns its text alternative.
+/// Validates a chart specification and returns its text alternative; that of the default view
+/// for an architecture model with views (see [`ChartSpec::view`] for another view).
 ///
 /// # Errors
 ///
 /// Returns a structured error when the specification is invalid.
 pub fn text_alternative(spec: &ChartSpec) -> Result<TextAlternative, ChartError> {
     spec.validate()?;
+    if let Some(view) = spec.resolve_view(None)? {
+        return text_alternative(&view.spec);
+    }
     Ok(TextAlternative {
         description: spec
             .description
@@ -318,11 +334,29 @@ pub fn render_with_metrics(
     options: &RenderOptions,
     metrics: &impl TextMetrics,
 ) -> Result<RenderOutput, ChartError> {
-    let mut output = render_content(spec, format, options, metrics)?;
+    // A model with views renders one of them, resolved to a diagram of its own; diagnostics
+    // point into the model.
+    let view = if spec.has_views() || options.view.is_some() {
+        spec.validate()?;
+        spec.resolve_view(options.view.as_deref())?
+    } else {
+        None
+    };
+    let shown = view.as_ref().map_or(spec, |view| &view.spec);
+    let mut output =
+        render_content(shown, format, options, metrics).map_err(|error| match &view {
+            Some(view) => ChartError::new(error.code, view.model_path(&error.path), error.message),
+            None => error,
+        })?;
+    if let Some(view) = &view {
+        for warning in &mut output.warnings {
+            warning.path = view.model_path(&warning.path);
+        }
+    }
     if options.manifest {
         let id_prefix = match &options.id_prefix {
             Some(id_prefix) => id_prefix.clone(),
-            None => default_id_prefix(spec)?,
+            None => default_id_prefix(shown)?,
         };
         output.manifest = Some(Manifest {
             chartlet: env!("CARGO_PKG_VERSION"),
@@ -332,6 +366,7 @@ pub fn render_with_metrics(
             format,
             variant: options.variant,
             id_prefix,
+            view: view.map(|view| view.key),
             warnings: output.warnings.clone(),
         });
     }

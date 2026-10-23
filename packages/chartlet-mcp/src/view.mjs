@@ -81,7 +81,8 @@ export function viewPayload(input, result) {
   );
   const format = input.format ?? "html";
   const idPrefix = result.manifest.idPrefix;
-  const html = { format: /** @type {const} */ ("html"), idPrefix, table: input.table };
+  const view = result.manifest.view;
+  const html = { format: /** @type {const} */ ("html"), idPrefix, table: input.table, view };
   const figures =
     spec.theme === undefined
       ? {
@@ -89,15 +90,19 @@ export function viewPayload(input, result) {
           dark: render({ ...spec, theme: "dark" }, { ...html, styles: "external" }),
         }
       : { [String(spec.theme)]: render(spec, { ...html, styles: "external" }) };
-  const stem = fileStem(spec.title);
+  // A view of an architecture model carries its own title.
+  const views = /** @type {{ architecture?: { views?: { key: string, title: string }[] } }} */ (spec)
+    .architecture?.views;
+  const title = views?.find(({ key }) => key === view)?.title ?? spec.title;
+  const stem = fileStem(title);
   const content = (/** @type {"svg" | "html"} */ kind) =>
     result.content !== undefined && format === kind
       ? result.content
       : kind === "svg"
-        ? render(spec, { format: "svg", idPrefix, variant: format === "svg" ? input.variant : undefined })
+        ? render(spec, { format: "svg", idPrefix, view, variant: format === "svg" ? input.variant : undefined })
         : render(spec, html);
   return {
-    title: String(spec.title ?? ""),
+    title: String(title ?? ""),
     figures,
     files: {
       svg: { name: `${stem}.svg`, mimeType: "image/svg+xml", text: content("svg") },

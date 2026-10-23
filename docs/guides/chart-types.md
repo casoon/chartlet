@@ -59,6 +59,7 @@ order: 1
 | Network on a circle, groups together, edges by weight | `"type": "network"` with `nodes`, `edges`, `group`, `weight` | [Joint papers](../../../showcase/co-authors/) |
 | Network in rings around one node, with arrowheads | `"layout": "rings"`, `center`, `"directed": true` | [What the checkout service depends on](../../../showcase/service-dependencies/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
+| Architecture diagram with its databases on one rank | `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` | [Order platform and its data stores](../../../showcase/data-tier/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
 
 Each example in the repository's `examples/` folder has its rendered `.svg` and `.html` next to it;
@@ -859,6 +860,14 @@ releases.
   the edges (at a tie the first in the order of the edges). It keeps the path in line where the
   lanes leave room and draws it thicker in the accent color; `main_path_gap` reports two
   consecutive steps no edge joins, `main_path_unreachable` two ends no way joins.
+- **Shared ranks.** chartlet puts every step one layer after the latest step that leads to it, so
+  steps that belong side by side — parallel reviews, the ends of a flow — can land a layer
+  apart. `"sameRank": [["legal", "finance", "security"]]` puts each set at one position along the
+  flow, in portrait and landscape and in the mobile variant; the order within the layer and the
+  lanes stay chartlet's. It is a layout hint and adds no edge. An edge that would have to run
+  against it is drawn back like the edge that closes a loop. A set names at least two steps
+  (`empty_data`), a step lies in one set at most (`duplicate_member`), and no edge joins two steps
+  of one set (`same_rank_edge`), since an edge always crosses from one layer to another.
 - **Values.** A node with a `value` is filled from a scale of six blues, light for the smallest
   value of the diagram and dark for the largest; `valueLabel` names what the values stand for
   (`Budget (m €)`) in the key below the diagram and in the table. Every step fixes its text color,
@@ -1021,6 +1030,10 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   a boundary, and a boundary `in` another one, up to four deep. Every boundary holds at least one
   component (`empty_boundary`), and boundaries cannot lie in each other in a circle
   (`boundary_cycle`). chartlet keeps components that do not belong to a boundary out of its frame.
+- **Shared ranks** work as in flow charts: `"sameRank": [["catalogDb", "ordersDb",
+  "billingDb"]]` puts the databases of a data tier at one position along the flow. Without it,
+  each database follows its own service, and a `Data tier` boundary around them would stretch
+  over three layers and the services between them; with it, the frame is one layer deep.
 - **Connections** carry a `label` for what they do and a `technology` for how, written in
   brackets on a line below it. A `step` from 1 to 99 numbers the connection in a sequence of
   calls; the number is written before the label, every number is used once (`duplicate_step`,
@@ -1037,11 +1050,20 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
   one line that branches on a track of its own, with a dot at every branch — a gateway that
   calls many services, services that all log to one store. Only connections that read the same on
   the shared part share it: no `label`, `technology` or `step`, the usual direction, the same
-  `dash` and `weight`, off the main path, and their other ends in the same boundary, so that they
+  `dash`, `weight` and `role`, off the main path, and their other ends in the same boundary, so that they
   cross the same frames. Anything else, such as a second connection between the same two
   components, keeps a line of its own. Every connection is still drawn from end to end with its
   tooltip, and the description and the table list every one as before. Example
   `service-fan-out`.
+- **Roles.** `role` on a component or a connection says what it means in this picture, beyond its
+  kind: `critical` (a strong red outline or line, badge `!`), `planned` (dashed and violet, badge
+  `+`) or `deprecated` (dotted and gray, badge `−`). Flow charts take the same roles on steps and
+  edges. Shape and fill stay those of the kind, so a role adds meaning rather than replacing it;
+  `external` stays a kind. The colors are the theme's role colors in light, dark, blueprint and
+  print, and the line or badge carries the role without color. A legend below the diagram names
+  only the roles used, the description lists what has each role, and the table gains a Role
+  column. A planned or deprecated connection takes no `dash` (`role_conflict`). Example
+  `billing-migration` shows a migration: the old path deprecated, the new one planned.
 - **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
   classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
   (`option_not_supported`).
@@ -1051,6 +1073,62 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
 
 Limits: 1–40 components, up to 80 connections and 12 boundaries; identifiers are unique among
 components and boundaries together.
+
+### Views on one model
+
+One architecture model can be shown as several diagrams: an overview, the way a checkout takes, a
+detail of one zone. The model keeps its components, connections and boundaries once; `views`
+lists what each diagram shows. A specification with views always renders one of them — the one
+asked for by its `key` (`--view checkout`, `view: 'checkout'`), else `defaultView`, else the
+first — and never the whole model, so a view never passes for the complete system.
+
+```json
+"connections": [
+  { "id": "call", "from": "web", "to": "api", "label": "calls" },
+  { "id": "orders", "from": "api", "to": "db", "label": "reads, writes" }
+],
+"views": [
+  { "key": "overview", "title": "Web shop: overview", "components": ["web", "api", "db"] },
+  {
+    "key": "checkout",
+    "title": "Web shop: checkout",
+    "steps": [
+      { "connection": "call", "label": "submits order" },
+      { "connection": "orders", "label": "reserves stock" },
+      { "connection": "orders", "label": "saves order" }
+    ]
+  }
+]
+```
+
+- **Selection.** `components` lists the components a view shows, by id; they keep the order of
+  the model. The connections between them come along, or only those listed in `connections`,
+  by the optional `id` a connection carries. A view draws no connection the model does not have
+  and leaves out every connection to a component it hides; it does not merge components into
+  coarser ones.
+- **Boundaries** come along when they hold a shown component, directly or further in; the others
+  are left out.
+- **Highlighting.** A view's `mainPath` is drawn stronger, along its own connections. Without
+  one, the view keeps the model's main path when it shows all of it.
+- **Dynamic views.** `steps` lists connections in the order they occur, each with an optional
+  text in place of the connection's label; the same connection may occur again. The view
+  numbers them from 1, shows only them and the components at their ends, and draws a repeated
+  connection once per occurrence — a static numbered diagram, without timing or parallel steps.
+- **Text.** A view has its own `title` and, optionally, `description`; the model's description
+  is never used. Without one the description is generated from what the view shows and says
+  how much of the model that is (“It is a view that shows 8 of the model's 11 components and 8
+  of its 11 connections.”). The data table lists the shown components only.
+- **Variants and provenance.** Every variant — HTML, mobile, print, social, PNG — renders the
+  chosen view. The manifest names it in `view`; `specHash` is the hash of the whole model. Each
+  view gets its own derived ID prefix, so several views can share a page.
+- **Diagnostics** point into the model: `unknown_view` for a key no view has (at `/render/view`,
+  or `/architecture/defaultView`), `empty_view` for a view without components or steps,
+  `unknown_node` and `unknown_connection` for ids the model does not have,
+  `connection_outside_view` for a listed connection to a hidden component, and the usual
+  diagnostics of the resolved diagram at the place in the model or the view they come from.
+
+Up to 20 views and 99 steps per view. Example `shop-views` (overview, and checkout as
+`shop-views.checkout.svg`).
 
 ## Trees
 
