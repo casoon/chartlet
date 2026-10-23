@@ -385,7 +385,7 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = matches!(spec.theme, Theme::Dark | Theme::Blueprint);
     format!(
-        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
+        "{STYLE}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}",
         if is_dark { DARK_STYLE } else { "" },
         if has_series { SERIES_STYLE } else { "" },
         if has_series && !print {
@@ -471,8 +471,13 @@ fn base_style(spec: &ChartSpec, print: bool) -> String {
         } else {
             ""
         },
-        if spec.has_node_parts() {
+        if spec.has_node_parts() || spec.has_perspective() {
             crate::parts::STYLE
+        } else {
+            ""
+        },
+        if spec.has_perspective() {
+            crate::parts::UNSTATED_STYLE
         } else {
             ""
         },
@@ -507,7 +512,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
         Topicmap, Tree, Treemap, Waffle, Waterfall,
     };
-    let groups: [(&str, &[ChartType]); 44] = [
+    let groups: [(&str, &[ChartType]); 45] = [
         (STYLE, &[]),
         (DARK_STYLE, &[]),
         (SMALL_TITLE_STYLE, &[]),
@@ -547,7 +552,8 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (WEIGHT_STYLE, &[Flow, Architecture, Network]),
         (NETWORK_STYLE, &[Network]),
         (crate::heat::STYLE, &[Flow, Tree]),
-        (crate::parts::STYLE, &[Flow, Tree]),
+        (crate::parts::STYLE, &[Flow, Tree, Architecture]),
+        (crate::parts::UNSTATED_STYLE, &[Architecture]),
         (crate::symbols::STYLE, &[Architecture]),
         (
             BLUEPRINT_STYLE,

@@ -80,6 +80,8 @@ pub(crate) struct Words {
     pub component: &'static str,
     pub boundary: &'static str,
     pub connects_to: &'static str,
+    /// The instance column of a deployment view.
+    pub instance: &'static str,
     /// The package column of a class diagram's table.
     pub package: &'static str,
     /// The notes column of a class or architecture diagram's table.
@@ -254,6 +256,7 @@ const EN: Words = Words {
     yes: "yes",
     boundary: "Boundary",
     connects_to: "Connects to",
+    instance: "Instance",
     package: "Package",
     notes: "Notes",
     focus: "Focus",
@@ -377,6 +380,7 @@ const DE: Words = Words {
     yes: "ja",
     boundary: "Grenze",
     connects_to: "Verbunden mit",
+    instance: "Instanz",
     package: "Paket",
     notes: "Notizen",
     focus: "Fokus",
@@ -1395,6 +1399,24 @@ pub(crate) fn roles(locale: Locale, roles: &[String]) -> String {
     }
 }
 
+/// What stands for a category a component does not state in a perspective.
+pub(crate) const fn not_stated(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => "not stated",
+        Locale::De => "nicht angegeben",
+    }
+}
+
+/// The sentence of the perspective a diagram shows: its title, then each category with what has
+/// it, as `Payments: API, Orders`.
+pub(crate) fn perspective(locale: Locale, title: &str, entries: &[String]) -> String {
+    let entries = entries.join("; ");
+    match locale {
+        Locale::En => format!("Perspective {title}: {entries}."),
+        Locale::De => format!("Perspektive {title}: {entries}."),
+    }
+}
+
 /// How a linkage measures the distance between two clusters, as a phrase.
 const fn linkage_phrase(locale: Locale, linkage: Linkage) -> &'static str {
     match (locale, linkage) {
@@ -1670,6 +1692,28 @@ pub(crate) fn view_scope(
             "Die Sicht zeigt {components} der {all_components} {} und {connections} der {all_connections} {} des Modells.",
             plural(all_components, "Komponente", "Komponenten"),
             plural(all_connections, "Verbindung", "Verbindungen"),
+        ),
+    }
+}
+
+/// What a deployment view shows: the environment and how many instances run how many
+/// components of the model.
+pub(crate) fn deployment(
+    locale: Locale,
+    environment: &str,
+    instances: usize,
+    components: usize,
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "It shows the environment {environment}: {instances} instance{} of {components} component{} of the model; only the connections listed for the instances are drawn.",
+            plural(instances, "", "s"),
+            plural(components, "", "s"),
+        ),
+        Locale::De => format!(
+            "Sie zeigt die Umgebung {environment}: {instances} {} von {components} {} des Modells; gezeichnet sind nur die für die Instanzen angegebenen Verbindungen.",
+            plural(instances, "Instanz", "Instanzen"),
+            plural(components, "Komponente", "Komponenten"),
         ),
     }
 }

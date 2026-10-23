@@ -109,6 +109,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             parts: Vec::new(),
             symbol: None,
             role: None,
+            category: None,
         })
         .collect();
     let edges = classes

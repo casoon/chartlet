@@ -1509,11 +1509,60 @@
                     "label": { "description": "What happens in this step, in place of the connection's label.", "type": "string", "minLength": 1, "maxLength": 60 }
                   }
                 }
+              },
+              "perspective": { "description": "The key of the perspective the view shows, in place of the model's.", "$ref": "#/$defs/identifier" },
+              "environment": { "description": "Makes the view a deployment view of this environment, such as Production: it shows instances on hosts joined by instance connections, in place of components, connections, steps and mainPath.", "type": "string", "minLength": 1, "maxLength": 60 },
+              "hosts": { "description": "Deployment view: machines, clusters or zones, nested like boundaries; each holds an instance.", "type": "array", "items": { "$ref": "#/$defs/architecture/properties/boundaries/items" } },
+              "instances": {
+                "description": "Deployment view: running instances of the model's components, drawn as the component with its id, such as Orders API (api-1). At most 40 after expansion, like components.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "of"],
+                  "properties": {
+                    "id": { "description": "A stable id, unique among the instances and hosts of the view.", "$ref": "#/$defs/identifier" },
+                    "of": { "description": "The id of the component of the model the instance runs.", "$ref": "#/$defs/identifier" },
+                    "in": { "description": "The id of the host it runs on.", "$ref": "#/$defs/identifier" }
+                  }
+                }
+              },
+              "instanceConnections": { "description": "Deployment view: the connections between instances, from and to naming instance ids; nothing else joins them. One with the id of a model connection must join instances of its ends and takes the label, technology, dash and role it leaves out from it.", "type": "array", "items": { "$ref": "#/$defs/architecture/properties/connections/items" } }
+            }
+          }
+        },
+        "defaultView": { "description": "The key of the view rendered when none is asked for; without it, the first view.", "$ref": "#/$defs/identifier" },
+        "perspectives": {
+          "description": "Questions the model can be seen under, such as which team runs a component or how much technical debt it carries, each with its categories and the components in each. A diagram shows one perspective only when it is selected (perspective here or on a view), with a stripe in the category's color and its name in every box, a legend of the categories used, and the perspective in the description and the table. A component no category lists is shown as not stated. Nothing is derived.",
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "title", "categories"],
+            "properties": {
+              "key": { "description": "A stable name of the perspective; unique among perspectives.", "$ref": "#/$defs/identifier" },
+              "title": { "description": "What the perspective is called in the legend, the description and the table, such as Team.", "type": "string", "minLength": 1, "maxLength": 40 },
+              "description": { "description": "A sentence that says what the perspective means, added to the description.", "type": "string", "minLength": 1, "maxLength": 200 },
+              "categories": {
+                "description": "The categories in their order, which fixes their colors in every view. A component lies in at most one category of a perspective.",
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["label", "components"],
+                  "properties": {
+                    "label": { "description": "The name of the category, unique in the perspective, such as a team.", "type": "string", "minLength": 1, "maxLength": 40 },
+                    "components": { "description": "The ids of the components in the category.", "type": "array", "items": { "$ref": "#/$defs/identifier" } }
+                  }
+                }
               }
             }
           }
         },
-        "defaultView": { "description": "The key of the view rendered when none is asked for; without it, the first view.", "$ref": "#/$defs/identifier" }
+        "perspective": { "description": "The key of the perspective the diagram shows, and every view without one of its own.", "$ref": "#/$defs/identifier" }
       }
     },
     "sameRank": {

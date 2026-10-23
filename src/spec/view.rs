@@ -5,7 +5,10 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::{ArchitectureSpec, ChartSpec, MainPath, sequence::is_identifier, validate_text};
+use super::{
+    ArchitectureSpec, BoundarySpec, ChartSpec, ConnectionSpec, MainPath, sequence::is_identifier,
+    validate_text,
+};
 use crate::error::ChartError;
 
 /// Views of one model; each is rendered on its own.
@@ -43,6 +46,37 @@ pub struct ViewSpec {
     /// same connection may occur more than once.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub steps: Vec<ViewStepSpec>,
+    /// The `key` of the perspective the view shows, in place of the model's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub perspective: Option<String>,
+    /// A deployment view: the name of the environment, such as `Production`. Such a view shows
+    /// `instances` of the model's components on its `hosts`, joined by its
+    /// `instanceConnections`, in place of components, connections and steps.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment: Option<String>,
+    /// The machines, clusters or zones of a deployment view, nested like boundaries.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub hosts: Vec<BoundarySpec>,
+    /// The running instances of a deployment view, each of one component of the model.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub instances: Vec<InstanceSpec>,
+    /// The connections between instances of a deployment view; nothing else joins them. One
+    /// with the `id` of a model connection takes what it leaves out from it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub instance_connections: Vec<ConnectionSpec>,
+}
+
+/// One running instance of a component in a deployment view.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct InstanceSpec {
+    /// A stable id of the instance, unique among the instances and hosts of the view.
+    pub id: String,
+    /// The `id` of the component of the model it runs.
+    pub of: String,
+    /// The `id` of the host it runs on.
+    #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
 }
 
 /// One occurrence of a connection in a dynamic view.
@@ -69,18 +103,21 @@ pub(crate) struct ViewScope {
 pub(crate) struct ResolvedView {
     pub spec: ChartSpec,
     pub key: String,
-    index: usize,
-    components: Vec<usize>,
-    connections: Vec<usize>,
-    boundaries: Vec<usize>,
+    pub(super) index: usize,
+    pub(super) components: Vec<usize>,
+    pub(super) connections: Vec<usize>,
+    pub(super) boundaries: Vec<usize>,
     /// The shared ranks the view keeps: the place of each in the model and the places of its
     /// shown members in it.
-    same_rank: Vec<(usize, Vec<usize>)>,
+    pub(super) same_rank: Vec<(usize, Vec<usize>)>,
     /// The notes the view keeps, those on shown components, by their places in the model.
-    notes: Vec<usize>,
+    pub(super) notes: Vec<usize>,
     /// The connections are the steps of the view, in order.
-    dynamic: bool,
-    own_main_path: bool,
+    pub(super) dynamic: bool,
+    pub(super) own_main_path: bool,
+    /// The view is a deployment: its components are the view's instances, its boundaries its
+    /// hosts and its connections its instance connections.
+    pub(super) deployment: bool,
 }
 
 impl ChartSpec {
@@ -171,12 +208,16 @@ impl ChartSpec {
     }
 
     /// The view at `index` of a model whose views were checked.
+    #[allow(clippy::too_many_lines)]
     fn resolved(&self, index: usize) -> ResolvedView {
         let model = self
             .architecture
             .as_ref()
             .expect("only architecture diagrams have views");
         let view = &model.views[index];
+        if view.environment.is_some() {
+            return self.resolved_deployment(index);
+        }
         let dynamic = !view.steps.is_empty();
         let (components, connections, boundaries) = model.selection(view);
         let is_shown = |id: &str| {
@@ -246,6 +287,13 @@ impl ChartSpec {
             .collect();
         architecture.views = Vec::new();
         architecture.default_view = None;
+        architecture.perspective = view.perspective.clone().or(architecture.perspective);
+        // A category keeps the components the view shows.
+        for perspective in &mut architecture.perspectives {
+            for category in &mut perspective.categories {
+                category.components.retain(|id| is_shown(id));
+            }
+        }
         let mut distinct = connections.clone();
         distinct.sort_unstable();
         distinct.dedup();
@@ -269,6 +317,7 @@ impl ChartSpec {
             notes,
             dynamic,
             own_main_path: !view.main_path.is_empty(),
+            deployment: false,
         }
     }
 }
@@ -322,6 +371,9 @@ impl ArchitectureSpec {
     /// dynamic view) and the boundaries around its components, by their places in the model.
     pub(crate) fn selection(&self, view: &ViewSpec) -> (Vec<usize>, Vec<usize>, Vec<usize>) {
         let model = self;
+        if view.environment.is_some() {
+            return model.deployment_selection(view);
+        }
         let connection = |id: &str| {
             model
                 .connections
@@ -418,6 +470,13 @@ impl ArchitectureSpec {
             ));
         }
         validate_text(&view.title, &format!("{path}/title"), 200)?;
+        if let Some(key) = &view.perspective {
+            self.check_perspective(key, &format!("{path}/perspective"))?;
+        }
+        if view.environment.is_some() {
+            return self.validate_deployment(view, &path);
+        }
+        super::deployment::reject_deployment_fields(view, &path)?;
         if view.components.is_empty() && view.steps.is_empty() {
             return Err(ChartError::new(
                 "empty_view",
@@ -528,6 +587,19 @@ impl ResolvedView {
         let view = format!("/architecture/views/{}", self.index);
         if path == "/title" || path == "/description" {
             return format!("{view}{path}");
+        }
+        if self.deployment {
+            // Instances, hosts and instance connections are the view's own lists.
+            for (list, own) in [
+                ("components", "instances"),
+                ("boundaries", "hosts"),
+                ("connections", "instanceConnections"),
+            ] {
+                if let Some(rest) = path.strip_prefix(&format!("/architecture/{list}")) {
+                    return format!("{view}/{own}{rest}");
+                }
+            }
+            return path.to_owned();
         }
         if let Some(rest) = path.strip_prefix("/architecture/mainPath") {
             // A main path carried over from the model lies there; one of the view's own in it.
@@ -959,6 +1031,14 @@ mod tests {
                 "empty_text",
                 "/architecture/views/0/title",
             ),
+            (
+                edited(
+                    r#""title": "Blog media","#,
+                    r#""title": "Blog media", "perspective": "team","#,
+                ),
+                "unknown_perspective",
+                "/architecture/views/1/perspective",
+            ),
         ];
         for (json, code, path) in cases {
             let error = error(&json);
@@ -1071,6 +1151,41 @@ mod tests {
             "no node hook for api"
         );
         assert!(!svg.contains(r#"data-chartlet-node="files""#));
+    }
+
+    #[test]
+    fn a_view_shows_its_own_perspective_or_the_model_s() {
+        let json = edited(
+            r#""mainPath": ["#,
+            r#""perspectives": [
+                {"key": "team", "title": "Team", "categories": [
+                    {"label": "Web", "components": ["site", "files"]},
+                    {"label": "Core", "components": ["api", "mail"]}]},
+                {"key": "debt", "title": "Debt", "categories": [
+                    {"label": "low", "components": ["files"]},
+                    {"label": "high", "components": ["api"]}]}
+               ], "perspective": "team", "mainPath": ["#,
+        )
+        .replacen(
+            r#""title": "Blog media","#,
+            r#""title": "Blog media", "perspective": "debt","#,
+            1,
+        );
+        let spec = ChartSpec::from_json(&json).unwrap();
+        let shown = |view: &str| {
+            architecture(&spec.view(Some(view)).unwrap())
+                .perspective
+                .clone()
+        };
+        assert_eq!(shown("overview").as_deref(), Some("team"));
+        assert_eq!(shown("media").as_deref(), Some("debt"));
+        let media = render(&json, Some("media")).unwrap().content;
+        assert!(media.contains(">Debt:</text>") && !media.contains(">Team:</text>"));
+        // A category keeps only the components the view shows.
+        let overview = spec.view(Some("overview")).unwrap();
+        let team = &architecture(&overview).perspectives[0];
+        assert_eq!(team.categories[0].components, ["site"]);
+        assert_eq!(team.categories[1].components, ["api"]);
     }
 
     #[test]

@@ -214,9 +214,10 @@ fn components_in_no_view(model: &ArchitectureSpec, findings: &mut Vec<Inspection
 }
 
 /// A view whose components and connections another view all shows as well. A dynamic view is
-/// never reported: the order of its steps is what it adds.
+/// never reported: the order of its steps is what it adds; nor is a deployment view, which adds
+/// the instances of an environment.
 fn views_adding_nothing(model: &ArchitectureSpec, findings: &mut Vec<Inspection>) {
-    let is_dynamic = |view: &ViewSpec| !view.steps.is_empty();
+    let is_dynamic = |view: &ViewSpec| !view.steps.is_empty() || view.environment.is_some();
     let selections: Vec<(Vec<usize>, Vec<usize>)> = model
         .views
         .iter()

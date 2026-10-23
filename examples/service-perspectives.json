@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Booking platform",
+  "source": "Architecture handbook, booking model",
+  "width": 1300,
+  "height": 520,
+  "architecture": {
+    "boundaries": [
+      { "id": "cloud", "label": "Cloud account" },
+      { "id": "data", "label": "Data zone", "in": "cloud" }
+    ],
+    "components": [
+      { "id": "guest", "label": "Guest", "kind": "person" },
+      { "id": "app", "label": "Booking app", "kind": "frontend" },
+      { "id": "gateway", "label": "API gateway", "in": "cloud" },
+      { "id": "booking", "label": "Booking service", "sublabel": "Java", "in": "cloud" },
+      { "id": "pricing", "label": "Pricing service", "sublabel": "Go", "in": "cloud" },
+      { "id": "db", "label": "Bookings", "sublabel": "Postgres", "kind": "database", "in": "data" },
+      { "id": "legacy", "label": "Legacy inventory", "kind": "database", "in": "data" },
+      { "id": "pay", "label": "Payment provider", "kind": "external" }
+    ],
+    "connections": [
+      { "id": "use", "from": "guest", "to": "app", "label": "books" },
+      { "id": "call", "from": "app", "to": "gateway", "technology": "HTTPS" },
+      { "id": "route", "from": "gateway", "to": "booking", "label": "routes" },
+      { "id": "price", "from": "booking", "to": "pricing", "label": "asks price" },
+      { "id": "store", "from": "booking", "to": "db", "technology": "SQL" },
+      { "id": "stock", "from": "booking", "to": "legacy", "label": "checks rooms" },
+      { "id": "charge", "from": "booking", "to": "pay", "label": "charges", "technology": "HTTPS" }
+    ],
+    "perspectives": [
+      {
+        "key": "owner",
+        "title": "Team",
+        "description": "The team named in the service catalogue runs each component.",
+        "categories": [
+          { "label": "Storefront", "components": ["app"] },
+          { "label": "Bookings", "components": ["booking", "pricing"] },
+          { "label": "Platform", "components": ["gateway", "db", "legacy"] }
+        ]
+      },
+      {
+        "key": "debt",
+        "title": "Technical debt",
+        "description": "Debt as the owning team rated it in the last review.",
+        "categories": [
+          { "label": "low", "components": ["app", "pricing"] },
+          { "label": "medium", "components": ["gateway", "db"] },
+          { "label": "high", "components": ["booking"] }
+        ]
+      }
+    ],
+    "views": [
+      {
+        "key": "owners",
+        "title": "Booking platform: who runs what",
+        "components": ["guest", "app", "gateway", "booking", "pricing", "db", "legacy", "pay"],
+        "perspective": "owner"
+      },
+      {
+        "key": "debt",
+        "title": "Booking platform: technical debt",
+        "components": ["guest", "app", "gateway", "booking", "pricing", "db", "legacy", "pay"],
+        "perspective": "debt"
+      }
+    ]
+  }
+}

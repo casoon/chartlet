@@ -5,6 +5,7 @@ mod calendar;
 mod categorical;
 mod classes;
 mod dataset;
+mod deployment;
 mod flow;
 mod network;
 mod parliament;
@@ -32,8 +33,8 @@ use crate::{
     time::TimeValue,
 };
 pub use architecture::{
-    ArchitectureSpec, BoundarySpec, ComponentKind, ComponentSpec, ConnectionDirection,
-    ConnectionSpec,
+    ArchitectureSpec, BoundarySpec, CategorySpec, ComponentKind, ComponentSpec,
+    ConnectionDirection, ConnectionSpec, PerspectiveSpec,
 };
 pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
 pub(crate) use boxplot::BoxSummary;
@@ -76,7 +77,7 @@ pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec
 pub use tree::{DistancesSpec, Linkage, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec};
 pub(crate) use treemap::{TmNode, TmTree};
 pub use treemap::{TreemapItemSpec, TreemapSpec};
-pub use view::{ViewSpec, ViewStepSpec};
+pub use view::{InstanceSpec, ViewSpec, ViewStepSpec};
 pub use waffle::{WafflePartSpec, WaffleSpec};
 pub(crate) use waterfall::WaterfallBar;
 pub use waterfall::{StepKind, StepSpec, WaterfallSpec};

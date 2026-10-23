@@ -1147,6 +1147,104 @@ first — and never the whole model, so a view never passes for the complete sys
 Up to 20 views and 99 steps per view. Example `shop-views` (overview, and checkout as
 `shop-views.checkout.svg`).
 
+### Perspectives
+
+The same diagram can answer different questions: which team runs each component, where
+technical debt is high. A model keeps the answers as stated metadata, apart from its components
+and from how it is drawn: `perspectives` names the questions, each with its categories and the
+components in each. Nothing is drawn until a perspective is selected — by `perspective` on the
+model, or on a view, which takes the place of the model's.
+
+```json
+"perspectives": [
+  { "key": "owner", "title": "Team", "description": "The team named in the service catalogue runs each component.",
+    "categories": [
+      { "label": "Bookings", "components": ["api"] },
+      { "label": "Platform", "components": ["db"] }
+    ] },
+  { "key": "debt", "title": "Technical debt",
+    "categories": [{ "label": "low", "components": ["db"] }, { "label": "high", "components": ["api"] }] }
+],
+"views": [
+  { "key": "owners", "title": "Who runs what", "components": ["api", "db"], "perspective": "owner" },
+  { "key": "debt", "title": "Technical debt", "components": ["api", "db"], "perspective": "debt" }
+]
+```
+
+- **Drawing.** Every box carries a stripe in the color of its category and names the category
+  after its sublabel, so the meaning does not rest on color alone. The colors follow the order of
+  `categories`, the same in every view. Shapes, roles and the layout stay as they are.
+- **Not stated.** A component that no category of the shown perspective lists is drawn with an
+  outlined stripe and named “not stated” — never as the lowest category. A component lies in at
+  most one category of a perspective. A view keeps in each category only the components it shows.
+- **Legend.** Below the diagram, after the perspective's title: the categories used, in their
+  order, and “not stated” when it occurs.
+- **Text.** The description ends with the perspective: each category with the components that
+  have it, then the perspective's own description. The data table has a column named after the
+  perspective. The manifest names it in `perspective`.
+- **Nothing derived.** Categories are only what the specification states; chartlet does not
+  rate components or infer categories from the topology or the names. A model with perspectives
+  but none selected renders exactly as without them.
+
+Up to 8 perspectives with 1–8 categories each. Example `service-perspectives` (who runs what,
+and technical debt as `service-perspectives.debt.svg`).
+
+### Environments and instances
+
+A model describes each component once; a deployment view shows where it runs in one
+environment — once on a developer machine, twice behind a load balancer in production. A view
+with an `environment` is such a view: it lists `hosts`, nested like boundaries, the `instances`
+running on them, each `of` one component of the model, and the `instanceConnections` between
+them.
+
+```json
+"views": [
+  { "key": "logical", "title": "Orders API: components", "components": ["lb", "api", "db"] },
+  {
+    "key": "production",
+    "title": "Orders API in production",
+    "environment": "Production",
+    "hosts": [
+      { "id": "node-a", "label": "Node A" },
+      { "id": "node-b", "label": "Node B" }
+    ],
+    "instances": [
+      { "id": "lb-prod", "of": "lb" },
+      { "id": "api-1", "of": "api", "in": "node-a" },
+      { "id": "api-2", "of": "api", "in": "node-b" }
+    ],
+    "instanceConnections": [
+      { "id": "route", "from": "lb-prod", "to": "api-1" },
+      { "id": "route", "from": "lb-prod", "to": "api-2" }
+    ]
+  }
+]
+```
+
+- **One component, many instances.** An instance is drawn as its component — kind, symbol,
+  sublabel, role — labelled with the component's label and the instance's id, `Orders API
+  (api-1)`, so replicas stay apart in the drawing, the description and the table. A label changed
+  in the model reaches every environment.
+- **Only listed connections.** Nothing joins instances but `instanceConnections`; chartlet never
+  connects replicas by itself. An instance connection with the `id` of a model connection must
+  join instances of that connection's ends (`instance_mismatch`) and takes the label, technology,
+  dash and role it leaves out from it.
+- **Hosts** replace the model's boundaries in the view; the model's main path, shared ranks and
+  notes stay out of it.
+- **Text.** The description names the environment and how many instances run how many
+  components; the table's first column is the instance.
+- **Limits and diagnostics.** The resolved diagram is checked like any other — at most 40
+  instances, 80 instance connections and 12 hosts nested four deep — and every diagnostic points
+  into the view: `unknown_node` for an `of`, `from` or `to` that names nothing, `unknown_boundary`
+  for a host, `duplicate_id` for an id used twice among instances and hosts,
+  `unknown_connection` for an `id` the model does not have. A deployment view takes no
+  `components`, `connections`, `steps` or `mainPath`, and another view no `hosts`, `instances`
+  or `instanceConnections` (`option_not_supported`).
+
+`chartlet inspect` counts a component as shown when an environment runs it, and does not report
+a deployment view as adding nothing. Example `api-environments` (components, and production as
+`api-environments.production.svg`).
+
 ### Context, containers and deployment
 
 Three starters (MCP: `chartlet_diagram_starter` with `type: "architecture"` and `template`)
@@ -1185,9 +1283,9 @@ Where the starters stop short of a full C4 model:
 - Technology and responsibility are free text: `sublabel` on a component, `technology` on a
   connection. There are no separate fields for them, and no element types for system, container
   or component beyond the `kind` shapes.
-- The deployment starter describes one environment. It does not model several environments
-  (development, staging, production) or instances of a container across them; that semantics is
-  not promised.
+- The deployment starter describes one environment. Several environments of one model, with
+  instances of its components, are deployment views; see
+  [Environments and instances](#environments-and-instances).
 
 ## Trees
 

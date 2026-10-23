@@ -65,6 +65,8 @@ export interface ChartManifest {
   idPrefix: string;
   /** The key of the view of an architecture model that was rendered; absent without views. */
   view?: string;
+  /** The key of the perspective an architecture diagram showed; absent without one. */
+  perspective?: string;
   warnings: ChartManifestWarning[];
 }
 

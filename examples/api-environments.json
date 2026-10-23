@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Orders API",
+  "source": "Operations handbook, orders model",
+  "width": 1000,
+  "height": 520,
+  "architecture": {
+    "components": [
+      { "id": "client", "label": "Shop front end", "kind": "frontend" },
+      { "id": "lb", "label": "Load balancer", "symbol": "load-balancer" },
+      { "id": "api", "label": "Orders API", "sublabel": "Node.js" },
+      { "id": "db", "label": "Orders", "sublabel": "Postgres", "kind": "database" }
+    ],
+    "connections": [
+      { "id": "call", "from": "client", "to": "lb", "label": "places orders", "technology": "HTTPS" },
+      { "id": "route", "from": "lb", "to": "api", "label": "routes", "technology": "HTTP" },
+      { "id": "query", "from": "api", "to": "db", "label": "reads, writes", "technology": "SQL" }
+    ],
+    "views": [
+      {
+        "key": "logical",
+        "title": "Orders API: components",
+        "components": ["client", "lb", "api", "db"]
+      },
+      {
+        "key": "local",
+        "title": "Orders API on a developer machine",
+        "environment": "Local",
+        "hosts": [{ "id": "laptop", "label": "Developer laptop" }],
+        "instances": [
+          { "id": "api-dev", "of": "api", "in": "laptop" },
+          { "id": "db-dev", "of": "db", "in": "laptop" }
+        ],
+        "instanceConnections": [{ "id": "query", "from": "api-dev", "to": "db-dev" }]
+      },
+      {
+        "key": "production",
+        "title": "Orders API in production",
+        "environment": "Production",
+        "hosts": [
+          { "id": "region", "label": "Region eu-central-1" },
+          { "id": "node-a", "label": "Node A", "in": "region" },
+          { "id": "node-b", "label": "Node B", "in": "region" },
+          { "id": "data", "label": "Managed database", "in": "region" }
+        ],
+        "instances": [
+          { "id": "lb-prod", "of": "lb", "in": "region" },
+          { "id": "api-1", "of": "api", "in": "node-a" },
+          { "id": "api-2", "of": "api", "in": "node-b" },
+          { "id": "db-prod", "of": "db", "in": "data" }
+        ],
+        "instanceConnections": [
+          { "id": "route", "from": "lb-prod", "to": "api-1" },
+          { "id": "route", "from": "lb-prod", "to": "api-2" },
+          { "id": "query", "from": "api-1", "to": "db-prod" },
+          { "id": "query", "from": "api-2", "to": "db-prod" }
+        ]
+      }
+    ]
+  }
+}

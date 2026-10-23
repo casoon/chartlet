@@ -15,11 +15,11 @@ use crate::{
     },
     layout::format_value,
     metrics::TextMetrics,
-    roles,
+    parts, roles,
     scene::Scene,
     spec::{
         ArchitectureSpec, ChartSpec, ComponentKind, ComponentSpec, ConnectionDirection,
-        ConnectionSpec, DiagramRole, Locale,
+        ConnectionSpec, DiagramRole, Locale, PerspectiveSpec,
     },
     structure::{Facts, Structure},
     symbols, text,
@@ -33,7 +33,7 @@ pub(crate) fn layout(
     let architecture = architecture(spec);
     let mut scene = layout_with_trunks(
         spec,
-        &diagram(architecture),
+        &diagram(architecture, spec.locale),
         architecture.shared_trunks,
         warnings,
         metrics,
@@ -49,7 +49,53 @@ pub(crate) fn layout(
             .map(|connection| connection.role),
     );
     roles::push_legend(&mut scene, spec.locale, &used, MARGIN, metrics);
+    if let Some((perspective, categories)) = categories(architecture) {
+        // The categories used, in the perspective's order, and not stated last.
+        let mut entries: Vec<(&'static str, &str)> = (0..perspective.categories.len())
+            .filter(|index| categories.contains(&Some(*index)))
+            .map(|index| {
+                (
+                    parts::CLASSES[index],
+                    perspective.categories[index].label.as_str(),
+                )
+            })
+            .collect();
+        if categories.contains(&None) {
+            entries.push((parts::UNSTATED, text::not_stated(spec.locale)));
+        }
+        parts::push_entries(
+            &mut scene,
+            Some(&perspective.title),
+            &entries,
+            MARGIN,
+            metrics,
+        );
+    }
     scene
+}
+
+/// The perspective a diagram shows and the category of each component in it, by its place
+/// among the perspective's categories; `None` where the component does not state one.
+fn categories(architecture: &ArchitectureSpec) -> Option<(&PerspectiveSpec, Vec<Option<usize>>)> {
+    let perspective = architecture.shown_perspective()?;
+    let categories = architecture
+        .components
+        .iter()
+        .map(|component| {
+            perspective
+                .categories
+                .iter()
+                .position(|category| category.components.contains(&component.id))
+        })
+        .collect();
+    Some((perspective, categories))
+}
+
+/// The name of category `category` of `perspective`, or not stated.
+fn category_name(locale: Locale, perspective: &PerspectiveSpec, category: Option<usize>) -> &str {
+    category.map_or(text::not_stated(locale), |index| {
+        perspective.categories[index].label.as_str()
+    })
 }
 
 fn architecture(spec: &ChartSpec) -> &ArchitectureSpec {
@@ -74,8 +120,8 @@ const fn shape(kind: ComponentKind) -> Shape {
     }
 }
 
-fn diagram(architecture: &ArchitectureSpec) -> Diagram {
-    let mut diagram = model_diagram(architecture);
+fn diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
+    let mut diagram = model_diagram(architecture, locale);
     for (index, note) in architecture.notes.iter().enumerate() {
         let target = architecture.component(&note.on).expect("validated");
         diagram.push_note(target, &note.text, format!("/architecture/notes/{index}"));
@@ -83,19 +129,31 @@ fn diagram(architecture: &ArchitectureSpec) -> Diagram {
     diagram
 }
 
-/// The components in reading order, without the notes.
+/// The components in reading order, without the notes; the order does not depend on texts.
 fn components_in_order(architecture: &ArchitectureSpec) -> Vec<usize> {
-    reading_order(&diagram(architecture))
+    reading_order(&diagram(architecture, Locale::En))
         .into_iter()
         .filter(|node| *node < architecture.components.len())
         .collect()
 }
 
-/// The diagram of the components, connections and boundaries, without notes.
-fn model_diagram(architecture: &ArchitectureSpec) -> Diagram {
+/// The diagram of the components, connections and boundaries, without notes; in a
+/// perspective, every box names its category after its sublabel and carries a stripe in the
+/// category's color.
+fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
     let boundary = |id: &Option<String>| {
         id.as_deref()
             .map(|id| architecture.boundary(id).expect("validated"))
+    };
+    let categories = categories(architecture);
+    let category = |index: usize| {
+        categories.as_ref().map(|(perspective, categories)| {
+            let category = categories[index];
+            (
+                category.map_or(parts::UNSTATED, |at| parts::CLASSES[at]),
+                category_name(locale, perspective, category).to_owned(),
+            )
+        })
     };
     Diagram {
         nodes: architecture
@@ -104,7 +162,11 @@ fn model_diagram(architecture: &ArchitectureSpec) -> Diagram {
             .enumerate()
             .map(|(index, component)| Node {
                 label: component.label.clone(),
-                sublabel: component.sublabel.clone(),
+                sublabel: match (&component.sublabel, category(index)) {
+                    (Some(sublabel), Some((_, name))) => Some(format!("{sublabel} · {name}")),
+                    (sublabel, named) => named.map(|(_, name)| name).or_else(|| sublabel.clone()),
+                },
+                category: category(index),
                 shape: shape(component.kind),
                 lane: None,
                 group: boundary(&component.boundary),
@@ -299,6 +361,17 @@ fn steps_in_order(architecture: &ArchitectureSpec) -> Vec<String> {
 /// For a view that leaves out part of its model, a sentence that says how much it shows, with a
 /// space in front; empty otherwise.
 fn view_scope(architecture: &ArchitectureSpec, locale: Locale) -> String {
+    if let Some((environment, components)) = &architecture.environment {
+        return format!(
+            " {}",
+            text::deployment(
+                locale,
+                environment,
+                architecture.components.len(),
+                *components
+            )
+        );
+    }
     match architecture.scope {
         Some(scope)
             if scope.components.0 < scope.components.1
@@ -420,6 +493,34 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         description.push(' ');
         description.push_str(&sentence);
     }
+    if let Some((perspective, categories)) = categories(architecture) {
+        // Each category in the perspective's order with what has it, not stated last.
+        let order = components_in_order(architecture);
+        let entries: Vec<String> = (0..perspective.categories.len())
+            .map(Some)
+            .chain([None])
+            .filter_map(|category| {
+                let members: Vec<&str> = order
+                    .iter()
+                    .filter(|&&component| categories[component] == category)
+                    .map(|&component| architecture.components[component].label.as_str())
+                    .collect();
+                (!members.is_empty()).then(|| {
+                    format!(
+                        "{}: {}",
+                        category_name(locale, perspective, category),
+                        members.join(", ")
+                    )
+                })
+            })
+            .collect();
+        description.push(' ');
+        description.push_str(&text::perspective(locale, &perspective.title, &entries));
+        if let Some(meaning) = &perspective.description {
+            description.push(' ');
+            description.push_str(meaning);
+        }
+    }
     description.push_str(&notes_sentences(spec));
     description
 }
@@ -482,11 +583,19 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         .iter()
         .any(|component| component.role.is_some());
     let mut columns = vec![words.component.to_owned(), words.message_kind.to_owned()];
+    let deployed = architecture.environment.is_some();
+    if deployed {
+        words.instance.clone_into(&mut columns[0]);
+    }
     if bounded {
         columns.push(words.boundary.to_owned());
     }
     if with_roles {
         columns.push(words.role.to_owned());
+    }
+    let categories = categories(architecture);
+    if let Some((perspective, _)) = &categories {
+        columns.push(perspective.title.clone());
     }
     columns.push(words.connects_to.to_owned());
     if with_notes {
@@ -508,6 +617,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                         .role
                         .map_or_else(String::new, |role| text::role(spec.locale, role).to_owned()),
                 );
+            }
+            if let Some((perspective, categories)) = &categories {
+                row.push(category_name(spec.locale, perspective, categories[component]).to_owned());
             }
             row.push(connects_to(spec, component, true).join(", "));
             if with_notes {
@@ -1390,5 +1502,125 @@ mod tests {
         assert!(output.content.contains("chartlet-blueprint"));
         let chart = r#"{"schemaVersion":1,"type":"bar","title":"A","theme":"blueprint","data":[{"label":"x","value":1}]}"#;
         assert_eq!(error(chart).0, "option_not_supported");
+    }
+
+    /// The blog with a perspective of teams: the API and the posts are stated, the rest not.
+    fn with_teams(shown: &str) -> String {
+        SPEC.replace(
+            r#""mainPath""#,
+            &format!(
+                r#"{shown}"perspectives": [{{"key": "team", "title": "Team", "description": "Who runs it.", "categories": [
+                    {{"label": "Frontend", "components": []}},
+                    {{"label": "Backend", "components": ["api"]}},
+                    {{"label": "Data", "components": ["db"]}}]}}], "mainPath""#
+            ),
+        )
+    }
+
+    #[test]
+    fn a_perspective_names_the_category_of_every_component() {
+        let output = svg(&with_teams(r#""perspective": "team", "#)).content;
+        // Stripes in the colors of the categories, an outline for what is not stated, and a
+        // legend of the categories used, after its title.
+        assert!(output.contains(r#"class="chartlet-part chartlet-part-2""#));
+        assert!(output.contains(r#"class="chartlet-part chartlet-part-3""#));
+        assert!(!output.contains(r#"class="chartlet-part chartlet-part-1""#));
+        assert!(output.contains("chartlet-part chartlet-part-none"));
+        assert!(output.contains(">Team:</text>") && output.contains(">not stated</text>"));
+        // The box names the category below its label.
+        assert!(output.contains(r#"class="chartlet-flow-sublabel">Data</text>"#));
+        let spec = ChartSpec::from_json(&with_teams(r#""perspective": "team", "#)).unwrap();
+        let alternative = text_alternative(&spec).unwrap();
+        assert!(
+            alternative.description.contains(
+                "Perspective Team: Backend: API; Data: Posts; not stated: Reader, Site, Images, Mail service. Who runs it."
+            ),
+            "{}",
+            alternative.description
+        );
+        let column = alternative
+            .table
+            .columns
+            .iter()
+            .position(|column| column == "Team")
+            .expect("a column of the perspective");
+        let row = |label: &str| {
+            alternative
+                .table
+                .rows
+                .iter()
+                .find(|row| row[0] == label)
+                .expect("a row")[column]
+                .clone()
+        };
+        assert_eq!(
+            (row("API"), row("Reader")),
+            ("Backend".into(), "not stated".into())
+        );
+        let options = RenderOptions {
+            manifest: true,
+            ..RenderOptions::default()
+        };
+        let manifest = render_json(
+            &with_teams(r#""perspective": "team", "#),
+            RenderFormat::Svg,
+            &options,
+        )
+        .unwrap()
+        .manifest
+        .unwrap();
+        assert!(manifest.to_json().contains("\"perspective\": \"team\""));
+    }
+
+    #[test]
+    fn metadata_without_a_shown_perspective_changes_nothing() {
+        let options = RenderOptions {
+            id_prefix: Some("blog".to_owned()),
+            ..RenderOptions::default()
+        };
+        let plain = render_json(SPEC, RenderFormat::Html, &options)
+            .unwrap()
+            .content;
+        let tagged = render_json(&with_teams(""), RenderFormat::Html, &options)
+            .unwrap()
+            .content;
+        assert_eq!(plain, tagged);
+    }
+
+    #[test]
+    fn perspective_references_are_checked() {
+        let cases = [
+            (
+                with_teams(r#""perspective": "owner", "#),
+                "unknown_perspective",
+                "/architecture/perspective",
+            ),
+            (
+                with_teams("").replace(r#"["db"]"#, r#"["database"]"#),
+                "unknown_node",
+                "/architecture/perspectives/0/categories/2/components/0",
+            ),
+            (
+                with_teams("").replace(r#"["db"]"#, r#"["db", "api"]"#),
+                "duplicate_member",
+                "/architecture/perspectives/0/categories/2/components/1",
+            ),
+            (
+                with_teams("").replace(r#""label": "Data""#, r#""label": "Backend""#),
+                "duplicate_category",
+                "/architecture/perspectives/0/categories/2/label",
+            ),
+            (
+                SPEC.replace(
+                    r#""mainPath""#,
+                    r#""perspectives": [{"key": "team", "title": "Team", "categories": []}], "mainPath""#,
+                ),
+                "invalid_categories",
+                "/architecture/perspectives/0/categories",
+            ),
+        ];
+        for (json, code, path) in cases {
+            assert_eq!(error(&json), (code, path.to_owned()));
+        }
     }
 }

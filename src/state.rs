@@ -84,6 +84,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             parts: Vec::new(),
             symbol: None,
             role: None,
+            category: None,
         });
         edges.push(Edge {
             from: 0,
@@ -126,6 +127,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             parts: Vec::new(),
             symbol: None,
             role: None,
+            category: None,
         });
     }
     for (index, transition) in machine.transitions.iter().enumerate() {
