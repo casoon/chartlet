@@ -325,6 +325,9 @@ pub(crate) enum Shape {
     Node,
     /// Something that is deployed: a box with a folded corner.
     Artifact,
+    /// A note that explains another node: a pale box with a folded corner and its text set left,
+    /// joined to that node by a dotted line without marks.
+    Note,
 }
 
 impl From<NodeKind> for Shape {
@@ -404,6 +407,40 @@ impl Diagram {
         }
         chain.reverse();
         chain
+    }
+
+    /// Adds a note with `text` on node `target`: a node of its own in the target's lane and group,
+    /// and a dotted line from the target to it. The line is no edge of the model; adapters keep
+    /// both out of their descriptions, tables and structure.
+    pub(crate) fn push_note(&mut self, target: usize, text: &str, path: String) {
+        let note = self.nodes.len();
+        self.edges.push(Edge {
+            from: target,
+            to: note,
+            label: None,
+            technology: None,
+            dash: Some(Dash::Dotted),
+            main: false,
+            label_path: format!("{path}/text"),
+            ends: Ends {
+                tail: End::None,
+                head: End::None,
+                tail_text: None,
+                head_text: None,
+            },
+            weight: None,
+        });
+        self.nodes.push(Node {
+            label: text.to_owned(),
+            sublabel: None,
+            shape: Shape::Note,
+            lane: self.nodes[target].lane,
+            group: self.nodes[target].group,
+            path,
+            compartments: Vec::new(),
+            value: None,
+            parts: Vec::new(),
+        });
     }
 
     /// Whether node `node` lies in group `group`, directly or in a group inside it.
@@ -525,6 +562,26 @@ fn node_boxes(
             sizes.push((INITIAL, INITIAL));
             continue;
         }
+        if node.shape == Shape::Note {
+            let path = format!("{}/text", node.path);
+            let lines = note_lines(
+                &node.label,
+                spacing.max_node - 2.0 * PAD,
+                metrics,
+                warnings,
+                &path,
+            );
+            let text = lines
+                .iter()
+                .map(|line| metrics.width(line, NOTE_SIZE))
+                .fold(0.0, f64::max);
+            let width = (text + 2.0 * PAD).max(spacing.min_node / 2.0);
+            let height = 2.0 * NOTE_PAD + MEMBER_LINE * count(lines.len());
+            labels.push(lines);
+            sublabels.push(Vec::new());
+            sizes.push((width, height));
+            continue;
+        }
         let (extra_width, extra_height) = match node.shape {
             Shape::Decision => (48.0, 24.0),
             Shape::Io => (20.0, 0.0),
@@ -595,6 +652,46 @@ fn node_boxes(
         sizes.push((width, height));
     }
     (labels, sublabels, sizes)
+}
+
+/// The text of a note, its padding above and below, and the most lines it takes before the rest
+/// is shortened.
+const NOTE_SIZE: f64 = 12.0;
+const NOTE_PAD: f64 = 8.0;
+const MAX_NOTE_LINES: usize = 10;
+
+/// The text of a note on as many lines of at most `room` as it needs, word by word; past
+/// [`MAX_NOTE_LINES`] the last line is shortened, as is a word wider than a line, with a warning.
+fn note_lines(
+    text: &str,
+    room: f64,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+    path: &str,
+) -> Vec<String> {
+    let mut lines: Vec<String> = Vec::new();
+    let mut line = String::new();
+    for word in text.split_whitespace() {
+        let longer = if line.is_empty() {
+            word.to_owned()
+        } else {
+            format!("{line} {word}")
+        };
+        if line.is_empty() || metrics.width(&longer, NOTE_SIZE) <= room {
+            line = longer;
+        } else {
+            lines.push(std::mem::replace(&mut line, word.to_owned()));
+        }
+    }
+    lines.push(line);
+    if lines.len() > MAX_NOTE_LINES {
+        let rest = lines.split_off(MAX_NOTE_LINES - 1).join(" ");
+        lines.push(rest);
+    }
+    lines
+        .iter()
+        .map(|line| crate::layout::fit_text(line, room, NOTE_SIZE, metrics, warnings, path))
+        .collect()
 }
 
 /// Where an edge ends: its tip and the direction the line runs into it.
@@ -2456,15 +2553,13 @@ impl Plan {
             (None, None) => None,
         };
         let (from_label, to_label) = (&diagram.nodes[from].label, &diagram.nodes[to].label);
+        // The line to a note only points at it; the note carries its own text.
         let tooltip = match note {
-            Some(note) => format!("{from_label} → {to_label}: {note}"),
-            None => format!("{from_label} → {to_label}"),
+            _ if diagram.nodes[to].shape == Shape::Note => None,
+            Some(note) => Some(format!("{from_label} → {to_label}: {note}")),
+            None => Some(format!("{from_label} → {to_label}")),
         };
-        elements.push(Element::Polyline(diagram::polyline(
-            points,
-            class,
-            Some(tooltip),
-        )));
+        elements.push(Element::Polyline(diagram::polyline(points, class, tooltip)));
         let head_class = if main {
             "chartlet-flow-head chartlet-flow-main-head"
         } else {
@@ -2694,6 +2789,18 @@ impl Plan {
             Self::class_text(model, node, (x, y, width), elements);
             return;
         }
+        if spec.shape == Shape::Note {
+            for (index, line) in model.labels[node].iter().enumerate() {
+                elements.push(Element::Text(Text {
+                    x: x + PAD,
+                    y: y + NOTE_PAD + 11.0 + MEMBER_LINE * count(index),
+                    class: "chartlet-diagram-chip-text",
+                    anchor: TextAnchor::Start,
+                    content: line.clone(),
+                }));
+            }
+            return;
+        }
         Self::node_text(model, node, (x, y, width, height), elements);
         if !spec.parts.is_empty() {
             let names = parts::names(model.diagram.nodes.iter().map(|node| node.parts.as_slice()));
@@ -2919,6 +3026,30 @@ pub(crate) fn shape(
         ),
         Shape::State | Shape::Final | Shape::Initial => {
             state_shape(kind, (x, y, width, height), tooltip, elements);
+        }
+        Shape::Note => {
+            // A sheet without a shadow, its top right corner folded over.
+            elements.push(shape(
+                vec![
+                    (x, y),
+                    (x + width - 10.0, y),
+                    (x + width, y + 10.0),
+                    (x + width, y + height),
+                    (x, y + height),
+                    (x, y),
+                ],
+                "chartlet-flow-node chartlet-role-amber",
+                tooltip,
+            ));
+            elements.push(shape(
+                vec![
+                    (x + width - 10.0, y),
+                    (x + width - 10.0, y + 10.0),
+                    (x + width, y + 10.0),
+                ],
+                "chartlet-flow-node chartlet-role-amber",
+                None,
+            ));
         }
         Shape::Person
         | Shape::Frontend

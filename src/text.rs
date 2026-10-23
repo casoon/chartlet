@@ -81,6 +81,8 @@ pub(crate) struct Words {
     pub connects_to: &'static str,
     /// The package column of a class diagram's table.
     pub package: &'static str,
+    /// The notes column of a class or architecture diagram's table.
+    pub notes: &'static str,
     /// The columns of a tree's table.
     pub node: &'static str,
     pub level: &'static str,
@@ -250,6 +252,7 @@ const EN: Words = Words {
     boundary: "Boundary",
     connects_to: "Connects to",
     package: "Package",
+    notes: "Notes",
     focus: "Focus",
     show_all: "Show all",
     ring: "Ring",
@@ -371,6 +374,7 @@ const DE: Words = Words {
     boundary: "Grenze",
     connects_to: "Verbunden mit",
     package: "Paket",
+    notes: "Notizen",
     focus: "Fokus",
     show_all: "Alle zeigen",
     ring: "Ring",
@@ -2025,6 +2029,27 @@ pub(crate) fn class_sentence(
         write!(sentence, "{label} {joined}.").expect("writing to String cannot fail");
     }
     sentence
+}
+
+/// The notes of a class or architecture diagram, one sentence each with the element it explains:
+/// `Note on Order: only for existing customers.`
+pub(crate) fn notes(locale: Locale, notes: &[(&str, &str)]) -> String {
+    let sentences: Vec<String> = notes
+        .iter()
+        .map(|(on, text)| {
+            let text = text.trim();
+            let stop = if text.ends_with(['.', '!', '?']) {
+                ""
+            } else {
+                "."
+            };
+            match locale {
+                Locale::En => format!("Note on {on}: {text}{stop}"),
+                Locale::De => format!("Notiz zu {on}: {text}{stop}"),
+            }
+        })
+        .collect();
+    sentences.join(" ")
 }
 
 /// The kind of a class as the table writes it.

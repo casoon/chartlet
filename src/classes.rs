@@ -3,8 +3,9 @@
 //! by the layered layout of flow charts. A relation that makes one class the parent of another
 //! (inheritance, realization) is laid out from the parent, so that the parent stands first.
 //! Packages frame the classes that name them, nested like the boundaries of an architecture.
-//! The description and the data table give every class with its package, its members and its
-//! relations.
+//! Notes stand beside the classes they explain, joined by a dotted line that is no relation.
+//! The description and the data table give every class with its package, its members, its
+//! relations and its notes.
 
 use std::fmt::Write as _;
 
@@ -71,6 +72,17 @@ fn ends(relation: &RelationSpec) -> Ends {
 }
 
 fn diagram(spec: &ChartSpec) -> Diagram {
+    let classes = classes(spec);
+    let mut diagram = model_diagram(spec);
+    for (index, note) in classes.notes.iter().enumerate() {
+        let target = classes.class(&note.on).expect("validated");
+        diagram.push_note(target, &note.text, format!("/classes/notes/{index}"));
+    }
+    diagram
+}
+
+/// The diagram of the classes and their relations, without notes.
+fn model_diagram(spec: &ChartSpec) -> Diagram {
     let classes = classes(spec);
     let package = |id: &Option<String>| {
         id.as_deref()
@@ -240,6 +252,18 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         )
         .expect("writing to String cannot fail");
     }
+    let notes: Vec<(&str, &str)> = classes
+        .notes
+        .iter()
+        .map(|note| {
+            let target = classes.class(&note.on).expect("validated");
+            (classes.classes[target].label.as_str(), note.text.as_str())
+        })
+        .collect();
+    if !notes.is_empty() {
+        description.push(' ');
+        description.push_str(&text::notes(spec.locale, &notes));
+    }
     description
 }
 
@@ -249,6 +273,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let classes = classes(spec);
     let words = spec.locale.words();
     let packaged = !classes.packages.is_empty();
+    let with_notes = !classes.notes.is_empty();
     let rows = classes
         .classes
         .iter()
@@ -272,6 +297,15 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 class.methods.join("; "),
                 relations.join("; "),
             ]);
+            if with_notes {
+                let notes: Vec<&str> = classes
+                    .notes
+                    .iter()
+                    .filter(|note| note.on == class.id)
+                    .map(|note| note.text.as_str())
+                    .collect();
+                row.push(notes.join("; "));
+            }
             row
         })
         .collect();
@@ -284,6 +318,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         words.methods.to_owned(),
         words.relations.to_owned(),
     ]);
+    if with_notes {
+        columns.push(words.notes.to_owned());
+    }
     DataTable {
         caption: format!("{} {}", words.data_for, spec.title),
         columns,

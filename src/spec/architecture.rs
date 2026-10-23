@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, MainPath, sequence::is_identifier, validate_text,
+    ChartSpec, Dash, DiagramOrientation, MainPath, NoteSpec, flow::validate_notes,
+    sequence::is_identifier, validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -26,6 +27,9 @@ pub struct ArchitectureSpec {
     /// drawn stronger.
     #[serde(default, skip_serializing_if = "MainPath::is_empty")]
     pub main_path: MainPath,
+    /// Notes beside components, such as an assumption or a limitation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<NoteSpec>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
 }
@@ -185,6 +189,12 @@ impl ChartSpec {
         architecture.validate_boundaries()?;
         architecture.validate_components()?;
         architecture.validate_connections()?;
+        validate_notes(
+            &architecture.notes,
+            "architecture",
+            |id| architecture.component(id).is_some(),
+            "component",
+        )?;
         Ok(Vec::new())
     }
 }

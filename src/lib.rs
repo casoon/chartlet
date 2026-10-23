@@ -56,17 +56,17 @@ pub use spec::{
     DataPoint, DiagramOrientation, DistancesSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec,
     FragmentKind, FragmentSpec, Gaps, GroupSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage,
     MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
-    NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, OhlcPoint, Orientation,
-    PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec,
-    RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec,
-    SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
-    ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack,
-    StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke,
-    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
-    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TopicLinkSpec,
-    TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale, WafflePartSpec,
-    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec, OhlcPoint,
+    Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
+    PartySpec, RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec,
+    SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec,
+    ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec,
+    SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec,
+    Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
+    TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
+    TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec,
+    TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViolinScale,
+    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -5363,6 +5363,108 @@ mod tests {
             (error.code, error.path.as_str()),
             ("packages_too_deep", "/classes/packages/4/in")
         );
+    }
+
+    /// [`CLASSES`] with a note on Dog, inside the package of Dog when `packaged`.
+    fn noted_classes(packaged: bool) -> String {
+        let spec = if packaged {
+            packaged_classes()
+        } else {
+            CLASSES.to_owned()
+        };
+        spec.replace(
+            r#""relations": ["#,
+            r#""notes": [{"on": "dog", "text": "Only dogs that live in the household"}], "relations": ["#,
+        )
+    }
+
+    #[test]
+    fn a_note_stands_beside_its_class_and_is_no_relation() {
+        for packaged in [false, true] {
+            let output = render_ok(&noted_classes(packaged));
+            assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+            let svg = &output.content;
+            assert!(svg.contains("<title>Only dogs that live in the household</title>"));
+            assert!(svg.contains(">Only dogs that live in the household<"));
+            assert_eq!(
+                svg.matches("chartlet-flow-edge chartlet-flow-dotted")
+                    .count(),
+                1
+            );
+            assert!(!svg.contains("Dog → Only dogs"));
+        }
+        let plain =
+            text_alternative(&ChartSpec::from_json(CLASSES).expect("parses")).expect("valid");
+        let with_notes =
+            text_alternative(&ChartSpec::from_json(&noted_classes(false)).expect("parses"))
+                .expect("valid");
+        // The structure and every class read as before; the note follows them.
+        assert_eq!(
+            with_notes.description,
+            format!(
+                "{} Note on Dog: Only dogs that live in the household.",
+                plain.description
+            )
+        );
+        assert_eq!(
+            with_notes.table.columns.last().map(String::as_str),
+            Some("Notes")
+        );
+        assert_eq!(with_notes.table.rows.len(), 3);
+        assert_eq!(
+            with_notes.table.rows[1][5],
+            "Only dogs that live in the household"
+        );
+        assert_eq!(with_notes.table.rows[0][5], "");
+        let german = noted_classes(false).replace(
+            r#""type": "classes""#,
+            r#""type": "classes", "locale": "de""#,
+        );
+        let german =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            german
+                .description
+                .ends_with("Notiz zu Dog: Only dogs that live in the household.")
+        );
+        assert_eq!(german.table.columns[5], "Notizen");
+    }
+
+    #[test]
+    fn notes_are_validated_by_name() {
+        let spec = noted_classes(false);
+        let note = r#"{"on": "dog", "text": "Only dogs that live in the household"}"#;
+        let long = format!(r#"{{"on": "dog", "text": "{}"}}"#, "x".repeat(161));
+        let many = vec![note; 13].join(", ");
+        for (to, code, path) in [
+            (
+                r#"{"on": "cat", "text": "Only dogs"}"#.to_owned(),
+                "unknown_node",
+                "/classes/notes/0/on",
+            ),
+            (long, "text_too_long", "/classes/notes/0/text"),
+            (
+                r#"{"on": "dog", "text": " "}"#.to_owned(),
+                "empty_text",
+                "/classes/notes/0/text",
+            ),
+            (many, "too_many_notes", "/classes/notes"),
+        ] {
+            let error = render_json(
+                &spec.replace(note, &to),
+                RenderFormat::Svg,
+                &RenderOptions::default(),
+            )
+            .unwrap_err();
+            assert_eq!((error.code, error.path.as_str()), (code, path), "{to}");
+        }
+        // A long note wraps onto lines of its own instead of being shortened.
+        let long = spec.replace(
+            "Only dogs that live in the household",
+            "Only dogs that live in the household and have been registered with the town for at least a year",
+        );
+        let output = render_ok(&long);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
     }
 
     const SANKEY: &str = r#"{"schemaVersion": 1, "type": "sankey", "title": "Flow", "width": 640, "height": 400,

@@ -1041,6 +1041,7 @@
             }
           }
         },
+        "notes": { "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
       }
     },
@@ -1460,7 +1461,22 @@
           "description": "The usual way a request takes, as component ids joined by connections, or as {from, to}: the shortest way along the connections between two components (at a tie the first in the order of the connections). Kept in line and drawn stronger.",
           "$ref": "#/$defs/mainPath"
         },
+        "notes": { "$ref": "#/$defs/notes" },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" }
+      }
+    },
+    "notes": {
+      "description": "Notes on elements, such as an assumption or a limitation: a box beside the element named by on, joined to it by a dotted line that only says the note explains it. The line is no relation or connection; the text wraps onto as many lines as it needs. At most 12 notes.",
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["on", "text"],
+        "properties": {
+          "on": { "$ref": "#/$defs/identifier" },
+          "text": { "type": "string", "minLength": 1, "maxLength": 160 }
+        }
       }
     },
     "mainPath": {

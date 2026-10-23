@@ -2,7 +2,10 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
-use super::{ChartSpec, Dash, DiagramOrientation, sequence::is_identifier, validate_text};
+use super::{
+    ChartSpec, Dash, DiagramOrientation, NoteSpec, flow::validate_notes, sequence::is_identifier,
+    validate_text,
+};
 use crate::error::{ChartError, ChartWarning};
 
 /// Classes and relations of one diagram; beyond this a layered layout stops being readable.
@@ -25,6 +28,9 @@ pub struct ClassesSpec {
     /// Frames that group classes into modules, such as ordering or payment.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub packages: Vec<PackageSpec>,
+    /// Notes beside classes, such as an assumption or a limitation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<NoteSpec>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
 }
@@ -210,6 +216,12 @@ impl ChartSpec {
         classes.validate_packages()?;
         classes.validate_classes()?;
         classes.validate_relations()?;
+        validate_notes(
+            &classes.notes,
+            "classes",
+            |id| classes.class(id).is_some(),
+            "class",
+        )?;
         Ok(Vec::new())
     }
 }
