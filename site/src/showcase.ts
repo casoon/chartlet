@@ -753,23 +753,13 @@ const catalogue = [
   },
 ];
 
-/**
- * The theme prints an example's description as plain text, on the page and in its meta
- * description, so `code` spans in a blurb lose their backticks rather than showing them.
- */
-function plain(text: string): string {
-  return text.replace(/`([^`]*)`/g, '$1');
-}
-
 export const examples: ShowcaseExample[] = catalogue.map(({ slug, view, chart, useCase, blurb }) => {
   const source = spec(slug);
   const { html, warnings } = render(source, `showcase-${slug}`, 'html', view);
   return {
     slug,
     title: String(source.title),
-    description: plain(
-      warnings.length > 0 ? `${blurb} Build-time warnings: ${warnings.join(' · ')}` : blurb,
-    ),
+    description: warnings.length > 0 ? `${blurb} Build-time warnings: ${warnings.join(' · ')}` : blurb,
     file: `examples/${slug}.json`,
     tags: [chart, useCase],
     input: { code: JSON.stringify(source, null, 2), lang: 'json' },
