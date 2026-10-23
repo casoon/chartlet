@@ -14,12 +14,13 @@ use crate::{
     DataTable,
     error::ChartWarning,
     flow::{
-        Diagram, Edge, End, Ends, Group, Node, Shape, layout_diagram,
+        Diagram, Edge, End, Ends, Group, MARGIN, Node, Shape, layout_diagram,
         notes::{self, Target},
     },
     metrics::TextMetrics,
+    roles,
     scene::Scene,
-    spec::{ChartSpec, ClassesSpec, ConnectionDirection, RelationKind, RelationSpec},
+    spec::{ChartSpec, ClassesSpec, ConnectionDirection, DiagramRole, RelationKind, RelationSpec},
     structure::{Facts, Structure},
     text,
 };
@@ -29,9 +30,26 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
+    let classes = classes(spec);
     let mut scene = layout_diagram(spec, &diagram(spec), warnings, metrics);
-    let notes = &classes(spec).notes;
-    notes::push_band(&mut scene, spec, (notes, "classes"), metrics, warnings);
+    notes::push_band(
+        &mut scene,
+        spec,
+        (&classes.notes, "classes"),
+        metrics,
+        warnings,
+    );
+    let used = roles::used(
+        classes.classes.iter().map(|class| class.role),
+        classes.relations.iter().map(|relation| relation.role),
+    );
+    roles::push_legend(
+        &mut scene,
+        spec.locale,
+        &used,
+        (MARGIN, roles::push_badge),
+        metrics,
+    );
     scene
 }
 
@@ -117,7 +135,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             value: None,
             parts: Vec::new(),
             symbol: None,
-            role: None,
+            role: class.role,
             category: None,
         })
         .collect();
@@ -138,6 +156,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             Edge {
                 from,
                 to,
+                id: None,
                 label: relation.label.clone(),
                 technology: None,
                 dash: relation.kind.dash(),
@@ -146,7 +165,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
                 ends: ends(relation),
                 sign: relation.direction.map_or("→", ConnectionDirection::sign),
                 weight: None,
-                role: None,
+                role: relation.role,
             }
         })
         .collect();
@@ -160,6 +179,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             .enumerate()
             .map(|(index, group)| Group {
                 label: group.label.clone(),
+                id: Some(group.id.clone()),
                 path: format!("/classes/packages/{index}"),
                 parent: package(&group.parent),
             })
@@ -282,7 +302,34 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     description.push_str(&notes::sentences(spec.locale, &classes.notes, |id| {
         label(classes, id)
     }));
+    if let Some(sentence) = roles::sentence(spec.locale, &with_roles(classes)) {
+        description.push(' ');
+        description.push_str(&sentence);
+    }
     description
+}
+
+/// Every class with a role, in the order of the specification, then every relation with one, as
+/// `From → To`.
+fn with_roles(classes: &ClassesSpec) -> Vec<(DiagramRole, String)> {
+    let label = |id: &str| {
+        classes.classes[classes.class(id).expect("validated")]
+            .label
+            .as_str()
+    };
+    classes
+        .classes
+        .iter()
+        .filter_map(|class| class.role.map(|role| (role, class.label.clone())))
+        .chain(classes.relations.iter().filter_map(|relation| {
+            relation.role.map(|role| {
+                (
+                    role,
+                    format!("{} → {}", label(&relation.from), label(&relation.to)),
+                )
+            })
+        }))
+        .collect()
 }
 
 /// One row per class: its kind, its packages when there are any, attributes, methods and the
@@ -296,6 +343,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             .as_deref()
             .is_some_and(|on| classes.class(on).is_some())
     });
+    let with_roles = classes.classes.iter().any(|class| class.role.is_some());
     let rows = classes
         .classes
         .iter()
@@ -305,7 +353,13 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                 .relations
                 .iter()
                 .filter(|relation| relation.from == class.id)
-                .map(|relation| relation_sentence(spec, relation, true))
+                .map(|relation| {
+                    let sentence = relation_sentence(spec, relation, true);
+                    match relation.role {
+                        Some(role) => format!("{sentence} ({})", text::role(spec.locale, role)),
+                        None => sentence,
+                    }
+                })
                 .collect();
             let mut row = vec![
                 class.label.clone(),
@@ -313,6 +367,13 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             ];
             if packaged {
                 row.push(package_path(classes, index));
+            }
+            if with_roles {
+                row.push(
+                    class
+                        .role
+                        .map_or_else(String::new, |role| text::role(spec.locale, role).to_owned()),
+                );
             }
             row.extend([
                 class.attributes.join("; "),
@@ -328,6 +389,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let mut columns = vec![words.item.to_owned(), words.message_kind.to_owned()];
     if packaged {
         columns.push(words.package.to_owned());
+    }
+    if with_roles {
+        columns.push(words.role.to_owned());
     }
     columns.extend([
         words.attributes.to_owned(),
@@ -464,5 +528,66 @@ mod tests {
                 "/classes/relations/0/direction".to_owned()
             ))
         );
+    }
+
+    #[test]
+    fn classes_and_relations_take_roles_and_keep_their_marks() {
+        let json = SPEC
+            .replace(
+                r#"{"id": "order", "label": "Order"}"#,
+                r#"{"id": "order", "label": "Order", "role": "critical"},
+                {"id": "invoice", "label": "Invoice", "role": "deprecated"}"#,
+            )
+            .replace(
+                r#""toCardinality": "0..*"}"#,
+                r#""toCardinality": "0..*", "role": "planned"},
+                {"from": "invoice", "to": "order", "kind": "realization", "role": "critical"}"#,
+            );
+        let content = svg(&json).expect("renders");
+        assert!(content.contains("chartlet-flow-role-planned"));
+        // A hollow triangle stays hollow under a role.
+        assert!(content.contains(".chartlet-flow-role-critical .chartlet-flow-hollow"));
+        assert!(content.contains(">Critical</text>"));
+        assert!(content.contains(">Planned</text>"));
+        assert!(content.contains(">Deprecated</text>"));
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
+        assert!(
+            alternative.description.ends_with(
+                "Roles: critical: Order, Invoice → Order; planned: Customer → Order; deprecated: Invoice."
+            ),
+            "{}",
+            alternative.description
+        );
+        assert_eq!(alternative.table.columns[2], "Role");
+        assert_eq!(alternative.table.rows[1][2], "critical");
+        assert!(
+            alternative.table.rows[0][5].ends_with("(planned)"),
+            "{:?}",
+            alternative.table.rows[0]
+        );
+        let german = json.replace(
+            r#""schemaVersion": 1,"#,
+            r#""schemaVersion": 1, "locale": "de","#,
+        );
+        let alternative =
+            text_alternative(&ChartSpec::from_json(&german).expect("parses")).expect("valid");
+        assert!(
+            alternative.description.contains("Rollen: kritisch: Order"),
+            "{}",
+            alternative.description
+        );
+        // The dashed line of a realization or a dependency is its kind: no pattern of a role
+        // over it.
+        for kind in ["realization", "dependency"] {
+            let conflict = json.replace(
+                r#""kind": "realization", "role": "critical""#,
+                &format!(r#""kind": "{kind}", "role": "planned""#),
+            );
+            assert_eq!(
+                svg(&conflict),
+                Err(("role_conflict", "/classes/relations/1/role".to_owned()))
+            );
+        }
     }
 }

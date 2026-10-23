@@ -3,8 +3,8 @@ use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, ConnectionDirection, Dash, DiagramOrientation, NoteSpec, flow::validate_notes,
-    sequence::is_identifier, validate_text,
+    ChartSpec, ConnectionDirection, Dash, DiagramOrientation, DiagramRole, NoteSpec,
+    flow::validate_notes, sequence::is_identifier, validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -63,6 +63,8 @@ pub struct ClassSpec {
     /// The `id` of the package the class lies in.
     #[serde(default, rename = "in", skip_serializing_if = "Option::is_none")]
     pub package: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// What a class is: it decides the stereotype written above its name.
@@ -114,6 +116,10 @@ pub struct RelationSpec {
     /// without it, not said (`none`). The other kinds have fixed ends and take none.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub direction: Option<ConnectionDirection>,
+    /// `planned` and `deprecated` draw the line in a pattern of their own, which would hide the
+    /// dashed line of a realization or a dependency; those kinds take only `critical`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<DiagramRole>,
 }
 
 /// How two classes are related; each kind has its own marks at the line's ends.
@@ -392,6 +398,16 @@ impl ClassesSpec {
                 if let Some(cardinality) = cardinality {
                     validate_text(cardinality, &format!("{path}/{name}"), 12)?;
                 }
+            }
+            if let Some(role) = relation.role
+                && role.has_pattern()
+                && relation.kind.dash().is_some()
+            {
+                return Err(ChartError::new(
+                    "role_conflict",
+                    format!("{path}/role"),
+                    "a realization or a dependency is dashed by its kind, and a planned or deprecated role would draw over that pattern; use critical or no role",
+                ));
             }
         }
         Ok(())

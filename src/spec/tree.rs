@@ -123,6 +123,8 @@ pub struct TreeNodeSpec {
     /// The parts of what the node holds, drawn as a stripe inside the bottom of its box.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub parts: Vec<super::PartSpec>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub role: Option<super::DiagramRole>,
 }
 
 /// What a node is.

@@ -1232,7 +1232,10 @@ fn focusable_participant(
     elements: &mut Vec<Element>,
 ) {
     let participant = &model.sequence.participants[header.index];
-    elements.push(Element::Group(model.participant_classes(header.index)));
+    elements.push(Element::NodeGroup(
+        model.participant_classes(header.index),
+        participant.id.clone(),
+    ));
     draw_participant(header, participant, metrics, warnings, elements);
     elements.push(Element::GroupEnd);
     elements.push(Element::Hotspot(Hotspot {
