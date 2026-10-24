@@ -14,7 +14,6 @@ export default defineConfig({
       tagline: 'Accessible SVG charts at build time',
       website: 'https://chartlet.casoon.de',
       repo: 'casoon/chartlet',
-      version: '0.21.0',
       license: 'MIT',
       demo: 'Customize',
       packages: [
