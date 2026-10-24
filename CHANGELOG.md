@@ -7,6 +7,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-24
+
 ### Added
 
 - **Architecture diagrams:** `views` show one model as several diagrams: a view has a `key`, a
