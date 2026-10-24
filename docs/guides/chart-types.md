@@ -194,7 +194,7 @@ extreme values within reach and a point for every value beyond.
 ```
 
 - **From observations or from five numbers.** With `values` (5 to 1000 of them), chartlet computes
-  the quartiles by linear interpolation, the way R and NumPy do, draws the whiskers to the last
+  the quartiles by linear interpolation between the two nearest observations, draws the whiskers to the last
   value within 1.5 times the box and every value beyond as a point. With `min`, `q1`, `median`,
   `q3` and `max` it draws a box that was computed elsewhere, and `outliers` adds the points. Giving
   both, or only some of the five numbers, or numbers out of order, is an error by name.
@@ -1321,7 +1321,7 @@ a deployment view as adding nothing. Example `api-environments` (components, and
 ### Context, containers and deployment
 
 Three starters (MCP: `chartlet_diagram_starter` with `type: "architecture"` and `template`)
-describe one system, a course booking service, at three levels of abstraction in the C4 sense.
+describe one system, a course booking service, at three levels of abstraction.
 Each answers one question and stays at its level; all use the ordinary `architecture` fields,
 render without `symbol` and carry their meaning in labels, sublabels and the data table.
 
@@ -1340,13 +1340,13 @@ The terms map onto chartlet like this, and must not be read as one another:
   it is shipped as an image is a deployment fact.
 - **Component** — a part inside one container, such as a module of the API. chartlet's
   `components` array holds whatever the diagram shows at its level, so a component in the
-  specification is a C4 component only in a diagram of one container's inside; no starter
-  covers that level.
+  specification is a component in this sense only in a diagram of one container's inside; no
+  starter covers that level.
 - **Deployment node** — where something runs: a region, a cluster, a node pool. The starter
   lists them as `hosts` of its production view and places `instances` of the model's components
   on them, one per replica; `kind: "node"` draws a single machine as a component instead.
 
-Where the starters stop short of a full C4 model:
+Where the starters stop short of a complete architecture model:
 
 - Each starter is a separate specification. An element that appears at two levels — the course
   booking system as a box and as a boundary — is written twice, and nothing checks that the two

@@ -78,7 +78,7 @@ For Claude Desktop and project configuration, see the
   `template` picks a starter at one level of abstraction — `context`, `containers` or
   `deployment` — and the result adds the `question` it answers and its `level`; see
   [Context, containers and deployment](../../guides/chart-types/#context-containers-and-deployment)
-  for what each level shows and where it stops short of a full C4 model.
+  for what each level shows and where it stops short of a complete architecture model.
 - `chartlet_chart_starter` returns a valid starting specification and notes for the charts that
   are drawn from a block of their own: `waterfall`, `waffle`, `parliament`, `treemap`, `sankey`,
   `survival`, `scatter`, `timeline`, `forest` (a range bar chart), `violin` (a box plot) and the

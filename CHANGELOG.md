@@ -143,7 +143,7 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   `containers` or `deployment` — each a valid specification with the question it answers. Examples
   `booking-context`, `booking-containers`, `booking-deployment`.
 - **Docs:** the architecture guide maps system, container, component and deployment node onto
-  chartlet and says where the starters stop short of a full C4 model. Details:
+  chartlet and says where the starters stop short of a complete architecture model. Details:
   [Context, containers and deployment](https://casoon.github.io/chartlet/docs/guides/chart-types/#context-containers-and-deployment).
 
 ### Changed

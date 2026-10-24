@@ -100,7 +100,7 @@ pub(crate) struct BoxSummary {
 }
 
 /// The value `quarters` quarters into the sorted observations, by linear interpolation between
-/// the two nearest ones (the default of R and `NumPy`).
+/// the two nearest ones.
 fn quantile(sorted: &[f64], quarters: usize) -> f64 {
     let steps = quarters * (sorted.len() - 1);
     let (index, rest) = (steps / 4, steps % 4);
@@ -359,7 +359,7 @@ mod tests {
     use super::{BoxSpec, quantile};
 
     #[test]
-    fn quartiles_interpolate_like_r_and_numpy() {
+    fn quartiles_interpolate_linearly() {
         let sorted = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         assert!((quantile(&sorted, 2) - 3.5).abs() < 1e-12);
         assert!((quantile(&sorted, 1) - 2.25).abs() < 1e-12);
