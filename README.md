@@ -239,7 +239,7 @@ used for editor validation. Every field, per chart type, and every limit is list
 ```sh
 chartlet render <spec.json | -> [options]
 chartlet inspect <spec.json | -> [--format text|json] [--strict]
-chartlet stylesheet [--types bar,time,...]
+chartlet stylesheet [--types bar,time,...] [--no-common | --common]
 ```
 
 | Option of `render` | Effect |
@@ -252,7 +252,7 @@ chartlet stylesheet [--types bar,time,...]
 | `--id-prefix <prefix>` | Stable IDs, for the same chart twice on one page. |
 | `--hooks`, `--styles external` | `data-*` hooks for scripts and tests; a chart without its shared stylesheet, which `chartlet stylesheet` prints once per page. |
 | `--manifest <path>` | A provenance manifest: version, hashes of specification and output, warnings; no timestamp. |
-| `--strict`, `--diagnostics json` | Fail on any warning; errors and warnings as one JSON document. |
+| `--strict`, `--allow-warning <code>`, `--diagnostics json` | Fail on any warning except the codes allowed; errors and warnings as one JSON document. |
 | `--watch`, `--preview [--port <port>]` | Render again on every change of the file; also serve the latest chart with its warnings on a local page that reloads. |
 
 `chartlet inspect` checks an architecture model, a flow chart or a class diagram for gaps in its

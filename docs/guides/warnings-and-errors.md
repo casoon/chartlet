@@ -13,6 +13,13 @@ the whole document) and a way to fix it:
 chartlet: series_length_mismatch at /series/0/values: expected 2 values, one per category; use null for a missing value
 ```
 
+`invalid_json` at `/`: the specification is not JSON, or not an object. `invalid_spec`: a field has
+the wrong type or an unknown name; the path points at it. `invalid_id_prefix` at `/render/idPrefix`:
+an ID prefix that is not 1–64 ASCII letters, digits, hyphens or underscores starting with a letter.
+`png_failed` at `/render/format`: the PNG could not be read from the SVG or encoded, with the
+cause in the message. `serialization_failed`: the specification could not be written in its
+canonical form for the generated IDs.
+
 ## Warnings
 
 Warnings are written to standard error, and the chart is still produced:

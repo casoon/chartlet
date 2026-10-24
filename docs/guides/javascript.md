@@ -17,8 +17,8 @@ import { renderChart } from '@casoon/chartlet';
 const { content, warnings } = renderChart(spec, { format: 'svg', idPrefix: 'revenue' });
 ```
 
-The options are those of the CLI: `format`, `table`, `idPrefix`, `variant` (`desktop`, `mobile`
-or `print`), `view` (the key of a view of an architecture model), `perspective` (the key of a perspective
+The options are those of the CLI: `format`, `table`, `idPrefix`, `variant` (`desktop`, `mobile`,
+`print` or `social`), `view` (the key of a view of an architecture model), `perspective` (the key of a perspective
 to show in place of the one the model or the view selects), `theme` (a bundled theme by its name, or a theme
 file as an object; see [Customize the look](../customize/)), `strict`, `allowWarnings`,
 `manifest` and `hooks`. When

@@ -25,7 +25,7 @@ chartlet render <spec.json | -> [options]
 | `--all-views` | Renders every view of an architecture model on one HTML page: the model's title, a navigation of links to the views and each view as a section with its own figure, description and data table, the default view first. HTML and the desktop variant only, not together with `--view`; otherwise, and for a specification without views, `option_not_supported` at `/render/allViews`. One SVG per view stays the way to get the views as SVG. See [All views on one page](../../guides/chart-types/#all-views-on-one-page). |
 | `--perspective <key>` | Shows this perspective of an architecture diagram in place of the one the model or the view selects, in every view, variant and format; `unknown_perspective` at `/render/perspective` for a key no perspective has. See [Perspectives](../../guides/chart-types/#perspectives). |
 | `--theme <name\|file>` | Applies a bundled theme (`light`, `dark`, `blueprint`) or a theme file to the specification: its `theme` where the specification names none, its `tokens` where the specification sets none of the same name. `invalid_theme` for a file with other fields. See [Customize the look](../../guides/customize/). |
-| `-o <path>` | Writes to a file instead of standard output. |
+| `-o <path>`, `--output <path>` | Writes to a file instead of standard output. |
 | `--manifest <path>` | Also writes a provenance manifest of the render as JSON to `<path>`, see [Provenance](../../guides/warnings-and-errors/#provenance). |
 | `--strict` | Fails on any warning. Useful in CI. |
 | `--allow-warning <code>` | With `--strict`, lets warnings with this code through; they are still reported. Repeatable, for example `--allow-warning dense_chart`. |

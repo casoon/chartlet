@@ -33,6 +33,10 @@ does the same to a specification, before `view`. `inspect_json` runs the [inspec
 of an architecture model, flow chart or class diagram, leaving out the codes it is given
 (`INSPECTIONS` lists them all).
 
+`ChartSpec::tokens` and `theme` restyle a chart; `apply_theme(spec_json, theme_json)` applies a theme
+file to a specification given as JSON text, and `bundled_theme("dark")` returns the text of a
+bundled one, see [Customize the look](../../guides/customize/).
+
 With the `png` feature (`cargo add chartlet --features png`), `render_png` rasterizes the print or
 the social variant, see [Social images and PNG](../../guides/social-and-png/).
 

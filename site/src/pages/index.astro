@@ -11,7 +11,7 @@ import {
   Quickstart,
 } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
-import { render, spec } from '../showcase';
+import { exampleCount, render, spec } from '../showcase';
 
 const hero = render(spec('budget-vs-actual'), 'hero', 'svg');
 const trend = render(spec('monthly-trend'), 'build-output');
@@ -59,7 +59,7 @@ import revenue from '../data/monthly-revenue.json';
   <Facts
     items={[
       { value: '0', label: 'bytes of chart JavaScript in the browser' },
-      { value: '100', label: 'examples, also the golden-file test inputs' },
+      { value: String(exampleCount), label: 'examples, also the golden-file test inputs' },
       { value: '4.5:1', label: 'minimum contrast of every series colour on white' },
       { value: '7', label: 'kinds of diagram, laid out by chartlet' },
     ]}
@@ -86,6 +86,10 @@ import revenue from '../data/monthly-revenue.json';
       {
         title: 'One specification, many outputs',
         body: 'Desktop, mobile, print and social variants and a PNG come from the same specification. In HTML, series filters, focus on a diagram node and zoom steps use native controls and CSS – no script.',
+      },
+      {
+        title: 'Your own look, one mechanism',
+        body: 'Bundled themes, tokens in the specification, one theme file for a whole folder of charts, or the CSS of the host page all set the same named colors, in print and PNG too. Colors you set are measured, and a pair with too little contrast is reported.',
       },
     ]}
   />

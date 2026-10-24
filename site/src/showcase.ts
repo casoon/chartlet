@@ -8,6 +8,9 @@ type Spec = Record<string, unknown>;
 // with @casoon/chartlet, the same renderer as the CLI and the crate.
 const specs = import.meta.glob<Spec>('../../examples/*.json', { import: 'default', eager: true });
 
+/** The number of examples, which are also the golden-file test inputs. */
+export const exampleCount = Object.keys(specs).length;
+
 export function spec(slug: string): Spec {
   const found = specs[`../../examples/${slug}.json`];
   if (!found) throw new Error(`Unknown example: ${slug}`);
