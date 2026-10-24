@@ -1,0 +1,19 @@
+{
+  "$schema": "../../schema/chartlet-theme.schema.json",
+  "theme": "light",
+  "tokens": {
+    "text": "#1f2a1f",
+    "muted": "#46564a",
+    "grid": "#d7e2d3",
+    "zero": "#6b7d6f",
+    "accent": "#0f766e",
+    "color-1": "#0f766e",
+    "color-2": "#c2410c",
+    "color-3": "#4d7c0f",
+    "color-4": "#1f2a1f",
+    "role-blue": "#0f766e",
+    "role-blue-fill": "#e6f4f1",
+    "role-amber": "#b45309",
+    "role-amber-fill": "#fff4e0"
+  }
+}

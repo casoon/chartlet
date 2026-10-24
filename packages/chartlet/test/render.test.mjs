@@ -135,3 +135,27 @@ test("carries both variants in the HTML profile", () => {
   assert.match(result.content, /id="revenue-m"/);
   assert.equal(result.content.match(/<table>/g).length, 1);
 });
+
+for (const [renderer, chartletBin] of [
+  ["WebAssembly", undefined],
+  ["the CLI", binary],
+]) {
+  test(`applies a bundled theme and a theme object through ${renderer}`, () => {
+    const dark = renderChart(spec, { binary: chartletBin, format: "svg", theme: "dark" });
+    assert.match(dark.content, /chartlet-theme-dark/);
+
+    const brand = { theme: "dark", tokens: { accent: "#ff5a5f", background: "#101010" } };
+    const themed = renderChart(spec, { binary: chartletBin, format: "svg", theme: brand });
+    assert.match(themed.content, /\{--chartlet-accent:#ff5a5f;--chartlet-background:#101010\}/);
+
+    const own = { ...spec, tokens: { accent: "#00ff00" } };
+    const kept = renderChart(own, { binary: chartletBin, format: "svg", theme: brand });
+    assert.match(kept.content, /--chartlet-accent:#00ff00/);
+    assert.doesNotMatch(kept.content, /--chartlet-accent:#ff5a5f/);
+
+    assert.throws(
+      () => renderChart(spec, { binary: chartletBin, theme: { tokens: { nope: "#fff" } } }),
+      /invalid_token/,
+    );
+  });
+}

@@ -939,3 +939,19 @@ fn render_ignores_inspections() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn a_theme_restyles_the_chart_and_a_bad_one_is_reported() {
+    let render = |theme: &str| {
+        Command::new(env!("CARGO_BIN_EXE_chartlet"))
+            .args(["render", "examples/monthly-revenue.json", "--theme", theme])
+            .output()
+            .expect("chartlet CLI should start")
+    };
+    let dark = render("dark");
+    assert!(dark.status.success());
+    assert!(String::from_utf8_lossy(&dark.stdout).contains("chartlet-theme-dark"));
+    let missing = render("no-such-theme.json");
+    assert!(!missing.status.success());
+    assert!(String::from_utf8_lossy(&missing.stderr).contains("could not read"));
+}

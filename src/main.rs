@@ -87,6 +87,8 @@ struct Job {
     output: Option<PathBuf>,
     manifest: Option<PathBuf>,
     options: RenderOptions,
+    /// A bundled theme or the path of a theme file, applied to the specification.
+    theme: Option<String>,
     /// The allowed warning codes in strict mode, `None` outside it.
     strict: Option<Vec<String>>,
 }
@@ -96,6 +98,14 @@ type Rendered = (Content, Vec<ChartWarning>, Option<chartlet::Manifest>);
 
 /// Renders the specification `input` as `job` asks.
 fn render_job(job: &Job, input: &str) -> Result<Rendered, Failure> {
+    let themed;
+    let input = match &job.theme {
+        Some(theme) => {
+            themed = chartlet::apply_theme(input, &read_theme(theme)?).map_err(spec_failure)?;
+            themed.as_str()
+        }
+        None => input,
+    };
     if job.png && job.options.all_views {
         Err("--all-views requires --format html".to_owned().into())
     } else if job.png {
@@ -152,6 +162,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut scale = None;
     let mut view = None;
     let mut perspective = None;
+    let mut theme = None;
     let mut all_views = false;
     let mut watch = false;
     let mut preview = false;
@@ -196,6 +207,11 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                         "--perspective requires the key of a perspective".to_owned()
                     })?);
             }
+            "--theme" => {
+                theme = Some(arguments.next().ok_or_else(|| {
+                    "--theme requires light, dark, blueprint or the path of a theme file".to_owned()
+                })?);
+            }
             "--all-views" => all_views = true,
             "--styles" => styles = parse_styles(arguments.next().as_deref())?,
             "--hooks" => hooks = true,
@@ -230,6 +246,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             perspective,
             all_views,
         },
+        theme,
         manifest,
         strict: strict.then_some(allowed),
     };
@@ -455,7 +472,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
+    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|theme.json>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
        chartlet inspect <spec.json|-> [--disable <code>]... [--strict] [--format text|json] [--diagnostics text|json]
        chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
 }
@@ -476,6 +493,16 @@ fn write_stdout(content: &str) -> Result<(), String> {
     match writeln!(stdout, "{content}").and_then(|()| stdout.flush()) {
         Err(error) if error.kind() == io::ErrorKind::BrokenPipe => Ok(()),
         result => result.map_err(|error| format!("could not write to stdout: {error}")),
+    }
+}
+
+/// The text of a theme file: a bundled theme by its name, otherwise the file at that path.
+fn read_theme(theme: &str) -> Result<String, String> {
+    match chartlet::bundled_theme(theme) {
+        Some(bundled) => Ok(bundled.to_owned()),
+        None => {
+            fs::read_to_string(theme).map_err(|error| format!("could not read {theme}: {error}"))
+        }
     }
 }
 

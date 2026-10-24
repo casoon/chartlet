@@ -13,6 +13,18 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   with their blocks, the area picker of the HTML figure, their example files, the stylesheet part
   and their warnings. A specification with either type is refused with `invalid_spec`.
 
+### Added
+
+- **Themes:** `tokens` in a specification set single colors of the palette by the name of the
+  `--chartlet-*` custom property without its prefix; they reach the print and social variants and
+  PNG. Details: [Customize the look](https://casoon.github.io/chartlet/docs/guides/customize/).
+- **Themes:** a theme file of your own colors is applied to any number of specifications with
+  `--theme <name|file>`, the `theme` option of `@casoon/chartlet` and `<Chart>`, the `theme` input
+  of `chartlet_render` and `chartlet::apply_theme`. `light`, `dark` and `blueprint` ship as such
+  files in `themes/`.
+- **Schema:** `chartlet-theme.schema.json` for theme files, and `tokens` in the specification schema.
+- **Site:** the Customize page shows five ways to restyle a chart, each rendered.
+
 ### Changed
 
 - **Site:** the showcase is grouped by topic with a jump list and shows one example per variant.

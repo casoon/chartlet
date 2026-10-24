@@ -357,7 +357,8 @@ with a selector more specific than the chart's own, for example
 `.report .chartlet-root { --chartlet-text: var(--color-text); }`. A dark chart defines its palette
 on `.chartlet-root.chartlet-theme-dark`, so it keeps its colors next to a light chart on the same
 page; to override it, add the theme class to your selector
-(`.report .chartlet-root.chartlet-theme-dark`).
+(`.report .chartlet-root.chartlet-theme-dark`). To set colors in the specification, or for many
+charts at once, see [Customize the look](../customize/).
 
 Every other rule in a chart's stylesheet is scoped to the chart's root ID (the `--id-prefix`), so
 several inline charts on one page never restyle each other. The custom properties above are the

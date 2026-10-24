@@ -8,6 +8,7 @@ use crate::error::ChartError;
 impl ChartSpec {
     /// The blueprint look is made for diagrams; a chart with axes and series keeps light or dark.
     pub(super) fn validate_theme(&self) -> Result<(), ChartError> {
+        crate::theme::validate(&self.tokens)?;
         let diagram = matches!(
             self.chart_type,
             ChartType::Sequence

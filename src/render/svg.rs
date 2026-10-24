@@ -93,7 +93,18 @@ pub(crate) fn svg(
         StyleMode::Print => print_stylesheet(
             &(base_style(spec, true) + &layer_style(spec)),
             (is_dark, is_blueprint),
+            &spec.tokens,
         ),
+    };
+    // The tokens of the chart come last and are addressed by ID: they beat the dark palette's
+    // doubled class, and a host page's rule is the chart's neighbor, not its override.
+    let tokens = if print || spec.tokens.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "#{id_prefix}{{{}}}",
+            crate::theme::declarations(&spec.tokens)
+        )
     };
     write!(
         output,
@@ -102,10 +113,10 @@ pub(crate) fn svg(
         escape(description),
     )
     .expect("writing to String cannot fail");
-    if !stylesheet.is_empty() {
+    if !stylesheet.is_empty() || !tokens.is_empty() {
         write!(
             output,
-            "<style>{}</style>",
+            "<style>{}{tokens}</style>",
             scope_stylesheet(&stylesheet, &format!("#{id_prefix}"), print),
         )
         .expect("writing to String cannot fail");
@@ -116,8 +127,9 @@ pub(crate) fn svg(
     emit_hatches(spec, id_prefix, &mut output);
     crate::symbols::emit_defs(scene, id_prefix, &mut output);
 
-    // A dark chart cannot know the color of the page behind it, so it paints its own surface.
-    if is_dark {
+    // A dark chart cannot know the color of the page behind it, so it paints its own surface;
+    // so does a chart that names its background.
+    if is_dark || spec.tokens.contains_key("background") {
         write!(
             output,
             "<rect class=\"chartlet-background\" x=\"0\" y=\"0\" width=\"{}\" height=\"{}\"/>",

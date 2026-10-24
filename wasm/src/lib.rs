@@ -5,7 +5,7 @@
 //! returned pointer, and hands both buffers back to `dealloc`.
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
-//! "variant", "view", "allViews", "perspective", "strict", "allowWarnings", "manifest",
+//! "variant", "view", "allViews", "perspective", "theme", "strict", "allowWarnings", "manifest",
 //! "alternative", "styles", "hooks" } }`, or
 //! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
 //! `"styles": "external"`, for every chart type when `types` is absent, or
@@ -155,6 +155,18 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
         spec => Cow::Owned(spec.to_string()),
     };
     let options = &request["options"];
+    // A theme is a bundled one by its name or a theme file as an object, applied to the spec.
+    let spec = match &options["theme"] {
+        Value::Null => spec,
+        Value::String(name) => {
+            let theme = chartlet::bundled_theme(name)
+                .ok_or_else(|| failure("theme must be light, dark, blueprint or a theme object"))?;
+            Cow::Owned(chartlet::apply_theme(&spec, theme).map_err(|error| error_json(&error))?)
+        }
+        theme => Cow::Owned(
+            chartlet::apply_theme(&spec, &theme.to_string()).map_err(|error| error_json(&error))?,
+        ),
+    };
     let format = match options["format"].as_str() {
         Some("svg") => RenderFormat::Svg,
         Some("html") | None => RenderFormat::Html,

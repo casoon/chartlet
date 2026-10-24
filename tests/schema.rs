@@ -80,3 +80,41 @@ fn invalid_specifications_are_rejected() {
         );
     }
 }
+
+#[test]
+fn tokens_and_theme_files_match_their_schemas() {
+    let validator = validator();
+    let mut spec = json!({
+        "schemaVersion": 1, "type": "bar", "title": "Revenue",
+        "data": [{ "label": "A", "value": 1 }],
+        "tokens": { "accent": "#ff5a5f", "color-2": "rgba(10, 20, 30, .5)" }
+    });
+    assert_eq!(first_error(&validator, &spec), None);
+    for tokens in [
+        json!({ "nope": "#fff" }),
+        json!({ "accent": "red" }),
+        json!({ "color-5": "#fff" }),
+    ] {
+        spec["tokens"] = tokens;
+        assert!(
+            first_error(&validator, &spec).is_some(),
+            "{} passes",
+            spec["tokens"]
+        );
+    }
+
+    let theme_schema: Value =
+        serde_json::from_str(include_str!("../schema/chartlet-theme.schema.json")).expect("JSON");
+    let theme_validator = jsonschema::draft202012::new(&theme_schema).expect("compiles");
+    for name in ["light", "dark", "blueprint"] {
+        let theme: Value = serde_json::from_str(
+            &fs::read_to_string(
+                Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("themes/{name}.json")),
+            )
+            .expect("theme file"),
+        )
+        .expect("JSON");
+        assert_eq!(first_error(&theme_validator, &theme), None, "{name}");
+    }
+    assert!(first_error(&theme_validator, &json!({ "title": "x" })).is_some());
+}

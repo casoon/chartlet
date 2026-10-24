@@ -190,6 +190,16 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
           .string()
           .optional()
           .describe("The key of a perspective of an architecture model (architecture.perspectives) to show, in place of the one the model or the view selects; the manifest names it."),
+        theme: z
+          .union([
+            z.enum(["light", "dark", "blueprint"]),
+            z.object({
+              theme: z.enum(["light", "dark", "blueprint"]).optional(),
+              tokens: z.record(z.string()).optional(),
+            }),
+          ])
+          .optional()
+          .describe("Restyles the chart without changing its data: a bundled theme by name, or a theme object {theme, tokens} whose tokens are colors named like the --chartlet-* custom properties without the prefix (accent, text, background, color-1 to color-4, role-blue, ...), as hex values. The spec's own theme and tokens win; the same object works for print, social and PNG."),
         allViews: z
           .boolean()
           .optional()

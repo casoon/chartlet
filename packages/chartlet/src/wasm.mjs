@@ -33,6 +33,7 @@ export function createRenderer(module) {
         variant: options.variant,
         view: options.view || undefined,
         perspective: options.perspective || undefined,
+        theme: options.theme || undefined,
         allViews: options.allViews ?? false,
         strict: options.strict ?? false,
         allowWarnings: options.allowWarnings ?? [],

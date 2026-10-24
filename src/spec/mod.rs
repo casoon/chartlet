@@ -25,6 +25,8 @@ mod view;
 mod waffle;
 mod waterfall;
 
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -157,6 +159,10 @@ pub struct ChartSpec {
     /// existing specification.
     #[serde(default, skip_serializing_if = "Theme::is_light")]
     pub theme: Theme,
+    /// Colors of the palette, by the name of the `--chartlet-*` custom property without its
+    /// prefix, as hex values. They win over the theme. Skipped while empty, like `theme`.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub tokens: BTreeMap<String, String>,
     /// The time axis of a `type: "time"` chart.
     #[serde(default, skip_serializing_if = "TimeAxisSpec::is_default")]
     pub time_axis: TimeAxisSpec,

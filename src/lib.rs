@@ -38,6 +38,7 @@ mod structure;
 mod survival;
 mod symbols;
 mod text;
+mod theme;
 mod time;
 mod timeline;
 mod tree;
@@ -70,6 +71,7 @@ pub use spec::{
     ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec,
     WaterfallSpec, ZoomBound, ZoomStep,
 };
+pub use theme::{apply_theme, bundled_theme};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderFormat {

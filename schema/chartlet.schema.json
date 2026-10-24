@@ -15,6 +15,7 @@
     "description": { "type": "string", "minLength": 1, "maxLength": 1000 },
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
     "theme": { "enum": ["light", "dark", "blueprint"], "default": "light" },
+    "tokens": { "$ref": "#/$defs/tokens" },
     "locale": {
       "description": "Language of the texts chartlet generates (description, legend additions, tooltips, HTML figure and table) and of the number format.",
       "enum": ["en", "de"],
@@ -743,6 +744,12 @@
     }
   ],
   "$defs": {
+    "tokens": {
+      "description": "Colors of the palette by the name of the --chartlet-* custom property without its prefix, as hex or rgb()/rgba() values. They win over the theme and apply to every variant, print and PNG included.",
+      "type": "object",
+      "propertyNames": { "pattern": "^(text|muted|grid|zero|accent|background|color\\-1|color\\-2|color\\-3|color\\-4|rise|fall|diverging\\-0|diverging\\-1|diverging\\-2|diverging\\-3|diverging\\-4|diverging\\-5|diverging\\-6|diverging\\-7|diverging\\-8|diverging\\-9|diverging\\-10|diverging\\-11|diverging\\-12|diverging\\-13|diverging\\-14|diverging\\-15|diverging\\-16|node|lane|lane\\-head|shadow|role\\-blue|role\\-blue\\-fill|role\\-green|role\\-green\\-fill|role\\-amber|role\\-amber\\-fill|role\\-teal|role\\-teal\\-fill|role\\-violet|role\\-violet\\-fill|role\\-gray|role\\-gray\\-fill|role\\-red|role\\-red\\-fill|heat\\-0|heat\\-1|heat\\-2|heat\\-3|heat\\-4|heat\\-5|part\\-5|part\\-6|part\\-7|part\\-8|parl\\-5|parl\\-6|parl\\-7|parl\\-8|net\\-5|net\\-6|net\\-7|net\\-8)$" },
+      "additionalProperties": { "type": "string", "pattern": "^(#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|rgba?\\([0-9., %]+\\))$" }
+    },
     "identifier": {
       "description": "What other parts of a diagram refer to an element by: a letter, then letters, digits, hyphens or underscores.",
       "type": "string",

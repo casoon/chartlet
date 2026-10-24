@@ -1,0 +1,173 @@
+---
+import { renderChart } from '@casoon/chartlet';
+import { CodeBlock } from '@casoon/pages-theme/components';
+import Base from '@casoon/pages-theme/layouts/Base.astro';
+import brand from '../../../examples/themes/brand.json';
+import brandSource from '../../../examples/themes/brand.json?raw';
+import { spec } from '../showcase';
+
+// Every chart on this page is the static output of chartlet, rendered at build time from the same
+// example specifications as the showcase; only the theme differs.
+type Options = Parameters<typeof renderChart>[1];
+
+function chart(slug: string, id: string, options: Options = {}, change = {}): string {
+  return renderChart({ ...spec(slug), ...change }, { format: 'html', idPrefix: id, ...options })
+    .content;
+}
+
+const dark = chart('monthly-revenue', 'bundled-dark', { theme: 'dark' });
+const blueprint = chart('release-flow', 'bundled-blueprint', { theme: 'blueprint' });
+
+const tokensInSpec = { tokens: { accent: '#c2410c', grid: '#ecd9cc' } };
+const tokens = chart('monthly-revenue', 'tokens', {}, tokensInSpec);
+
+const brandBar = chart('monthly-revenue', 'brand-bar', { theme: brand });
+const brandSeries = chart('revenue-by-channel', 'brand-series', { theme: brand });
+const brandFlow = chart('release-flow', 'brand-flow', { theme: brand });
+
+const host = chart('monthly-revenue', 'host');
+const print = renderChart(spec('monthly-revenue'), {
+  format: 'svg',
+  variant: 'print',
+  idPrefix: 'brand-print',
+  theme: brand,
+}).content;
+
+const bundledCode = `{ "schemaVersion": 1, "type": "bar", "title": "Monthly revenue", "theme": "dark", … }`;
+const bundledCli = `chartlet render revenue.json --theme dark
+chartlet render release-flow.json --theme blueprint`;
+
+const tokensCode = `{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Monthly revenue",
+  "tokens": { "accent": "#c2410c", "grid": "#ecd9cc" },
+  "data": [ … ]
+}`;
+
+const fileCli = `chartlet render revenue.json --theme brand.json
+chartlet render channels.json --theme brand.json
+chartlet render release-flow.json --theme brand.json`;
+const fileJs = `import { renderChart } from '@casoon/chartlet';
+import brand from './brand.json' with { type: 'json' };
+
+const { content } = renderChart(spec, { theme: brand });`;
+
+const hostCss = `.host .chartlet-root {
+  --chartlet-accent: #7c3aed;
+  --chartlet-grid: #e4dcf5;
+}`;
+
+const folder = `for spec in charts/*.json; do
+  chartlet render "$spec" --theme brand.json -o "out/$(basename "$spec" .json).svg"
+done`;
+const folderJs = `import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { renderChart } from '@casoon/chartlet';
+
+const brand = JSON.parse(readFileSync('brand.json', 'utf8'));
+for (const file of readdirSync('charts').filter((name) => name.endsWith('.json'))) {
+  const spec = JSON.parse(readFileSync(\`charts/\${file}\`, 'utf8'));
+  const { content } = renderChart(spec, { format: 'svg', theme: brand });
+  writeFileSync(\`out/\${file.replace('.json', '.svg')}\`, content);
+}`;
+---
+
+<Base
+  title="Customize"
+  description="Change the colors of one chart or of every chart of a project: a bundled theme, tokens in the specification, a theme file, or the CSS of the host page. One set of names for all of them."
+>
+  <div class="page">
+    <h1>Customize</h1>
+    <p class="lead">Every color of a chart is a CSS custom property, such as <code>--chartlet-accent</code>. A <strong>token</strong> is that name without its prefix: <code>accent</code>, <code>text</code>, <code>color-1</code>. All five ways below set tokens, so you learn one set of names and choose where to write them down. The <a href={`${import.meta.env.BASE_URL}docs/guides/customize/`}>guide</a> lists every token.</p>
+
+    <section aria-labelledby="bundled-heading">
+      <h2 id="bundled-heading">1. A bundled theme</h2>
+      <p><code>light</code>, <code>dark</code> and, for diagrams, <code>blueprint</code> ship with chartlet as theme files, the same kind of file you write yourself in way 3. Choose one in the specification or when rendering.</p>
+      <CodeBlock code={bundledCode} lang="json" />
+      <CodeBlock code={bundledCli} lang="sh" />
+      <div class="pair">
+        <div class="surface" set:html={dark} />
+        <div class="surface" set:html={blueprint} />
+      </div>
+    </section>
+
+    <section aria-labelledby="tokens-heading">
+      <h2 id="tokens-heading">2. Tokens in the specification</h2>
+      <p><code>tokens</code> sets single colors of one chart, on top of its theme. An unknown name or a value that is not a color is refused with <code>invalid_token</code>.</p>
+      <CodeBlock code={tokensCode} lang="json" />
+      <div class="surface" set:html={tokens} />
+    </section>
+
+    <section aria-labelledby="file-heading">
+      <h2 id="file-heading">3. A theme file for many charts</h2>
+      <p>A theme file names the theme to start from and the tokens that differ. Link it when you render and every chart shares the look, whatever its type; here the same file colors a bar chart, a time series and a flow chart. A specification keeps the last word: a token it sets itself wins over the file.</p>
+      <CodeBlock code={brandSource} lang="json" title="brand.json" />
+      <CodeBlock code={fileCli} lang="sh" />
+      <CodeBlock code={fileJs} lang="js" />
+      <div class="surface" set:html={brandBar} />
+      <div class="surface" set:html={brandSeries} />
+      <div class="surface" set:html={brandFlow} />
+    </section>
+
+    <section aria-labelledby="host-heading">
+      <h2 id="host-heading">4. The CSS of the host page</h2>
+      <p>A chart inlined in a page reads its colors from the page, so the page can set the same properties. Nothing in the specification changes. This works for HTML and inline SVG; an image or a PDF cannot see the page, which is what ways 2 and 3 are for.</p>
+      <CodeBlock code={hostCss} lang="css" />
+      <div class="surface host" set:html={host} />
+    </section>
+
+    <section aria-labelledby="folder-heading">
+      <h2 id="folder-heading">5. Every chart of a folder, in print too</h2>
+      <p>Because the theme file stays outside the specifications, a folder of charts gets one look with a loop, and changing the file restyles all of them. Tokens also reach the <code>print</code> and <code>social</code> variants and PNG output, which resolve every color to a literal value: the chart below is the print variant with the same file.</p>
+      <CodeBlock code={folder} lang="sh" />
+      <CodeBlock code={folderJs} lang="js" />
+      <div class="surface" set:html={print} />
+    </section>
+  </div>
+</Base>
+
+<style>
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 32px 16px 64px;
+  }
+  .lead {
+    font-size: 1.1rem;
+  }
+  /* A link in running text is set apart by more than its color. */
+  .lead a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  section {
+    margin-top: 48px;
+  }
+  /* chartlet's light palette assumes a light surface; the site's theme may be dark. */
+  .surface {
+    background: #fff;
+    color: #172033;
+    color-scheme: light;
+    padding: 16px;
+    border-radius: 10px;
+    overflow-x: auto;
+    margin-top: 16px;
+  }
+  .pair {
+    display: grid;
+    gap: 16px;
+  }
+  @media (min-width: 900px) {
+    .pair {
+      grid-template-columns: 1fr 1fr;
+    }
+    .pair .surface {
+      margin-top: 0;
+    }
+  }
+  /* The host page's own colors, set on the chart the way a site's stylesheet would. */
+  .host :global(.chartlet-root) {
+    --chartlet-accent: #7c3aed;
+    --chartlet-grid: #e4dcf5;
+  }
+</style>

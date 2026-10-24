@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -164,6 +164,9 @@ function runCli(binary, input, options, extraArgs) {
   if (options.allViews) {
     args.push("--all-views");
   }
+  if (typeof options.theme === "string") {
+    args.push("--theme", options.theme);
+  }
   if (options.styles) {
     args.push("--styles", options.styles);
   }
@@ -177,11 +180,18 @@ function runCli(binary, input, options, extraArgs) {
     args.push("--allow-warning", code);
   }
   args.push(...extraArgs);
-  // The CLI writes the manifest to a file; it is read back and removed with its directory.
-  const manifestDirectory = options.manifest
-    ? mkdtempSync(join(tmpdir(), "chartlet-manifest-"))
-    : undefined;
-  const manifestPath = manifestDirectory && join(manifestDirectory, "manifest.json");
+  // The CLI writes the manifest to a file and reads a theme object from one; both live in a
+  // directory that is removed afterwards.
+  const directory =
+    options.manifest || (options.theme && typeof options.theme === "object")
+      ? mkdtempSync(join(tmpdir(), "chartlet-"))
+      : undefined;
+  const manifestPath = options.manifest && join(directory, "manifest.json");
+  if (directory && typeof options.theme === "object") {
+    const themePath = join(directory, "theme.json");
+    writeFileSync(themePath, JSON.stringify(options.theme));
+    args.push("--theme", themePath);
+  }
   if (manifestPath) {
     args.push("--manifest", manifestPath);
   }
@@ -198,8 +208,8 @@ function runCli(binary, input, options, extraArgs) {
       manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
     }
   } finally {
-    if (manifestDirectory) {
-      rmSync(manifestDirectory, { recursive: true, force: true });
+    if (directory) {
+      rmSync(directory, { recursive: true, force: true });
     }
   }
 

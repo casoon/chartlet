@@ -1,6 +1,8 @@
 ---
 import { renderChart } from './render.mjs';
 
+import type { ChartTheme } from './render.d.mts';
+
 export interface Props {
   id: string;
   spec: Record<string, unknown>;
@@ -15,6 +17,8 @@ export interface Props {
   view?: string;
   /** Every view of an architecture model on one page; HTML only, not together with `view`. */
   allViews?: boolean;
+  /** A bundled theme by name, or a theme file as an object; see `RenderChartOptions.theme`. */
+  theme?: 'light' | 'dark' | 'blueprint' | ChartTheme;
   binary?: string;
 }
 
@@ -29,6 +33,7 @@ const {
   hooks = false,
   view,
   allViews = false,
+  theme,
   binary,
 } = Astro.props;
 
@@ -45,6 +50,7 @@ const rendered = renderChart(spec, {
   hooks,
   view,
   allViews,
+  theme,
   binary,
   idPrefix: id,
 });

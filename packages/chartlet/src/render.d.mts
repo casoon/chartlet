@@ -7,6 +7,16 @@ export type TableMode = "details" | "visible";
  */
 export type ChartVariant = "desktop" | "mobile" | "print" | "social";
 
+/**
+ * A theme file: the palette a chart starts from and the colors that replace parts of it. The
+ * `tokens` are the names of the `--chartlet-*` custom properties without the prefix, such as
+ * `accent`, `text` or `color-1`, with hex values.
+ */
+export interface ChartTheme {
+  theme?: "light" | "dark" | "blueprint";
+  tokens?: Record<string, string>;
+}
+
 export interface RenderChartOptions {
   format?: ChartFormat;
   table?: TableMode;
@@ -22,6 +32,11 @@ export interface RenderChartOptions {
    * model or the rendered view selects. Every variant shows the same perspective.
    */
   perspective?: string;
+  /**
+   * A theme applied to the specification: `"light"`, `"dark"` or `"blueprint"` for a bundled
+   * one, or a theme file as an object. The specification's own `theme` and `tokens` win over it.
+   */
+  theme?: "light" | "dark" | "blueprint" | ChartTheme;
   /**
    * Render every view of an architecture model on one HTML page instead of one view: a
    * navigation of links to the views, the default view first, and each view as a section with

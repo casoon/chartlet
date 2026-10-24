@@ -1,7 +1,7 @@
 //! The stylesheets: the style groups of every chart type, a chart's own stylesheet and the
 //! shared one, both built from the groups in one order, and the print variant.
 
-use std::fmt::Write;
+use std::{collections::BTreeMap, fmt::Write};
 
 use crate::spec::{ChartSpec, ChartType, Dash, Mark, Stroke, Theme};
 
@@ -370,7 +370,11 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
 /// every `var()` to the value the chart's theme gives it, and a color declared as a variable to
 /// its fallback, the chart's text color, and drops the declarations of the custom properties,
 /// together with the rules left empty by that.
-pub(super) fn print_stylesheet(stylesheet: &str, (is_dark, is_blueprint): (bool, bool)) -> String {
+pub(super) fn print_stylesheet(
+    stylesheet: &str,
+    (is_dark, is_blueprint): (bool, bool),
+    tokens: &BTreeMap<String, String>,
+) -> String {
     // Renderers outside the browser read font weights in hundreds only and would draw 650 as
     // regular.
     let stylesheet = &stylesheet.replace("font-weight:650", "font-weight:600");
@@ -394,11 +398,17 @@ pub(super) fn print_stylesheet(stylesheet: &str, (is_dark, is_blueprint): (bool,
             }
         }
     }
+    // The chart's own tokens replace what its theme gives the property.
     let lookup = |name: &str| {
-        properties
-            .iter()
-            .find(|(known, _)| *known == name)
-            .map(|(_, value)| *value)
+        name.strip_prefix("--chartlet-")
+            .and_then(|token| tokens.get(token))
+            .map(String::as_str)
+            .or_else(|| {
+                properties
+                    .iter()
+                    .find(|(known, _)| *known == name)
+                    .map(|(_, value)| *value)
+            })
     };
     let mut resolved = String::with_capacity(stylesheet.len());
     for rule in stylesheet.split_inclusive('}') {

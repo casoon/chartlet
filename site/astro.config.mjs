@@ -14,6 +14,7 @@ export default defineConfig({
       repo: 'casoon/chartlet',
       version: '0.20.0',
       license: 'MIT',
+      demo: 'Customize',
       packages: [
         { label: 'crates.io', href: 'https://crates.io/crates/chartlet' },
         { label: 'npm', href: 'https://www.npmjs.com/package/@casoon/chartlet' },

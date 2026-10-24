@@ -83,6 +83,7 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Line chart with error bars | `lower` and `upper` on every `data` point of a `line` chart | [monthly-satisfaction](examples/monthly-satisfaction.json) |
 | Time series on a calendar axis | `"type": "time"` with `panes` and `layers` | [daily-orders](examples/daily-orders.json) |
 | Time series, dark theme, declared colors | `"theme": "dark"`, `color` per layer | [revenue-vs-forecast](examples/revenue-vs-forecast.json) |
+| Own colors for one chart or for all of them | `tokens` in the specification, or a theme file with `--theme` | [brand theme](examples/themes/brand.json) |
 | Time series with uncertainty band, modeled (hatched, dashed) | `lower`/`upper` per point, `"modeled": true` per layer | [temperature-projection](examples/temperature-projection.json) |
 | Reference lines: threshold and date marker | `"mark": "annotation"` with `value` or `time` and `label` | [annual-mean-threshold](examples/annual-mean-threshold.json) |
 | Time series with area, gaps, line patterns and zoom | `"mark": "area"`, `null` values, `dash`, `"stroke": "bold"`, `zoomSteps` by time | [sensor-readings](examples/sensor-readings.json) |
@@ -246,6 +247,7 @@ chartlet stylesheet [--types bar,time,...]
 | `--format svg\|html\|png` | Standalone SVG (default); an HTML `<figure>` with caption, SVG, source and data table, both layouts behind a container query when the specification has `mobile`; or a PNG (`cargo install chartlet --features png`, `--scale` 0.25–4). |
 | `--variant mobile\|print\|social` | The phone layout alone, literal colors for PDF and print, or a 1200 × 630 Open Graph image. |
 | `--view <key>`, `--all-views`, `--perspective <key>` | One view of an architecture model, every view on one HTML page, or a perspective to show. |
+| `--theme <name\|file>` | A bundled theme or a theme file of your own colors, applied to the specification; see the [guide](docs/guides/customize.md). |
 | `--table details\|visible` | The HTML data table in a closed `<details>` (default) or always shown. |
 | `--id-prefix <prefix>` | Stable IDs, for the same chart twice on one page. |
 | `--hooks`, `--styles external` | `data-*` hooks for scripts and tests; a chart without its shared stylesheet, which `chartlet stylesheet` prints once per page. |
