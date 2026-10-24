@@ -3,7 +3,8 @@
 //! when one of the two comes from `tokens`, and a ratio below WCAG's is reported as
 //! `low_contrast` at the token. Only pairs that really overlap are measured: text on the ground
 //! of the chart, the marks of the chart on that ground, and in a diagram the outline of a role
-//! against its fill and against the ground, and the text on the fill.
+//! against its fill and against the ground, and the text on the fill. The roles are those the
+//! drawn diagram wears: a box of a kind that is blue is measured, a role nobody draws is not.
 
 use std::collections::BTreeMap;
 
@@ -37,8 +38,92 @@ fn pair(front: &str, back: &str, what: &'static str, needs: f64) -> Pair {
     }
 }
 
-/// The warnings for the colors `spec` sets in `tokens`.
+/// The warnings for the colors `spec` sets in `tokens`, for what its type draws on any chart.
 pub(crate) fn warnings(spec: &ChartSpec) -> Vec<ChartWarning> {
+    check(spec, &pairs(spec))
+}
+
+/// The warnings for the role colors of a diagram, from the SVG it was drawn as: only the roles its
+/// boxes and lines wear are measured.
+pub(crate) fn role_warnings(spec: &ChartSpec, svg: &str) -> Vec<ChartWarning> {
+    if spec.tokens.is_empty() {
+        return Vec::new();
+    }
+    let mut pairs = Vec::new();
+    for (color, kind) in drawn_roles(svg) {
+        let (stroke, fill) = (format!("role-{color}"), format!("role-{color}-fill"));
+        match kind {
+            // A kind of box: its fill carries the label and its outline stands on the ground.
+            RoleUse::Kind => {
+                pairs.push(Pair {
+                    front: "text".into(),
+                    back: fill.clone(),
+                    what: "labels on a box",
+                    needs: TEXT,
+                });
+                pairs.push(Pair {
+                    front: stroke.clone(),
+                    back: fill,
+                    what: "outlines",
+                    needs: MARK,
+                });
+                pairs.push(Pair {
+                    front: stroke,
+                    back: "background".into(),
+                    what: "outlines and lines",
+                    needs: MARK,
+                });
+            }
+            // A critical, planned or deprecated role recolors the outline and the line only.
+            RoleUse::Mark => {
+                pairs.push(Pair {
+                    front: stroke,
+                    back: "background".into(),
+                    what: "outlines and lines",
+                    needs: MARK,
+                });
+            }
+        }
+    }
+    check(spec, &pairs)
+}
+
+/// How a diagram uses a role color.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum RoleUse {
+    Kind,
+    Mark,
+}
+
+/// The role colors the elements of `svg` wear, by their `class` attributes, each once.
+fn drawn_roles(svg: &str) -> Vec<(&'static str, RoleUse)> {
+    let mut found: Vec<(&'static str, RoleUse)> = Vec::new();
+    for (start, _) in svg.match_indices("class=\"") {
+        let rest = &svg[start + 7..];
+        let Some(end) = rest.find('"') else { continue };
+        for class in rest[..end].split(' ') {
+            let used = ROLES
+                .iter()
+                .find(|color| class.strip_prefix("chartlet-role-") == Some(**color))
+                .map(|color| (*color, RoleUse::Kind))
+                .or(match class {
+                    "chartlet-flow-role-critical" => Some(("red", RoleUse::Mark)),
+                    "chartlet-flow-role-planned" => Some(("violet", RoleUse::Mark)),
+                    "chartlet-flow-role-deprecated" => Some(("gray", RoleUse::Mark)),
+                    _ => None,
+                });
+            if let Some(used) = used
+                && !found.contains(&used)
+            {
+                found.push(used);
+            }
+        }
+    }
+    found
+}
+
+/// The warnings for `pairs` that involve a color `spec` sets itself.
+fn check(spec: &ChartSpec, pairs: &[Pair]) -> Vec<ChartWarning> {
     if spec.tokens.is_empty() {
         return Vec::new();
     }
@@ -48,8 +133,8 @@ pub(crate) fn warnings(spec: &ChartSpec) -> Vec<ChartWarning> {
         Theme::Blueprint => "blueprint",
     });
     palette.extend(spec.tokens.clone());
-    pairs(spec)
-        .into_iter()
+    pairs
+        .iter()
         .filter_map(|pair| {
             // A pair the specification did not touch is the bundled palette's own.
             let path = [&pair.front, &pair.back]
@@ -98,35 +183,6 @@ fn pairs(spec: &ChartSpec) -> Vec<Pair> {
                 .max()
                 .unwrap_or(0);
             pairs.extend(series_pairs(used));
-        }
-        ChartType::Sequence
-        | ChartType::Flow
-        | ChartType::State
-        | ChartType::Architecture
-        | ChartType::Tree
-        | ChartType::Classes
-        | ChartType::Network => {
-            for role in ROLES {
-                let (stroke, fill) = (format!("role-{role}"), format!("role-{role}-fill"));
-                pairs.push(Pair {
-                    front: "text".into(),
-                    back: fill.clone(),
-                    what: "labels on a box",
-                    needs: TEXT,
-                });
-                pairs.push(Pair {
-                    front: stroke.clone(),
-                    back: fill,
-                    what: "outlines",
-                    needs: MARK,
-                });
-                pairs.push(Pair {
-                    front: stroke,
-                    back: "background".into(),
-                    what: "outlines and lines",
-                    needs: MARK,
-                });
-            }
         }
         _ => {}
     }
@@ -330,6 +386,33 @@ mod tests {
                 .any(|warning| warning.message.contains("outlines")),
             "{found:?}"
         );
+    }
+
+    #[test]
+    fn a_diagram_measures_only_the_roles_it_draws() {
+        let flow = std::fs::read_to_string("examples/release-flow.json").expect("example");
+        let plain =
+            render_json(&flow, RenderFormat::Svg, &RenderOptions::default()).expect("renders");
+        let drawn: Vec<&str> = super::drawn_roles(&plain.content)
+            .iter()
+            .map(|(color, _)| *color)
+            .collect();
+        assert!(
+            drawn.contains(&"green") && drawn.len() < super::ROLES.len(),
+            "{drawn:?}"
+        );
+        for color in super::ROLES {
+            let token = format!("role-{color}");
+            let themed =
+                crate::apply_theme(&flow, &format!(r##"{{"tokens":{{"{token}":"#eeeeee"}}}}"##))
+                    .expect("applies");
+            let rendered = render_json(&themed, RenderFormat::Svg, &RenderOptions::default())
+                .expect("renders");
+            let warned = rendered.warnings.iter().any(|warning| {
+                warning.code == "low_contrast" && warning.path == format!("/tokens/{token}")
+            });
+            assert_eq!(warned, drawn.contains(&color), "{color}");
+        }
     }
 
     #[test]

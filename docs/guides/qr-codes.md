@@ -18,6 +18,8 @@ let svg = code.to_svg("Link to example.com", 4);
 usual minimum) and sets `role="img"` with the title as the accessible name. Scale the SVG with
 CSS; `shape-rendering="crispEdges"` keeps the edges sharp.
 
+A drawn example is in the [showcase](../../../showcase/qr-code/).
+
 To draw the code with something else, read the modules directly: `size()` is the number of
 modules per side, `is_dark(x, y)` tells whether a module is dark.
 

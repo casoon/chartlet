@@ -12,7 +12,7 @@ export default defineConfig({
       description:
         'Compiles a small JSON specification into a deterministic, accessible SVG or HTML chart or software diagram at build time.',
       repo: 'casoon/chartlet',
-      version: '0.20.0',
+      version: '0.21.0',
       license: 'MIT',
       demo: 'Customize',
       packages: [

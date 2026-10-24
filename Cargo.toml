@@ -1,7 +1,9 @@
 [package]
 name = "chartlet"
-version = "0.20.0"
+version = "0.21.0"
 edition = "2024"
+# The oldest Rust the crate builds with; README and the installation page state the same.
+rust-version = "1.88"
 license = "MIT AND OFL-1.1"
 description = "Compile structured data into deterministic, accessible static charts"
 repository = "https://github.com/casoon/chartlet"

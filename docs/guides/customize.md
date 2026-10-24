@@ -154,7 +154,7 @@ reported as `low_contrast` at the token. The chart is still rendered.
 | `text`, `muted` on `background` | 4.5:1 | Always |
 | `accent` on `background` | 3:1 | Bar and line charts with one series |
 | `color-1` … `color-4` on `background` | 3:1 | The series a bar, line or time chart draws |
-| A role's outline on its fill and on `background`, `text` on its fill | 3:1, 3:1, 4.5:1 | Diagrams, for every role |
+| A role's outline on its fill and on `background`, `text` on its fill | 3:1, 3:1, 4.5:1 | Diagrams, for the roles the diagram draws |
 
 A translucent color is measured as it looks over the background. Colors of other chart types, such
 as the scales of stripes and calendars, are not measured.

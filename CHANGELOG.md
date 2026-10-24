@@ -7,6 +7,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-24
+
 ### Breaking
 
 - **Topic map and knowledge landscape:** the experimental types `topicmap` and `atlas` are gone,
@@ -28,9 +30,13 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   Details: [Formatters and linters](https://casoon.github.io/chartlet/docs/guides/javascript/#formatters-and-linters).
 - **Schema:** `chartlet-theme.schema.json` for theme files, and `tokens` in the specification schema.
 - **Site:** the Customize page shows five ways to restyle a chart, each rendered.
+- **Site:** the showcase gains the sequence diagram `sign-in-sequence`, the architecture diagram
+  `tenant-architecture` and a QR code, the first example of `chartlet::qr`.
 
 ### Changed
 
+- **Rust:** the crate declares `rust-version = "1.88"`, which README and the installation page already
+  stated; it builds with that version, with and without `png`.
 - **Site:** the showcase is grouped by topic with a jump list and shows one example per variant.
 
 ## [0.20.0] - 2026-10-24

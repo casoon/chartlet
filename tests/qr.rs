@@ -99,3 +99,17 @@ fn svg_is_deterministic_and_accessible() {
     let side = code.size() + 8;
     assert!(svg.contains(&format!("viewBox=\"0 0 {side} {side}\"")));
 }
+
+/// The file the showcase shows is the output of the code the guide gives.
+#[test]
+fn the_showcase_example_is_what_the_guide_code_draws() {
+    let code = QrCode::encode(
+        "https://casoon.github.io/chartlet/",
+        ErrorCorrection::Medium,
+    )
+    .unwrap();
+    assert_eq!(
+        code.to_svg("Link to the chartlet documentation", 4),
+        include_str!("../examples/qr/link.svg")
+    );
+}

@@ -942,8 +942,11 @@ fn render_panel_parts(
             _ => None,
         })
         .collect();
+    let svg = render::svg(&scene, spec, &description, id_prefix, styles, hooks);
+    // The roles a diagram draws are known only once it is drawn.
+    warnings.extend(contrast::role_warnings(spec, &svg));
     PanelParts {
-        svg: render::svg(&scene, spec, &description, id_prefix, styles, hooks),
+        svg,
         stage: render::Stage {
             root: id_prefix.to_owned(),
             width: scene.width,

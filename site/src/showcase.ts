@@ -1,5 +1,6 @@
 import { renderChart } from '@casoon/chartlet';
 import type { ShowcaseExample } from '@casoon/pages-theme/showcase';
+import qrLink from '../../examples/qr/link.svg?raw';
 
 type Spec = Record<string, unknown>;
 
@@ -482,6 +483,14 @@ const catalogue = [
       'The same notation turned on its side: participants one below the other, time running right, for a wide, low place on the page. With the default orientation, auto, a diagram takes this form by itself wherever only it fits the canvas.',
   },
   {
+    slug: 'sign-in-sequence',
+    group: 'Sequence and state diagrams',
+    chart: 'Sequence diagram with a fragment and a phone variant',
+    useCase: 'Explain a sign-in across services',
+    blurb:
+      'A browser, a backend for frontend, an identity provider, an API and a database: fifteen numbered messages through an OIDC sign-in, a self-call that creates the session, and an `opt` fragment around the asynchronous back-channel logout. The description lists the messages in order and names the fragment with the messages it spans. Illustrative reference architecture, with a phone variant.',
+  },
+  {
     slug: 'ticket-states',
     group: 'Sequence and state diagrams',
     chart: 'State diagram',
@@ -552,6 +561,14 @@ const catalogue = [
     useCase: 'Show where the parts of a system run',
     blurb:
       'Ten components of a web shop in three nested boundaries — a cloud region, a private network, a data zone — with every kind in its own shape. Connections say what they do and, in brackets, how. Components outside a boundary stay out of its frame; the table names each component with its boundaries and connections.',
+  },
+  {
+    slug: 'tenant-architecture',
+    group: 'Architecture diagrams',
+    chart: 'Architecture diagram with a main path',
+    useCase: 'Show the path of a request through a system',
+    blurb:
+      'Eleven components of a multi-tenant school application in three nested boundaries: a data center, the application network and a data zone. The main path from the user to the domain data is drawn straight and thicker, connections say what they do and over which protocol, and the description names the most connected component and what nothing leads into. Illustrative reference architecture, with a phone variant.',
   },
   {
     slug: 'checkout-calls',
@@ -788,6 +805,28 @@ const catalogue = [
   },
 ];
 
+/**
+ * The QR code is a Rust API, not a chart type: it has no specification, so its example is the
+ * committed output of the code shown, which `tests/qr.rs` keeps equal to what that code draws.
+ */
+const qrExample: ShowcaseExample = {
+  slug: 'qr-code',
+  group: 'QR codes',
+  title: 'QR code for a link',
+  description:
+    'A link as a QR code of version 5, drawn as a small, deterministic SVG: one unit per module, a quiet zone of four modules and the title as the accessible name. `chartlet::qr` is a Rust API, not a chart type — there is no specification and no command-line option for it.',
+  file: 'examples/qr/link.svg',
+  tags: ['QR code', 'Link a page from print'],
+  input: {
+    code: `use chartlet::qr::{ErrorCorrection, QrCode};
+
+let code = QrCode::encode("https://casoon.github.io/chartlet/", ErrorCorrection::Medium)?;
+let svg = code.to_svg("Link to the chartlet documentation", 4);`,
+    lang: 'rust',
+  },
+  output: { html: qrLink, kind: 'panel' },
+};
+
 export const examples: ShowcaseExample[] = catalogue.map(({ slug, view, group, chart, useCase, blurb }) => {
   const source = spec(slug);
   const { html, warnings } = render(source, `showcase-${slug}`, 'html', view);
@@ -801,4 +840,4 @@ export const examples: ShowcaseExample[] = catalogue.map(({ slug, view, group, c
     input: { code: JSON.stringify(source, null, 2), lang: 'json' },
     output: { html, kind: 'panel' },
   };
-});
+}).concat(qrExample);
