@@ -1,166 +1,336 @@
 # Changelog
 
-All notable changes to chartlet are listed here. chartlet follows [Semantic Versioning](https://semver.org/):
-until 1.0, a minor release (0.2, 0.3, …) may change the specification; a patch release never
-does.
+All notable changes to chartlet are listed here. chartlet follows
+[Semantic Versioning](https://semver.org/): until 1.0, a minor release (0.2, 0.3, …) may change the
+specification; a patch release never does. Each entry starts with the area it concerns; the details
+are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
 ### Added
 
-- Architecture diagrams: `--all-views` (`allViews` in npm and MCP, `RenderOptions::all_views`) renders every view of a model on one HTML page without a script — the model's title, a navigation of in-page links to the views and each view as a section with its own figure, description and data table, the default view first, each under an ID prefix of its own (`<prefix>-v1`, `-v2`, …); in print each view starts a page. The manifest lists the views in `views`; with `alternative: true`, npm returns the text alternative of every view in `alternatives` (each with its `view` key, the default view first), and the Astro `Chart` takes `allViews`. SVG, the other variants and `--view` are refused (`option_not_supported` at `/render/allViews`); single-view exports are unchanged. Example `shop-views.all.html`.
-- MCP: `chartlet_diagram_starter` takes `template` with `type: "architecture"`: `context` (the system as one box, its users and external systems), `containers` (the separately running or deployable parts inside the system boundary) and `deployment` (a logical model of the deployed images, a queue between API and workers, managed database and storage, with a deployment view of production — region, cluster, nodes and a worker pool as hosts, two instances of the API — that renders by default). Each is a valid specification in the existing architecture fields, renders without symbols, and comes with the question it answers and its level. The architecture guide maps system, container, component and deployment node onto chartlet and says where the starters stop short of a full C4 model. Examples `booking-context`, `booking-containers`, `booking-deployment`.
-- Architecture diagrams: `views` show one model as several diagrams. A view has a stable `key`, a `title`, an optional `description` and the `components` it shows; the connections between them come along (or only those listed by their new optional `id`), boundaries only while they hold a shown component, the model's main path only while it lies in the view, or the view's own `mainPath`. A dynamic view lists `steps`, occurrences of existing connections in order with their own text, and renders as a numbered diagram. One view is rendered — `--view`, `view` in npm and MCP, `RenderOptions::view`, else `defaultView`, else the first — never the whole model; description and table show only what the view shows and say how much of the model that is, the manifest records `view`. Diagnostics `unknown_view`, `empty_view`, `unknown_connection`, `connection_outside_view`, `too_many_views`, `too_many_steps` point into the model. Example `shop-views`.
-- Architecture diagrams: `perspectives` keep stated categorical metadata apart from the drawing — each has a `key`, a `title`, an optional `description` and 1–8 `categories`, each a `label` with the `components` in it. Only `perspective` on the model or a view selects one to show: every box gains a stripe in its category's color and names the category, a legend lists the categories used, components without one are shown as not stated, the description gains a sentence per category and the table a column, and the manifest records `perspective`. Colors follow the order of `categories` in every view; nothing is derived or rated, and without a selected perspective the output is unchanged. Diagnostics `unknown_perspective`, `invalid_categories`, `duplicate_category`, `too_many_perspectives`, and `unknown_node`/`duplicate_member` for the components of a category. Example `service-perspectives`.
-- Architecture diagrams: deployment views. A view with an `environment` shows where the model runs in one environment: `hosts` nested like boundaries, `instances` each `of` one component (drawn as it, labelled with the instance id, such as `Orders API (api-1)`), and only the `instanceConnections` it lists — an `id` of a model connection takes its label, technology, dash and role, and must join instances of its ends (`instance_mismatch`). It resolves to a plain architecture diagram, checked after expansion (40 instances, 80 connections, 12 hosts) with diagnostics in the view; the description names the environment, the table the instances. `chartlet inspect` counts components run in an environment as shown. Example `api-environments`.
-- Flow charts, architecture diagrams and class diagrams: the description names the shape of the graph before the steps — the most connected nodes, where nothing leads in or out, loops, unconnected parts and bottlenecks — where it says more than the steps do (nothing for a single chain).
-- Flow charts and architecture diagrams: `mainPath` also takes `{ "from": "a", "to": "b" }`; chartlet takes the shortest way along the edges between the two (at a tie the first in the order of the edges), `main_path_unreachable` when there is none.
-- Flow charts and architecture diagrams: `weight` on an edge or connection draws its line from 1 px (no weight) to 5 px (the heaviest), in half-pixel steps; the arrowheads keep their size. The description names the heaviest connection, the description and the table give every weight; `invalid_edge_weight` for a negative one. Example `request-volume`.
-- Flow charts and architecture diagrams: `sameRank` names sets of steps or components that lie at one position along the flow, such as parallel reviews or the databases of a data tier. A layout hint that adds no edge, kept in both orientations and the mobile variant; an edge that would have to run against it is drawn back like a loop. `unknown_node`, `duplicate_member` (a node in two sets), `empty_data` (fewer than two) and `same_rank_edge` (an edge joins two nodes of one set) name the member. Without it every layout stays as it was. Example `data-tier`.
-- Flow charts and trees: `value` on a node fills its box from a scale of six blues (light for the smallest, dark for the largest value), with a key below named by `valueLabel`; every step fixes its text color for at least 4.5:1 in both themes. The description gives every value, the table gains a column. Example `department-budgets`.
-- Flow charts and trees: `parts` on a node draws a stripe of shares inside the bottom of its box, with one legend for the diagram; description and table give every part with value and share. At most 6 parts per node and 8 names per diagram (`too_many_parts`); decisions take none. Example `claim-handling`.
-- Flow charts and architecture diagrams: `role` on a node or an edge — `critical`, `planned` or `deprecated` — draws the same meaning alike in every diagram: color from the theme's role colors plus a sign that does not need color (a strong, dashed or dotted outline or line, and a badge `!`, `+` or `−` on the box). The kind keeps its shape and fill; a role overrides the main path's color, a `weight` keeps its width, `critical` keeps a `dash`, and `planned`/`deprecated` edges bring their own pattern and take no `dash` (`role_conflict`). A legend names only the roles used; the description lists them, the table adds a Role column. Example `billing-migration`.
-- State, network, tree and class diagrams: `role` (`critical`, `planned`, `deprecated`) on states and transitions, network nodes and edges, tree nodes, and classes and relations, drawn, named in the legend, the description and the table as in flow charts. A network dot gets a ring in the role's color and pattern instead of a badge; a composite state takes no role (`option_not_supported`); a relation keeps its marks (hollow stays hollow), and a realization or dependency, dashed by its kind, takes only `critical` (`role_conflict`), as does `dash` on a planned or deprecated transition or network edge. Example `payment-redesign`.
-- Trees: `distances` (labels and a square, symmetric matrix) instead of `nodes` builds a dendrogram by agglomerative clustering with `linkage` `average` (default), `complete` or `single`; joins are brackets at their distance on a distance axis. The description names the closest pair and the two groups of the last join, the table every join. `invalid_matrix` for a matrix that is not square, symmetric, 0 on the diagonal or nowhere negative. Example `climate-similarity`.
-- Architecture diagrams: `chartlet inspect` checks a model for gaps in its documentation without rendering it — `unlabelled_connection`, `component_without_sublabel` and `component_in_no_view` as gaps, `connection_without_technology`, `isolated_component` and `view_adds_nothing` as hints — each with a JSON Pointer and a hint, as text or `--format json`. `--disable <code>` leaves a rule out, `--strict` fails on gaps; findings alone exit 0, and `chartlet render` never runs them. Rust: `inspect_json`.
-- Flow charts and class diagrams: `chartlet inspect` (and `inspectChart`, `chartlet_inspect`) also checks them — `unlabelled_decision_branch` (an unlabelled edge out of a decision with several ways on) and `class_without_members` (unless no class of the diagram has any) as gaps, `unreachable_step` (no start step leads to it; stores and external steps, and flows without a start, are left out), `flow_without_end` (a start but no end step) and `isolated_class` as hints.
-- npm: `flow(settings)` in `@casoon/chartlet/builder` builds flow charts like the architecture builder — `lane`, `node` (with `lane`), `group(label, steps)`, `connect`, `fanOut`, `fanIn`, `chain`, `mainPath` and `sameRank` — with your own ids, references to undeclared lanes or steps and ids used twice throwing at the call, other fields passed through, and a plain specification from `spec(fields)`. `order-flow` and `release-flow` rebuild with it byte for byte.
-- npm and MCP: the inspections of `chartlet inspect` without the CLI — `inspectChart(spec, { disable })` in `@casoon/chartlet` (bundled WebAssembly build or `binary`, with the same findings) returns `{ ok, findings }` or `{ ok: false, error }`, and the MCP tool `chartlet_inspect` returns the findings with code, severity, path, message and hint.
-- Flow charts, state, architecture and class diagrams: with `hooks: true`, each node's group carries its specification `id` as `data-chartlet-node`, so a page finds a class or component by ID rather than by label or position; desktop and mobile variant carry the same value, never as a DOM ID.
-- Diagrams: with `hooks: true`, network nodes, tree nodes and sequence participants carry their `id` as `data-chartlet-node` too; architecture connections that have an `id` carry it as `data-chartlet-edge` (only the first step over a connection in a dynamic view, none for note lines or edges without an ID); boundaries, hosts, class packages and composite states as `data-chartlet-frame`, flow lanes as `data-chartlet-lane`. Without hooks the output is unchanged.
-- `"type": "network"`: nodes as dots joined by edges, on a circle (groups together, swapped for fewer crossings, or `"order": "listed"`) or in rings around a `center` by distance in edges. Groups color the dots and get a legend; edges take `dash`, `weight` and, with `"directed": true`, arrowheads; labels stand beside their dots without covering another. The description gives groups, rings, the shape of the graph and every node with its neighbours; the table one row per node. No force layout: the same input gives the same picture. Examples `co-authors` (with a phone variant) and `service-dependencies`.
-- Class diagrams: `packages` (`id`, `label`, optional parent `in`) frame classes that name them with `"in"`, nested up to four deep, at most 12; relations still join classes across package borders. The description names every package with what it holds, the table gains a Package column (`Shop › Ordering`). `unknown_package`, `package_cycle`, `packages_too_deep`, `empty_package`, `too_many_packages`; a relation to a package is `unknown_node`. Example `shop-modules`.
-- Class and architecture diagrams: `notes` (`on` a class or component, `text` up to 160 characters, at most 12) draw a pale box with a folded corner beside the element, joined to it by a dotted line that only says “explains”: it is no relation or connection, so structure, main path and connection counts stay the same. The text wraps onto as many lines as it needs; the description gives every note after the elements (`Note on Card: …`), the table gains a Notes column; an architecture view keeps the notes on the components it shows. `too_many_notes`; an unknown element is `unknown_node`. Example `subscription-model`.
-- Flow charts, class and architecture diagrams: `on` of a note is optional and may name a package or boundary. A note on a package or boundary stands inside that frame, at the head of its contents, without a line; a note without `on` explains the whole diagram and stands in a band below it, wrapping onto further rows. Neither adds an edge. The description names them (`Note on Card data zone: …`, `Note: …`), and since no table row carries them they follow the table's caption. A view keeps the notes without `on` (a deployment view only those) and the notes on the boundaries it shows. Flow charts take the same `notes`, on steps and on the whole chart. Example `payment-notes`.
-- Architecture diagrams: `connections[].direction` — `forward` (default, unchanged), `both` (one connection used both ways, arrowheads at either end) or `none` (no direction, no arrowhead). The tooltip joins the ends with `→`, `↔` or `—`; the description and the table list the connection once, under its `from` component, as “both ways” / „in beide Richtungen“ or “without direction” / „ohne Richtung“, and leave out sources, sinks and loops once a connection has no single direction.
-- Architecture diagrams: `"sharedTrunks": true` draws connections that leave one component together, or reach one together, on one line that branches on a track of its own, with a dot at every branch. Only connections that read the same there share it — no label, technology or step, the usual direction, the same `dash`, `weight` and `role`, off the main path, other ends in the same boundary; anything ambiguous keeps its own line. Every connection is still drawn end to end with its tooltip and listed in description and table. Example `service-fan-out`.
-- Flow charts: `"sharedTrunks": true` draws edges that leave one step together, or reach one together, on one branching line with a dot at every branch, as in architecture diagrams. Only edges that read the same there share it — no label, the same `dash`, `weight` and `role`, off the main path, other ends in the same lane and group; the branches of a decision and a second edge between the same two steps keep their own line. Every edge is still drawn end to end with its tooltip; description and table are unchanged. Example `order-fulfilment`.
-- Architecture diagrams: provided and required interfaces. A component lists the interfaces it `provides` (`{ "id", "label" }`, up to 4, not on a person or a node), each drawn as a ball on a stem ahead of its box with its label beside it (on a narrow canvas, on a chip below it), kept with its component outside a frame it does not belong to; a connection with `toInterface` says that `from` requires that interface of `to` and ends in a socket around its ball. The description and the table say it in words (“requires Payments API”, “Payments provides Payments API and Refunds API”, a Provides column); hooks carry the stable id `component.interface`. Interfaces follow their component into views and environments, connections to them never join a shared trunk, and the colors come from the theme, so dark, blueprint and print draw them too. Diagnostics `unknown_interface`, `too_many_interfaces`, `duplicate_id`, `option_not_supported`. Without the new fields the output is unchanged. Example `payment-interfaces`.
-- Class diagrams: `relations[].direction` on an association says which way it can be navigated — `forward` (an open arrowhead at `to`), `both` (one at either end) or `none` (a plain line, as without it); the description adds “navigable to …” / „navigierbar zu …“ or “navigable both ways”. Other kinds keep their fixed ends and refuse it (`option_not_supported`).
-- npm: `@casoon/chartlet/builder` assembles architecture specifications in code — `boundary`, `component`, `connect`, `fanOut`, `fanIn`, `chain`, `mainPath` and `spec()`, which returns the plain specification for `renderChart`. Ids are explicit or joined with `id(...)`; ids used twice, references to undeclared elements and a list where one id is expected throw at the call; other fields pass through to the validation of the core.
-- Architecture diagrams: `symbol` on a component draws one of 16 generic stroke symbols above its label (`browser`, `mobile`, `api-gateway`, `load-balancer`, `cdn`, `firewall`, `identity`, `container`, `orchestrator`, `function`, `cloud`, `cache`, `object-storage`, `message-broker`, `search-index`, `monitoring`); the kind keeps its shape. Each symbol used is defined once per SVG under the chart's ID prefix; description and table name its category after the kind. `unknown_symbol` for any other name. Example `shop-symbols`.
-- `chartlet render --watch` renders again whenever the specification file changes, reports each render as a single one does, keeps the last output after a failed render and replaces it in one step after a successful one. `--preview [--port <port>]` also serves the latest chart with its warnings on a local page (127.0.0.1 only) that reloads after each render and marks the chart stale after an error.
-- Contributors: `cargo test --test golden visual_report -- --ignored` writes a local HTML report of every reviewed example against its current rendering — side by side, as an overlay or as a difference, changed ones first, each SVG isolated as an image — without ever accepting a change; `tests/generated.rs` renders flow charts, architecture diagrams, trees and networks from fixed seeds and checks that each renders the same twice as well-formed SVG. See `CONTRIBUTING.md`.
-- Flow charts and architecture diagrams: `fromSide` and `toSide` on an edge or connection pin the side of its steps it leaves and reaches — `start` (facing the steps before), `end` (the steps after), `left` or `right` (across the flow; top and bottom in landscape) — so they hold in either orientation and on a phone. An edge across the flow leaves level with the middle of its step on a stub of its own, a way back on one side runs straight past the steps between; a side against the edge's direction is ignored as `port_side_ignored`, a loop takes none (`option_not_supported`), and an edge with a side never joins a shared trunk. Example `contract-review`.
-- Flow charts, state, class and architecture diagrams: `spacing` — `compact` (gaps at about 70 %, at least 16 px between steps and 20 px between layers, and not spread over a canvas that leaves room), `normal` (default, unchanged) or `roomy` (150 %) — scales the gaps between layers and between neighbours in a layer, on desktop and on a phone; steps, texts, margins and the distance between parallel edges keep their size.
-- Class diagrams: `orientation` (`portrait` or `landscape`) on a package lays out its classes that way, with the packages inside it and the relations between them, as one block that the diagram places like a class; relations from outside meet the block where their class lies and run on straight to it. Where such a way would cross the block in every orientation the diagram may take, the package follows the diagram and `package_orientation_ignored` says so; `auto` on a package and oriented packages inside each other are `option_not_supported`. Example `invoice-model`.
-- Architecture diagrams: a perspective can be chosen at render time — `--perspective <key>`, `perspective` in npm and in MCP `chartlet_render`, `RenderOptions::perspective`, `ChartSpec::with_perspective` — in place of the one the model and its views select, in every view, variant and format, with watch and preview too; the manifest records it, `specHash` stays that of the model as given. `unknown_perspective` at `/render/perspective` for a key no perspective has.
-- Architecture diagrams: a category of a perspective may also list `connections` by their `id` (`components` becomes optional). In the shown perspective, such a connection is drawn in the category's color, arrowheads too, with the category's name after its label, so the meaning does not rest on color; a role keeps its color, and a connection no category lists is drawn as before. Views keep the categories of the connections they show — every occurrence of a step, every instance connection carrying the model connection; the legend lists categories used by connections, the description names the connections of each category, the table adds the category after the connection. `unknown_connection` and `duplicate_member` for the connections of a category.
-- Architecture diagrams: a view may set its own `width`, `height` and `mobile`, in place of the model's, in ordinary and deployment views alike; they are checked like the model's, with diagnostics at the view (`invalid_dimension` at `/architecture/views/0/width`), and layout warnings about them point there too. A view without them renders as before.
-- Architecture diagrams: `tags` on components and connections (up to 8, written like ids, never drawn), and `include`/`exclude` on a view, in addition to its lists. A component is shown when the view lists it or carries a tag of `include` and none of `exclude`; a view with `exclude` but neither `components` nor `include` starts from every component. Without `connections`, the connections between shown components come along except those with an `exclude` tag; with `connections`, those plus every connection between shown components with an `include` tag and no `exclude` tag. What a view lists by id is always shown. `unknown_tag`, `duplicate_tag`, `invalid_tag`, `too_many_tags`, `empty_view` when the tags select nothing; not with `steps` or an `environment` (`option_not_supported`).
-- Architecture diagrams: `"deriveConnections": true` on a deployment view derives instance connections from the model by one stated rule. Every model connection whose `id` the view's `instanceConnections` do not name joins each instance of its `from` component, in the order of `instances`, to the nearest instances of its `to` component — those whose hosts share the most enclosing hosts with its own, counted from the outermost; at a tie all of them, never itself — as a copy of the model connection, `fromSide` and `toSide` included; a listed instance connection now also takes the sides it leaves out from its model connection. Named ones are left to the listed instance connections, which come first. Derived connections count toward the 80 connections (`too_many_edges` at `…/deriveConnections`) and their diagnostics point to the model connection; only deployment views take it (`option_not_supported`). Without it nothing changes.
+- **Architecture diagrams:** `views` show one model as several diagrams: a view has a `key`, a
+  `title`, a `description` and the `components` it shows, with their connections (or those listed
+  by their new `id`), boundaries and main path; a dynamic view lists `steps`, numbered. Details:
+  [Views](https://casoon.github.io/chartlet/docs/reference/specification/#views). Example `shop-views`.
+- **Architecture diagrams:** one view is rendered — `--view`, `view` in npm and MCP,
+  `RenderOptions::view`, else `defaultView`, else the first — never the whole model; description and
+  table show what the view shows and how much of the model that is, and the manifest records `view`.
+- **Architecture diagrams:** `--all-views` (`allViews` in npm, MCP and the Astro `Chart`,
+  `RenderOptions::all_views`) renders every view on one HTML page without a script, with a
+  navigation and one section per view. Details:
+  [All views on one page](https://casoon.github.io/chartlet/docs/guides/chart-types/#all-views-on-one-page).
+  Example `shop-views.all.html`.
+- **Architecture diagrams:** with `--all-views`, the manifest lists the views in `views` and npm
+  returns every view's text alternative in `alternatives` with `alternative: true`; SVG, the other
+  variants and `--view` are refused (`option_not_supported`). Single-view exports are unchanged.
+- **Architecture diagrams:** a view may set its own `width`, `height` and `mobile` in place of the
+  model's, in ordinary and deployment views; they are checked like the model's, with diagnostics and
+  layout warnings at the view.
+- **Architecture diagrams:** `tags` on components and connections (never drawn) and
+  `include`/`exclude` on a view select what the view shows besides its lists; what a view lists by
+  id is always shown. Details:
+  [Views](https://casoon.github.io/chartlet/docs/reference/specification/#views).
+- **Architecture diagrams:** `perspectives` keep categorical metadata, such as the owning team, apart
+  from the drawing: `categories` that list `components` and connections by `id`. Only the one
+  selected with `perspective` is shown, in colors with names and a legend. Details:
+  [Perspectives](https://casoon.github.io/chartlet/docs/guides/chart-types/#perspectives).
+  Example `service-perspectives`.
+- **Architecture diagrams:** `--perspective <key>` (`perspective` in npm and MCP `chartlet_render`,
+  `RenderOptions::perspective`, `ChartSpec::with_perspective`) picks the perspective at render time
+  in every view, variant and format; the manifest records it, `specHash` stays that of the model.
+- **Architecture diagrams:** a view with an `environment` shows where the model runs, with nested
+  `hosts`, `instances` of components and the `instanceConnections` it lists; `chartlet inspect`
+  counts a component run there as shown. Details:
+  [Environments and instances](https://casoon.github.io/chartlet/docs/guides/chart-types/#environments-and-instances).
+  Example `api-environments`.
+- **Architecture diagrams:** `"deriveConnections": true` on a deployment view derives the instance
+  connections from the model, to the nearest instances by shared hosts; a listed instance connection
+  now also takes the sides it leaves out from its model connection. Details:
+  [Environments and instances](https://casoon.github.io/chartlet/docs/guides/chart-types/#environments-and-instances).
+- **Architecture diagrams:** provided and required interfaces: `provides` on a component draws each
+  interface as a ball on a stem, and a connection with `toInterface` ends in a socket around it;
+  description, table, views and hooks follow. Details:
+  [Architecture diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#architecture-diagrams).
+  Example `payment-interfaces`.
+- **Architecture diagrams:** `symbol` draws one of 16 generic stroke symbols (`browser`,
+  `api-gateway`, `message-broker`, …) above a component's label; the kind keeps its shape. Details:
+  [Architecture diagrams](https://casoon.github.io/chartlet/docs/reference/specification/#architecture-diagrams).
+  Example `shop-symbols`.
+- **Architecture diagrams:** `connections[].direction` — `forward` (default), `both` (arrowheads at
+  either end) or `none` (no arrowhead); tooltip, description and table say which. Details:
+  [Architecture diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#architecture-diagrams).
+- **Class diagrams:** `packages` frame the classes that name them with `in`, nested up to four deep;
+  relations still cross package borders. Details:
+  [Class diagrams](https://casoon.github.io/chartlet/docs/reference/specification/#class-diagrams).
+  Example `shop-modules`.
+- **Class diagrams:** `orientation` on a package lays out its classes that way, as one block;
+  `package_orientation_ignored` says when it cannot. Details:
+  [Class diagrams](https://casoon.github.io/chartlet/docs/reference/specification/#class-diagrams).
+  Example `invoice-model`.
+- **Class diagrams:** `relations[].direction` on an association — `forward`, `both` or `none` — says
+  which way it can be navigated; other kinds refuse it (`option_not_supported`).
+- **Trees:** `distances` (labels and a distance matrix) instead of `nodes` builds a dendrogram, with
+  `linkage` `average` (default), `complete` or `single`. Details:
+  [Dendrograms](https://casoon.github.io/chartlet/docs/guides/chart-types/#dendrograms). Example
+  `climate-similarity`.
+- **Networks:** `"type": "network"`: nodes as dots joined by edges, on a circle or in rings around
+  a `center`, with groups, `dash`, `weight` and `directed`; no force layout, so the same input gives
+  the same picture. Details: [Networks](https://casoon.github.io/chartlet/docs/guides/chart-types/#networks).
+  Examples `co-authors`, `service-dependencies`.
+- **Diagrams:** `role` — `critical`, `planned` or `deprecated` — on nodes and edges of flow, state,
+  network, tree, class and architecture diagrams: a role color plus a sign that needs no color,
+  named in legend, description and table. Details:
+  [Diagram fields](https://casoon.github.io/chartlet/docs/reference/specification/#diagram-fields).
+  Examples `billing-migration`, `payment-redesign`.
+- **Diagrams:** `notes` on flow, class and architecture diagrams: a note `on` a step, class or
+  component stands beside it, one on a package or boundary inside that frame, one without `on` below
+  the diagram; none adds an edge. Description and table name them. Examples `subscription-model`,
+  `payment-notes`.
+- **Diagrams:** `mainPath` of flow charts and architecture diagrams also takes
+  `{ "from": "a", "to": "b" }`, the shortest way between the two (`main_path_unreachable` when there
+  is none).
+- **Diagrams:** `weight` on a flow edge or architecture connection draws its line from 1 px to 5 px
+  for the heaviest; description and table give every weight. Example `request-volume`.
+- **Diagrams:** `sameRank` in flow charts and architecture diagrams puts sets of steps or components
+  at one position along the flow, such as parallel reviews; a layout hint that adds no edge. Example
+  `data-tier`.
+- **Diagrams:** `fromSide` and `toSide` on a flow edge or architecture connection pin the side it
+  leaves and reaches, named after the flow so that they hold in either orientation. Details:
+  [Port sides](https://casoon.github.io/chartlet/docs/guides/chart-types/#port-sides). Example
+  `contract-review`.
+- **Diagrams:** `"sharedTrunks": true` in flow charts and architecture diagrams draws edges that
+  leave or reach one node together on one branching line, where they read the same; each is still
+  listed. Examples `service-fan-out`, `order-fulfilment`.
+- **Diagrams:** `spacing` — `compact`, `normal` (default) or `roomy` — scales the gaps of flow,
+  state, class and architecture diagrams. Details:
+  [Spacing](https://casoon.github.io/chartlet/docs/guides/chart-types/#spacing).
+- **Diagrams:** `value` on a node of a flow chart or tree fills its box from a scale of six blues,
+  with a key named by `valueLabel` and text that keeps 4.5:1 contrast. Example `department-budgets`.
+- **Diagrams:** `parts` on a node of a flow chart or tree draws a stripe of shares at the bottom of
+  its box, with one legend for the diagram. Example `claim-handling`.
+- **Interaction:** with `hooks: true`, diagrams carry their ids for a page script —
+  `data-chartlet-node`, `data-chartlet-edge`, `data-chartlet-frame` and `data-chartlet-lane`.
+  Details: [The hooks](https://casoon.github.io/chartlet/docs/guides/interaction/#the-hooks).
+- **CLI:** `chartlet inspect` checks architecture, flow and class diagrams for gaps in their
+  documentation without rendering, as text or `--format json`, with `--disable` and `--strict`; in
+  Rust `inspect_json`. Details:
+  [Inspections](https://casoon.github.io/chartlet/docs/guides/warnings-and-errors/#inspections).
+- **CLI:** `chartlet render --watch` renders again whenever the file changes, and `--preview`
+  serves the latest chart on a local page that reloads. Details:
+  [Watching and preview](https://casoon.github.io/chartlet/docs/reference/cli/#watching-and-preview).
+- **npm:** `@casoon/chartlet/builder` builds architecture and flow specifications in code
+  (`component`, `node`, `connect`, `fanOut`, `chain`, …) and throws at the call on a wrong id. Details:
+  [Architecture builder](https://casoon.github.io/chartlet/docs/guides/javascript/#architecture-builder).
+  `order-flow` and `release-flow` rebuild with it byte for byte.
+- **npm:** `inspectChart(spec, { disable })` runs the inspections of `chartlet inspect` without the
+  CLI and returns `{ ok, findings }` or `{ ok: false, error }`.
+- **MCP:** `chartlet_inspect` returns the findings of `chartlet inspect` with code, severity, path,
+  message and hint.
+- **MCP:** `chartlet_diagram_starter` takes `template` with `type: "architecture"` — `context`,
+  `containers` or `deployment` — each a valid specification with the question it answers. Examples
+  `booking-context`, `booking-containers`, `booking-deployment`.
+- **Docs:** the architecture guide maps system, container, component and deployment node onto
+  chartlet and says where the starters stop short of a full C4 model. Details:
+  [Context, containers and deployment](https://casoon.github.io/chartlet/docs/guides/chart-types/#context-containers-and-deployment).
 
 ### Changed
 
-- The WebAssembly module is about 34 KB smaller (700 KB to 666 KB gzip): chartlet finds the JSON Pointer
-  of a specification error itself and no longer depends on `serde_path_to_error`. Error codes,
-  paths and messages are unchanged.
+- **Diagrams:** the description of flow charts, architecture and class diagrams names the shape of
+  the graph before the steps — the most connected nodes, loops, unconnected parts, bottlenecks —
+  where that says more than the steps. Details:
+  [Graph structure](https://casoon.github.io/chartlet/docs/guides/chart-types/#graph-structure).
+- **npm:** the WebAssembly module is about 34 KB smaller (700 KB to 666 KB gzip): chartlet finds the
+  JSON Pointer of a specification error itself and no longer depends on `serde_path_to_error`.
+  Error codes, paths and messages are unchanged.
+- **Contributors:** `cargo test --test golden visual_report -- --ignored` writes a local HTML
+  report of every reviewed example against its current rendering, without ever accepting a change.
+  Details: [CONTRIBUTING.md](https://github.com/casoon/chartlet/blob/main/CONTRIBUTING.md).
+- **Contributors:** `tests/generated.rs` renders flow charts, architecture diagrams, trees and
+  networks from fixed seeds and checks that each renders the same twice as well-formed SVG.
 
 ### Fixed
 
-- Architecture diagrams: in a deployment view, `text_too_long` for an instance whose label `Label (id)` exceeds 60 characters points to the instance's `id` (`/architecture/views/1/instances/0/id`), not to a `label` field instances do not have, and the message names the label and says to shorten the id or the component's label.
-- Flow charts, architecture diagrams and class diagrams: a layer listed with a step between the members of a group no longer keeps that order when it has no crossings; the frame used to take the step in, or push frames apart until the canvas grew many times its width.
-- Trees: a distance matrix with a row shorter than the others is refused with `invalid_matrix` at that row instead of stopping the render.
-- Line charts: `lower` and `upper` on a point without a value are refused with `invalid_bounds` at `/data/i/value` instead of stopping the render.
-- Schema: line charts with several series, small multiples of bars (`categories` with `panes`) and fractional values on a numeric time axis validate against `schema/chartlet.schema.json`, as the compiler already accepted them.
+- **Architecture diagrams:** in a deployment view, `text_too_long` for an instance label over 60
+  characters points to the instance's `id`, not to a `label` field instances do not have, and says
+  to shorten the id or the component's label.
+- **Trees:** a distance matrix with a short row is refused with `invalid_matrix` at that row instead
+  of stopping the render.
+- **Diagrams:** in flow charts, architecture and class diagrams, a layer that lists a step between
+  the members of a group no longer keeps that order; the frame took the step in, or pushed frames
+  apart until the canvas grew many times its width.
+- **Line charts:** `lower` and `upper` on a point without a value are refused with `invalid_bounds`
+  instead of stopping the render.
+- **Schema:** line charts with several series, small multiples of bars and fractional values on a
+  numeric time axis validate against `schema/chartlet.schema.json`, as the compiler accepted them.
 
 ## [0.19.0] - 2026-10-12
 
 ### Added
 
-- Architecture diagrams: `connections[].step` (1–99, each used once) numbers a connection in a sequence of calls; the number stands before the label (`2. places the order`), the description lists the steps in order and the notes on the connections name them. Example `checkout-calls`.
-- Architecture diagrams: the component kinds `node` (a machine or cluster node, a box seen from a corner) and `artifact` (something deployed on it, a box with a folded corner) make deployment diagrams; boundaries are the hosts. Example `shop-deployment`.
-- `theme: "blueprint"`: sequence, flow, state, architecture, tree and classes diagrams in pale lines on a deep blue ground; other charts refuse it (`option_not_supported`).
-- Trees: `"layout": "radial"` draws a mind map — the root in the middle, every level on a ring around it, each subtree in a sector as wide as its share of the leaves, straight spokes from box to box. The rings take the proportions that grow the canvas least. `orientation`, `partner` and `link` are refused on a radial tree (`option_not_supported`); the description opens with “Mind map (radial tree)” / „Mindmap (radialer Baum)“ and names the centre. Example `product-strategy`.
-- Scatter plots: `quadrants` divides the plot by a line at an x and a y value into four areas, each with an optional name in a free corner (an impact and effort matrix); the description lists the points of every area and the data table gains a Quadrant column. A dividing line must lie inside a fixed range (`out_of_range`); one on the end of an automatic axis, or an area too small for its name, warns `quadrant_without_room`. Example `feature-priorities`, with a phone variant.
+- **Architecture diagrams:** `connections[].step` (1–99) numbers a connection in a sequence of
+  calls (`2. places the order`); the description lists the steps in order. Example `checkout-calls`.
+- **Architecture diagrams:** the component kinds `node` (a machine or cluster node) and `artifact`
+  (something deployed on it) make deployment diagrams, with boundaries as the hosts. Example
+  `shop-deployment`.
+- **Trees:** `"layout": "radial"` draws a mind map: the root in the middle, every level on a ring,
+  each subtree in a sector by its share of the leaves. Details:
+  [Trees](https://casoon.github.io/chartlet/docs/guides/chart-types/#trees). Example
+  `product-strategy`.
+- **Diagrams:** `theme: "blueprint"` draws sequence, flow, state, architecture, tree and class
+  diagrams in pale lines on a deep blue ground; other charts refuse it (`option_not_supported`).
+- **Scatter plots:** `quadrants` divides the plot at an x and a y value into four named areas, such
+  as an impact and effort matrix; description and table name the area of every point. Details:
+  [Scatter plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#scatter-plots).
+  Example `feature-priorities`, with a phone variant.
 
 ### Fixed
 
-- Scatter plots: the description and the data table named a regression line even without `regression: true`; they name it only when it is drawn. The count of points above a reference line reads „N Punkt(e) darüber“ in German.
+- **Scatter plots:** description and table named a regression line even without
+  `regression: true`; now only when it is drawn. In German, the count of points above a reference
+  line reads „N Punkt(e) darüber“.
 
 ## [0.18.0] - 2026-10-12
 
 ### Added
 
-- Timelines: `timezone` also takes about 55 common IANA names such as `Europe/Berlin`, `America/New_York` or `Australia/Sydney`, with the daylight saving rules in force today (Europe, the USA, southern Australia, New Zealand); the axis is laid out in wall-clock time and an instant is shifted by the offset in force then.
-- Trees: `collapsed` on a node draws it without what hangs below it, with a `+n` for the nodes left out; the description and the data table still list every node (`nothing_to_collapse` warns when nothing hangs below).
+- **Trees:** `collapsed` on a node draws it without what hangs below it, with a `+n` for the nodes
+  left out; description and table still list every node (`nothing_to_collapse` warns when nothing
+  hangs below).
+- **Timelines:** `timezone` also takes about 55 common IANA names such as `Europe/Berlin`, with the
+  daylight saving rules in force today. Details:
+  [Timelines](https://casoon.github.io/chartlet/docs/reference/specification/#timelines).
 
 ### Changed
 
-- Descriptions in plainer words: small multiples open with “Time chart in 3 panels …” / „Zeitreihe in 3 Feldern …“ and “Bar chart in 2 panels …” / „Balkendiagramm in 2 Feldern …“ instead of “Small multiples of …” / „Kleine Vielfache aus …“, with singular for one panel or category; several bands read “Lines have a shaded band from their lower to their upper bound”.
-- English output spells “modelled” (legend, tooltips, description, table, “Hatched: modelled”); the specification field stays `modeled`, and so does the CSS class `chartlet-line-modeled`.
-- Equal ends are named once: a scatter axis whose values are all equal says “x at 3”, warming stripes of one year “for 2020”, a timeline on a single day “on 3 Mar 2026”. A German scatter description now says „von … bis …“ instead of an English “to”, and Kaplan-Meier groups say “1 event” / „1 Ereignis“.
+- **Text alternative:** small multiples open with “Time chart in 3 panels …” and “Bar chart in 2
+  panels …” instead of “Small multiples of …” (German: „Zeitreihe in 3 Feldern …“), singular for
+  one; several bands read “Lines have a shaded band from their lower to their upper bound”.
+- **Text alternative:** English output spells “modelled” (legend, tooltips, description, table);
+  the field `modeled` and the CSS class `chartlet-line-modeled` stay as they are.
+- **Text alternative:** equal ends are named once (“x at 3”, “for 2020”, “on 3 Mar 2026”); a German
+  scatter description says „von … bis …“, and Kaplan-Meier groups say “1 event” / „1 Ereignis“.
 
 ## [0.17.0] - 2026-10-11
 
 ### Added
 
-- Sankey diagrams: `"back": true` on a link marks a flow back to an earlier column, drawn as a loop under the diagram; `link_not_back` refuses one that does not lead back. Example `water-cycle`.
-- Timelines: a summary phase takes `rollup`, the ids of the phases it sums up, and shows their progress weighted by length; arrows between rows turn where no bar or diamond of the rows between them stands instead of running through it.
-- Class and entity-relationship diagrams (`"type": "classes"`): classes with a name, a stereotype, and attribute and method compartments, joined by relations of six kinds with the marks of UML (hollow triangle, filled and hollow diamond, open arrowhead, dashed lines) and cardinalities at the ends, laid out by the layered layout of flow charts. Examples `order-model` and `shop-schema`.
+- **Class diagrams:** `"type": "classes"` for class and entity-relationship diagrams: classes with
+  stereotype, attributes and methods, joined by six kinds of relations with UML marks and
+  cardinalities. Details:
+  [Class and entity diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#class-and-entity-diagrams).
+  Examples `order-model`, `shop-schema`.
+- **Timelines:** a summary phase takes `rollup`, the ids of the phases it sums up, and shows their
+  progress weighted by length.
+- **Sankey diagrams:** `"back": true` on a link marks a flow back to an earlier column, drawn as a
+  loop under the diagram (`link_not_back` when it does not lead back). Example `water-cycle`.
+
+### Changed
+
+- **Timelines:** arrows between rows turn where no bar or diamond of the rows between them stands,
+  instead of running through it.
+
 ## [0.16.0] - 2026-10-11
 
 ### Added
 
-- Timelines: `timezone` (UTC or a fixed offset such as `+02:00`) sets the zone the days are read and written in, and the zone of the shaded weekends.
-- Error bars on several series: a series of a grouped bar chart or a line chart (no stack) takes `lower` and `upper` arrays next to its `values`; every bar or point gets its own error bar, tooltips and an interval column per series in the table. Example `satisfaction-by-quarter`, with a phone variant.
+- **Bar and line charts:** a series of a grouped bar chart or an unstacked line chart takes `lower`
+  and `upper` arrays for error bars, with tooltips and an interval column per series. Example
+  `satisfaction-by-quarter`, with a phone variant.
+- **Timelines:** `timezone` (UTC or a fixed offset such as `+02:00`) sets the zone the days and the
+  shaded weekends are read and written in.
 
 ## [0.15.0] - 2026-10-11
 
 ### Added
 
-- Timelines: `"weekends": true` shades Saturdays and Sundays behind the rows while the axis spans at most 120 days; a longer axis warns with `weekends_hidden`.
-- Box plots: `group` on every box colors the boxes of a group alike (up to four) with a legend and adds a Group column to the table; it works for boxes, violins and strips. Example `latency-by-region`, with a phone variant.
+- **Box plots:** `group` on every box colors the boxes of a group alike (up to four), with a legend
+  and a Group column; for boxes, violins and strips. Example `latency-by-region`, with a phone
+  variant.
+- **Timelines:** `"weekends": true` shades Saturdays and Sundays while the axis spans at most 120
+  days; a longer axis warns with `weekends_hidden`.
 
 ## [0.14.0] - 2026-10-10
 
 ### Added
 
-- Scatter plots: `xTicks` puts named labels at chosen places on the x axis (chromosomes of a Manhattan plot), and `xRange`/`yRange` fix the ends of an axis. Example `genome-scan`, with a phone variant.
-- Timelines: `progress` (0 to 1) on a phase draws that share of its bar darker and adds it to tooltip, description and table; `groupRows` puts the rows of one group together. Progress added to the example `product-roadmap`.
-- Kaplan-Meier curves with `logRank` and two groups: the description adds the hazard ratio of the second group against the first with its 95 % interval, checked against an independent implementation.
-- Violins: `"violinScale": "area"` gives every violin the same area and `"count"` an area that follows its number of observations, so widths compare between violins (the default `width` keeps comparing shapes).
-- Box plots: `"showMean": true` marks the mean of each box's observations with a diamond and adds a Mean column to the table; added to the example `response-distribution`.
+- **Box plots:** `"showMean": true` marks the mean of each box with a diamond and adds a Mean
+  column; added to the example `response-distribution`.
+- **Box plots:** `"violinScale": "area"` gives every violin the same area and `"count"` an area by
+  its number of observations, so widths compare between violins.
+- **Timelines:** `progress` (0 to 1) on a phase draws that share of its bar darker, and `groupRows`
+  puts the rows of a group together; progress added to the example `product-roadmap`.
+- **Scatter plots:** `xTicks` puts named labels on the x axis (chromosomes of a Manhattan plot), and
+  `xRange`/`yRange` fix the ends of an axis. Example `genome-scan`, with a phone variant.
+- **Survival curves:** with `logRank` and two groups, the description adds the hazard ratio of the
+  second group with its 95 % interval, checked against an independent implementation.
 
 ## [0.13.0] - 2026-10-10
 
 ### Added
 
-- Line charts of one series take error bars: `lower` and `upper` on every `data` point draw a stroke through each point; tooltip, description and table give the interval as on a bar chart. Example `monthly-satisfaction`, with a phone variant.
-- Treemaps: an item may have `children` instead of a value, nested up to three levels, drawn as frames around their parts and colored by the item at the top; `value_with_children`, `group_with_children` and `too_deep` refuse the mixed forms. Example `budget-by-sector`, with a phone variant.
-- Sankey diagrams: `nodes` pins a node to a `column` and a palette `color`, and `"order": "listed"` keeps the nodes of a column in the listed order instead of sorting them; `column_too_early` refuses a column that links lead past. Example `voter-movement`, with a phone variant.
-- Kaplan-Meier curves: `"logRank": true` runs the log-rank (Mantel-Cox) test of two to four groups and writes its p value in the plot and the statistic in the description. Added to the example `overall-survival`.
-- Scatter plots: `"regression": true` draws the least-squares line for each group (slope, intercept and r² in the description), and `xScale`/`yScale` set logarithmic axes; a regression on a log axis is fitted to the logarithms. Example `allometry`, with a phone variant.
-- Two flow chart presets as examples, with a phone variant each: `study-selection` (PRISMA 2020 flow with exclusion boxes and the phases as groups) and `court-instances` (an Instanzenzug in German). Neither is a type of its own.
+- **Flow charts:** two presets as examples, each with a phone variant: `study-selection` (a PRISMA
+  2020 flow) and `court-instances` (an Instanzenzug in German); neither is a type of its own.
+- **Line charts:** a line chart of one series takes error bars, `lower` and `upper` on every point.
+  Example `monthly-satisfaction`, with a phone variant.
+- **Scatter plots:** `"regression": true` draws a least-squares line per group, and
+  `xScale`/`yScale` set logarithmic axes. Example `allometry`, with a phone variant.
+- **Survival curves:** `"logRank": true` runs the log-rank test of two to four groups, with the p
+  value in the plot and the statistic in the description; added to the example `overall-survival`.
+- **Sankey diagrams:** `nodes` pins a node to a `column` and a palette `color`, and
+  `"order": "listed"` keeps the listed order (`column_too_early` when links lead past the column).
+  Example `voter-movement`, with a phone variant.
+- **Treemaps:** an item may have `children` instead of a value, nested up to three levels and drawn
+  as frames. Details:
+  [Treemaps](https://casoon.github.io/chartlet/docs/reference/specification/#treemaps). Example
+  `budget-by-sector`, with a phone variant.
 
 ## [0.12.2] - 2026-10-06
 
 ### Fixed
 
-- The showcase on GitHub Pages follows the site's theme: a light chart sits on a dark surface with chartlet's dark palette when the site is dark.
-- Sankey diagrams: nodes take the palette colors in turn instead of all inheriting the color of the first source, and neighbouring nodes in a column are swapped while that lets fewer bands cross.
+- **Sankey diagrams:** nodes take the palette colors in turn instead of all taking the color of the
+  first source, and neighbouring nodes in a column are swapped where that lets fewer bands cross.
+- **Site:** the showcase follows the site's theme: a chart on a dark site uses chartlet's dark
+  palette.
 
 ## [0.12.0] - 2026-10-06
 
+Eight chart types and forest plots. The additions extend the specification, so they belong to 0.12.
+
 ### Added
 
-- Scatter plots (`"type": "scatter"`): up to 5000 points on two numeric axes in up to four groups, with lines across the plot at a value of x or y and names beside labeled points — volcano and Manhattan plots; big plots draw small dots without tooltips and list only the named or the highest points in the table. Example `gene-expression`, with a phone variant.
-- Kaplan-Meier curves (`"type": "survival"`): up to four groups from observed times with censoring, as step curves with a tick for every censored observation, the optional 95 % confidence band (log-log, Greenwood) and the number at risk under the time axis. Example `overall-survival`, with a phone variant.
-- Violins and strips: `"boxDisplay": "violin"` or `"strip"` on a box plot draws the observations as an estimated density with the box inside, or as points spread across the width, with the median; every box needs `values` (`values_required`). Example `response-distribution`, with a phone variant.
-- Sankey diagrams (`"type": "sankey"`): up to 100 links between up to 40 nodes as bands in columns by the longest path, ordered to cross as little as they can, in the palette colors of their sources; cycles, self links and duplicate links are refused. Example `energy-flow`, with a phone variant.
-- Treemaps (`"type": "treemap"`): up to 100 items as rectangles by value, packed by the squarified method, with up to four groups in the palette colors and a legend; names and values inside the rectangles that have room. Example `budget-by-department`, with a phone variant.
-- Parliament charts (`"type": "parliament"`): the seats of an assembly as dots in a semicircle, in blocks by party, with the line of the majority and a ringed coalition. Example `election-result`, with a phone variant.
-- Waffle charts (`"type": "waffle"`): up to four parts as squares by the largest remainder, each with at least one square, and the rest of a larger total; legend beside or below the grid. Example `energy-sources`, with a phone variant.
-- Waterfalls (`"type": "waterfall"`): a running total that rises and falls step by step, with starts, deltas and totals (checked against the running total), vertical or horizontal; the description names the biggest rise and fall. Example `revenue-to-profit`, with a phone variant.
-- Forest plots: a range bar chart takes a `weight` on a span (a square on the mid whose area
-  follows it), `"summary": true` (a diamond for an overall result), and `references` (the line of
-  no effect, as on a bar chart). Value labels keep off the lines. Example `trial-effects`, with a
+- **Range bars:** forest plots: a `weight` on a span (a square whose area follows it),
+  `"summary": true` (a diamond) and `references` (the line of no effect); value labels keep off the
+  lines. Details: [Forest plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#forest-plots). Example `trial-effects`, with a phone variant.
+- **Box plots:** `"boxDisplay": "violin"` or `"strip"` draws the observations as a density or as
+  points; every box needs `values` (`values_required`). Details: [Box plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#box-plots). Example `response-distribution`, with a
   phone variant.
-- Timelines (`"type": "timeline"`): phases (`start`, `end`), milestones (`at`), marker lines,
-  groups, and dependencies (`after`) drawn as arrows; Gantt charts, roadmaps, the course of a
-  procedure. Description and table list every item. Example `product-roadmap`, with a phone
-  variant. Both additions extend the specification, so they belong to 0.12. The range bar style
-  gains two rules, so range bar charts differ in their style block.
+- **Timelines:** `"type": "timeline"` for Gantt charts, roadmaps and procedures: phases, milestones,
+  marker lines, groups and dependencies (`after`) drawn as arrows. Details: [Timelines](https://casoon.github.io/chartlet/docs/guides/chart-types/#timelines). Example `product-roadmap`, with a
+  phone variant.
+- **Scatter plots:** `"type": "scatter"`, up to 5000 points in up to four groups, with reference
+  lines and named points, for volcano and Manhattan plots. Details: [Scatter plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#scatter-plots). Example `gene-expression`, with a phone
+  variant.
+- **Survival curves:** `"type": "survival"`, Kaplan-Meier curves of up to four groups with censoring
+  ticks, an optional 95 % band and the number at risk. Details: [Survival curves](https://casoon.github.io/chartlet/docs/guides/chart-types/#survival-curves). Example `overall-survival`, with a phone
+  variant.
+- **Sankey diagrams:** `"type": "sankey"`, up to 100 links between up to 40 nodes in columns,
+  ordered to cross little; cycles, self links and duplicates are refused. Details: [Sankey diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#sankey-diagrams). Example `energy-flow`,
+  with a phone variant.
+- **Treemaps:** `"type": "treemap"`, up to 100 items as rectangles by value, in up to four groups
+  with a legend. Details: [Treemaps](https://casoon.github.io/chartlet/docs/guides/chart-types/#treemaps). Example `budget-by-department`, with a phone variant.
+- **Parliament charts:** `"type": "parliament"`, the seats of an assembly in a semicircle by party,
+  with the majority line and a ringed coalition. Details: [Parliament charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#parliament-charts). Example `election-result`, with a phone variant.
+- **Waffle charts:** `"type": "waffle"`, up to four parts as squares by the largest remainder, and
+  the rest of a larger total. Details: [Waffle charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#waffle-charts). Example `energy-sources`, with a phone variant.
+- **Waterfalls:** `"type": "waterfall"`, a running total with starts, deltas and checked totals,
+  vertical or horizontal. Details: [Waterfalls](https://casoon.github.io/chartlet/docs/guides/chart-types/#waterfalls). Example `revenue-to-profit`, with a phone variant.
+
+### Changed
+
+- **Range bars:** the range bar style gains two rules, so range bar charts differ in their style
+  block.
 
 ## [0.11.0] - 2026-10-05
 
@@ -170,22 +340,21 @@ specification that rendered with 0.10.0 still renders, and every example is byte
 
 ### Added
 
-- Box plots (`"type": "boxplot"`): one box per category, computed from `values` (quartiles by
-  linear interpolation, whiskers to the last value within 1.5 boxes, a point for every value
-  beyond) or drawn from `min`, `q1`, `median`, `q3`, `max` and `outliers`; vertical or
-  horizontal; median labels with `showValues`; text alternative and table with the five numbers
-  and the outliers. Example `response-times` (with a phone variant).
-- Error bars on bar charts: `lower` and `upper` on every `data` point of a bar chart without
-  groups; the value label moves beyond the bar, the table gains an Interval column. Example
-  `satisfaction-scores`. Both additions extend the specification, so they belong to 0.11.
+- **Bar charts:** `lower` and `upper` on every point of a bar chart without groups draw error bars;
+  the value label moves beyond the bar and the table gains an Interval column. Example
+  `satisfaction-scores`.
+- **Box plots:** `"type": "boxplot"`, one box per category, computed from `values` or drawn from
+  the five numbers and `outliers`, vertical or horizontal. Details:
+  [Box plots](https://casoon.github.io/chartlet/docs/reference/specification/#box-plots). Example
+  `response-times`, with a phone variant.
 
 ### Fixed
 
-- Diagrams that ask for a larger canvas (`canvas_too_small`) now ask for a size that works: laying
-  the diagram out at the size named in the warning raises no further warning. Before, the
-  size named for an edge label past the last layer, or for a self-message of the last sequence
-  participant, grew with every attempt. A sequence diagram up to 600 pixels wide takes the
-  compact layout, so that a mobile variant that grows keeps its layout.
+- **Sequence diagrams:** a diagram up to 600 pixels wide takes the compact layout, so that a mobile
+  variant that grows keeps its layout.
+- **Diagrams:** a diagram that asks for a larger canvas (`canvas_too_small`) asks for a size at
+  which it raises no further warning; the size for an edge label past the last layer, or a
+  self-message of the last participant, grew with every attempt.
 
 ## [0.10.0] - 2026-10-05
 
@@ -198,140 +367,126 @@ byte-identical.
 
 ### Added
 
-- Bars colored by group: `group` on the points of a single-series `bar` chart gives every group a
-  palette color and a legend entry (at most 4); the data table gains a Group column.
-- Small multiples of bars: `multiples` with `categories`, and in every pane `values` and a
-  `valueAxis` of its own, for categories compared on measures in different units. Examples
-  `benefit-and-harm` and `framework-benchmarks` (with a phone variant). Both additions extend the
-  specification, so they belong to 0.10.
-
-### Fixed
-
-- Architecture and flow: an edge label that ends beyond the layers (next to the rightmost step)
-  widens the canvas and says so with `canvas_too_small`; it no longer runs out of the picture
-  without a word. The label of an edge that runs against the flow and leaves a diamond stays at
-  its edge instead of under the diamond next to the forward exit. A frame is as wide as its own
-  name instead of shortening it.
-- Sequence: a message of the last participant to itself finds room: its label may wrap at 170
-  pixels and the canvas grows on the right when that is not enough (`canvas_too_small`), instead
-  of `text_truncated`.
-- Range bars: a span with `low` equal to `high` is labeled with the one value (`3`, not `3 to 3`).
-- Logarithmic axes end at the next 1, 2 or 5 times a power of ten, not at the next power of ten:
-  values up to 13.75 give an axis to 20, not to 100. The examples with a logarithmic axis changed.
-- Horizontal bars: a value label that a reference line would run through moves to the far side of
-  the line.
-- Time charts: a value label that would run into the previous one of its layer is left out, with
-  the warning `value_labels_omitted` (as with bars; under `--strict` such a chart now fails
-  where it rendered overlapping labels before).
+- **Bar charts:** `group` on the points of a single-series bar chart gives every group a palette
+  color and a legend entry (at most 4), and the table a Group column.
+- **Bar charts:** small multiples of bars: `multiples` with `categories`, and in every pane `values`
+  and a `valueAxis` of its own, for measures in different units. Examples `benefit-and-harm`,
+  `framework-benchmarks` (with a phone variant).
 
 ### Changed
 
-- The WebAssembly renderer is smaller: 1276 KB (478 KB gzip) to 1044 KB (409 KB gzip), −18 %, with
-  output byte for byte the same. The many small sorts of the layouts share one copy of the sort
-  code, and the WebAssembly build is optimized for size (`opt-level = "z"`, `wasm-opt -Oz`),
-  which costs about 15 % render time (1.3 ms instead of 1.15 ms for a chart). `npm run build:wasm`
-  prints the size of the module.
+- **Value axis:** a logarithmic axis ends at the next 1, 2 or 5 times a power of ten instead of the
+  next power of ten: values up to 13.75 give an axis to 20, not 100. The examples with a
+  logarithmic axis changed.
+- **npm:** the WebAssembly renderer is 18 % smaller (1276 KB / 478 KB gzip to 1044 KB / 409 KB
+  gzip) with the same output: the layouts share one sort routine, and the build is optimized for
+  size (`opt-level = "z"`, `wasm-opt -Oz`) at about 15 % more render time (1.3 ms instead of
+  1.15 ms).
+- **npm:** `npm run build:wasm` prints the size of the module.
+
+### Fixed
+
+- **Sequence diagrams:** a message of the last participant to itself finds room: its label wraps
+  and the canvas grows on the right (`canvas_too_small`) instead of `text_truncated`.
+- **Diagrams:** in architecture and flow diagrams, an edge label beyond the last layer widens the
+  canvas with `canvas_too_small` instead of running out of the picture.
+- **Diagrams:** in architecture and flow diagrams, the label of an edge that runs back from a
+  diamond stays at its edge, and a frame is as wide as its own name instead of shortening it.
+- **Bar charts:** on horizontal bars, a value label that a reference line would run through moves
+  to the far side of the line.
+- **Time charts:** a value label that would run into the previous one of its layer is left out with
+  `value_labels_omitted`, as with bars; under `--strict` such a chart now fails.
+- **Range bars:** a span with `low` equal to `high` is labeled with the one value (`3`, not
+  `3 to 3`).
 
 ## [0.9.0] - 2026-10-05
 
-Trees, and finished sequence and architecture diagrams. Sequence and architecture diagrams are no
-longer experimental: they are laid out for a real reference architecture and a sign-in sequence,
-on a desktop canvas and at phone width. The new `tree` type (organization charts, ownership
-structures, family trees) is added to the specification; every specification that rendered with
-0.8.0 still renders. Sequence, flow, state and architecture diagrams may come out slightly
-differently (a participant box a pixel wider, edges that no longer cross, labels in other places),
-so their examples changed; every other example is byte-identical. Flow and state diagrams stay
-experimental.
-
-### Fixed
-
-- Sequence: a participant's name is no longer shortened when its column has room (the box was
-  measured a hair too narrow). Boxes are a pixel wider where that happened.
-- Sequence, narrow canvas: message labels may reach over the lifelines next to their arrow and
-  wrap instead of being shortened; boxes and gaps are tighter, so five participants need about
-  400 pixels instead of 480. A frame grows to the right to hold its label.
-- Architecture and flow: edges that leave one step side by side no longer cross when they
-  turn the same way; the label of an edge that shares its port with others stands under its
-  own stretch instead of beyond the others' lines; in portrait a label keeps off the borders of
-  group frames; a person's head sits inside its box; a step's name and an edge's technology are
-  no longer shortened on a narrow canvas.
+Trees, and finished sequence and architecture diagrams, laid out for a real reference architecture
+and a sign-in sequence on a desktop canvas and at phone width. Every specification that rendered
+with 0.8.0 still renders. Sequence, flow, state and architecture diagrams may come out slightly
+differently, so their examples changed; every other example is byte-identical.
 
 ### Added
 
-- Trees (`"type": "tree"`): a root and the nodes below it, each naming its `parent`,
-  with an optional `link` label such as a share, laid out by chartlet in portrait or landscape —
-  one row per level, parents centered over their children, subtrees pushed together. The
-  description names the root and what hangs below every node; the data table lists each node with
-  its level, parent, link and children. This adds a chart type, so it belongs to 0.9, not to a
-  0.8 patch. Node `kind` (`unit`, `person`, `external`) and `partner`, which joins two nodes as a couple whose children hang from the middle of the line between them (family trees). New examples `ownership-structure` and `family-tree`.
-- Examples `sign-in-sequence` and `tenant-architecture`, with phone and print variants.
+- **Architecture diagrams:** example `tenant-architecture`, with phone and print variants.
+- **Sequence diagrams:** example `sign-in-sequence`, with phone and print variants.
+- **Trees:** `"type": "tree"` for organization charts, ownership structures and family trees:
+  nodes naming their `parent`, an optional `link` label such as a share, node `kind` and `partner`
+  for couples. Details: [Trees](https://casoon.github.io/chartlet/docs/guides/chart-types/#trees).
+  Examples `ownership-structure`, `family-tree`.
 
 ### Changed
 
-- Flowcharts with lanes leave a little room between a lane's head and its first step, and after
-  its last step, in portrait and landscape. Diagrams with lanes come out slightly longer.
-
-## [0.8.0] - 2026-10-03
-
-Software diagrams: sequence, flow, state and architecture diagrams, laid out by chartlet from a
-description of what is connected, in portrait or landscape, with the same accessible output as a
-chart and a focus on a node without a script. All four types are experimental: their layout may
-change between minor releases. Every specification that rendered with 0.7.1 still renders the same;
-the examples from before are byte-identical.
-
-### Added
-
-- Sequence diagrams (`"type": "sequence"`, experimental), the first of a family of software
-  diagrams: participants in five kinds with their own shapes (service, actor, database, queue,
-  external), calls, replies and asynchronous messages, messages to oneself, activation bars from
-  call to reply, numbered messages, and `alt`/`opt`/`loop`/`par`/`critical`/`break` fragments that
-  nest, with `else` branches. `orientation` draws a diagram in portrait (time running down) or
-  landscape (time running right); `auto`, the default, picks the one that fits the canvas, and a
-  mobile variant picks again at its size. A canvas too small grows, with the warning
-  `canvas_too_small`. The description lists every message in order and the data table has a row
-  per message. New examples `cache-lookup` and `async-export`.
-- Flow charts (`"type": "flow"`, experimental), laid out by chartlet in layers along the flow:
-  steps in eight kinds with their own shapes, labelled and dashed edges, cycles drawn back
-  against the flow, loops on a step, lanes, groups and a main path kept in line. Portrait and
-  landscape as for sequence diagrams. Errors and warnings name the field (`unknown_node`,
-  `missing_lane`, `main_path_gap`, `group_overlap`, …). The description and the data table follow
-  the steps in reading order. New examples `release-flow` and `order-flow`.
-- State diagrams (`"type": "state"`, experimental) on the layout of flow charts: an initial dot,
-  states, choices and final states, transitions written `event [guard] / action`, loops on a
-  state, a main path. The warning `unreachable_state` names a state nothing leads to. The data
-  table has one row per transition with event, guard and action in columns of their own. New
-  example `ticket-states`.
-- Architecture diagrams (`"type": "architecture"`, experimental): components in eight kinds with
-  their own shapes (person, frontend, service, database, queue, storage, cache, external),
-  connections with a label and a technology, and boundaries nested up to four deep, laid out like
-  flow charts. Components outside a boundary are kept out of its frame. New example
-  `shop-architecture`.
-- Edge labels of flow, state and architecture diagrams are drawn above all edges; labels on the
-  same side of a step stack instead of covering each other.
-- Composite states (`"kind": "composite"`, other states lie `"in"` it) drawn as frames, and the
-  component kind `security`, a shield in a new red role color.
-- A component or step that hangs off a frame from outside — only receiving from it, or only
-  sending into it — stands after or before the frame on the main axis instead of far beside it.
-- Diagrams below 480 pixels, such as mobile variants, are compact: smaller margins and gaps,
-  narrower steps, participant names on two lines instead of shortened, loop labels wrapped,
-  frames and labels kept on the page. A numbered message's label rises above its badge instead
-  of giving up width to it.
-- Focus without a script: in the HTML profile a click on a diagram's node, or a choice in the
-  "Focus" list of radio buttons above it, keeps the node, its neighbours and the edges between
-  them and fades the rest. The SVG stays an image.
-- MCP server: the tool `chartlet_diagram_starter` returns a valid starting specification per
-  diagram type with the kinds of its elements, and `chartlet_explain` gives a diagram's structure:
-  the counts of its elements and the rows of its data table. Needs `@casoon/chartlet` with the
-  diagram types.
-- Where neither orientation fits the canvas, `auto` takes the one that grows it less.
-- The diagram types share one look: a role color per kind of step or participant on top of its
-  shape (CSS custom properties `--chartlet-role-*`), soft shadows, rounded corners on edges, edge
-  and message labels on chips, and message numbers in badges at the start of their arrows.
+- **Flow charts:** lanes leave a little room before their first and after their last step, so
+  diagrams with lanes come out slightly longer.
+- **Diagrams:** sequence and architecture diagrams are no longer experimental; flow and state
+  diagrams stay experimental.
 
 ### Fixed
 
-- The social variant scales a chart down into its frame when the chart was drawn larger than
-  the size it was laid out for.
+- **Sequence diagrams:** a participant's name is no longer shortened when its column has room;
+  boxes are a pixel wider where that happened.
+- **Sequence diagrams:** on a narrow canvas, message labels may reach over neighbouring lifelines
+  and wrap, and boxes and gaps are tighter (five participants in about 400 pixels instead of 480);
+  a frame grows to hold its label.
+- **Diagrams:** in architecture and flow diagrams, edges that leave a step side by side no longer
+  cross, a label of a shared port stands under its own stretch, labels keep off group frames in
+  portrait, and a person's head sits inside its box.
+- **Diagrams:** in architecture and flow diagrams, a step's name and an edge's technology are no
+  longer shortened on a narrow canvas.
+
+## [0.8.0] - 2026-10-03
+
+Software diagrams, laid out by chartlet from a description of what is connected, with the same
+accessible output as a chart. All four types are experimental: their layout may change between
+minor releases. Every specification that rendered with 0.7.1 still renders the same; the
+examples from before are byte-identical.
+
+### Added
+
+- **Architecture diagrams:** `"type": "architecture"`: components in eight kinds with their own
+  shapes, connections with a label and a technology, and boundaries nested up to four deep that
+  keep outside components out of their frame. Details:
+  [Architecture diagrams](https://casoon.github.io/chartlet/docs/reference/specification/#architecture-diagrams).
+  Example `shop-architecture`.
+- **Architecture diagrams:** the component kind `security`, a shield in a new red role color.
+- **Flow charts:** `"type": "flow"`, laid out in layers along the flow: steps in eight kinds, edges,
+  cycles drawn back, lanes, groups and a main path kept in line. Details:
+  [Flow charts](https://casoon.github.io/chartlet/docs/reference/specification/#flow-charts).
+  Examples `release-flow`, `order-flow`.
+- **State diagrams:** `"type": "state"` on the layout of flow charts, with transitions written
+  `event [guard] / action`, a table row per transition and the warning `unreachable_state`.
+  Details: [State diagrams](https://casoon.github.io/chartlet/docs/reference/specification/#state-diagrams).
+  Example `ticket-states`.
+- **State diagrams:** composite states (`"kind": "composite"`, other states lie `"in"` it), drawn as
+  frames.
+- **Sequence diagrams:** `"type": "sequence"`: participants in five kinds, calls, replies and
+  asynchronous messages, activation bars, numbering and nested fragments. Details:
+  [Sequence diagrams](https://casoon.github.io/chartlet/docs/reference/specification/#sequence-diagrams).
+  Examples `cache-lookup`, `async-export`.
+- **Diagrams:** `orientation` draws a diagram in portrait or landscape; `auto` picks the one that
+  fits the canvas, or the one that grows it less, again for a mobile variant. A canvas too small
+  grows, with `canvas_too_small`.
+- **Diagrams:** edge labels of flow, state and architecture diagrams are drawn above all edges and
+  stack instead of covering each other; a node that only receives from or sends into a frame stands
+  after or before it.
+- **Diagrams:** below 480 pixels, as in mobile variants, diagrams are compact: smaller margins and
+  gaps, narrower steps, names on two lines instead of shortened, labels wrapped and kept on the
+  page; a numbered message's label rises above its badge.
+- **Diagrams:** one look for all types: a role color per kind (CSS custom properties
+  `--chartlet-role-*`), soft shadows, rounded corners, labels on chips and message numbers in
+  badges.
+- **Interaction:** focus without a script: in the HTML profile, a click on a diagram's node or a
+  choice in the "Focus" radio list keeps the node, its neighbours and the edges between them and
+  fades the rest; the SVG stays an image.
+- **MCP:** `chartlet_diagram_starter` returns a valid starting specification per diagram type, and
+  `chartlet_explain` gives a diagram's element counts and table rows; both need `@casoon/chartlet` with the diagram
+  types.
+
+### Fixed
+
+- **Rendering:** the social variant scales a chart down into its frame when the chart was drawn
+  larger than the size it was laid out for.
 
 ## [0.7.1] - 2026-10-02
 
@@ -342,213 +497,220 @@ endless axis.
 
 ### Fixed
 
-- A time axis counts the ticks a step actually places instead of estimating them, and spaces its
-  ticks by the width its plot actually has: a narrow chart no longer ends up with a single tick,
-  and labels with a time of day get the room they need.
-- A low pane of a time chart labels only the value ticks that stand a label's height apart; its
+- **All charts:** a plot keeps at least 40 pixels of height and reports `dense_chart` instead of
+  turning upside down on a small chart.
+- **Bar charts:** the value label of a short negative horizontal bar no longer runs into the
+  category labels; its category leaves out its value labels (`value_labels_omitted`).
+- **Bar charts:** stacked bar charts use a declared `valueAxis.step`, which they ignored.
+- **Bar and line charts:** `labels_thinned` names `/data` for charts with `data`, and its message
+  reads "one category in n".
+- **Value axis:** a declared `valueAxis.step` gives at most 50 ticks (an exact axis at least 2), and
+  `timeAxis.step` 1 to 50; a tiny step could hang the renderer.
+- **Time charts:** a time axis counts the ticks a step places and spaces them by the plot's real
+  width, so a narrow chart no longer ends up with a single tick and times of day get their room.
+- **Time charts:** a low pane labels only the value ticks that stand a label's height apart; its
   gridlines stay.
-- The value label of a short negative horizontal bar no longer runs into the category labels;
-  its category leaves out its value labels instead (`value_labels_omitted`).
-- PNG output warns with `glyph_missing` about characters its fonts have no glyph for.
-- A declared `valueAxis.step` must give at most 50 ticks (an exact axis at least 2), and a
-  declared `timeAxis.step` 1 to 50; a tiny step could draw millions and hang the renderer.
-  Stacked bar charts now use a declared `valueAxis.step`, which they ignored.
-- Tooltips and the description write a value axis `unit` after the values.
-- A plot keeps at least 40 pixels of height and reports `dense_chart` instead of turning upside
-  down on a small chart; a calendar reports cells smaller than 4 pixels.
-- The value-axis gutter of time charts grows past 72 pixels where long labels, such as a value
-  with its unit, need it (up to 40 % of the chart); small multiples measure their panel gutter
-  the same way, report labels that do not fit, and shorten or leave out a unit that has no room.
-- Zoom windows show their own span: `timeAxis.min`, `max` and `step` apply to the whole axis
-  only, and `stepEnd` only to a window that holds the last observation.
-- `stepEnd` after trailing missing values no longer draws over the gap.
-- A declared coarser `timeAxis.precision` no longer removes ticks within a day.
-- An unnamed layer's data table column carries the value axis `unit`.
-- The legend of range bar groups wraps instead of running off a narrow chart.
-- A sparkline refuses `valueAxis.unit`, `valueAxis.step` and `timeAxis.step`, which need axes.
-- A PNG of a chart without a mobile variant fails with `missing_mobile`, like the SVG.
-- `labels_thinned` names `/data` for charts with `data`, and its message reads "one category in
-  n".
+- **Time charts:** tooltips and the description write a value axis `unit` after the values, and an
+  unnamed layer's table column carries it.
+- **Time charts:** the value-axis gutter grows past 72 pixels where long labels need it (up to 40 %
+  of the chart); small multiples measure their gutter the same way and shorten or drop a unit
+  without room.
+- **Time charts:** zoom windows show their own span: `timeAxis.min`, `max` and `step` apply to the
+  whole axis only, and `stepEnd` only to a window that holds the last observation.
+- **Time charts:** `stepEnd` after trailing missing values no longer draws over the gap.
+- **Time charts:** a declared coarser `timeAxis.precision` no longer removes ticks within a day.
+- **Time charts:** a sparkline refuses `valueAxis.unit`, `valueAxis.step` and `timeAxis.step`,
+  which need axes.
+- **Calendars:** a calendar reports cells smaller than 4 pixels.
+- **Range bars:** the legend of range bar groups wraps instead of running off a narrow chart.
+- **Rendering:** PNG output warns with `glyph_missing` about characters its fonts have no glyph for.
+- **Rendering:** a PNG of a chart without a mobile variant fails with `missing_mobile`, like the
+  SVG.
 
 ## [0.7.0] - 2026-10-02
 
 Wider plots for time charts and a unit at the top tick. The specification keeps
-`schemaVersion: 1`; every specification that rendered with 0.6.0 still renders, with the
-changes in output listed under Changed.
+`schemaVersion: 1`; every specification that rendered with 0.6.0 still renders.
 
 ### Added
 
-- Time charts and small multiples: `valueAxis.unit`, the unit after the top tick label and the
-  data table's column names, instead of a title above the plot.
+- **Time charts:** `valueAxis.unit` writes the unit after the top tick label and in the table's
+  column names, instead of a title above the plot; also in small multiples.
 
 ### Changed
 
-- Every time chart makes its value-axis gutter as wide as its widest tick label needs, at most
-  the former 72 pixels, so the plot is wider; time tick labels at the left edge move inward like
-  those at the right edge.
+- **Time charts:** the value-axis gutter is as wide as the widest tick label needs, at most the
+  former 72 pixels, so the plot is wider; time tick labels at the left edge move inward like those
+  at the right.
 
 ## [0.6.0] - 2026-10-02
 
 Small panels, continued, and semibold text in PNG output. The specification keeps
-`schemaVersion: 1`; every specification that rendered with 0.5.0 still renders, with the
-changes in output listed under Changed and Fixed.
+`schemaVersion: 1`; every specification that rendered with 0.5.0 still renders.
 
 ### Added
 
-- Time charts: `timeAxis.min` and `timeAxis.max` extend the time axis to a position such as a
-  round year before the first observation.
-- Time charts: `"stroke": "medium"`, a two-pixel line for small panels.
+- **Time charts:** `timeAxis.min` and `timeAxis.max` extend the time axis, such as to a round year
+  before the first observation.
+- **Time charts:** `"stroke": "medium"`, a two-pixel line for small panels.
 
 ### Changed
 
-- A compact time chart (below 320 pixels) makes its value-axis gutter as wide as its widest
-  tick label needs.
-- A time chart with neither a drawn title, a legend nor a value axis title above its first pane
-  starts its plot near the top instead of keeping the title's room free.
+- **Time charts:** a compact time chart (below 320 pixels) makes its value-axis gutter as wide as
+  its widest tick label needs.
+- **Time charts:** without a drawn title, legend or value axis title above the first pane, the plot
+  starts near the top instead of keeping the title's room free.
 
 ### Fixed
 
-- PNG output draws semibold text semibold: the bundled semibold faces join the Inter family, so
-  titles, axis titles, values and emphasized notes no longer fall back to the regular weight.
+- **Rendering:** PNG output draws semibold text semibold: the bundled semibold faces join the Inter
+  family, so titles, values and emphasized notes no longer fall back to regular.
 
 ## [0.5.0] - 2026-10-02
 
 Small panels and their ticks. The specification keeps `schemaVersion: 1`; every specification
-that rendered with 0.4.0 still renders, with the changes in output listed under Fixed.
+that rendered with 0.4.0 still renders.
 
 ### Added
 
-- Time charts: `timeAxis.step`, the distance between time ticks — whole years on a calendar
+- **All charts:** charts from 160 pixels tall, mobile variants too, for small panels.
+- **Time charts:** `timeAxis.step`, the distance between time ticks — whole years on a calendar
   axis, units on a numeric one.
-- Small multiples: `noteEmphasis` sets a panel's note apart, in the text color and semibold.
-- Charts from 160 pixels tall (mobile variants too), for small panels.
-- PNG of the mobile variant: `--variant mobile --format png`, with the literal colors of the
-  print variant.
+- **Small multiples:** `noteEmphasis` sets a panel's note apart, in the text color and semibold.
+- **Rendering:** PNG of the mobile variant (`--variant mobile --format png`), with the literal
+  colors of the print variant.
 
 ### Fixed
 
-- A time tick label that would run into the one before it is left out; its gridline stays.
+- **Time charts:** a time tick label that would run into the one before it is left out; its
+  gridline stays.
 
 ## [0.4.0] - 2026-10-02
 
 Compact charts, panel notes and step ends. The specification keeps `schemaVersion: 1`; every
-specification that rendered with 0.3.0 still renders, with the changes in output listed under
-Changed.
+specification that rendered with 0.3.0 still renders.
 
 ### Added
 
-- Compact charts from 200 pixels wide (mobile variants too): below 320 pixels the value-axis
-  gutter and the margin are narrower, so a panel rendered at its width keeps its text size.
-- Small multiples: `panes[].note`, a short finding under a panel title.
-- Step lines: `stepEnd`, where the last step ends without an observation of its own.
+- **All charts:** compact charts from 200 pixels wide, mobile variants too: below 320 pixels the
+  value-axis gutter and the margin are narrower, so a panel keeps its text size.
+- **Time charts:** `stepEnd` on step lines, where the last step ends without an observation of its
+  own.
+- **Small multiples:** `panes[].note`, a short finding under a panel title.
 
 ### Changed
 
-- Small-multiples panel titles take two lines before they are shortened.
-- A declared `timeAxis.precision` changes how times are named, no longer the tick spacing.
+- **Time charts:** a declared `timeAxis.precision` changes how times are named, no longer the tick
+  spacing.
+- **Small multiples:** panel titles take two lines before they are shortened.
 
 ## [0.3.0] - 2026-10-02
 
 Fixes and additions from moving a large site to 0.2.0. The specification keeps
-`schemaVersion: 1`; every specification that rendered with 0.2.0 still renders, with the changes
-in output listed under Changed and Fixed.
+`schemaVersion: 1`; every specification that rendered with 0.2.0 still renders.
 
 ### Added
 
-- Time charts: `precision` per data layer, and every layer writes its times as finely as its
-  own observations need — yearly means beside monthly values say only the year, and on a
-  numeric axis a finely spaced helper line no longer adds decimals to the other layers. A table
-  row is labelled as finely as the finest layer with a value there.
-- Time charts: `markers: false` on a line or area layer, such as a fitted line; its tooltips
+- **Time charts:** `precision` per data layer, and every layer writes its times as finely as its own
+  observations need (yearly means beside monthly values say only the year, and a fine helper line
+  adds no decimals to the others); a table row is as fine as its finest layer with a value.
+- **Time charts:** `markers: false` on a line or area layer, such as a fitted line; its tooltips
   stay on invisible targets.
-- A stacked pane takes up to eight area layers.
+- **Time charts:** a stacked pane takes up to eight area layers.
 
 ### Changed
 
-- An exact value axis puts its ticks on multiples of the step, with the zero line:
+- **Value axis:** an exact value axis puts its ticks on multiples of the step, with the zero line:
   −2.5 to 3.5 with step 1 ticks −2, −1, 0 … 3.
 
 ### Fixed
 
-- A horizontal value axis labels only the ticks whose labels fit, so the wide labels of a
-  logarithmic axis no longer run into each other.
-- A horizontal range bar chart measures its value labels with the fallback reserve, so the
-  label at the right end is no longer cut off.
+- **Value axis:** a horizontal value axis labels only the ticks whose labels fit, so the wide labels
+  of a logarithmic axis no longer run into each other.
+- **Range bars:** a horizontal range bar chart measures its value labels with the fallback reserve,
+  so the label at the right end is no longer cut off.
 
 ## [0.2.0] - 2026-10-02
 
-Adds stacked areas, points and range groups, exact value axes and the stylesheet in parts. The
+Stacked areas, points and range groups, exact value axes and the stylesheet in parts. The
 specification keeps `schemaVersion: 1`; every specification that rendered with 0.1.0 still
-renders, with the changes in output listed under Changed and Fixed.
+renders.
 
 ### Added
 
-- Time charts: `"mark": "point"` draws a dot per observation and no line, as in a scatter plot.
-- Time charts: `"stack": "normal"` on a pane stacks its area layers; the crosshair of the
+- **Value axis:** `step` sets the tick interval and `exact` keeps `min` and `max` as the ends.
+- **Time charts:** `"mark": "point"` draws a dot per observation and no line.
+- **Time charts:** `"stack": "normal"` on a pane stacks its area layers; the crosshair of the
   interactive module places stacked values on top of the stack.
-- Time charts: `"tooltips": "markers"` keeps tooltips on drawn markers only, so dense lines stay
+- **Time charts:** `"tooltips": "markers"` keeps tooltips on drawn markers only, so dense lines stay
   small.
-- Time charts: months (`"2026-03"`) as times, and `timeAxis.precision` (`year`, `month`, `day`,
-  `minute`) for how tooltips, the table and the description write times.
-- Range bars: `group` per range, drawn in a palette color with a legend entry per group.
-- Value axis: `step` sets the tick interval and `exact` keeps `min` and `max` as the ends.
-- The shared stylesheet in parts: `stylesheet_common()` and `stylesheet_types()`,
-  `stylesheet({ types: [] })` and `stylesheet({ types, common: false })`, `chartlet stylesheet
-  --common` and `--no-common`. The common part comes first; a type's part styles only charts of
-  that type.
+- **Time charts:** months (`"2026-03"`) as times, and `timeAxis.precision` (`year`, `month`, `day`,
+  `minute`) for how tooltips, table and description write times.
+- **Range bars:** `group` per range, in a palette color with a legend entry per group.
+- **Rendering:** the shared stylesheet in parts: `stylesheet_common()` and `stylesheet_types()`,
+  `stylesheet({ types: [] })` and `stylesheet({ types, common: false })`, and
+  `chartlet stylesheet --common` and `--no-common`.
 
 ### Changed
 
-- More than 16 categories on a horizontal axis whose labels do not fit: every n-th category is
-  labelled, with the room of n bands, and the warning `labels_thinned`.
-- Charts narrower than 480 pixels draw their title at 18 pixels.
-- In the shared stylesheet, each type's rules now come together, type by type.
+- **All charts:** charts narrower than 480 pixels draw their title at 18 pixels.
+- **Bar and line charts:** more than 16 categories whose labels do not fit on a horizontal axis
+  label every n-th category, with the room of n bands, and warn `labels_thinned`.
+- **Rendering:** the shared stylesheet groups its rules type by type; the common part comes first,
+  and a type's part styles only charts of that type.
 
 ### Fixed
 
-- The markers of the first series in a time chart with several layers take its palette color.
-- A horizontal range bar chart keeps room for its last tick label.
+- **Time charts:** the markers of the first series in a chart with several layers take its palette
+  color.
+- **Range bars:** a horizontal range bar chart keeps room for its last tick label.
 
 ## [0.1.0] - 2026-10-01
 
 The first release without the alpha tag. The specification keeps `schemaVersion: 1`; every
-specification that rendered with 0.1.0-alpha.7 still renders, with the changes in output listed
-under Changed.
+specification that rendered with 0.1.0-alpha.7 still renders.
 
 ### Added
 
-- Bar charts: `stack: "normal"` (by value, with the total beyond each stack) and `stack: "percent"`
-  (shares of each category's total); `patterns: true` draws every other series as an outline;
-  `references` draws reference lines such as an average or a target.
-- Line charts take `categories` and `series`; each series has its own color and line pattern.
-- Value axis: `min` and `max`, `thousandsSeparator`, `scale: "log"` and `reverse`.
-- Time charts: `timeAxis.kind: "number"` for profiles and deep time, `timeAxis.reverse`,
-  `curve: "step"`, `legend: "end"` (names at the end of the lines), `sparkline: true`, zones with
-  a single edge, and layer colors as `var(--name, #hex)` whose fallback the print variant draws.
-- Small multiples: `independentAxes` gives every panel its own value axis; `mobile.columns`.
-- Stripes: `stretch: true` draws a band of color that takes any box.
-- Variants: `--variant print` (literal colors for PDF and print renderers) and `--variant social`
-  (1200 × 630 for Open Graph images).
-- PNG output behind the optional cargo feature `png`, with Inter bundled (OFL-1.1).
-- `styles: "external"` with the shared stylesheet `@casoon/chartlet/chartlet.css`
+- **Bar charts:** `stack: "normal"` (with the total beyond each stack) and `stack: "percent"`
+  (shares of each category's total);
+  `patterns: true` draws every other series as an outline; `references` draws reference lines such
+  as an average or a target.
+- **Line charts:** `categories` and `series`, each series with its own color and line pattern.
+- **Value axis:** `min` and `max`, `thousandsSeparator`, `scale: "log"` and `reverse`.
+- **Time charts:** `timeAxis.kind: "number"` for profiles and deep time, `timeAxis.reverse`,
+  `curve: "step"`, `legend: "end"` (names at the end of the lines) and `sparkline: true`.
+- **Time charts:** zones with a single edge, and layer colors as `var(--name, #hex)` whose fallback
+  the print variant draws.
+- **Small multiples:** `independentAxes` gives every panel its own value axis; `mobile.columns`.
+- **Stripes:** `stretch: true` draws a band of color that takes any box.
+- **Text alternative:** `alternative: true` and `chartlet::text_alternative` return the description
+  and the data table as data.
+- **Interaction:** `hooks: true` and the optional module `@casoon/chartlet/interactive`: crosshair
+  with values, series toggles, scroll stations and playback, reading only the static output.
+- **Rendering:** `--variant print` (literal colors for PDF and print renderers) and
+  `--variant social` (1200 × 630 for Open Graph images).
+- **Rendering:** PNG output behind the optional cargo feature `png`, with Inter bundled (OFL-1.1).
+- **Rendering:** `styles: "external"` with the shared stylesheet `@casoon/chartlet/chartlet.css`
   (`chartlet stylesheet [--types …]`), so a page with many charts loads their CSS once.
-- `alternative: true` and `chartlet::text_alternative`: the description and the data table as data.
-- `allowWarnings` / `--allow-warning`: strict mode lets reviewed warning codes through.
-- `hooks: true` and the optional module `@casoon/chartlet/interactive`: crosshair with values,
-  series toggles, scroll stations and playback, reading only the static output.
-- The HTML figure carries `data-viz="chart"` and marks its data table as the text layer.
-- `@casoon/chartlet-mcp`: tools named `chartlet_*`, `CHARTLET_MCP_ROOT` confining `outputPath`,
-  and a view that shows the chart in the chat of hosts that support MCP Apps.
+- **Rendering:** `allowWarnings` / `--allow-warning` lets reviewed warning codes through strict
+  mode.
+- **Rendering:** the HTML figure carries `data-viz="chart"` and marks its data table as the text
+  layer.
+- **MCP:** `@casoon/chartlet-mcp`: tools named `chartlet_*`, `CHARTLET_MCP_ROOT` confining
+  `outputPath`, and a view that shows the chart in the chat of hosts that support MCP Apps.
 
 ### Changed
 
-- A line, time series or range bar whose values are all zero or more gets no margin below zero.
-- One tooltip rule for lines and candles: a tooltip for every observation while observations
-  stand at least 4 pixels apart, on an invisible target where no marker is drawn.
-- Candle colors differ in lightness as well as in hue.
-- German output writes dates as `31.08.2026`; a range bar chart is a „Spannweitendiagramm“, a
-  realm of a knowledge landscape a „Bereich“.
-- Print and social variants write `font-weight: 600`, which renderers outside the browser read.
-- Topic maps and knowledge landscapes are marked experimental.
-- The npm package renders with its bundled WebAssembly build; a CLI is used only with `binary`
+- **Value axis:** a line, time series or range bar whose values are all zero or more gets no margin
+  below zero.
+- **Time charts:** one tooltip rule for lines and candles: a tooltip for every observation while
+  they stand at least 4 pixels apart, on an invisible target where no marker is drawn.
+- **Time charts:** candle colors differ in lightness as well as in hue.
+- **Topic maps:** topic maps and knowledge landscapes are marked experimental.
+- **Rendering:** German output writes dates as `31.08.2026`; a range bar chart is a
+  „Spannweitendiagramm“, a realm of a knowledge landscape a „Bereich“.
+- **Rendering:** print and social variants write `font-weight: 600`, which renderers outside the
+  browser read.
+- **npm:** the package renders with its bundled WebAssembly build; a CLI is used only with `binary`
   or `CHARTLET_BIN`.
