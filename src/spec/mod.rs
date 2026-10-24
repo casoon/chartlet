@@ -722,7 +722,7 @@ impl ChartSpec {
         self.reject_foreign_blocks()?;
         self.validate_theme()?;
         self.validate_value_axes()?;
-        match self.chart_type {
+        let mut warnings = match self.chart_type {
             ChartType::Time => self.validate_time(),
             ChartType::Multiples => self.validate_multiples(),
             ChartType::Stripes => self.validate_stripes(),
@@ -745,7 +745,9 @@ impl ChartSpec {
             ChartType::Waterfall => self.validate_waterfall(),
             ChartType::Network => self.validate_network(),
             ChartType::Bar | ChartType::Line => self.validate_bar_and_line(),
-        }
+        }?;
+        warnings.extend(crate::contrast::warnings(self));
+        Ok(warnings)
     }
 }
 

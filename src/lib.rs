@@ -3,6 +3,7 @@ mod boxplot;
 mod calendar;
 mod classes;
 mod color;
+mod contrast;
 mod dendrogram;
 mod describe;
 mod diagram;

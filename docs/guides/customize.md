@@ -145,5 +145,16 @@ chartlet render revenue.json --theme brand.json --variant print -o revenue.print
 ## Contrast
 
 The bundled palettes keep their contrast ratios on their own backgrounds (see
-[Support](../../reference/support/#themes)). Chartlet does not check the colors you set. Test your
-palette against [WCAG contrast](../accessibility/) before it replaces a bundled one.
+[Support](../../reference/support/#themes)). Colors you set are measured: a pair that lies on top of
+each other in the chart, with at least one color from `tokens`, and a ratio below WCAG 2.2's is
+reported as `low_contrast` at the token. The chart is still rendered.
+
+| Pair | Needs | Measured |
+| --- | --- | --- |
+| `text`, `muted` on `background` | 4.5:1 | Always |
+| `accent` on `background` | 3:1 | Bar and line charts with one series |
+| `color-1` … `color-4` on `background` | 3:1 | The series a bar, line or time chart draws |
+| A role's outline on its fill and on `background`, `text` on its fill | 3:1, 3:1, 4.5:1 | Diagrams, for every role |
+
+A translucent color is measured as it looks over the background. Colors of other chart types, such
+as the scales of stripes and calendars, are not measured.

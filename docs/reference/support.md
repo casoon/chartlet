@@ -43,7 +43,7 @@ chartlet is before 1.0; screen reader and user testing are still pending. Status
 | --- | --- | --- |
 | Light (default) | Verified | The default palette keeps at least 4.5:1 contrast on white (lowest series color 5.17:1). |
 | Dark | Verified | `"theme": "dark"` sets the palette through the same CSS custom properties and paints its own background. Lowest series color 7.65:1 against `#0e131c`. |
-| Own colors (`tokens`, theme file) | Not verified | Hex and `rgb()` values are passed through to the stylesheet, the print and social variants and PNG. Chartlet does not check the contrast of colors you set. See [Customize the look](../../guides/customize/). |
+| Own colors (`tokens`, theme file) | Verified | Hex and `rgb()` values reach the stylesheet, the print and social variants and PNG. Pairs of colors that lie on top of each other are measured, and a ratio below WCAG 2.2's is reported as `low_contrast`; other chart types' scales are not measured. See [Customize the look](../../guides/customize/#contrast). Covered by unit tests. |
 | Forced colours / high contrast | Planned | Planned; not yet shipped. |
 | Host-page colors (`var(--name)` per layer) | Verified | A `var()` reference is passed through and falls back to the chart's text color when the page defines nothing. |
 

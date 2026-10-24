@@ -22,6 +22,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   `--theme <name|file>`, the `theme` option of `@casoon/chartlet` and `<Chart>`, the `theme` input
   of `chartlet_render` and `chartlet::apply_theme`. `light`, `dark` and `blueprint` ship as such
   files in `themes/`.
+- **Themes:** a color set in `tokens` that lies on another with less contrast than WCAG 2.2 asks for is
+  reported as `low_contrast` at the token. Details: [Contrast](https://casoon.github.io/chartlet/docs/guides/customize/#contrast).
 - **Schema:** `chartlet-theme.schema.json` for theme files, and `tokens` in the specification schema.
 - **Site:** the Customize page shows five ways to restyle a chart, each rendered.
 

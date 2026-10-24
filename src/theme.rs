@@ -144,7 +144,7 @@ fn is_color(value: &str) -> bool {
 }
 
 /// The tokens of a bundled theme by name; empty for a name that is none.
-fn bundled_tokens(name: &str) -> BTreeMap<String, String> {
+pub(crate) fn bundled_tokens(name: &str) -> BTreeMap<String, String> {
     bundled_theme(name)
         .and_then(|theme| serde_json::from_str::<Value>(theme).ok())
         .and_then(|theme| {
