@@ -11,6 +11,7 @@ import {
   Quickstart,
 } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
+import config from 'virtual:casoon-pages/config';
 import { exampleCount, render, spec } from '../showcase';
 
 const hero = render(spec('budget-vs-actual'), 'hero', 'svg');
@@ -49,7 +50,7 @@ import revenue from '../data/monthly-revenue.json';
     />
     <Badges>
       <Badge>MIT</Badge>
-      <Badge>crates.io 0.21.0</Badge>
+      <Badge>crates.io {config.version}</Badge>
       <Badge>npm 0.21.0</Badge>
       <Badge>Rust 1.88+</Badge>
     </Badges>
