@@ -24,7 +24,7 @@ Nothing runs in the browser: no chart JavaScript, no hydration, no layout shift.
   documentation leaves open.
 
 > **Status:** before 1.0. Until 1.0, a minor release may still change the specification; a patch
-> release never does. Flow, state and class diagrams, topic maps and knowledge landscapes are
+> release never does. Flow, state and class diagrams are
 > experimental: their layout may change between minor releases.
 
 ## Quick start
@@ -112,8 +112,6 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Box plot from observations, with a box given by its five numbers | `"type": "boxplot"` with `boxes` | [response-times](examples/response-times.json) |
 | Grouped box plots: boxes colored by group with a legend | `group` on every box | [latency-by-region](examples/latency-by-region.json) |
 | Violins and strips from the same observations | `"boxDisplay": "violin"` on a `boxplot` | [response-distribution](examples/response-distribution.json) |
-| Topic map: separate landmasses, area by value (experimental) | `"type": "topicmap"` with `topics` | [topicmap-sample](examples/topicmap-sample.json) |
-| Knowledge landscape: one land, position by kinship (experimental) | `"type": "atlas"` with `realms` | [knowledge-landscape](examples/knowledge-landscape.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 
 Each example has its rendered `.svg` and `.html` next to it; the SVG files are also the reference

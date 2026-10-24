@@ -238,7 +238,6 @@ impl Plan {
                     cy,
                     radius: BRANCH,
                     class: "chartlet-flow-head",
-                    topic: None,
                     series_index: None,
                     style_index: None,
                     tooltip: None,

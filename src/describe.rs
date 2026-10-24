@@ -11,8 +11,6 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
     match spec.chart_type {
         ChartType::Multiples if spec.is_bar_multiples() => return panel_bars_description(spec),
         ChartType::Time | ChartType::Multiples => return time_description(spec),
-        ChartType::Topicmap => return topicmap_description(spec),
-        ChartType::Atlas => return atlas_description(spec),
         ChartType::Stripes => return stripes::description(spec),
         ChartType::Calendar => return calendar::description(spec),
         ChartType::Rangebar => return rangebar::description(spec),
@@ -683,79 +681,6 @@ fn describe_zones_and_markers(spec: &ChartSpec, zone: time::TimeZone, descriptio
         write!(description, " {}: {}.", words.markers, markers.join("; "))
             .expect("writing to String cannot fail");
     }
-}
-
-/// Describes a topic map: its area count, the largest and smallest topic, and the strongest
-/// neighborhood, if any is declared.
-/// What the landscape says in one sentence: how it is divided, and where the weight lies.
-fn atlas_description(spec: &ChartSpec) -> String {
-    let atlas = spec
-        .atlas
-        .as_ref()
-        .expect("validated atlas charts carry an atlas block");
-    let show = |value| layout::format_value(value, spec.number_style());
-    let realms = atlas.realms.len();
-    let regions: usize = atlas.realms.iter().map(|realm| realm.regions.len()).sum();
-    let places: usize = atlas
-        .realms
-        .iter()
-        .flat_map(|realm| &realm.regions)
-        .map(|region| region.places.len())
-        .sum();
-    let largest = atlas
-        .realms
-        .iter()
-        .flat_map(|realm| &realm.regions)
-        .max_by(|a, b| a.value.total_cmp(&b.value))
-        .expect("validated atlas charts have at least one region");
-    text::atlas_sentence(
-        spec.locale,
-        realms,
-        regions,
-        (&largest.label, &show(largest.value)),
-        places,
-    )
-}
-
-fn topicmap_description(spec: &ChartSpec) -> String {
-    let topicmap = spec
-        .topicmap
-        .as_ref()
-        .expect("validated topicmap charts carry a topicmap block");
-    let show = |value| layout::format_value(value, spec.number_style());
-    let areas = topicmap.topics.len();
-    let largest = topicmap
-        .topics
-        .iter()
-        .max_by(|a, b| a.value.total_cmp(&b.value))
-        .expect("validated topicmap charts have at least one topic");
-    let smallest = topicmap
-        .topics
-        .iter()
-        .min_by(|a, b| a.value.total_cmp(&b.value))
-        .expect("validated topicmap charts have at least one topic");
-
-    let mut description = text::topicmap_opening(
-        spec.locale,
-        areas,
-        topicmap.islands.len(),
-        (&largest.label, &show(largest.value)),
-        (&smallest.label, &show(smallest.value)),
-    );
-
-    // The strongest neighbourhoods, named as relationships in the data rather than as something
-    // the drawing does: a weak route may have been dropped before it was ever drawn.
-    let mut strongest: Vec<&spec::TopicLinkSpec> = topicmap.links.iter().collect();
-    crate::sort::by(&mut strongest, |a, b| b.weight.total_cmp(&a.weight));
-    let named: Vec<(&str, &str)> = strongest
-        .iter()
-        .take(3)
-        .map(|link| (link.from.as_str(), link.to.as_str()))
-        .collect();
-    if !named.is_empty() {
-        description.push_str(&text::neighbours(spec.locale, &named));
-    }
-    description
 }
 
 /// A written value followed by the unit of its value axis, if the axis has one.

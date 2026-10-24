@@ -196,7 +196,6 @@ fn add_line_data(
                 cy: y,
                 radius: 4.0,
                 class: point_class,
-                topic: None,
                 series_index: series_mark,
                 style_index: None,
                 tooltip: Some(bar_tooltip(
@@ -263,7 +262,6 @@ fn flush_line_segment(
         elements.push(Element::Polyline(Polyline {
             points: std::mem::take(segment),
             class,
-            topic: None,
             series_index,
             style_index: None,
             tooltip: None,

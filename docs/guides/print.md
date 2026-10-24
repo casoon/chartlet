@@ -40,7 +40,7 @@ zoom steps belong to the HTML profile and are not part of it. `--variant print` 
 
 | Renderer | Status |
 | --- | --- |
-| resvg, through Typst 0.15 (`#image("revenue.print.svg")`, PNG and PDF) | Verified: bars, grouped bars, lines with declared colors on a dark chart, hatched bands, range bars, candlesticks, a calendar heatmap, a topic map and a landscape match the screen SVG. |
+| resvg, through Typst 0.15 (`#image("revenue.print.svg")`, PNG and PDF) | Verified: bars, grouped bars, lines with declared colors on a dark chart, hatched bands, range bars, candlesticks, and a calendar heatmap match the screen SVG. |
 | WebKit (macOS Quick Look) | Verified: same as in the browser. |
 | librsvg (`rsvg-convert`), Inkscape, Prince, wkhtmltopdf | Not yet verified. All support class selectors in `<style>`. |
 

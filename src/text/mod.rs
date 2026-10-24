@@ -4,7 +4,6 @@
 mod architecture;
 mod charts;
 mod diagrams;
-mod maps;
 mod statistics;
 
 pub(crate) use architecture::{
@@ -30,7 +29,6 @@ pub(crate) use diagrams::{
     role, roles, sequence_message, sequence_opening, sinks, sources, state_opening, transition,
     tree_collapsed, tree_opening, tree_root, unconnected_parts,
 };
-pub(crate) use maps::{atlas_sentence, neighbours, topicmap_opening};
 pub(crate) use statistics::{
     boxplot_summary, on_dividing_line, points_above_line, quadrant_points, quadrant_position,
     quadrants_opening, scatter_caption, scatter_fit, scatter_summary, survival_group,
@@ -68,13 +66,7 @@ pub(crate) struct Words {
     pub category: &'static str,
     pub year: &'static str,
     pub date: &'static str,
-    pub topic: &'static str,
-    pub region: &'static str,
-    pub area: &'static str,
-    pub entries: &'static str,
-    pub paths: &'static str,
     pub share: &'static str,
-    pub places: &'static str,
     pub range_low: &'static str,
     pub range_mid: &'static str,
     pub range_high: &'static str,
@@ -211,13 +203,7 @@ const EN: Words = Words {
     category: "Category",
     year: "Year",
     date: "Date",
-    topic: "Topic",
-    region: "Region",
-    area: "Area",
-    entries: "Entries",
-    paths: "Paths",
     share: "Share",
-    places: "Places",
     range_low: "Low",
     range_mid: "Mid",
     range_high: "High",
@@ -337,13 +323,7 @@ const DE: Words = Words {
     category: "Kategorie",
     year: "Jahr",
     date: "Datum",
-    topic: "Thema",
-    region: "Region",
-    area: "Gebiet",
-    entries: "Einträge",
-    paths: "Pfade",
     share: "Anteil",
-    places: "Orte",
     range_low: "Unterer Wert",
     range_mid: "Mittlerer Wert",
     range_high: "Oberer Wert",
@@ -466,9 +446,8 @@ fn listed(locale: Locale, names: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        atlas_sentence, calendar_opening, categories_opening, equal_values, missing_values,
-        stripes_opening, time_opening, timeline_opening, topicmap_opening, value_span,
-        years_without_value,
+        calendar_opening, categories_opening, equal_values, missing_values, stripes_opening,
+        time_opening, timeline_opening, value_span, years_without_value,
     };
     use crate::spec::Locale;
 
@@ -524,14 +503,6 @@ mod tests {
             calendar_opening(Locale::En, 2024, true, "scale", 1, 366)
                 .ends_with(" 1 of 366 days has a value.")
         );
-        assert_eq!(
-            atlas_sentence(Locale::En, 1, 1, ("A", "3"), 1),
-            "Knowledge landscape of 1 realm and 1 region; largest is A with 3. 1 place is marked."
-        );
-        assert!(
-            topicmap_opening(Locale::En, 1, 1, ("A", "3"), ("A", "3"))
-                .starts_with("Topic map with 1 area and one island.")
-        );
         assert_eq!(missing_values(Locale::En, 1), " 1 value is missing.");
         assert_eq!(years_without_value(Locale::En, 1), " 1 year has no value.");
     }
@@ -549,10 +520,6 @@ mod tests {
         assert!(
             calendar_opening(Locale::En, 2024, false, "scale", 2, 366)
                 .ends_with(" 2 of 366 days have a value.")
-        );
-        assert_eq!(
-            atlas_sentence(Locale::En, 2, 3, ("A", "3"), 4),
-            "Knowledge landscape of 2 realms and 3 regions; largest is A with 3. 4 places are marked."
         );
     }
 

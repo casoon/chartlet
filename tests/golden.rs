@@ -65,16 +65,6 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/revenue-vs-forecast.svg"),
     ),
     (
-        "topicmap-sample",
-        include_str!("../examples/topicmap-sample.json"),
-        include_str!("../examples/topicmap-sample.svg"),
-    ),
-    (
-        "knowledge-landscape",
-        include_str!("../examples/knowledge-landscape.json"),
-        include_str!("../examples/knowledge-landscape.svg"),
-    ),
-    (
         "temperature-projection",
         include_str!("../examples/temperature-projection.json"),
         include_str!("../examples/temperature-projection.svg"),

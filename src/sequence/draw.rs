@@ -358,7 +358,6 @@ fn figure(center: f64, top: f64, elements: &mut Vec<Element>) {
         cy: top + 5.5,
         radius: 4.5,
         class: "chartlet-seq-actor-head",
-        topic: None,
         series_index: None,
         style_index: None,
         tooltip: None,

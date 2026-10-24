@@ -1,5 +1,4 @@
 mod architecture;
-mod atlas;
 mod boxplot;
 mod calendar;
 mod categorical;
@@ -18,7 +17,6 @@ mod stripes;
 mod survival;
 mod timechart;
 mod timeline;
-mod topicmap;
 mod tree;
 mod treemap;
 pub(crate) mod untagged;
@@ -37,7 +35,6 @@ pub use architecture::{
     ArchitectureSpec, BoundarySpec, CategorySpec, ComponentKind, ComponentSpec,
     ConnectionDirection, ConnectionSpec, InterfaceSpec, PerspectiveSpec,
 };
-pub use atlas::{AtlasSpec, PlaceSpec, RegionSpec};
 pub(crate) use boxplot::BoxSummary;
 pub use boxplot::{BoxDisplay, BoxSpec, ViolinScale};
 pub(crate) use calendar::calendar_date;
@@ -74,7 +71,6 @@ pub use timechart::{
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
 pub(crate) use timeline::Span;
 pub use timeline::{MarkerSpec, TimelineItemSpec, TimelineSpec};
-pub use topicmap::{CartoucheSpec, Corner, TopicLinkSpec, TopicMapSpec, TopicSpec};
 pub use tree::{DistancesSpec, Linkage, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec};
 pub(crate) use treemap::{TmNode, TmTree};
 pub use treemap::{TreemapItemSpec, TreemapSpec};
@@ -168,67 +164,60 @@ pub struct ChartSpec {
     /// time axis and holds its own layers.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub panes: Vec<PaneSpec>,
-    /// The topics of a `type: "topicmap"` chart. Skipped while absent, for the same reason as
-    /// `theme`: adding the field must not change the serialized form, and with it the generated
+    /// The yearly values of a `type: "stripes"` chart. Skipped while absent, for the same reason as `theme`:
+    /// adding the field must not change the serialized form, and with it the generated
     /// accessibility IDs, of every existing specification.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub topicmap: Option<TopicMapSpec>,
-    /// The landscape of a `type: "atlas"` chart. Skipped while absent, for the same reason as
-    /// `topicmap`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub atlas: Option<AtlasSpec>,
-    /// The yearly values of a `type: "stripes"` chart. Skipped while absent, like `topicmap`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stripes: Option<StripesSpec>,
-    /// The daily values of a `type: "calendar"` chart. Skipped while absent, like `topicmap`.
+    /// The daily values of a `type: "calendar"` chart. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub calendar: Option<CalendarSpec>,
     /// The participants and messages of a `type: "sequence"` diagram. Skipped while absent, like
-    /// `topicmap`.
+    /// `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sequence: Option<SequenceSpec>,
-    /// The steps and edges of a `type: "flow"` chart. Skipped while absent, like `topicmap`.
+    /// The steps and edges of a `type: "flow"` chart. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub flow: Option<FlowSpec>,
     /// The states and transitions of a `type: "state"` diagram. Skipped while absent, like
-    /// `topicmap`.
+    /// `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<StateSpec>,
     /// The components, connections and boundaries of a `type: "architecture"` diagram. Skipped
-    /// while absent, like `topicmap`.
+    /// while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub architecture: Option<ArchitectureSpec>,
-    /// The nodes of a `type: "tree"` diagram. Skipped while absent, like `topicmap`.
+    /// The nodes of a `type: "tree"` diagram. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tree: Option<TreeSpec>,
-    /// A waterfall: a running total that rises and falls step by step. Skipped while absent, like `topicmap`.
+    /// A waterfall: a running total that rises and falls step by step. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waterfall: Option<WaterfallSpec>,
-    /// A waffle: squares that each stand for a share of a whole. Skipped while absent, like `topicmap`.
+    /// A waffle: squares that each stand for a share of a whole. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waffle: Option<WaffleSpec>,
-    /// A parliament: seats as dots in a semicircle, in blocks by party. Skipped while absent, like `topicmap`.
+    /// A parliament: seats as dots in a semicircle, in blocks by party. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parliament: Option<ParliamentSpec>,
-    /// A treemap: rectangles whose areas follow the values. Skipped while absent, like `topicmap`.
+    /// A treemap: rectangles whose areas follow the values. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub treemap: Option<TreemapSpec>,
-    /// A Sankey diagram: bands between nodes in columns, as thick as the flow. Skipped while absent, like `topicmap`.
+    /// A Sankey diagram: bands between nodes in columns, as thick as the flow. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sankey: Option<SankeySpec>,
-    /// Kaplan-Meier survival curves: step curves of groups, with censoring marks, optional confidence bands and the number at risk. Skipped while absent, like `topicmap`.
+    /// Kaplan-Meier survival curves: step curves of groups, with censoring marks, optional confidence bands and the number at risk. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub survival: Option<SurvivalSpec>,
-    /// A scatter plot: points on two numeric axes, in groups, with threshold lines and named points. Skipped while absent, like `topicmap`.
+    /// A scatter plot: points on two numeric axes, in groups, with threshold lines and named points. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scatter: Option<ScatterSpec>,
-    /// A class or entity-relationship diagram: classes with compartments, joined by relations. Skipped while absent, like `topicmap`.
+    /// A class or entity-relationship diagram: classes with compartments, joined by relations. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub classes: Option<ClassesSpec>,
-    /// A network: nodes joined by edges on a circle or in rings around one node. Skipped while absent, like `topicmap`.
+    /// A network: nodes joined by edges on a circle or in rings around one node. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub network: Option<NetworkSpec>,
-    /// The items of a `type: "timeline"` chart. Skipped while absent, like `topicmap`.
+    /// The items of a `type: "timeline"` chart. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
     /// The boxes of a `type: "boxplot"` chart, one per category.
@@ -263,7 +252,7 @@ pub struct ChartSpec {
     /// like `theme`.
     #[serde(default, skip_serializing_if = "Locale::is_en")]
     pub locale: Locale,
-    /// A second layout for narrow containers. Skipped while absent, like `topicmap`.
+    /// A second layout for narrow containers. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mobile: Option<MobileSpec>,
 }
@@ -356,12 +345,6 @@ pub enum ChartType {
     Line,
     /// A time series on a shared time axis, drawn from panes and layers.
     Time,
-    /// Topic areas as a landmass map; area proportional to each topic's value.
-    Topicmap,
-    /// A knowledge landscape: realms of adjacent regions, holding places. Where `topicmap` packs
-    /// separate landmasses and lets size carry the whole statement, an `atlas` tiles one
-    /// continuous land, so that *where* something lies says as much as how large it is.
-    Atlas,
     /// Warming stripes: one colored stripe per year on a diverging scale.
     Stripes,
     /// A calendar heatmap: one cell per day of a year on a diverging scale.
@@ -406,12 +389,10 @@ pub enum ChartType {
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 23] = [
         Self::Bar,
         Self::Line,
         Self::Time,
-        Self::Topicmap,
-        Self::Atlas,
         Self::Stripes,
         Self::Calendar,
         Self::Rangebar,
@@ -662,9 +643,8 @@ pub(crate) struct Series {
     /// `None` when the chart was given as a single `data` list.
     pub name: Option<String>,
     pub values: Vec<Option<f64>>,
-    /// How this column is written when it is not written like the chart's values: a topic map's
-    /// share column is a percentage while the counts beside it are plain numbers, and every pane
-    /// of a time chart has its own value axis.
+    /// How this column is written when it is not written like the chart's values: every pane of a time
+    /// chart has its own value axis.
     pub style: Option<NumberStyle>,
 }
 
@@ -739,8 +719,6 @@ impl ChartSpec {
         match self.chart_type {
             ChartType::Time => self.validate_time(),
             ChartType::Multiples => self.validate_multiples(),
-            ChartType::Topicmap => self.validate_topicmap(),
-            ChartType::Atlas => self.validate_atlas(),
             ChartType::Stripes => self.validate_stripes(),
             ChartType::Calendar => self.validate_calendar(),
             ChartType::Rangebar => self.validate_rangebar(),
@@ -771,8 +749,6 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Bar => "bar",
         ChartType::Line => "line",
         ChartType::Time => "time",
-        ChartType::Topicmap => "topicmap",
-        ChartType::Atlas => "atlas",
         ChartType::Stripes => "stripes",
         ChartType::Calendar => "calendar",
         ChartType::Rangebar => "rangebar",
@@ -814,10 +790,6 @@ const fn default_breakpoint() -> u32 {
 
 const fn default_show_values() -> bool {
     true
-}
-
-const fn one() -> f64 {
-    1.0
 }
 
 const fn default_true() -> bool {

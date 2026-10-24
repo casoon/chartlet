@@ -253,7 +253,7 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
 
 Diagrams (sequence, flow, state, architecture, tree) have no series; for them structure gives the counts of their elements and every row of their data table in reading order — messages, steps with where they lead, transitions with event, guard and action, or components with their boundaries and connections.
 
-For ohlc layers min is the lowest low, max the highest high, first the first open and last the last close. Zones, reference lines and markers are not series. topicmap and atlas charts have no series. Nothing here judges causes, trends or significance: state such conclusions only from the data and say they are yours.`,
+For ohlc layers min is the lowest low, max the highest high, first the first open and last the last close. Zones, reference lines and markers are not series. Nothing here judges causes, trends or significance: state such conclusions only from the data and say they are yours.`,
       inputSchema: z.object({ spec }),
       outputSchema: z.object({
         ok: z.literal(true),

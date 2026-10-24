@@ -27,8 +27,6 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `scatter` | [Scatter plots](#scatter-plots) | `scatter` |
 | `waffle` | [Waffle charts](#waffle-charts) | `waffle` |
 | `waterfall` | [Waterfalls](#waterfalls) | `waterfall` |
-| `topicmap` | [Topic maps](#topic-maps) | `topicmap` |
-| `atlas` | [Knowledge landscapes](#knowledge-landscapes) | `atlas` |
 | `sequence` | [Sequence diagrams](#sequence-diagrams) | `sequence` |
 | `flow` | [Flow charts](#flow-charts) | `flow` |
 | `state` | [State diagrams](#state-diagrams) | `state` |
@@ -79,17 +77,17 @@ Rules:
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `waterfall`,
-  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `topicmap`, `atlas`, `columns`),
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
 - A type whose block is absent is refused with the block's own code: `missing_stripes`,
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
   `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_waterfall`,
-  `missing_topicmap`, `missing_atlas`, `missing_sequence`, `missing_flow`, `missing_state`,
+  `missing_sequence`, `missing_flow`, `missing_state`,
   `missing_classes`, `missing_architecture`, `missing_tree` and `missing_network`. An empty list
   where a type needs at least one entry is `empty_data`.
-- Stripes, calendars, timelines, both maps and every diagram are drawn from their block alone:
+- Stripes, calendars, timelines and every diagram are drawn from their block alone:
   `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
   `valueAxis` and `timeAxis` are `option_not_supported` there.
 
@@ -569,71 +567,6 @@ is `invalid_total`.
 Rules: 2–40 steps (`too_many_data_points`) with unique labels (`duplicate_label`); a `delta` or
 `start` without value is `missing_value`; a `total` with a value other than the running total is
 `total_mismatch`.
-
-## Topic maps
-
-`"type": "topicmap"` (experimental): one landmass per subject, with the area of each proportional
-to its value. See [Maps](../../guides/chart-types/#maps).
-
-| Field | Type | Required | Meaning |
-| --- | --- | --- | --- |
-| `topicmap.topics` | array, 1–40 | yes | The subjects. |
-| `topics[].label` | string, up to 200 characters | yes | The name; unique among topics and islands. |
-| `topics[].value` | number, 1 or more | yes | The size of the area. |
-| `topics[].points` | integer, 0 or more | no | The number of paths through the topic, drawn as points inside its area; default 0. |
-| `topics[].tooltip` | string, up to 300 characters | no | A line of detail on hover. |
-| `topicmap.islands` | array, up to 6 | no | Fringe topics, with the fields of a topic, drawn as small fixed-size islands beside the rest. |
-| `topicmap.links` | array | no | Neighborhoods between two topics or islands, drawn as routes. |
-| `links[].from`, `links[].to` | string | yes | Labels of topics or islands. |
-| `links[].weight` | number, 0–1 | no | Default 1. |
-| `topicmap.cartouche` | object | no | The legend box printed on the map. |
-| `cartouche.heading` | string, up to 100 characters | yes | Its heading. |
-| `cartouche.meta` | string, up to 200 characters | yes | Its line of metadata. |
-| `cartouche.corner` | `bottomRight`, `bottomLeft`, `topRight`, `topLeft` | no | Its corner, default `bottomRight`. |
-| `topicmap.seed` | integer, 0 or more | no | The seed of the coastlines, default 0; the same seed draws the same map. |
-| `topicmap.graticule` | boolean | no | Draws the map grid on the sea, default `true`. |
-| `topicmap.compass` | boolean | no | Draws a compass rose, default `true`. |
-| `topicmap.depthBands` | integer, 0–3 | no | Depth-line rings around each coastline, default 2. |
-
-Rules: up to 40 topics (`too_many_topics`) and 6 islands (`too_many_islands`); a value below 1 is
-`topic_value_out_of_range`; labels are unique among topics and islands (`duplicate_topic_label`);
-links name declared labels (`unknown_topic_link`) with a weight from 0 to 1
-(`invalid_link_weight`); `depthBands` outside 0–3 is `invalid_depth_bands`. A topic below 12 warns
-with `topic_too_small_for_label`, a label placed beside its area with `label_outside_area`, and a
-link dropped because more than three routes would meet at one end with `link_dropped`.
-
-## Knowledge landscapes
-
-`"type": "atlas"` (experimental): realms of neighbouring regions, holding places, tiled as one
-continuous land. See [Maps](../../guides/chart-types/#maps).
-
-| Field | Type | Required | Meaning |
-| --- | --- | --- | --- |
-| `atlas.realms` | array, 1–8 | yes | The landscapes. |
-| `realms[].label` | string, up to 200 characters | yes | The realm's name; unique among realms and regions. |
-| `realms[].regions` | array, 1 or more | yes | Its areas. |
-| `realms[].tooltip` | string, up to 300 characters | no | A line of detail on hover. |
-| `regions[].label` | string, up to 200 characters | yes | The region's name; unique among realms and regions. |
-| `regions[].value` | number, 1 or more | yes | How much of its realm it holds. |
-| `regions[].places` | array | no | Single entries, drawn as points inside the region. |
-| `regions[].tooltip` | string, up to 300 characters | no | A line of detail on hover. |
-| `places[].label` | string, up to 200 characters | yes | The entry. |
-| `places[].weight` | number, 0.25–4 | no | How prominent the point is; 1 (default) is an ordinary place. |
-| `places[].tooltip` | string, up to 300 characters | no | A line of detail on hover. |
-| `atlas.links` | array | no | Kinship between two regions, named by `from` and `to` labels and valid across realm borders, with a `weight` from 0 to 1 (default 1). |
-| `atlas.seed` | integer, 0 or more | no | The seed of the land's shapes, default 0; the same seed draws the same map. |
-| `atlas.areaDamping` | number, 0.2–1 | no | The exponent a region's area follows: 1 is proportional to its value, 0.5 (default) its square root. |
-| `atlas.contours` | boolean | no | Contour lines from the density of places, default `true`. |
-
-Rules: up to 8 realms (`too_many_realms`), 60 regions across all realms (`too_many_regions`) and
-4000 places across all regions (`too_many_places`); a realm without regions is `empty_realm`;
-labels are unique among realms and regions (`duplicate_atlas_label`); a region's value below 1 is
-`region_value_out_of_range`, a place's weight outside 0.25–4 `place_weight_out_of_range`,
-`areaDamping` outside 0.2–1 `invalid_area_damping`; links name declared regions
-(`unknown_region_link`) with a weight from 0 to 1 (`invalid_link_weight`). A realm of one region
-warns with `realm_without_structure`, a region listing more places than its value with
-`more_places_than_value`, a region without room for its name with `label_does_not_fit`, and one
-with more places than ground with `places_did_not_fit`.
 
 ## Diagram fields
 

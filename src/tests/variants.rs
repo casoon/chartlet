@@ -345,32 +345,4 @@ fn the_mobile_variant_is_checked_for_density_at_its_own_width() {
     );
 }
 
-#[test]
-fn the_topic_picker_switches_both_variants() {
-    let specification = with_mobile(
-        include_str!("../../examples/topicmap-sample.json"),
-        r#"{"width": 360}"#,
-    );
-    let html = render_json(
-        &specification,
-        RenderFormat::Html,
-        &RenderOptions::default(),
-    )
-    .unwrap()
-    .content;
-    assert_eq!(
-        html.matches("<fieldset class=\"chartlet-topic-picker\">")
-            .count(),
-        1
-    );
-    assert_eq!(html.matches("<svg").count(), 2);
-    // The picker's rules name both variants' root IDs.
-    let rule = ":checked) #{root} .chartlet-topic-area.chartlet-topic-0{";
-    let desktop = html.split(" id=\"").nth(1).unwrap();
-    let desktop = &desktop[..desktop.find('"').unwrap()];
-    assert!(html.contains(&rule.replace("{root}", desktop)));
-    assert!(html.contains(&rule.replace("{root}", &format!("{desktop}-m"))));
-    assert!(html.starts_with("<div class=\"chartlet-wrapper chartlet-responsive"));
-}
-
 // --- Collapsed gaps ---

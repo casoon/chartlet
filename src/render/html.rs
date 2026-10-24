@@ -1,4 +1,4 @@
-//! The HTML figure around one or more SVGs: the series filter, zoom steps, topic picker, focus
+//! The HTML figure around one or more SVGs: the series filter, zoom steps, focus
 //! of a diagram and mobile variant, without a script, and the page of all views of a model.
 
 use std::fmt::Write;
@@ -9,65 +9,6 @@ use crate::{TableMode, spec::ChartSpec};
 /// CSS rules for radio-selectable zoom panels. Only the panel whose radio is checked shows;
 /// the first radio carries `checked`, so the first step is the default view.
 const ZOOM_STYLE: &str = ".chartlet-zoom{border:none;padding:0;margin:0 0 12px 0}.chartlet-zoom legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-zoom label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-zoom input{margin-right:4px}.chartlet-zoom input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-panel{display:none}.chartlet-wrapper:has(.chartlet-zoom input.zoom-0:checked) .chartlet-panel-0{display:block}.chartlet-wrapper:has(.chartlet-zoom input.zoom-1:checked) .chartlet-panel-1{display:block}.chartlet-wrapper:has(.chartlet-zoom input.zoom-2:checked) .chartlet-panel-2{display:block}.chartlet-wrapper:has(.chartlet-zoom input.zoom-3:checked) .chartlet-panel-3{display:block}";
-
-/// Chrome for the area picker. The selection rules themselves are generated per chart, because
-/// there is one of them per area.
-const PICKER_STYLE: &str = ".chartlet-topic-picker{border:none;padding:0;margin:0 0 12px 0}.chartlet-topic-picker legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-topic-picker label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-topic-picker input{margin-right:4px}.chartlet-topic-picker input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}";
-
-/// The selection rules for one topic map.
-///
-/// Every rule is guarded by a `:has()` on a checked radio, which is what makes this degrade the
-/// way it should: a browser that does not understand `:has()` drops all of them, leaving the map
-/// in its plain state with every area in the accent colour and every panel visible. Nothing is
-/// hidden that cannot be shown again.
-fn picker_style(topics: usize, roots: &[&str]) -> String {
-    let mut style = String::from(PICKER_STYLE);
-    // The quiet state applies only once something is actually selected. The rules for the map
-    // name each SVG's root ID, because the chart's own rules are scoped to it and would
-    // otherwise outrank them.
-    for root in roots {
-        write!(
-            style,
-            ".chartlet-wrapper:has(.chartlet-topic-picker input:checked) #{root} .chartlet-topic-area{{fill:var(--chartlet-quiet)}}.chartlet-wrapper:has(.chartlet-topic-picker input:checked) #{root} .chartlet-topic-label,.chartlet-wrapper:has(.chartlet-topic-picker input:checked) #{root} .chartlet-topic-value{{fill:var(--chartlet-text)}}.chartlet-wrapper:has(.chartlet-topic-picker input:checked) #{root} .chartlet-topic-point{{fill:var(--chartlet-muted)}}"
-        )
-        .expect("writing to String cannot fail");
-    }
-    // A host page receives the wrapper as one block, so its own detail panels can only be
-    // siblings of it — but a page that does place them inside should work too. Both forms are
-    // written out rather than guessing which one the integration will use.
-    style.push_str(".chartlet-wrapper:has(.chartlet-topic-picker input:checked) .chartlet-topic-panel,.chartlet-wrapper:has(.chartlet-topic-picker input:checked) ~ .chartlet-topic-panel{display:none}");
-    for topic in 0..topics {
-        for root in roots {
-            write!(
-                style,
-                ".chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-area.chartlet-topic-{topic}{{fill:var(--chartlet-accent)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-label.chartlet-topic-{topic},.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-value.chartlet-topic-{topic}{{fill:var(--chartlet-background)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-point.chartlet-topic-{topic}{{fill:var(--chartlet-background)}}.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) #{root} .chartlet-topic-outside.chartlet-topic-{topic}{{fill:var(--chartlet-accent)}}"
-            )
-            .expect("writing to String cannot fail");
-        }
-        write!(
-            style,
-            ".chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) .chartlet-topic-panel-{topic},.chartlet-wrapper:has(.chartlet-topic-picker input.topic-{topic}:checked) ~ .chartlet-topic-panel-{topic}{{display:block}}"
-        )
-        .expect("writing to String cannot fail");
-    }
-    style
-}
-
-/// The root IDs of every SVG in the panels, desktop and mobile.
-fn panel_roots(panels: &[Panel]) -> Vec<&str> {
-    panels
-        .iter()
-        .flat_map(|panel| std::iter::once(&panel.svg).chain(panel.mobile.as_ref()))
-        .filter_map(|svg| root_id(svg))
-        .collect()
-}
-
-/// The ID of an SVG's root element, which [`svg`](super::svg::svg) always writes as the root's first `id`.
-fn root_id(svg: &str) -> Option<&str> {
-    let start = svg.find(" id=\"")? + 5;
-    let end = start + svg[start..].find('"')?;
-    Some(&svg[start..end])
-}
 
 /// One chart of the HTML figure: a zoom step, or the only chart. `mobile` is its mobile variant,
 /// when the specification has one.
@@ -172,45 +113,6 @@ fn responsive_style(breakpoint: u32) -> String {
 
 /// Builds the HTML figure. With one panel and no zoom name this is the plain figure; with
 /// several panels it adds a radio group that switches between pre-computed variants.
-/// The radio group that picks an area of a topic map, with the rules that restyle the map.
-fn emit_topic_picker(
-    topics: usize,
-    panels: &[Panel],
-    spec: &ChartSpec,
-    id_prefix: &str,
-    output: &mut String,
-) {
-    write!(
-        output,
-        "<style>{}</style>",
-        picker_style(topics, &panel_roots(panels))
-    )
-    .expect("write");
-    write!(
-        output,
-        "<fieldset class=\"chartlet-topic-picker\"><legend>{}</legend>",
-        spec.locale.words().area
-    )
-    .expect("write");
-    let names = spec
-        .topicmap
-        .as_ref()
-        .expect("a picker means there is a topic map")
-        .topics
-        .iter()
-        .map(|topic| topic.label.as_str());
-    for (index, label) in names.enumerate() {
-        let checked = if index == 0 { " checked" } else { "" };
-        write!(
-            output,
-            "<label><input type=\"radio\" name=\"topic-{id_prefix}\" class=\"topic-{index}\"{checked}> {}</label>",
-            escape(label)
-        )
-        .expect("write");
-    }
-    output.push_str("</fieldset>");
-}
-
 fn html_document(
     panels: &[Panel],
     spec: &ChartSpec,
@@ -224,14 +126,8 @@ fn html_document(
     let has_series = spec.series.len() > 1 && spec.stack.is_none();
     let zoom = zoomable && panels.len() > 1;
     let breakpoint = spec.mobile.as_ref().map(|mobile| mobile.breakpoint);
-    // One area cannot be picked from, and islands are not what the map is about.
-    let picker = spec
-        .topicmap
-        .as_ref()
-        .map(|topicmap| topicmap.topics.len())
-        .filter(|topics| *topics > 1);
     let focus = !zoom && panels.first().is_some_and(|panel| !panel.stages.is_empty());
-    let wrapped = has_series || zoom || picker.is_some() || breakpoint.is_some() || focus;
+    let wrapped = has_series || zoom || breakpoint.is_some() || focus;
     if let Some(breakpoint) = breakpoint {
         write!(
             output,
@@ -241,9 +137,6 @@ fn html_document(
         .expect("write");
     } else if wrapped {
         output.push_str("<div class=\"chartlet-wrapper\">");
-    }
-    if let Some(topics) = picker {
-        emit_topic_picker(topics, panels, spec, id_prefix, &mut output);
     }
     if focus {
         emit_focus_controls(&panels[0], spec, id_prefix, &mut output);

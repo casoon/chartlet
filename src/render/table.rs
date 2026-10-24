@@ -120,8 +120,6 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             spec.time_axis.title.as_deref().unwrap_or(words.position)
         }
         ChartType::Time | ChartType::Multiples => words.time,
-        ChartType::Topicmap => words.topic,
-        ChartType::Atlas => words.region,
         ChartType::Stripes => words.year,
         ChartType::Calendar => words.date,
         ChartType::Bar | ChartType::Line | ChartType::Rangebar | ChartType::Boxplot => {

@@ -1,6 +1,5 @@
 use super::{
     ChartSpec, ChartType, Dataset, LayerRef, MAX_SERIES, NumberStyle, Series, ValueFormat,
-    atlas::place_count,
     timechart::{Gaps, LayerSpec, Mark},
 };
 use crate::{error::ChartError, time::TimeValue};
@@ -32,9 +31,8 @@ impl ChartSpec {
         }
     }
 
-    /// The dataset behind the data table: a time chart reports one row per timestamp, a topicmap
-    /// chart one row per topic and island, an atlas one row per region, every other chart one row
-    /// per category.
+    /// The dataset behind the data table: a time chart reports one row per timestamp, every
+    /// other chart one row per category.
     pub(crate) fn table_dataset(&self) -> Dataset {
         match self.chart_type {
             ChartType::Multiples if self.is_bar_multiples() => self.bar_multiples_dataset(),
@@ -42,8 +40,6 @@ impl ChartSpec {
                 let zone = self.time_zone().unwrap_or_default();
                 self.time_dataset(zone, true)
             }
-            ChartType::Topicmap => self.topicmap_dataset(),
-            ChartType::Atlas => self.atlas_dataset(),
             ChartType::Stripes => self.stripes_dataset(),
             ChartType::Calendar => self.calendar_dataset(),
             ChartType::Rangebar => self.rangebar_dataset(),
@@ -186,80 +182,6 @@ impl ChartSpec {
                 })
                 .collect(),
             series,
-        }
-    }
-
-    /// Topics and islands as rows, with their value and path count as columns.
-    /// The table behind an atlas: one row per region, naming the realm it lies in. The realms
-    /// themselves get no row — they hold no number of their own, only the sum of their regions,
-    /// and a row repeating that sum would invite reading it as a sixth region.
-    fn atlas_dataset(&self) -> Dataset {
-        let atlas = self
-            .atlas
-            .as_ref()
-            .expect("validated atlas charts carry an atlas block");
-        let regions = || {
-            atlas
-                .realms
-                .iter()
-                .flat_map(|realm| realm.regions.iter().map(move |region| (realm, region)))
-        };
-        Dataset {
-            categories: regions()
-                .map(|(realm, region)| format!("{} · {}", realm.label, region.label))
-                .collect(),
-            series: vec![
-                Series {
-                    name: Some(self.locale.words().entries.to_owned()),
-                    values: regions().map(|(_, region)| Some(region.value)).collect(),
-                    style: None,
-                },
-                Series {
-                    name: Some(self.locale.words().places.to_owned()),
-                    values: regions()
-                        .map(|(_, region)| Some(place_count(region.places.len())))
-                        .collect(),
-                    style: None,
-                },
-            ],
-        }
-    }
-
-    fn topicmap_dataset(&self) -> Dataset {
-        let topicmap = self
-            .topicmap
-            .as_ref()
-            .expect("validated topicmap charts carry a topicmap block");
-        let all = || topicmap.topics.iter().chain(topicmap.islands.iter());
-        let total: f64 = all().map(|topic| topic.value).sum();
-        Dataset {
-            categories: all().map(|topic| topic.label.clone()).collect(),
-            series: vec![
-                Series {
-                    name: Some(self.locale.words().entries.to_owned()),
-                    values: all().map(|topic| Some(topic.value)).collect(),
-                    style: None,
-                },
-                Series {
-                    name: Some(self.locale.words().paths.to_owned()),
-                    values: all().map(|topic| Some(f64::from(topic.points))).collect(),
-                    style: None,
-                },
-                Series {
-                    name: Some(self.locale.words().share.to_owned()),
-                    // Of every entry on the map, islands included: the table lists them too.
-                    // Rounded to two decimal places of a percent — a share carried to twelve
-                    // digits would claim a precision the underlying counts do not have.
-                    values: all()
-                        .map(|topic| Some(((topic.value / total) * 10_000.0).round() / 10_000.0))
-                        .collect(),
-                    style: Some(NumberStyle {
-                        format: ValueFormat::Percent,
-                        locale: self.locale,
-                        ..NumberStyle::default()
-                    }),
-                },
-            ],
         }
     }
 
@@ -426,9 +348,7 @@ impl ChartSpec {
             | ChartType::Boxplot
             | ChartType::Waterfall
             | ChartType::Multiples => Some(&self.value_axis),
-            ChartType::Topicmap
-            | ChartType::Atlas
-            | ChartType::Stripes
+            ChartType::Stripes
             | ChartType::Calendar
             | ChartType::Sequence
             | ChartType::Flow
@@ -491,9 +411,7 @@ impl ChartSpec {
                 .panes
                 .first()
                 .map_or(ValueFormat::Number, |pane| pane.value_axis.format),
-            ChartType::Topicmap
-            | ChartType::Atlas
-            | ChartType::Stripes
+            ChartType::Stripes
             | ChartType::Calendar
             | ChartType::Sequence
             | ChartType::Flow

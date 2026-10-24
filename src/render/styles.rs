@@ -137,21 +137,6 @@ const ARCHITECTURE_STYLE: &str = ".chartlet-arch-head{fill:var(--chartlet-role-v
 
 const FILTER_STYLE: &str = ".chartlet-wrapper{display:inline-block;max-width:100%}.chartlet-filter{border:none;padding:0;margin:0 0 12px 0}.chartlet-filter legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-filter label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-filter input{margin-right:4px}.chartlet-filter input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-wrapper:has(.chartlet-filter input.series-0:not(:checked)) .chartlet-root [data-series=\"0\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-2:not(:checked)) .chartlet-root [data-series=\"2\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-3:not(:checked)) .chartlet-root [data-series=\"3\"]{display:none}";
 
-/// Topic map styling. The label and its value stay fully opaque against the filled area, because
-/// an opacity below one would take the text under the 4.5:1 contrast the palette is built for;
-/// the decorative halo, depth lines and path points are the parts that fade.
-///
-/// `chartlet-topic-halo`'s stroke width is mirrored by `HALO_WIDTH` in the layout, which keeps
-/// that much room free at the canvas edge.
-///
-/// `--chartlet-sea` is declared here rather than in the shared palette: only a topic map paints
-/// a sea, and adding the property to every chart would change the bytes of all of them.
-const TOPICMAP_STYLE: &str = ".chartlet-root{--chartlet-sea:#f2efe8;--chartlet-quiet:#fff}.chartlet-theme-dark{--chartlet-sea:#131a24;--chartlet-quiet:#1e2836}.chartlet-sea{fill:var(--chartlet-sea)}.chartlet-graticule{stroke:var(--chartlet-grid);stroke-width:1;opacity:.7}.chartlet-compass-ring{fill:var(--chartlet-background);stroke:var(--chartlet-grid);stroke-width:1}.chartlet-compass-needle{fill:var(--chartlet-muted);opacity:.55}.chartlet-compass-north{fill:var(--chartlet-accent)}.chartlet-compass-label{font-size:11px;font-weight:650;fill:var(--chartlet-muted)}.chartlet-cartouche{fill:var(--chartlet-background);stroke:var(--chartlet-grid);stroke-width:1}.chartlet-cartouche-frame{fill:none;stroke:var(--chartlet-grid);stroke-width:1}.chartlet-cartouche-heading{font-weight:650;fill:var(--chartlet-text)}.chartlet-cartouche-meta{fill:var(--chartlet-muted)}.chartlet-topic-area{fill:var(--chartlet-accent)}.chartlet-topic-halo{fill:none;stroke:var(--chartlet-accent);stroke-width:10;stroke-linejoin:round;opacity:.16}.chartlet-topic-band{fill:none;stroke:var(--chartlet-grid);stroke-width:1;stroke-dasharray:3 6;stroke-linejoin:round}.chartlet-topic-link{fill:none;stroke:var(--chartlet-grid);stroke-width:1.5;stroke-dasharray:4 5;stroke-linecap:round}.chartlet-topic-leader{stroke:var(--chartlet-zero);stroke-width:1}.chartlet-topic-point{fill:var(--chartlet-background);opacity:.6}.chartlet-topic-label{font-weight:650;fill:var(--chartlet-background)}.chartlet-topic-value{fill:var(--chartlet-background)}.chartlet-topic-outside{font-weight:650;fill:var(--chartlet-text)}.chartlet-topic-outside-value{fill:var(--chartlet-muted)}";
-
-/// The landscape. It shares the sea, the graticule and the cartouche with the topic map, and adds
-/// only what a nested map needs of its own.
-const ATLAS_STYLE: &str = ".chartlet-root{--chartlet-sea:#f2efe8;--chartlet-quiet:#fff}.chartlet-sea{fill:var(--chartlet-sea)}.chartlet-theme-dark{--chartlet-sea:#131a24;--chartlet-quiet:#1e2836}[class^='chartlet-atlas-realm-']{fill:var(--chartlet-quiet);stroke:var(--chartlet-grid);stroke-width:1.2;stroke-linejoin:round}.chartlet-atlas-realm-1{opacity:.94}.chartlet-atlas-realm-2{opacity:.88}.chartlet-atlas-realm-3{opacity:.82}.chartlet-atlas-realm-4{opacity:.76}.chartlet-atlas-realm-5{opacity:.7}.chartlet-atlas-realm-6{opacity:.64}.chartlet-atlas-realm-7{opacity:.58}.chartlet-atlas-place{fill:var(--chartlet-text);opacity:.5}.chartlet-atlas-contour{fill:none;stroke:var(--chartlet-grid);stroke-width:.55;stroke-linejoin:round;opacity:.5}.chartlet-atlas-region{fill:none;stroke:var(--chartlet-grid);stroke-width:.8;stroke-linejoin:round;opacity:.75}.chartlet-atlas-coast{fill:none;stroke:var(--chartlet-accent);stroke-width:1.6;stroke-linejoin:round;opacity:.55}.chartlet-atlas-label{font-weight:650;fill:var(--chartlet-text)}.chartlet-atlas-realm-label{font-weight:650;fill:var(--chartlet-muted);letter-spacing:.08em;opacity:.55}";
-
 /// The class by which the shared stylesheet addresses a chart type.
 pub(super) fn type_class(chart_type: ChartType) -> String {
     format!("chartlet-type-{}", crate::spec::type_name(chart_type))
@@ -204,8 +189,6 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_diverging = matches!(spec.chart_type, ChartType::Stripes | ChartType::Calendar);
     let is_calendar = spec.chart_type == ChartType::Calendar;
     let is_rangebar = spec.chart_type == ChartType::Rangebar;
-    let is_topicmap = spec.chart_type == ChartType::Topicmap;
-    let is_atlas = spec.chart_type == ChartType::Atlas;
     let is_dark = matches!(spec.theme, Theme::Dark | Theme::Blueprint);
     let diagram = diagram_style(spec.chart_type);
     let roles = if spec.has_roles() {
@@ -253,8 +236,6 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
         when(!spec.references.is_empty(), REFERENCE_STYLE),
         when(spec.patterns, OUTLINE_STYLE),
         when(spec.width < crate::layout::NARROW, SMALL_TITLE_STYLE),
-        when(is_topicmap, TOPICMAP_STYLE),
-        when(is_atlas, ATLAS_STYLE),
         &diagram,
         // Before the roles: a role keeps its color on a connection in a category.
         when(
@@ -298,9 +279,9 @@ const fn when(condition: bool, style: &str) -> &str {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Architecture, Atlas, Bar, Boxplot, Calendar, Classes, Flow, Line, Multiples, Network,
-        Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
-        Topicmap, Tree, Treemap, Waffle, Waterfall,
+        Architecture, Bar, Boxplot, Calendar, Classes, Flow, Line, Multiples, Network, Parliament,
+        Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline, Tree,
+        Treemap, Waffle, Waterfall,
     };
     let groups: &[(&str, &[ChartType])] = &[
         (STYLE, &[]),
@@ -324,8 +305,6 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (RANGE_GROUP_STYLE, &[Rangebar]),
         (REFERENCE_STYLE, &[Bar, Rangebar]),
         (OUTLINE_STYLE, &[Bar]),
-        (TOPICMAP_STYLE, &[Topicmap]),
-        (ATLAS_STYLE, &[Atlas]),
         (
             DIAGRAM_STYLE,
             &[Sequence, Flow, State, Architecture, Tree, Classes, Network],
@@ -390,20 +369,11 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
 /// would draw every mark that takes its color from one in black or not at all. This resolves
 /// every `var()` to the value the chart's theme gives it, and a color declared as a variable to
 /// its fallback, the chart's text color, and drops the declarations of the custom properties,
-/// together with the rules left empty by that. The attribute selector for the realms of a
-/// landscape, which resvg does not match, is written out as the classes it matches.
+/// together with the rules left empty by that.
 pub(super) fn print_stylesheet(stylesheet: &str, (is_dark, is_blueprint): (bool, bool)) -> String {
-    let realms = crate::layout::REALM_CLASSES
-        .iter()
-        .chain(&["chartlet-atlas-realm-label"])
-        .map(|class| format!(".{class}"))
-        .collect::<Vec<_>>()
-        .join(",");
     // Renderers outside the browser read font weights in hundreds only and would draw 650 as
     // regular.
-    let stylesheet = &stylesheet
-        .replace("[class^='chartlet-atlas-realm-']", &realms)
-        .replace("font-weight:650", "font-weight:600");
+    let stylesheet = &stylesheet.replace("font-weight:650", "font-weight:600");
     let mut properties: Vec<(&str, &str)> = Vec::new();
     for rule in stylesheet.split_inclusive('}') {
         let Some((selector, body)) = rule.split_once('{') else {

@@ -165,7 +165,7 @@ test("reports the outcome as structured diagnostics without throwing", () => {
   assert.equal(readFileSync(join(packageDirectory, "src/chartlet.css"), "utf8").trimEnd(), css);
   const someTypes = stylesheet({ types: ["bar", "time"] });
   assert.ok(someTypes.length < css.length && someTypes.includes(".chartlet-type-time"));
-  assert.ok(!someTypes.includes(".chartlet-type-atlas"));
+  assert.ok(!someTypes.includes(".chartlet-type-flow"));
   assert.equal(
     someTypes,
     execFileSync(binary, ["stylesheet", "--types", "bar,time"], { encoding: "utf8" }).trimEnd(),
@@ -215,7 +215,7 @@ test("returns the CSP hash of every distinct inline style", () => {
       ),
     ),
   ];
-  for (const name of ["topicmap-sample", "mobile-revenue", "monthly-revenue"]) {
+  for (const name of ["energy-flow", "mobile-revenue", "monthly-revenue"]) {
     const spec = JSON.parse(readExample(`${name}.json`));
     for (const format of ["svg", "html"]) {
       const results = [

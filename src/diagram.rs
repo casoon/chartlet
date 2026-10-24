@@ -36,7 +36,6 @@ pub(crate) fn polyline(
     Polyline {
         points,
         class,
-        topic: None,
         series_index: None,
         style_index: None,
         tooltip,
@@ -191,7 +190,6 @@ pub(crate) fn badge(number: usize, center: (f64, f64), elements: &mut Vec<Elemen
         cy: center.1,
         radius: BADGE,
         class: "chartlet-diagram-badge",
-        topic: None,
         series_index: None,
         style_index: None,
         tooltip: None,

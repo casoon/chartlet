@@ -86,25 +86,6 @@ fn german_range_chart_writes_spans_legend_and_table_in_german() {
 }
 
 #[test]
-fn german_maps_write_description_picker_and_table_in_german() {
-    let topicmap = html_ok(&german(TOPICMAP, "topicmap"));
-    assert!(topicmap.contains(
-        "Themenkarte mit 5 Gebieten und einer Insel. Größtes: AI in practice mit 291 Einträgen, kleinstes: Management mit 69. Engste Nachbarn: AI in practice und Engineering."
-    ));
-    assert!(topicmap.contains("<legend>Gebiet</legend>"));
-    assert!(topicmap.contains(
-        "<th scope=\"col\">Thema</th><th scope=\"col\">Einträge</th><th scope=\"col\">Pfade</th><th scope=\"col\">Anteil</th>"
-    ));
-    let atlas = html_ok(&german(ATLAS, "atlas"));
-    assert!(atlas.contains(
-        "Wissenslandschaft aus 2 Bereichen und 4 Regionen; die größte ist Models mit 40. 1 Ort ist markiert."
-    ));
-    assert!(atlas.contains(
-        "<th scope=\"col\">Region</th><th scope=\"col\">Einträge</th><th scope=\"col\">Orte</th>"
-    ));
-}
-
-#[test]
 fn the_text_alternative_matches_the_description_and_the_table() {
     let spec = ChartSpec::from_json(&german(TIME, "time")).unwrap();
     let alternative = text_alternative(&spec).unwrap();

@@ -223,7 +223,6 @@ fn push_mean(
     elements.push(Element::Polyline(Polyline {
         points,
         class: "chartlet-box-mean",
-        topic: None,
         series_index: None,
         style_index: None,
         tooltip: None,
@@ -315,7 +314,6 @@ fn push_violin(
     elements.push(Element::Polyline(Polyline {
         points,
         class: VIOLIN[spec.box_tone(index)],
-        topic: None,
         series_index: None,
         style_index: None,
         tooltip: Some(tooltip(spec, index, summary)),
@@ -352,7 +350,6 @@ fn push_violin(
         cy,
         radius: 3.0,
         class: "chartlet-violin-median",
-        topic: None,
         series_index: None,
         style_index: None,
         tooltip: None,
@@ -378,7 +375,6 @@ fn push_strip(
             cy,
             radius: 2.5,
             class: POINT[spec.box_tone(index)],
-            topic: None,
             series_index: None,
             style_index: None,
             tooltip: Some(format!(
@@ -494,7 +490,6 @@ fn push_box(
             cy,
             radius: OUTLIER_RADIUS,
             class: OUTLIER[tone],
-            topic: None,
             series_index: None,
             style_index: None,
             tooltip: Some(format!(

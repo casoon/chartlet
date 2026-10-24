@@ -11,13 +11,13 @@ browser – no chart JavaScript, no hydration, no layout shift.
 chartlet draws bar and line charts, time series with bands, areas, candlesticks and reference
 lines, small multiples, warming stripes, calendar heatmaps, range bars and forest plots, box and
 violin plots, waterfalls, waffle and parliament charts, treemaps, Sankey diagrams, Kaplan-Meier
-curves, scatter plots and timelines, two map-like types (topic map and knowledge landscape), and
+curves, scatter plots and timelines, and
 sequence, flow, state, architecture, class, tree and network diagrams that it lays out itself.
 Architecture models carry several views, deployments per environment and perspectives, and
 `chartlet inspect` checks a model for gaps in its documentation.
 
 **Status:** before 1.0. Until 1.0, a minor release may still change the specification; a patch
-release never does. Flow, state and class diagrams, topic maps and knowledge landscapes are
+release never does. Flow, state and class diagrams are
 experimental: their layout may change between minor releases.
 
 ## Principles

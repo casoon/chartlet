@@ -327,7 +327,7 @@ fn reach(elements: &[Element]) -> (f64, f64, f64, f64) {
                 take((rect.x, rect.y));
                 take((rect.x + rect.width, rect.y + rect.height));
             }
-            Element::Polyline(line) | Element::TopicArea(line, _) => {
+            Element::Polyline(line) => {
                 line.points.iter().copied().for_each(&mut take);
             }
             Element::Line(line) => {
@@ -362,14 +362,10 @@ pub(super) fn placed(elements: &[Element], (dx, dy): (f64, f64)) -> Vec<Element>
                 Element::Polyline(line) => {
                     line.points.iter_mut().for_each(|at| *at = point(*at));
                 }
-                Element::TopicArea(line, center) => {
-                    line.points.iter_mut().for_each(|at| *at = point(*at));
-                    *center = point(*center);
-                }
                 Element::Rect(rect) => (rect.x, rect.y) = point((rect.x, rect.y)),
-                Element::SeriesText(text, _)
-                | Element::StyledText(text, _)
-                | Element::Text(text) => (text.x, text.y) = point((text.x, text.y)),
+                Element::SeriesText(text, _) | Element::Text(text) => {
+                    (text.x, text.y) = point((text.x, text.y));
+                }
                 Element::Hotspot(hotspot) => {
                     (hotspot.x, hotspot.y) = point((hotspot.x, hotspot.y));
                 }

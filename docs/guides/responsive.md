@@ -44,8 +44,7 @@ with a CSS container query on the wrapper's width:
 - The hidden variant is `display: none`, so exactly one SVG is in the accessibility tree at any
   width.
 - Caption, source and data table appear once; the caption is the visible title, neither SVG draws
-  one. Series filters, zoom steps and the area picker of a
-  topic map are shared and switch both variants.
+  one. Series filters and zoom steps are shared and switch both variants.
 - The IDs of the mobile variant end in `-m` (`revenue-m`, `revenue-m-title`, …), so both variants
   and their scoped styles stay apart on one page.
 

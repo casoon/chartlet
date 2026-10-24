@@ -1,10 +1,8 @@
 mod architecture;
-mod atlas;
 mod boxplot;
 mod calendar;
 mod classes;
 mod color;
-mod contour;
 mod dendrogram;
 mod describe;
 mod diagram;
@@ -16,7 +14,6 @@ mod inspect;
 mod layout;
 mod metrics;
 mod network;
-mod noise;
 mod ohlc;
 mod parliament;
 mod parts;
@@ -55,24 +52,23 @@ pub use metrics::{BuiltinMetrics, TextMetrics};
 pub use sha256::sha256;
 pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
-    CalendarLayout, CalendarSpec, CartoucheSpec, CategoryAxisSpec, CategorySpec, ChartSpec,
-    ChartType, ClassKind, ClassSpec, ClassesSpec, ComponentKind, ComponentSpec,
-    ConnectionDirection, ConnectionSpec, Corner, Curve, Dash, DataPoint, DiagramOrientation,
-    DiagramRole, DiagramSpacing, DistancesSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind,
-    FragmentSpec, Gaps, GroupSpec, InstanceSpec, InterfaceSpec, LaneSpec, LayerSpec,
-    LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec,
-    NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec,
-    OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind,
-    ParticipantSpec, PartySpec, PerspectiveSpec, PortSide, RangeSpec, ReferenceSpec, RelationKind,
-    RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis,
-    ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec,
-    ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec,
-    StepKind, StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec,
-    SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
-    TimelineSpec, Tooltips, TopicLinkSpec, TopicMapSpec, TopicSpec, TransitionSpec, TreeLayout,
-    TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
-    ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
-    ZoomStep,
+    CalendarLayout, CalendarSpec, CategoryAxisSpec, CategorySpec, ChartSpec, ChartType, ClassKind,
+    ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionDirection, ConnectionSpec,
+    Curve, Dash, DataPoint, DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec,
+    FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec,
+    InstanceSpec, InterfaceSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage, MainPath, Mark,
+    MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec, NetworkLayout,
+    NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec, OhlcPoint, Orientation,
+    PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec, PartySpec,
+    PerspectiveSpec, PortSide, RangeSpec, ReferenceSpec, RelationKind, RelationSpec,
+    SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec,
+    ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec,
+    SequenceSpec, SeriesSpec, Shape, Stack, StateKind, StateNodeSpec, StateSpec, StepKind,
+    StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme,
+    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
+    TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec,
+    ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec,
+    WaterfallSpec, ZoomBound, ZoomStep,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

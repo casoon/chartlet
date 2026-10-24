@@ -232,6 +232,5 @@ test("explains every data layer of time charts, ohlc, stripes, calendar and rang
     ["Energy", "Industry", "Transport", "Buildings"],
   );
 
-  assert.deepEqual(explainSpec(example("topicmap-sample")).series, []);
   assert.equal(explainSpec({ ...bar, type: "pie" }).error.path, "/type");
 });

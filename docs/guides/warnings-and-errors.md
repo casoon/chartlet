@@ -24,11 +24,6 @@ Warnings are written to standard error, and the chart is still produced:
 | `glyph_missing` | PNG only: the bundled fonts have no glyph for some characters of the drawn text, such as a subscript two, a Greek letter or ‰; the PNG draws a box for each, the SVG and HTML output show them. |
 | `labels_thinned` | More than 16 categories whose labels do not fit their bands even on two lines: only every few categories are labelled, each with the room of several bands. The data table lists every category. |
 | `dense_chart` | More than 16 categories; the chart may be hard to read at this size. |
-| `topic_too_small_for_label` | A topic map area is too small to hold its own name; consider listing it as an island. |
-| `label_does_not_fit` | A region of a knowledge landscape has no room for its name; the area keeps its tooltip. |
-| `places_did_not_fit` | A region declares more places than it has ground, and some were left off. |
-| `realm_without_structure` | A realm holds a single region, so it has no inner structure to show. |
-| `more_places_than_value` | A region lists more places than its value; the two numbers come from different counts. |
 | `value_outside_band` | A line's value lies outside its own uncertainty band. |
 | `color_not_resolved` | Print and social variants only: a layer declares its color as `var(--name)` without a fallback, which they cannot resolve; it is drawn in the text color. Give it a fallback, `var(--name, #2563eb)`, or a literal color so that layers stay distinguishable. |
 | `canvas_too_small` | A diagram does not fit its canvas in either orientation and was drawn larger; the path names `/width` or `/height`, the message the size it needs. A page that scales the SVG to its container still shows all of it. |

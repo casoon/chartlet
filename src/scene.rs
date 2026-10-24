@@ -10,15 +10,8 @@ pub(crate) enum Element {
     Circle(Circle),
     Line(Line),
     Polyline(Polyline),
-    /// The filled outline of a topic map area and the center it was placed around. The SVG
-    /// carries that center as `data-cx`/`data-cy`, so a host page need not recompute it from the
-    /// outline.
-    TopicArea(Polyline, (f64, f64)),
     Rect(Rect),
     SeriesText(Text, usize),
-    /// Text the layout decides more about than its class can say: a topic map sizes an area's
-    /// name by how much room that area has, and ties it to the area it names.
-    StyledText(Text, TextStyle),
     Text(Text),
     /// Draws nothing: a `data-*` hook for the optional interactive module, written only with the
     /// `hooks` render option.
@@ -83,23 +76,12 @@ pub(crate) enum Hook {
     End,
 }
 
-/// What the layout knows about a piece of text beyond its class.
-#[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct TextStyle {
-    /// Font size in pixels, when the layout rather than the stylesheet decides it.
-    pub size: Option<f64>,
-    /// The area this text belongs to, see [`Polyline::topic`].
-    pub topic: Option<usize>,
-}
-
 #[derive(Debug, Clone)]
 pub(crate) struct Circle {
     pub cx: f64,
     pub cy: f64,
     pub radius: f64,
     pub class: &'static str,
-    /// The area this belongs to, see [`Polyline::topic`].
-    pub topic: Option<usize>,
     /// Series index (0-based) for multi-series charts; used for CSS filtering.
     pub series_index: Option<usize>,
     /// Index into the specification-declared colors, see [`Polyline`].
@@ -136,9 +118,6 @@ pub(crate) struct Rect {
 pub(crate) struct Polyline {
     pub points: Vec<(f64, f64)>,
     pub class: &'static str,
-    /// The index of the topic map area this belongs to, written out as a `chartlet-topic-N`
-    /// class. It is what lets the selection styles address one area without any scripting.
-    pub topic: Option<usize>,
     /// Series index (0-based) for multi-series charts; used for CSS filtering.
     pub series_index: Option<usize>,
     /// Index into the specification-declared colors: a polyline is painted by

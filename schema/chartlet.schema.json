@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "topicmap", "atlas", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network"]
+      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -191,14 +191,6 @@
       "description": "The nodes of a type: \"tree\" diagram.",
       "$ref": "#/$defs/tree"
     },
-    "topicmap": {
-      "description": "Topic areas of a type: \"topicmap\" chart.",
-      "$ref": "#/$defs/topicMap"
-    },
-    "atlas": {
-      "description": "The knowledge landscape of a type: \"atlas\" chart.",
-      "$ref": "#/$defs/atlas"
-    },
     "width": { "type": "integer", "minimum": 200, "maximum": 2400, "default": 800 },
     "height": { "type": "integer", "minimum": 160, "maximum": 1600, "default": 450 },
     "mobile": {
@@ -322,28 +314,6 @@
           "required": ["panes", "categories"],
           "properties": { "type": { "const": "multiples" } },
           "not": { "anyOf": [{ "required": ["data"] }, { "required": ["series"] }] }
-        },
-        {
-          "required": ["topicmap"],
-          "not": {
-            "anyOf": [
-              { "required": ["data"] },
-              { "required": ["categories"] },
-              { "required": ["series"] },
-              { "required": ["panes"] }
-            ]
-          }
-        },
-        {
-          "required": ["atlas"],
-          "not": {
-            "anyOf": [
-              { "required": ["data"] },
-              { "required": ["categories"] },
-              { "required": ["series"] },
-              { "required": ["panes"] }
-            ]
-          }
         },
         {
           "required": ["stripes"],
@@ -626,9 +596,7 @@
             { "required": ["orientation"] },
             { "required": ["categoryAxis"] },
             { "required": ["valueAxis"] },
-            { "required": ["timeAxis"] },
-            { "required": ["topicmap"] },
-            { "required": ["atlas"] }
+            { "required": ["timeAxis"] }
           ]
         }
       },
@@ -649,9 +617,7 @@
             { "required": ["orientation"] },
             { "required": ["categoryAxis"] },
             { "required": ["valueAxis"] },
-            { "required": ["timeAxis"] },
-            { "required": ["topicmap"] },
-            { "required": ["atlas"] }
+            { "required": ["timeAxis"] }
           ]
         }
       },
@@ -667,9 +633,7 @@
             { "required": ["orientation"] },
             { "required": ["categoryAxis"] },
             { "required": ["valueAxis"] },
-            { "required": ["timeAxis"] },
-            { "required": ["topicmap"] },
-            { "required": ["atlas"] }
+            { "required": ["timeAxis"] }
           ]
         }
       },
@@ -685,9 +649,7 @@
             { "required": ["orientation"] },
             { "required": ["categoryAxis"] },
             { "required": ["valueAxis"] },
-            { "required": ["timeAxis"] },
-            { "required": ["topicmap"] },
-            { "required": ["atlas"] }
+            { "required": ["timeAxis"] }
           ]
         }
       },
@@ -703,9 +665,7 @@
             { "required": ["orientation"] },
             { "required": ["categoryAxis"] },
             { "required": ["valueAxis"] },
-            { "required": ["timeAxis"] },
-            { "required": ["topicmap"] },
-            { "required": ["atlas"] }
+            { "required": ["timeAxis"] }
           ]
         }
       },
@@ -721,9 +681,7 @@
             { "required": ["orientation"] },
             { "required": ["categoryAxis"] },
             { "required": ["valueAxis"] },
-            { "required": ["timeAxis"] },
-            { "required": ["topicmap"] },
-            { "required": ["atlas"] }
+            { "required": ["timeAxis"] }
           ]
         }
       },
@@ -738,9 +696,7 @@
           "anyOf": [
             { "required": ["orientation"] },
             { "required": ["categoryAxis"] },
-            { "required": ["zoomSteps"] },
-            { "required": ["topicmap"] },
-            { "required": ["atlas"] }
+            { "required": ["zoomSteps"] }
           ]
         }
       },
@@ -759,8 +715,7 @@
           "anyOf": [
             { "required": ["orientation"] },
             { "required": ["categoryAxis"] },
-            { "required": ["valueAxis"] },
-            { "required": ["topicmap"] }
+            { "required": ["valueAxis"] }
           ]
         }
       }
@@ -781,26 +736,6 @@
         "not": {
           "anyOf": [
             { "required": ["panes"] },
-            { "required": ["timeAxis"] },
-            { "required": ["topicmap"] }
-          ]
-        }
-      }
-    },
-    {
-      "if": { "properties": { "type": { "const": "topicmap" } } },
-      "then": {
-        "required": ["topicmap"],
-        "not": {
-          "anyOf": [
-            { "required": ["data"] },
-            { "required": ["categories"] },
-            { "required": ["series"] },
-            { "required": ["zoomSteps"] },
-            { "required": ["panes"] },
-            { "required": ["orientation"] },
-            { "required": ["categoryAxis"] },
-            { "required": ["valueAxis"] },
             { "required": ["timeAxis"] }
           ]
         }
@@ -2211,158 +2146,6 @@
           }
         }
       ]
-    },
-    "topic": {
-      "description": "One topic or island of a type: \"topicmap\" chart.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["label", "value"],
-      "properties": {
-        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "value": { "type": "number", "minimum": 1, "maximum": 1e100 },
-        "points": {
-          "description": "Number of paths through this topic; drawn as points inside its area.",
-          "type": "integer",
-          "minimum": 0,
-          "default": 0
-        },
-        "tooltip": { "type": "string", "minLength": 1, "maxLength": 300 }
-      }
-    },
-    "topicLink": {
-      "description": "A neighborhood between two topics or islands, drawn as a route.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["from", "to"],
-      "properties": {
-        "from": { "type": "string", "minLength": 1 },
-        "to": { "type": "string", "minLength": 1 },
-        "weight": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 }
-      }
-    },
-    "cartouche": {
-      "description": "The legend box printed on the map.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["heading", "meta"],
-      "properties": {
-        "heading": { "type": "string", "minLength": 1, "maxLength": 100 },
-        "meta": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "corner": {
-          "enum": ["bottomRight", "bottomLeft", "topRight", "topLeft"],
-          "default": "bottomRight"
-        }
-      }
-    },
-    "atlas": {
-      "description": "Realms of neighbouring regions, holding places. Where a region lies says as much as how large it is.",
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["realms"],
-      "properties": {
-        "realms": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 8,
-          "items": { "$ref": "#/$defs/realm" }
-        },
-        "links": {
-          "description": "Kinship between two regions, named by label and valid across realm borders.",
-          "type": "array",
-          "items": { "$ref": "#/$defs/topicLink" }
-        },
-        "seed": { "type": "integer", "minimum": 0, "default": 0 },
-        "areaDamping": {
-          "description": "The exponent a region's area follows: 1 is proportional to its value, 0.5 its square root.",
-          "type": "number",
-          "minimum": 0.2,
-          "maximum": 1,
-          "default": 0.5
-        },
-        "contours": {
-          "description": "Contour lines from the density of places.",
-          "type": "boolean",
-          "default": true
-        }
-      }
-    },
-    "realm": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["label", "regions"],
-      "properties": {
-        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "regions": {
-          "type": "array",
-          "minItems": 1,
-          "items": { "$ref": "#/$defs/region" }
-        },
-        "tooltip": { "type": "string", "minLength": 1, "maxLength": 300 }
-      }
-    },
-    "region": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["label", "value"],
-      "properties": {
-        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "value": { "type": "number", "minimum": 1 },
-        "places": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/place" }
-        },
-        "tooltip": { "type": "string", "minLength": 1, "maxLength": 300 }
-      }
-    },
-    "place": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["label"],
-      "properties": {
-        "label": { "type": "string", "minLength": 1, "maxLength": 200 },
-        "weight": {
-          "description": "How prominent the point is. 1 is an ordinary place.",
-          "type": "number",
-          "minimum": 0.25,
-          "maximum": 4,
-          "default": 1
-        },
-        "tooltip": { "type": "string", "minLength": 1, "maxLength": 300 }
-      }
-    },
-    "topicMap": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["topics"],
-      "properties": {
-        "topics": {
-          "type": "array",
-          "minItems": 1,
-          "maxItems": 40,
-          "items": { "$ref": "#/$defs/topic" }
-        },
-        "links": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/topicLink" }
-        },
-        "islands": {
-          "description": "Fringe topics, drawn as small fixed-size islands rather than area-proportional landmasses.",
-          "type": "array",
-          "maxItems": 6,
-          "items": { "$ref": "#/$defs/topic" }
-        },
-        "seed": { "type": "integer", "minimum": 0, "default": 0 },
-        "cartouche": { "$ref": "#/$defs/cartouche" },
-        "graticule": { "type": "boolean", "default": true },
-        "compass": { "type": "boolean", "default": true },
-        "depthBands": {
-          "description": "Number of depth-line rings drawn around each coastline.",
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 3,
-          "default": 2
-        }
-      }
     }
   }
 }

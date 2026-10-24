@@ -175,7 +175,6 @@ pub(crate) fn layout(
             cy: y(point.y),
             radius: if few { 3.5 } else { 2.0 },
             class: DOTS[scatter.color(point) - 1],
-            topic: None,
             series_index: None,
             style_index: None,
             tooltip: (few || point.label.is_some()).then(|| tooltip(spec, point)),

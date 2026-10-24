@@ -103,7 +103,6 @@ pub(crate) fn layout(
         elements.push(Element::Polyline(Polyline {
             points: plan.band(index),
             class: LINK_CLASSES[plan.color[from] - 1],
-            topic: None,
             series_index: None,
             style_index: None,
             tooltip: Some(format!(

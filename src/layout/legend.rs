@@ -148,7 +148,6 @@ pub(super) fn add_layer_legend(
                 } else {
                     POINT_CLASSES[spec.palette_index(entry.layer)]
                 },
-                topic: None,
                 series_index: None,
                 style_index: explicit.then_some(entry.global),
                 tooltip: None,
@@ -157,7 +156,6 @@ pub(super) fn add_layer_legend(
             elements.push(Element::Polyline(Polyline {
                 points: vec![(x, y + 5.0), (x + LEGEND_LINE, y + 5.0)],
                 class: line_class(spec, entry),
-                topic: None,
                 series_index: None,
                 style_index: explicit.then_some(entry.global),
                 tooltip: None,
@@ -324,7 +322,6 @@ pub(super) fn add_line_legend(
         elements.push(Element::Polyline(Polyline {
             points: vec![(x, y + 5.0), (x + LEGEND_LINE, y + 5.0)],
             class: classes[index],
-            topic: None,
             series_index: None,
             style_index: None,
             tooltip: None,

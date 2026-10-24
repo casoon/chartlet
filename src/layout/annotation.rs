@@ -189,7 +189,6 @@ pub(super) fn push_marker(
                 cy: y,
                 radius,
                 class: "chartlet-marker",
-                topic: None,
                 series_index: None,
                 style_index,
                 tooltip,
@@ -204,7 +203,6 @@ pub(super) fn push_marker(
     elements.push(Element::Polyline(Polyline {
         points,
         class: "chartlet-marker",
-        topic: None,
         series_index: None,
         style_index,
         tooltip,
@@ -364,7 +362,6 @@ pub(super) fn push_rule(
     elements.push(Element::Polyline(Polyline {
         points,
         class: "chartlet-rule",
-        topic: None,
         series_index: None,
         style_index: layer.resolved_color().is_some().then_some(entry.global),
         tooltip: Some(tooltip),

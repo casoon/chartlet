@@ -192,7 +192,6 @@ fn push_area(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mu
             } else {
                 AREA_CLASSES[palette]
             },
-            topic: None,
             series_index: None,
             style_index: explicit.then_some(entry.global),
             tooltip: None,
@@ -249,7 +248,6 @@ fn push_band_run(
             } else {
                 BAND_CLASSES[palette]
             },
-            topic: None,
             series_index: None,
             style_index: explicit.then_some(entry.global),
             tooltip: None,
@@ -257,7 +255,6 @@ fn push_band_run(
         elements.push(Element::Polyline(Polyline {
             points: outline,
             class: "chartlet-hatch",
-            topic: None,
             series_index: None,
             style_index: Some(entry.global),
             tooltip: None,
@@ -270,7 +267,6 @@ fn push_band_run(
             } else {
                 BAND_CLASSES[palette]
             },
-            topic: None,
             series_index: None,
             style_index: explicit.then_some(entry.global),
             tooltip: None,
@@ -377,7 +373,6 @@ fn push_line(
                 } else {
                     POINT_CLASSES[palette]
                 },
-                topic: None,
                 series_index: None,
                 style_index: explicit.then_some(entry.global),
                 tooltip,
@@ -394,7 +389,6 @@ fn push_line(
                     cy: y,
                     radius: 4.0,
                     class: "chartlet-hit",
-                    topic: None,
                     series_index: None,
                     style_index: None,
                     tooltip: Some(text),
@@ -482,7 +476,6 @@ fn push_line_segments(
         elements.push(Element::Polyline(Polyline {
             points,
             class,
-            topic: None,
             series_index: None,
             style_index: explicit.then_some(entry.global),
             tooltip: None,

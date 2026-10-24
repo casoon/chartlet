@@ -11,7 +11,7 @@ use super::{
 };
 use crate::{
     Styles,
-    scene::{Element, Scene, TextAnchor, TextStyle},
+    scene::{Element, Scene, TextAnchor},
     spec::{ChartSpec, ChartType, Theme},
 };
 
@@ -195,13 +195,12 @@ fn emit_element(
             open("circle", circle.series_index, output);
             write!(
                 output,
-                " cx=\"{}\" cy=\"{}\" r=\"{}\" class=\"{}{}{}\"",
+                " cx=\"{}\" cy=\"{}\" r=\"{}\" class=\"{}{}\"",
                 number(circle.cx),
                 number(circle.cy),
                 number(circle.radius),
                 circle.class,
                 point_class(circle.style_index),
-                topic_class(circle.topic),
             )
             .expect("write");
             close("circle", circle.tooltip.as_deref(), output);
@@ -233,14 +232,10 @@ fn emit_element(
             close("rect", rect.tooltip.as_deref(), output);
         }
         Element::SeriesText(text, series_index) => {
-            emit_text(text, Some(*series_index), TextStyle::default(), output);
+            emit_text(text, Some(*series_index), output);
         }
-        Element::StyledText(text, style) => emit_text(text, None, *style, output),
-        Element::Polyline(polyline) => emit_polyline(polyline, None, id_prefix, output),
-        Element::TopicArea(polyline, center) => {
-            emit_polyline(polyline, Some(*center), id_prefix, output);
-        }
-        Element::Text(text) => emit_text(text, None, TextStyle::default(), output),
+        Element::Polyline(polyline) => emit_polyline(polyline, id_prefix, output),
+        Element::Text(text) => emit_text(text, None, output),
         Element::Hook(hook) => {
             if let Some(spec) = hooks {
                 emit_hook(hook, spec, output);
@@ -277,13 +272,8 @@ fn emit_element(
     }
 }
 
-/// Writes a polyline; `center`, when given, becomes its `data-cx`/`data-cy`.
-fn emit_polyline(
-    polyline: &crate::scene::Polyline,
-    center: Option<(f64, f64)>,
-    id_prefix: &str,
-    output: &mut String,
-) {
+/// Writes a polyline.
+fn emit_polyline(polyline: &crate::scene::Polyline, id_prefix: &str, output: &mut String) {
     open("polyline", polyline.series_index, output);
     let points = polyline
         .points
@@ -291,49 +281,30 @@ fn emit_polyline(
         .map(|(x, y)| format!("{},{}", number(*x), number(*y)))
         .collect::<Vec<_>>()
         .join(" ");
-    let center = center.map_or_else(String::new, |(cx, cy)| {
-        format!(" data-cx=\"{}\" data-cy=\"{}\"", number(cx), number(cy))
-    });
     write!(
         output,
-        " points=\"{}\"{} class=\"{}{}{}\"{center}",
+        " points=\"{}\"{} class=\"{}{}\"",
         points,
         hatch_fill(polyline.class, polyline.style_index, id_prefix),
         polyline.class,
         style_class(polyline.style_index),
-        topic_class(polyline.topic),
     )
     .expect("write");
     close("polyline", polyline.tooltip.as_deref(), output);
 }
 
-fn emit_text(
-    text: &crate::scene::Text,
-    series_index: Option<usize>,
-    style: TextStyle,
-    output: &mut String,
-) {
+fn emit_text(text: &crate::scene::Text, series_index: Option<usize>, output: &mut String) {
     open("text", series_index, output);
-    let size = style.size.map_or_else(String::new, |size| {
-        format!(" font-size=\"{}\"", number(size))
-    });
     write!(
         output,
-        " x=\"{}\" y=\"{}\"{size} text-anchor=\"{}\" class=\"{}{}\">{}</text>",
+        " x=\"{}\" y=\"{}\" text-anchor=\"{}\" class=\"{}\">{}</text>",
         number(text.x),
         number(text.y),
         anchor(text.anchor),
         text.class,
-        topic_class(style.topic),
         escape(&text.content)
     )
     .expect("write");
-}
-
-/// The class that ties an element to one topic map area, with the leading space, or nothing at
-/// all when it belongs to no particular area.
-fn topic_class(topic: Option<usize>) -> String {
-    topic.map_or_else(String::new, |index| format!(" chartlet-topic-{index}"))
 }
 
 fn open(tag: &str, series_index: Option<usize>, output: &mut String) {

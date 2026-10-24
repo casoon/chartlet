@@ -1,6 +1,6 @@
 ---
 title: Chart types
-description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, two kinds of map, sequence diagrams, flow charts, state diagrams, architecture diagrams and networks.
+description: Bars, grouped bars, lines with gaps, time series with bands and reference lines, candlesticks and stacked panes, small multiples, warming stripes, calendar heatmaps, range bars, sequence diagrams, flow charts, state diagrams, architecture diagrams and networks.
 order: 1
 ---
 
@@ -24,8 +24,6 @@ order: 1
 | Line with gaps for missing values | `"type": "line"`, `null` values | [Monthly trend](../../../showcase/monthly-trend/) |
 | Time series on a calendar axis | `"type": "time"` with `panes` and `layers` | [Daily orders](../../../showcase/daily-orders/) |
 | Time series, dark theme, declared colors | `"theme": "dark"`, `color` per layer | [Revenue vs. forecast](../../../showcase/revenue-vs-forecast/) |
-| Separate landmasses, area by value (experimental) | `"type": "topicmap"` with `topics` | [Insights themes](../../../showcase/topicmap-sample/) |
-| One continuous land, position by kinship (experimental) | `"type": "atlas"` with `realms` | [Documentation by area](../../../showcase/knowledge-landscape/) |
 | Time series with uncertainty band, modeled | `lower`/`upper` per point, `"modeled": true` | [Temperature projection](../../../showcase/temperature-projection/) |
 | Threshold and date marker | `"mark": "annotation"` with `value` or `time` | [Annual mean and threshold](../../../showcase/annual-mean-threshold/) |
 | Time series with area, gaps and zoom | `"mark": "area"`, `null` values, `dash`, `zoomSteps` by time | [Data hall power draw](../../../showcase/sensor-readings/) |
@@ -694,105 +692,6 @@ In a line chart, `null` marks an observation that does not exist. chartlet leave
 instead of drawing a line across it. In a grouped bar chart, `null` leaves out that bar. The data
 table shows these cells as “Missing”. A single-series bar chart requires a value for every
 category.
-
-## Maps
-
-Two chart types draw subjects as land, and they answer different questions.
-
-Both map types are **experimental**: their layout is tuned to one production site so far and may
-change more between minor releases than the other types do.
-
-A **topic map** (`"type": "topicmap"`) packs one landmass per subject, with the area of each
-proportional to its value. It answers *how much is there of what*. Subjects sit where they fit, so
-position carries nothing; what does not belong to the main systematic is listed under `islands` and
-drawn beside the rest.
-
-A **knowledge landscape** (`"type": "atlas"`) tiles one continuous land instead, so that *where* a
-region lies says as much as how large it is. Use it when the relationships between subjects matter
-as much as their sizes.
-
-```json
-{
-  "schemaVersion": 1,
-  "type": "atlas",
-  "title": "Documentation by area",
-  "atlas": {
-    "realms": [
-      {
-        "label": "Platform",
-        "regions": [
-          { "label": "Runtime", "value": 148, "places": [{ "label": "Process model", "weight": 2.4 }] },
-          { "label": "Storage", "value": 96 }
-        ]
-      },
-      {
-        "label": "Interfaces",
-        "regions": [{ "label": "HTTP API", "value": 112 }]
-      }
-    ],
-    "links": [{ "from": "Storage", "to": "HTTP API", "weight": 0.5 }]
-  }
-}
-```
-
-Three levels, and each one is a thing on the finished map:
-
-- A **realm** is one landscape. Its regions are laid out inside it, so it always arrives in one
-  piece — which is what lets a host page zoom into it as a single shape.
-- A **region** is an area within a realm. Its `value` decides how much of its realm it holds.
-- A **place** is a single entry, drawn as a point inside its region. `weight` makes it stand out;
-  `tooltip` gives it a line of detail on hover.
-
-`links` name two **regions** and may cross realm borders. Kinship cannot move a region out of its
-own realm, so what it does instead is leave it on the border facing its kin — which is how a
-subject that mediates between two realms ends up between them, without anyone placing it there.
-
-### Size, and why it is damped
-
-`areaDamping` is the exponent a region's area follows: `1` makes it proportional to its value,
-and the default `0.5` makes it follow the square root. Two subjects at 292 and 14 entries are a
-factor of 21 apart; damped, their areas are about 4.6 apart. The larger one stays larger without
-deciding the whole map.
-
-Nothing is lost by that. The **contour lines** are drawn from entries per unit of ground, so the
-part of the quantity the area gave up is exactly the part the terrain now carries: dense subjects
-stand higher. Set `"contours": false` to leave the terrain out; the land itself does not change.
-
-### What a host page can address
-
-Every shape carries classes, and they are the contract for building an interaction on top:
-
-| Class | On |
-| --- | --- |
-| `chartlet-atlas-realm-N` | the shape of realm *N*, in declaration order |
-| `chartlet-atlas-region` + `chartlet-topic-N` | the outline of region *N*, counted across all realms |
-| `chartlet-atlas-place` + `chartlet-topic-N` | every place, tagged with the region it sits in |
-| `chartlet-atlas-coast` | the coastline |
-| `chartlet-atlas-contour` | one contour line |
-| `chartlet-atlas-realm-label`, `chartlet-atlas-label` | the names |
-
-A realm's extent is its shape: take every element of its class and union their bounding boxes.
-chartlet renders static SVG, so panning and zooming belong to the host — the classes are what it
-needs to do that without re-deriving anything from the geometry.
-
-A region whose area has no room for its own name at a readable size is left unnamed, and
-`label_does_not_fit` says which one. The area keeps its tooltip either way.
-
-### What a host page can address on a topic map
-
-A topic map numbers its areas the same way: the topics in the order the specification lists
-them, then the islands.
-
-| Class or attribute | On |
-| --- | --- |
-| `chartlet-topic-area` + `chartlet-topic-N` | the filled outline of area *N* |
-| `data-cx`, `data-cy` | on that outline: the center the area was placed around, in viewBox units |
-| `chartlet-topic-label`, `chartlet-topic-value` + `chartlet-topic-N` | the name and value inside area *N* |
-| `chartlet-topic-outside`, `chartlet-topic-outside-value` + `chartlet-topic-N` | the same, set beside the map when the area has no room |
-| `chartlet-topic-link` | a line between two related areas |
-
-The center is where a route between areas should start and end: it is rounded like every other
-coordinate in the SVG, and reading it saves recomputing it from the wobbling outline.
 
 ## Sequence diagrams
 

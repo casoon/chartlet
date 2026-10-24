@@ -6,7 +6,6 @@ mod diagrams;
 mod distributions;
 mod locale;
 mod manifest;
-mod maps;
 mod multiples;
 mod panes;
 mod part_of_whole;
@@ -152,58 +151,6 @@ fn panel(title: &str, scale: f64) -> String {
         2.0 * scale
     )
 }
-
-const ATLAS: &str = r#"{
-        "schemaVersion": 1,
-        "type": "atlas",
-        "title": "Knowledge landscape",
-        "atlas": {
-            "realms": [
-                {
-                    "label": "Machines",
-                    "regions": [
-                        {
-                            "label": "Models",
-                            "value": 40,
-                            "places": [{ "label": "A first look", "weight": 2 }]
-                        },
-                        { "label": "Agents", "value": 12 }
-                    ]
-                },
-                {
-                    "label": "Craft",
-                    "regions": [
-                        { "label": "Tooling", "value": 30 },
-                        { "label": "Accessibility", "value": 8 }
-                    ]
-                }
-            ],
-            "links": [{ "from": "Agents", "to": "Tooling", "weight": 0.4 }],
-            "seed": 7
-        }
-    }"#;
-
-const TOPICMAP: &str = r#"{
-        "schemaVersion": 1,
-        "type": "topicmap",
-        "title": "Insights themes",
-        "topicmap": {
-            "topics": [
-                {"label": "AI in practice", "value": 291, "points": 41},
-                {"label": "Engineering", "value": 282, "points": 24},
-                {"label": "Cloud native", "value": 100, "points": 9},
-                {"label": "Web marketing", "value": 95, "points": 7},
-                {"label": "Management", "value": 69, "points": 5}
-            ],
-            "links": [
-                {"from": "AI in practice", "to": "Engineering", "weight": 0.6}
-            ],
-            "islands": [
-                {"label": "WASM", "value": 6, "points": 1}
-            ],
-            "cartouche": {"heading": "Topic map", "meta": "843 entries · 87 paths · 2026"}
-        }
-    }"#;
 
 /// Position and content of every text of `class`, in document order.
 fn placed_texts(svg: &str, class: &str) -> Vec<(f64, f64, String)> {

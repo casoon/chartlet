@@ -7,6 +7,16 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **Topic map and knowledge landscape:** the experimental types `topicmap` and `atlas` are gone,
+  with their blocks, the area picker of the HTML figure, their example files, the stylesheet part
+  and their warnings. A specification with either type is refused with `invalid_spec`.
+
+### Changed
+
+- **Site:** the showcase is grouped by topic with a jump list and shows one example per variant.
+
 ## [0.20.0] - 2026-10-24
 
 ### Added

@@ -62,7 +62,6 @@ pub(crate) fn push(
         lines.push(Element::Polyline(Polyline {
             points,
             class: "chartlet-rule",
-            topic: None,
             series_index: None,
             style_index: None,
             tooltip: Some(format!(

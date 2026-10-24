@@ -176,7 +176,6 @@ pub(crate) fn layout(
             elements.push(Element::Polyline(Polyline {
                 points: outline.into_iter().map(|(t, s)| (x(t), y(s))).collect(),
                 class: BANDS[index],
-                topic: None,
                 series_index: None,
                 style_index: None,
                 tooltip: None,
@@ -188,7 +187,6 @@ pub(crate) fn layout(
                 .map(|(t, s)| (x(t), y(s)))
                 .collect(),
             class: LINES[index],
-            topic: None,
             series_index: None,
             style_index: None,
             tooltip: Some(group_sentence(spec, index, &curve)),

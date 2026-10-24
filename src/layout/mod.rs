@@ -1,5 +1,4 @@
 mod annotation;
-mod atlas;
 mod axis;
 mod bar;
 mod labels;
@@ -9,7 +8,6 @@ mod panelbars;
 mod stack;
 mod timechart;
 mod title;
-mod topicmap;
 
 use crate::{
     error::ChartWarning,
@@ -18,8 +16,6 @@ use crate::{
     spec::{ChartSpec, ChartType, MAX_SERIES, NumberStyle, Orientation},
 };
 pub(crate) use annotation::{marker_position, zone_extent};
-pub(crate) use atlas::REALM_CLASSES;
-use atlas::layout_atlas;
 pub(crate) use axis::{
     NumericScale, add_bottom_category_title, format_value, push_category_label, push_side_label,
 };
@@ -32,7 +28,6 @@ use timechart::{layout_multiples, layout_time};
 pub(crate) use title::{
     CONTENT_LEFT, NARROW, horizontal_title, push_title, title_extra, two_lines,
 };
-use topicmap::layout_topicmap;
 
 pub(crate) const LABEL_SIZE: f64 = 12.0;
 /// Distance between the baselines of a category label wrapped onto two lines.
@@ -270,8 +265,6 @@ pub(crate) fn layout(
         (ChartType::Calendar, _) => crate::calendar::layout(spec, warnings, metrics),
         (ChartType::Rangebar, _) => crate::rangebar::layout(spec, warnings, metrics),
         (ChartType::Boxplot, _) => crate::boxplot::layout(spec, warnings, metrics),
-        (ChartType::Topicmap, _) => layout_topicmap(spec, warnings, metrics),
-        (ChartType::Atlas, _) => layout_atlas(spec, warnings, metrics),
         (ChartType::Sequence, _) => crate::sequence::layout(spec, warnings, metrics),
         (ChartType::Flow, _) => crate::flow::layout(spec, warnings, metrics),
         (ChartType::State, _) => crate::state::layout(spec, warnings, metrics),

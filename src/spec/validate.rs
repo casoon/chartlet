@@ -550,51 +550,6 @@ impl ChartSpec {
                 ));
             }
         }
-        self.reject_map_blocks()
-    }
-
-    /// Rejects a map block on the chart types that have no map at all.
-    fn reject_map_blocks(&self) -> Result<(), ChartError> {
-        let own = self.chart_type;
-        if matches!(
-            own,
-            ChartType::Stripes
-                | ChartType::Calendar
-                | ChartType::Rangebar
-                | ChartType::Boxplot
-                | ChartType::Timeline
-                | ChartType::Classes
-                | ChartType::Network
-                | ChartType::Scatter
-                | ChartType::Survival
-                | ChartType::Sankey
-                | ChartType::Treemap
-                | ChartType::Parliament
-                | ChartType::Waffle
-                | ChartType::Waterfall
-                | ChartType::Multiples
-                | ChartType::Sequence
-                | ChartType::Flow
-                | ChartType::State
-                | ChartType::Architecture
-                | ChartType::Tree
-        ) {
-            for (field, present, owner) in [
-                ("/topicmap", self.topicmap.is_some(), ChartType::Topicmap),
-                ("/atlas", self.atlas.is_some(), ChartType::Atlas),
-            ] {
-                if present {
-                    return Err(ChartError::new(
-                        "option_not_supported",
-                        field,
-                        format!(
-                            "{field} belongs to a {} chart; remove it or change the type",
-                            type_name(owner)
-                        ),
-                    ));
-                }
-            }
-        }
         Ok(())
     }
 
