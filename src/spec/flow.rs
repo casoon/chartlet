@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use super::untagged::{self, Shape};
 use super::{ChartSpec, Dash, DiagramOrientation, sequence::is_identifier, validate_text};
 use crate::error::{ChartError, ChartWarning};
 
@@ -51,11 +52,48 @@ pub struct FlowSpec {
 
 /// The main path of a diagram: the ids of its steps in order, each joined to the next by an edge,
 /// or the two ends of the way, which the shortest way along the edges joins.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(untagged, deny_unknown_fields)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(untagged)]
 pub enum MainPath {
     Steps(Vec<String>),
     Between { from: String, to: String },
+}
+
+impl<'de> Deserialize<'de> for MainPath {
+    /// A list of strings, or an object with exactly the strings `from` and `to`, each once.
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        untagged::deserialize(deserializer, "MainPath", |shape| match shape {
+            Shape::List(items) => items
+                .into_iter()
+                .map(|item| match item {
+                    serde_json::Value::String(id) => Some(id),
+                    _ => None,
+                })
+                .collect::<Option<_>>()
+                .map(Self::Steps),
+            Shape::Object(members) => {
+                let (mut from, mut to) = (None, None);
+                for (key, value) in members {
+                    let serde_json::Value::String(id) = value else {
+                        return None;
+                    };
+                    let slot = match key.as_str() {
+                        "from" => &mut from,
+                        "to" => &mut to,
+                        _ => return None,
+                    };
+                    if slot.replace(id).is_some() {
+                        return None;
+                    }
+                }
+                Some(Self::Between {
+                    from: from?,
+                    to: to?,
+                })
+            }
+            _ => None,
+        })
+    }
 }
 
 impl Default for MainPath {

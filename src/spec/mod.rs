@@ -21,6 +21,7 @@ mod timeline;
 mod topicmap;
 mod tree;
 mod treemap;
+pub(crate) mod untagged;
 mod validate;
 mod view;
 mod waffle;
@@ -594,11 +595,27 @@ pub struct ZoomStep {
 /// One end of a zoom step: a category index on a bar or line chart, a timestamp on a time chart.
 /// A whole number from 0 up reads as an index first, so that a category chart keeps its
 /// serialized form; on a time chart the same number is Unix seconds.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum ZoomBound {
     Index(usize),
     Time(TimeValue),
+}
+
+impl<'de> Deserialize<'de> for ZoomBound {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        untagged::deserialize(deserializer, "ZoomBound", |shape| {
+            let index = match shape {
+                untagged::Shape::Unsigned(number) => usize::try_from(number).ok(),
+                untagged::Shape::Signed(number) => usize::try_from(number).ok(),
+                _ => None,
+            };
+            match index {
+                Some(index) => Some(Self::Index(index)),
+                None => TimeValue::from_shape(shape).map(Self::Time),
+            }
+        })
+    }
 }
 
 impl ZoomBound {
@@ -677,18 +694,16 @@ impl ChartSpec {
     /// the versioned specification. Like every other error, both carry a JSON Pointer path; a
     /// syntax error points at the document root and names line and column in its message.
     pub fn from_json(input: &str) -> Result<Self, ChartError> {
-        let mut deserializer = serde_json::Deserializer::from_str(input);
-        serde_path_to_error::deserialize(&mut deserializer).map_err(|error| {
-            let source = error.inner();
-            let (code, path) = match source.classify() {
+        serde_json::from_str(input).map_err(|error: serde_json::Error| {
+            let (code, (path, message)) = match error.classify() {
                 serde_json::error::Category::Syntax | serde_json::error::Category::Eof => {
-                    ("invalid_json", "/".to_owned())
+                    ("invalid_json", ("/".to_owned(), error.to_string()))
                 }
                 serde_json::error::Category::Data | serde_json::error::Category::Io => {
-                    ("invalid_spec", json_pointer(error.path()))
+                    ("invalid_spec", json_pointer(input, &error))
                 }
             };
-            ChartError::new(code, path, source.to_string())
+            ChartError::new(code, path, message)
         })
     }
 

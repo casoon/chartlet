@@ -7,6 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::spec::untagged::{self, Shape};
 use crate::spec::{Locale, NumberStyle};
 
 /// A numeric axis keeps its values as whole millionths, so that it runs through the same integer
@@ -27,7 +28,7 @@ const SECONDS_PER_HOUR: i64 = 3_600;
 const MONDAY_EPOCH: i64 = -3 * SECONDS_PER_DAY;
 
 /// One timestamp as written in a specification.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum TimeValue {
     /// Unix seconds; a fractional value is rejected by validation with a precise message.
@@ -36,7 +37,25 @@ pub enum TimeValue {
     Text(String),
 }
 
+impl<'de> Deserialize<'de> for TimeValue {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        untagged::deserialize(deserializer, "TimeValue", Self::from_shape)
+    }
+}
+
 impl TimeValue {
+    /// A number of any kind, or a string.
+    #[allow(clippy::cast_precision_loss)]
+    pub(crate) fn from_shape(shape: Shape) -> Option<Self> {
+        match shape {
+            Shape::Unsigned(number) => Some(Self::Number(number as f64)),
+            Shape::Signed(number) => Some(Self::Number(number as f64)),
+            Shape::Float(number) => Some(Self::Number(number)),
+            Shape::Text(text) => Some(Self::Text(text)),
+            _ => None,
+        }
+    }
+
     /// Resolves the timestamp to Unix seconds. The error text names the accepted forms.
     pub(crate) fn resolve(&self, zone: TimeZone) -> Result<i64, &'static str> {
         if zone.is_numeric() {

@@ -13,7 +13,6 @@ exclude = ["packages/**", "plan/**", "site/**", "docs/**", "wasm/**"]
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde_path_to_error = "0.1"
 # PNG output, behind the `png` feature: text shaping and rasterizing without system fonts.
 resvg = { version = "0.48", default-features = false, features = ["text"], optional = true }
 

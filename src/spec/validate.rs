@@ -1,5 +1,4 @@
-use serde_path_to_error::Segment;
-
+use super::untagged::NO_VARIANT;
 use super::{
     AxisScale, BoxDisplay, ChartSpec, ChartType, LegendPlacement, MAX_AXIS_TICKS, MAX_DECIMALS,
     Mark, Orientation, PaneSpec, Stack, Theme, Tooltips, ValueAxisSpec, ValueFormat, type_name,
@@ -659,18 +658,214 @@ impl ChartSpec {
     }
 }
 
-/// Converts a deserialization path such as `data[0].value` into the JSON Pointer
-/// `/data/0/value` that validation errors use. The document root is `/`.
-pub(super) fn json_pointer(path: &serde_path_to_error::Path) -> String {
-    let pointer: String = path
+/// The JSON Pointer of the value a data error of `serde_json` is about, such as `/data/0/value`
+/// (the document root is `/`), and the message to report.
+///
+/// `serde_json` gives such an error the position of the last byte it read rather than a path. A
+/// scan of the input up to that byte finds the members around it, which make up the path. Some
+/// errors are about the object or array itself, not about the member at that byte: those raised
+/// once all of it has been read, and those at a key that repeats or that names no variant of an
+/// enum written as an object.
+pub(super) fn json_pointer(input: &str, error: &serde_json::Error) -> (String, String) {
+    let bytes = input.as_bytes();
+    // serde_json counts lines from 1 and columns in bytes: `column` bytes of the line are read.
+    let read = bytes
+        .split_inclusive(|byte| *byte == b'\n')
+        .take(error.line().saturating_sub(1))
+        .map(<[u8]>::len)
+        .sum::<usize>()
+        + error.column();
+    let message = error.to_string();
+    let untagged = message.starts_with(NO_VARIANT);
+    let about_container = untagged
+        || [
+            "missing field",
+            "duplicate field",
+            "invalid length",
+            "unknown variant",
+        ]
         .iter()
-        .filter_map(|segment| match segment {
-            Segment::Seq { index } => Some(format!("/{index}")),
-            Segment::Map { key } => Some(format!("/{}", key.replace('~', "~0").replace('/', "~1"))),
-            Segment::Enum { variant } => Some(format!("/{variant}")),
-            Segment::Unknown => None,
-        })
-        .collect();
+        .any(|start| message.starts_with(start));
+    let (frames, closed) = scan(bytes, read);
+    let drop_member = about_container && (closed || frames.last().is_some_and(Frame::before_value));
+    let pointer = pointer(&frames, drop_member);
+    if !untagged {
+        return (pointer, message);
+    }
+    // The values read by `untagged` fail at their own end. The message keeps the position these
+    // errors have always had: where the object or array around the value, which used to report
+    // them, has read on to its next member or past its own end.
+    let in_array = matches!(
+        frames.iter().rev().nth(usize::from(closed)),
+        Some(Frame::Array { .. })
+    );
+    let mut at = skip_whitespace(bytes, read);
+    at = match bytes.get(at) {
+        Some(b'}') if !in_array => at + 1,
+        Some(b']') if in_array => at + 1,
+        Some(b',') if in_array => skip_whitespace(bytes, at + 1),
+        _ => at,
+    };
+    let line_start = bytes[..at]
+        .iter()
+        .rposition(|byte| *byte == b'\n')
+        .map_or(0, |newline| newline + 1);
+    let line = bytes[..at].split(|byte| *byte == b'\n').count();
+    let text = message
+        .rsplit_once(" at line ")
+        .map_or(message.as_str(), |(text, _)| text);
+    let message = format!("{text} at line {line} column {}", at - line_start);
+    (pointer, message)
+}
+
+/// An object or array around the byte an error is at, as [`scan`] tracks it.
+#[derive(Debug, PartialEq)]
+enum Frame {
+    /// The key of the member being read, `None` before the first key and after a comma, and
+    /// whether that member's value has begun.
+    Object { key: Option<String>, value: bool },
+    /// The index of the element being read.
+    Array { index: usize },
+}
+
+impl Frame {
+    /// Between a key and its value: where an error about the key itself sits.
+    fn before_value(&self) -> bool {
+        matches!(
+            self,
+            Self::Object {
+                key: Some(_),
+                value: false
+            }
+        )
+    }
+}
+
+/// The objects and arrays around the last of the first `read` bytes of `bytes`, outermost
+/// first, and whether that byte closes the innermost one, which is then still in the list. The
+/// input past that byte need not be valid JSON.
+fn scan(bytes: &[u8], read: usize) -> (Vec<Frame>, bool) {
+    let mut frames: Vec<Frame> = Vec::new();
+    let mut at = 0;
+    while at < bytes.len() {
+        let byte = bytes[at];
+        if matches!(byte, b' ' | b'\t' | b'\n' | b'\r' | b':') {
+            at += 1;
+            continue;
+        }
+        if at >= read {
+            // The error lies before this token, in the whitespace after the previous one.
+            break;
+        }
+        match byte {
+            b'{' | b'[' => {
+                begin_value(&mut frames);
+                frames.push(if byte == b'{' {
+                    Frame::Object {
+                        key: None,
+                        value: false,
+                    }
+                } else {
+                    Frame::Array { index: 0 }
+                });
+                at += 1;
+            }
+            b'}' | b']' => {
+                if at + 1 == read {
+                    return (frames, true);
+                }
+                frames.pop();
+                at += 1;
+            }
+            b',' => {
+                match frames.last_mut() {
+                    Some(Frame::Object { key, value }) => (*key, *value) = (None, false),
+                    Some(Frame::Array { index }) => *index += 1,
+                    None => {}
+                }
+                at += 1;
+            }
+            _ => {
+                let end = token_end(bytes, at);
+                if let Some(Frame::Object {
+                    key: key @ None, ..
+                }) = frames.last_mut()
+                {
+                    // A key, with its escapes resolved: `"a\/b"` is the key `a/b`.
+                    *key = Some(serde_json::from_slice(&bytes[at..end]).unwrap_or_default());
+                } else {
+                    begin_value(&mut frames);
+                }
+                if end >= read {
+                    break;
+                }
+                at = end;
+            }
+        }
+    }
+    (frames, false)
+}
+
+/// Marks the value of the member being read in the innermost object as begun.
+fn begin_value(frames: &mut [Frame]) {
+    if let Some(Frame::Object { value, .. }) = frames.last_mut() {
+        *value = true;
+    }
+}
+
+/// One past the last byte of the string, number or literal that starts at `start`.
+fn token_end(bytes: &[u8], start: usize) -> usize {
+    if bytes[start] != b'"' {
+        return (start..bytes.len())
+            .find(|&at| {
+                matches!(
+                    bytes[at],
+                    b',' | b'}' | b']' | b':' | b' ' | b'\t' | b'\n' | b'\r'
+                )
+            })
+            .unwrap_or(bytes.len());
+    }
+    // In a string, a backslash escapes the next byte, so `\"` does not end it. Brackets are
+    // plain text, and so are the bytes of other characters, which are all 0x80 and above.
+    let mut at = start + 1;
+    while at < bytes.len() {
+        match bytes[at] {
+            b'\\' => at += 2,
+            b'"' => return at + 1,
+            _ => at += 1,
+        }
+    }
+    bytes.len()
+}
+
+fn skip_whitespace(bytes: &[u8], mut at: usize) -> usize {
+    while bytes
+        .get(at)
+        .is_some_and(|byte| matches!(byte, b' ' | b'\t' | b'\n' | b'\r'))
+    {
+        at += 1;
+    }
+    at
+}
+
+/// The JSON Pointer of the member being read in each frame, without the innermost member with
+/// `drop_member`. `~` is written `~0` and `/` is written `~1`.
+fn pointer(frames: &[Frame], drop_member: bool) -> String {
+    let count = frames.len() - usize::from(drop_member && !frames.is_empty());
+    let mut pointer = String::new();
+    for frame in &frames[..count] {
+        match frame {
+            Frame::Object { key: Some(key), .. } => {
+                pointer.push('/');
+                pointer.push_str(&key.replace('~', "~0").replace('/', "~1"));
+            }
+            Frame::Object { key: None, .. } => {}
+            Frame::Array { index } => {
+                pointer.push('/');
+                pointer.push_str(&index.to_string());
+            }
+        }
+    }
     if pointer.is_empty() {
         "/".to_owned()
     } else {
@@ -776,4 +971,161 @@ fn is_xml_character(character: char) -> bool {
         || ('\u{20}'..='\u{D7FF}').contains(&character)
         || ('\u{E000}'..='\u{FFFD}').contains(&character)
         || ('\u{10000}'..='\u{10FFFF}').contains(&character)
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+
+    use super::json_pointer;
+    use crate::spec::{MainPath, ZoomBound};
+    use crate::time::TimeValue;
+
+    #[derive(Debug, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    #[allow(dead_code)]
+    struct Document {
+        #[serde(default)]
+        label: String,
+        #[serde(default)]
+        items: Vec<Item>,
+        #[serde(default, rename = "a/b~c")]
+        odd: Option<f64>,
+        #[serde(default)]
+        path: Option<MainPath>,
+        #[serde(default)]
+        when: Option<TimeValue>,
+        #[serde(default)]
+        bound: Option<ZoomBound>,
+    }
+
+    #[derive(Debug, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    #[allow(dead_code)]
+    struct Item {
+        n: f64,
+    }
+
+    /// The path and message of the error `input` raises.
+    fn located(input: &str) -> (String, String) {
+        let error = serde_json::from_str::<Document>(input).unwrap_err();
+        json_pointer(input, &error)
+    }
+
+    fn path(input: &str) -> String {
+        located(input).0
+    }
+
+    #[test]
+    fn finds_values_in_nested_objects_and_arrays() {
+        assert_eq!(path(r#"{"items":[{"n":1},{"n":"x"}]}"#), "/items/1/n");
+        assert_eq!(path(r#"{"odd":1,"a/b~c":"x"}"#), "/odd");
+        assert_eq!(path(r#"{"a/b~c":"x"}"#), "/a~1b~0c");
+        assert_eq!(path(r#"{"a\/b\u007ec":"x"}"#), "/a~1b~0c");
+    }
+
+    #[test]
+    fn reads_pretty_and_compact_json_alike() {
+        let pretty =
+            "{\n  \"items\": [\n    { \"n\": 1 },\n    {\r\n\t\"n\" : \"x\"\n    }\n  ]\n}\n";
+        assert_eq!(path(pretty), "/items/1/n");
+        assert_eq!(path(r#"{"items":[{"n":1},{"n":"x"}]}"#), path(pretty));
+    }
+
+    #[test]
+    fn skips_strings_with_escapes_brackets_and_other_characters() {
+        let input = r#"{"label":"a\"]},[{\\\"","items":[{"n":true}]}"#;
+        assert_eq!(path(input), "/items/0/n");
+        let input = r#"{"label":"Grüße ✓ 😀 \u00e4","Grüße":1,"items":[{"n":1},{"n":"ä"}]}"#;
+        assert_eq!(path(input), "/Grüße");
+        let input = r#"{"label":"Grüße ✓ 😀 \u00e4","items":[{"n":1},{"n":"ä"}]}"#;
+        assert_eq!(path(input), "/items/1/n");
+    }
+
+    #[test]
+    fn tells_errors_in_a_key_from_errors_in_a_value() {
+        // An unknown key is about the member, a repeated one about the object it repeats in.
+        assert_eq!(path(r#"{"items":[{"m":1}]}"#), "/items/0/m");
+        assert_eq!(path(r#"{"items":[{"n":1,"n":2}]}"#), "/items/0");
+        assert_eq!(path(r#"{"items":[{"n":1,"n" : 2}]}"#), "/items/0");
+        assert_eq!(path(r#"{"label":"a","label":"b"}"#), "/");
+        // A missing key or a short array is found once the whole object or array is read.
+        assert_eq!(path(r#"{"items":[{"n":1},{}]}"#), "/items/1");
+        assert_eq!(path(r#"{"items":[[]]}"#), "/items/0");
+        assert_eq!(path(r#"{"items":[{"n":1}],"label":{}}"#), "/label");
+    }
+
+    #[test]
+    fn finds_errors_before_the_end_of_the_input() {
+        assert_eq!(path(r#"{"items":[{"n":"x""#), "/items/0/n");
+        let (path, message) = located(r#"{"when":true"#);
+        assert_eq!(path, "/when");
+        assert!(message.ends_with("at line 1 column 12"), "{message}");
+    }
+
+    #[test]
+    fn reports_values_of_several_shapes_at_their_own_path() {
+        for (input, path, column) in [
+            (r#"{"path":[1]}"#, "/path", 12),
+            (r#"{"path":[1],"label":"a"}"#, "/path", 11),
+            (r#"{"path":{"from":"a"}}"#, "/path", 21),
+            (r#"{"path":{"from":"a","from":"b","to":"c"}}"#, "/path", 41),
+            (r#"{"path":{"from":"a","to":"b","x":"c"}}"#, "/path", 38),
+            (r#"{"when":[]}"#, "/when", 11),
+            (r#"{"when" : false , "label":"a"}"#, "/when", 16),
+            (r#"{"bound":true}"#, "/bound", 14),
+        ] {
+            let (found, message) = located(input);
+            assert_eq!(found, path, "{input}");
+            let name = if path == "/path" {
+                "MainPath"
+            } else if path == "/when" {
+                "TimeValue"
+            } else {
+                "ZoomBound"
+            };
+            assert_eq!(
+                message,
+                format!(
+                    "data did not match any variant of untagged enum {name} at line 1 column {column}"
+                ),
+                "{input}"
+            );
+        }
+        let pretty = "{\n  \"path\": [\n    \"a\",\n    2\n  ]\n}";
+        assert_eq!(
+            located(pretty),
+            (
+                "/path".to_owned(),
+                "data did not match any variant of untagged enum MainPath at line 6 column 1"
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn reads_each_shape_into_its_variant() {
+        for (input, read) in [
+            (
+                r#"{"path":{"to":"b","from":"a"},"when":"2026-03-01","bound":-3}"#,
+                r#"Some(Between { from: "a", to: "b" }) Some(Text("2026-03-01")) Some(Time(Number(-3.0)))"#,
+            ),
+            (
+                r#"{"path":["a","b"],"when":7,"bound":7}"#,
+                r#"Some(Steps(["a", "b"])) Some(Number(7.0)) Some(Index(7))"#,
+            ),
+            (
+                r#"{"path":[],"when":-0.5,"bound":"2026"}"#,
+                r#"Some(Steps([])) Some(Number(-0.5)) Some(Time(Text("2026")))"#,
+            ),
+            (r#"{"bound":7.5}"#, "None None Some(Time(Number(7.5)))"),
+        ] {
+            let document: Document = serde_json::from_str(input).unwrap();
+            let found = format!(
+                "{:?} {:?} {:?}",
+                document.path, document.when, document.bound
+            );
+            assert_eq!(found, read, "{input}");
+        }
+    }
 }

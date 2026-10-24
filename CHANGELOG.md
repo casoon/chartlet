@@ -50,6 +50,12 @@ does.
 - Architecture diagrams: `tags` on components and connections (up to 8, written like ids, never drawn), and `include`/`exclude` on a view, in addition to its lists. A component is shown when the view lists it or carries a tag of `include` and none of `exclude`; a view with `exclude` but neither `components` nor `include` starts from every component. Without `connections`, the connections between shown components come along except those with an `exclude` tag; with `connections`, those plus every connection between shown components with an `include` tag and no `exclude` tag. What a view lists by id is always shown. `unknown_tag`, `duplicate_tag`, `invalid_tag`, `too_many_tags`, `empty_view` when the tags select nothing; not with `steps` or an `environment` (`option_not_supported`).
 - Architecture diagrams: `"deriveConnections": true` on a deployment view derives instance connections from the model by one stated rule. Every model connection whose `id` the view's `instanceConnections` do not name joins each instance of its `from` component, in the order of `instances`, to the nearest instances of its `to` component — those whose hosts share the most enclosing hosts with its own, counted from the outermost; at a tie all of them, never itself — as a copy of the model connection, `fromSide` and `toSide` included; a listed instance connection now also takes the sides it leaves out from its model connection. Named ones are left to the listed instance connections, which come first. Derived connections count toward the 80 connections (`too_many_edges` at `…/deriveConnections`) and their diagnostics point to the model connection; only deployment views take it (`option_not_supported`). Without it nothing changes.
 
+### Changed
+
+- The WebAssembly module is about 34 KB smaller (700 KB to 666 KB gzip): chartlet finds the JSON Pointer
+  of a specification error itself and no longer depends on `serde_path_to_error`. Error codes,
+  paths and messages are unchanged.
+
 ### Fixed
 
 - Architecture diagrams: in a deployment view, `text_too_long` for an instance whose label `Label (id)` exceeds 60 characters points to the instance's `id` (`/architecture/views/1/instances/0/id`), not to a `label` field instances do not have, and the message names the label and says to shorten the id or the component's label.
