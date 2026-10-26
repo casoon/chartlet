@@ -1,14 +1,16 @@
 ---
-import { renderChart } from '@casoon/chartlet';
+import { type ChartTheme, renderChart } from '@casoon/chartlet';
 import { CodeBlock } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
-import brand from '../../../examples/themes/brand.json';
+import brandTheme from '../../../examples/themes/brand.json';
 import brandSource from '../../../examples/themes/brand.json?raw';
 import { spec } from '../showcase';
 
 // Every chart on this page is the static output of chartlet, rendered at build time from the same
 // example specifications as the showcase; only the theme differs.
 type Options = Parameters<typeof renderChart>[1];
+// JSON imports widen `"theme": "light"` to string; the file is a valid theme.
+const brand = brandTheme as ChartTheme;
 
 function chart(slug: string, id: string, options: Options = {}, change = {}): string {
   return renderChart({ ...spec(slug), ...change }, { format: 'html', idPrefix: id, ...options })

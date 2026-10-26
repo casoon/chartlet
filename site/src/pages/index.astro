@@ -2,6 +2,7 @@
 import {
   Badge,
   Badges,
+  Button,
   BuildOutput,
   CodeBlock,
   Facts,
@@ -12,10 +13,21 @@ import {
 } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
 import config from 'virtual:casoon-pages/config';
+import { url } from '@casoon/pages-theme/url';
+// Animated SVGs built with castwright from site/captures/render*.terminal.yaml: real chartlet
+// runs captured by site/captures/capture.sh. The narrow scene has 50 columns for phones.
+import renderNarrowSvg from '../../captures/render-narrow.svg?url';
+import renderSvg from '../../captures/render.svg?url';
 import { exampleCount, render, spec } from '../showcase';
 
-const hero = render(spec('budget-vs-actual'), 'hero', 'svg');
-const trend = render(spec('monthly-trend'), 'build-output');
+// Every chart on this page is rendered by chartlet during the build, from examples/.
+const hero = render(spec('energy-flow'), 'hero', 'svg');
+const heroMobile = render(spec('energy-flow'), 'hero-mobile', 'svg', undefined, 'mobile');
+const gallery = [
+  { slug: 'election-result', label: 'Parliament' },
+  { slug: 'temperature-projection', label: 'Time series with bands' },
+  { slug: 'service-dependencies', label: 'Network' },
+].map((item) => ({ ...item, html: render(spec(item.slug), `gallery-${item.slug}`, 'svg').html }));
 const diagram = render(spec('release-flow'), 'build-output-diagram');
 
 const specJson = `{
@@ -28,34 +40,79 @@ const specJson = `{
     { "label": "March", "value": 150 }
   ]
 }`;
-
-const astro = `---
-import Chart from '@casoon/chartlet/astro';
-import revenue from '../data/monthly-revenue.json';
----
-
-<Chart id="monthly-revenue" spec={revenue} />`;
 ---
 
 <Base>
   <Hero
-    title="Accessible charts and diagrams, compiled at build time."
-    lead="chartlet turns a small JSON specification into plain SVG or an HTML figure with caption, source and data table – data charts, and sequence, flow, state, architecture, class, tree and network diagrams it lays out itself. No chart JavaScript, no hydration, no layout shift – and the same bytes on every build."
+    title="Charts and diagrams, finished at build time."
+    lead="Describe a chart in a small JSON file, and chartlet compiles it into plain SVG or an HTML figure with caption, source and data table. Nothing runs in the browser, and the same specification gives the same bytes on every build."
   >
     <Install
       commands={[
-        { label: 'cargo', command: 'cargo install chartlet' },
         { label: 'npm', command: 'npm install @casoon/chartlet' },
+        { label: 'cargo', command: 'cargo install chartlet' },
       ]}
     />
     <Badges>
       <Badge>MIT</Badge>
-      <Badge>crates.io {config.version}</Badge>
-      <Badge>npm {config.version}</Badge>
-      <Badge>Rust 1.88+</Badge>
+      <Badge>v{config.version}</Badge>
+      <Badge tone="accent">0 bytes of chart JavaScript</Badge>
     </Badges>
-    <div slot="output" set:html={hero.html} />
+    <figure slot="output" class="hero-chart">
+      <div class="wide" set:html={hero.html} />
+      <div class="narrow" set:html={heroMobile.html} />
+      <figcaption>
+        Rendered by chartlet during this build from <a class="inline" href={url('showcase/energy-flow/')}>examples/energy-flow.json</a>, with its phone variant on small screens.
+      </figcaption>
+    </figure>
   </Hero>
+
+  <section class="cli" aria-labelledby="cli-heading">
+    <div class="cli-text">
+      <h2 id="cli-heading">Quiet when it works, exact when it does not</h2>
+      <p>
+        A valid specification renders without a word. Invalid input is refused with a code and
+        the path of the field, and the exit code tells CI. A compromise such as a canvas that is
+        too small still renders, with a warning that says what to change.
+      </p>
+      <p>
+        <code>--strict</code> turns warnings into failures, and <code>--preview</code> shows
+        every save on a local page.
+      </p>
+      <div class="links">
+        <Button href={url('docs/guides/warnings-and-errors/')} variant="secondary">Warnings and errors</Button>
+        <Button href={url('docs/reference/cli/')} variant="quiet">CLI reference →</Button>
+      </div>
+    </div>
+    <picture>
+      <source media="(max-width: 640px)" srcset={renderNarrowSvg} width="444" height="332" />
+      <img
+        class="terminal-demo"
+        src={renderSvg}
+        width="561.6"
+        height="350"
+        loading="lazy"
+        alt="Terminal, real chartlet 0.21.0 runs. chartlet render energy-flow.json -o sankey.svg prints nothing, and ls lists sankey.svg. duplicate.json has the label January twice; chartlet render duplicate.json fails with 'chartlet: duplicate_label at /data/1/label: labels must be unique in a single-series chart', and echo $? prints 1. chartlet render narrow-flow.json renders with 'warning[canvas_too_small] at /width: the diagram needs 499 pixels here and was drawn that large; raise width to 499, shorten labels, or try the other orientation'."
+      />
+    </picture>
+  </section>
+
+  <section class="gallery" aria-labelledby="gallery-heading">
+    <div class="head">
+      <h2 id="gallery-heading" class="cp-label">From the showcase</h2>
+      <a href={url('showcase/')}>All {exampleCount} examples →</a>
+    </div>
+    <div class="grid">
+      {
+        gallery.map((item) => (
+          <a class="card" href={url(`showcase/${item.slug}/`)}>
+            <div set:html={item.html} />
+            <span>{item.label}</span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
 
   <Facts
     items={[
@@ -74,33 +131,14 @@ import revenue from '../data/monthly-revenue.json';
       },
       {
         title: 'Deterministic and honest',
-        body: 'The same specification produces the same bytes, so charts can be reviewed, diffed and cached. Invalid input is rejected with a code, a path and a fix; shortened labels are reported as warnings instead of happening silently.',
+        body: 'The same specification produces the same bytes, so charts can be reviewed, diffed and cached. Problems come with a code and a path instead of happening silently.',
       },
       {
         title: 'Diagrams laid out for you',
-        body: 'Sequence, flow, state, architecture, class, tree and network diagrams come from what is connected. chartlet places the boxes, routes the edges, keeps the main path straight and turns the diagram to portrait or landscape to fit.',
-      },
-      {
-        title: 'Architecture as a model',
-        body: 'One model yields several views, deployments per environment with hosts and instances, and perspectives such as the owning team. Interfaces, notes, roles and generic symbols say more than boxes, and chartlet inspect points out what the model leaves undocumented.',
-      },
-      {
-        title: 'One specification, many outputs',
-        body: 'Desktop, mobile, print and social variants and a PNG come from the same specification. In HTML, series filters, focus on a diagram node and zoom steps use native controls and CSS – no script.',
-      },
-      {
-        title: 'Your own look, one mechanism',
-        body: 'Bundled themes, tokens in the specification, one theme file for a whole folder of charts, or the CSS of the host page all set the same named colors, in print and PNG too. Colors you set are measured, and a pair with too little contrast is reported.',
+        body: 'Sequence, flow, state, architecture, class, tree and network diagrams come from what is connected. chartlet places the boxes, routes the edges and keeps the main path straight.',
       },
     ]}
   />
-
-  <BuildOutput
-    caption="Every chart on this site is rendered by chartlet during the build, from the same specifications the test suite uses."
-    file="examples/monthly-trend.json"
-  >
-    <Fragment set:html={trend.html} />
-  </BuildOutput>
 
   <BuildOutput
     caption="Diagrams too: this flow chart is laid out by chartlet from steps and edges alone. Click a step, or pick one under Focus, to see its neighbourhood."
@@ -110,15 +148,138 @@ import revenue from '../data/monthly-revenue.json';
   </BuildOutput>
 
   <Quickstart
-    lead="From a specification to a finished chart. The full walkthrough lives in the documentation."
+    lead="From a specification to a finished chart. The CLI, the Astro component and the JavaScript API are covered in the documentation."
     steps={[
-      'Install the CLI, or the Astro package together with the CLI.',
+      'Install the CLI, or the npm package for Astro and JavaScript.',
       'Describe the chart in a small JSON specification.',
-      'Render it with <code>chartlet render</code> or the <code>&lt;Chart&gt;</code> component; <code>--preview</code> shows every save on a local page.',
+      'Render it with <code>chartlet render spec.json -o chart.svg</code> or the <code>&lt;Chart&gt;</code> component.',
     ]}
   >
     <CodeBlock code={specJson} lang="json" title="spec.json" label="Specification" />
-    <CodeBlock code="chartlet render spec.json --format html -o chart.html" lang="sh" label="CLI" />
-    <CodeBlock code={astro} lang="astro" title="index.astro" label="Astro" />
   </Quickstart>
 </Base>
+
+<style>
+  .hero-chart {
+    margin: 0;
+  }
+  .hero-chart .narrow {
+    display: none;
+  }
+  @media (max-width: 640px) {
+    .hero-chart .wide {
+      display: none;
+    }
+    .hero-chart .narrow {
+      display: block;
+    }
+  }
+  .hero-chart figcaption {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .inline {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .cli,
+  .gallery {
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 0 24px 88px;
+  }
+  .cli {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    gap: 48px;
+    align-items: center;
+  }
+  @media (max-width: 900px) {
+    .cli {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+  }
+  .cli h2 {
+    margin: 0 0 14px;
+    line-height: 1.2;
+    color: var(--heading);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .cli p {
+    margin: 0 0 16px;
+    font-size: 15.5px;
+  }
+  .cli code {
+    white-space: nowrap;
+  }
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+  }
+  /* Never scale the SVG beyond a readable terminal size. */
+  .terminal-demo {
+    display: block;
+    width: 100%;
+    max-width: 720px;
+    height: auto;
+    margin: 0 auto;
+  }
+  .head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .head h2 {
+    margin: 0;
+  }
+  .head a {
+    font-size: 14px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+  @media (max-width: 860px) {
+    .grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: inherit;
+    text-decoration: none;
+  }
+  /* Equal surfaces in a row, whatever the height of each chart. */
+  .card > div {
+    display: flex;
+    flex: 1;
+  }
+  .card > div > :global(.cl-surface) {
+    display: flex;
+    flex: 1;
+    align-items: center;
+  }
+  .card :global(.cl-surface svg) {
+    width: 100%;
+    height: auto;
+  }
+  .card span {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .card:hover span {
+    color: var(--heading);
+  }
+</style>

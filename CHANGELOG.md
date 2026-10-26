@@ -7,6 +7,14 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Site:** the start page leads with a Sankey diagram rendered during the build, a terminal recording of
+  real `chartlet render` runs (a silent success, an error with code and path, a warning that names
+  the fix) and three charts from the showcase; the CLI and Astro snippets are in
+  [Quickstart](https://casoon.github.io/chartlet/docs/getting-started/quickstart/) and
+  [Astro](https://casoon.github.io/chartlet/docs/guides/astro/).
+
 ## [0.21.0] - 2026-10-24
 
 ### Breaking

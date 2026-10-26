@@ -56,14 +56,22 @@ const SURFACE_STYLE = `<style>.cl-surface{background:#fff;color:#172033;color-sc
  * A light chart sits on a surface that follows the site's theme, with chartlet's dark palette on
  * a dark site. A chart with `"theme": "dark"` paints its own dark background and is left as it is.
  * `view` picks the view of an architecture model with `views`; without it, its default view.
+ * `variant` picks the layout variant, e.g. `mobile` for a specification with a `mobile` block.
  */
 export function render(
   source: Spec,
   id: string,
   format: 'svg' | 'html' = 'html',
   view?: string,
+  variant?: 'desktop' | 'mobile',
 ): { html: string; warnings: string[] } {
-  const { content, warnings } = renderChart(source, { format, table: 'details', idPrefix: id, view });
+  const { content, warnings } = renderChart(source, {
+    format,
+    table: 'details',
+    idPrefix: id,
+    view,
+    variant,
+  });
   const dark = source.theme === 'dark';
   return {
     html: dark ? content : `${SURFACE_STYLE}<div class="cl-surface">${content}</div>`,
@@ -827,7 +835,7 @@ let svg = code.to_svg("Link to the chartlet documentation", 4);`,
   output: { html: qrLink, kind: 'panel' },
 };
 
-export const examples: ShowcaseExample[] = catalogue.map(({ slug, view, group, chart, useCase, blurb }) => {
+export const examples: ShowcaseExample[] = catalogue.map(({ slug, view, group, chart, useCase, blurb }): ShowcaseExample => {
   const source = spec(slug);
   const { html, warnings } = render(source, `showcase-${slug}`, 'html', view);
   return {

@@ -1,0 +1,31 @@
+# Plays the captured chartlet runs in *.txt and *.exit (see capture.sh): the hero chart
+# renders silently; a duplicate label is refused with code and path; a diagram drawn on too
+# narrow a canvas renders with a warning that says what to change.
+version: 1
+terminal:
+  title: chartlet render
+  cols: 50
+  rows: 16
+  theme: catppuccin-mocha
+steps:
+  - run: chartlet render energy-flow.json -o sankey.svg
+  - run: ls *.svg
+  - show: render-ok-ls.txt
+    lang: text
+  - wait: 1200
+  - run: grep '"label"' duplicate.json
+  - show: duplicate-labels.txt
+    lang: text
+  - run: chartlet render duplicate.json -o chart.svg
+  - wait: 400
+  - show: render-error.txt
+    lang: text
+  - run: echo $?
+  - show: render-error.exit
+    lang: text
+  - wait: 1200
+  - run: chartlet render narrow-flow.json -o flow.svg
+  - wait: 400
+  - show: render-warning.txt
+    lang: text
+  - wait: 5000

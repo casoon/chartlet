@@ -1,0 +1,1 @@
+warning[canvas_too_small] at /width: the diagram needs 499 pixels here and was drawn that large; raise width to 499, shorten labels, or try the other orientation
