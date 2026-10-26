@@ -16,11 +16,17 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Changed
 
+- **Docs:** [Support matrix](https://casoon.github.io/chartlet/docs/reference/support/#versioning-and-compatibility)
+  states the compatibility contract: reproducibility, byte stability, supported runtimes,
+  experimental features, pinning before 1.0 and the migration policy with an upgrade example.
 - **Site:** the start page leads with a Sankey diagram rendered during the build, a terminal recording of
   real `chartlet render` runs (a silent success, an error with code and path, a warning that names
   the fix) and three charts from the showcase; the CLI and Astro snippets are in
   [Quickstart](https://casoon.github.io/chartlet/docs/getting-started/quickstart/) and
   [Astro](https://casoon.github.io/chartlet/docs/guides/astro/).
+- **Contributors:** `scripts/smoke-install.mjs` installs the packed npm packages into an empty project
+  and checks rendering, assets and the MCP server; it is part of the release checklist in
+  `CONTRIBUTING.md`, which no longer says the crate has no `rust-version`.
 
 ## [0.21.0] - 2026-10-24
 

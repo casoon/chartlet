@@ -109,3 +109,65 @@ chartlet is before 1.0; screen reader and user testing are still pending. Status
 | Native Node bindings | Not supported | The npm package renders through the WebAssembly build instead; `CHARTLET_BIN` selects the CLI. |
 | Series filtering and stepped zoom | Designed, not yet verified | Available in the HTML profile with native controls and CSS; broader browser and assistive-technology verification is pending. |
 | Mark tooltips | Designed, not yet verified | Native SVG titles provide hover hints; the description and table remain the accessible alternatives. |
+
+## Versioning and compatibility
+
+chartlet follows [Semantic Versioning](https://semver.org/) and is before 1.0, so the contract
+below is the one that applies to 0.x; the [changelog](https://github.com/casoon/chartlet/blob/main/CHANGELOG.md)
+lists every change by release.
+
+**One release, one version.** The crate, the CLI, `@casoon/chartlet` and `@casoon/chartlet-mcp` of
+a release carry the same version number, and the schema in `schema/` belongs to it. The packages do
+not need identical versions at run time: `@casoon/chartlet-mcp` depends on `@casoon/chartlet` with a
+caret range, which before 1.0 means the same minor (`^0.21.0` accepts `0.21.x`). Its bundled schema
+and the renderer are therefore always from the same minor, and a patch of the renderer never
+changes the specification.
+
+**Reproducibility.** A chart is a function of the compiler, the specification and the options that
+reach the renderer (`format`, `variant`, `table`, `theme`, `view`, `perspective`, `idPrefix`), plus
+the shipped stylesheet (`chartlet.css`, for `styles: "external"`).
+Pin the chartlet version exactly, keep the specification and options in version control, and
+`--manifest` records the version, `specHash` and `outputHash` to check it in CI (see
+[Provenance](../../guides/warnings-and-errors/#provenance)).
+
+**Byte stability.** Within a release, and across patch releases, the same compiler, specification
+and options give the same bytes, on macOS and Linux, through the CLI, the crate and the WebAssembly
+build alike; the golden-file tests (`tests/golden.rs`) enforce it. Between minor releases, output
+may change on purpose: layouts, spacing, text of descriptions, stylesheet details. Such changes are
+listed in the changelog, and the golden files of the new release show them. Re-render and review the
+diff when you move to a new minor; do not expect committed output to stay identical.
+
+**Supported runtimes.**
+
+| Runtime | Supported |
+| --- | --- |
+| Node.js (`@casoon/chartlet`, `@casoon/chartlet-mcp`) | 22.12 or newer (`engines`); the tests run on Node.js 22. No Rust toolchain is needed. |
+| Rust (crate, CLI) | 1.88 or newer (`rust-version`); development and CI use the version in `rust-toolchain.toml`. |
+| Astro (`@casoon/chartlet/astro`) | 6.0 or newer (optional peer dependency). |
+| Cloudflare Workers, browsers | Through `@casoon/chartlet/wasm`; see the status in the Distribution table above. |
+
+**Experimental features.** Everything marked Experimental above (flow, state, class and
+entity-relationship diagrams and the flow presets) may change its specification or its layout in any
+minor release, and says so in the changelog.
+
+**Before 1.0.** A minor release (0.21 to 0.22) may change the specification, remove a type or an
+option, and change output; a patch release (0.21.0 to 0.21.1) fixes defects only. Pin `0.21.x`
+(`~0.21.0`, or an exact version for reproducible output) and move between minors deliberately. The
+`schemaVersion` of the specification stays `1` until a change cannot be expressed in it, and a
+different value is refused with `unsupported_schema_version`.
+
+**Migration policy.** A change that makes a valid specification invalid is listed under
+**Breaking** in the changelog with what replaces it. A removed field or type is refused with
+`invalid_spec` and the JSON Pointer of the field, never silently ignored, so a failed render after an
+upgrade tells you where to look. Upgrade in this order:
+
+1. Read the changelog entries between your version and the target, **Breaking** first.
+2. Raise the pin of the packages (and the crate) together.
+3. Render every specification (`chartlet render`, or `renderChartDetailed` in a script) and fix each `invalid_spec` at its path; add `--strict` to fail on warnings as well.
+4. Re-render, review the output diff, and commit specifications and output together.
+
+Example, from 0.20 to 0.21: 0.21.0 removed the experimental types `topicmap` and `atlas`. After
+`npm install @casoon/chartlet@~0.21.0`, a specification with `"type": "topicmap"` fails with
+`invalid_spec` at `/type`; remodel it as a `network` or `tree` diagram, then re-render. Every other
+specification renders as before, and committed output is expected to differ only where the changelog
+names a layout change.
