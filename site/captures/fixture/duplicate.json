@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Monthly revenue",
+  "data": [
+    { "label": "January", "value": 120 },
+    { "label": "January", "value": 180 },
+    { "label": "March", "value": 150 }
+  ]
+}

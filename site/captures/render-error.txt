@@ -1,0 +1,1 @@
+chartlet: duplicate_label at /data/1/label: labels must be unique in a single-series chart
