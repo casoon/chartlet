@@ -89,6 +89,8 @@ struct Job {
     options: RenderOptions,
     /// A bundled theme or the path of a theme file, applied to the specification.
     theme: Option<String>,
+    /// A size preset, set as `size` of the specification; an explicit `width` or `height` still wins.
+    size: Option<String>,
     /// The allowed warning codes in strict mode, `None` outside it.
     strict: Option<Vec<String>>,
 }
@@ -103,6 +105,19 @@ fn render_job(job: &Job, input: &str) -> Result<Rendered, Failure> {
         Some(theme) => {
             themed = chartlet::apply_theme(input, &read_theme(theme)?).map_err(spec_failure)?;
             themed.as_str()
+        }
+        None => input,
+    };
+    let sized;
+    let input = match &job.size {
+        Some(size) => {
+            let mut spec: serde_json::Value = serde_json::from_str(input)
+                .map_err(|error| format!("could not read the specification: {error}"))?;
+            if let Some(object) = spec.as_object_mut() {
+                object.insert("size".to_owned(), size.clone().into());
+            }
+            sized = spec.to_string();
+            sized.as_str()
         }
         None => input,
     };
@@ -163,6 +178,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut view = None;
     let mut perspective = None;
     let mut theme = None;
+    let mut size = None;
     let mut all_views = false;
     let mut watch = false;
     let mut preview = false;
@@ -212,6 +228,11 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                     "--theme requires light, dark, blueprint or the path of a theme file".to_owned()
                 })?);
             }
+            "--size" => {
+                size = Some(arguments.next().ok_or_else(|| {
+                    "--size requires a preset such as slide-16x9 or print-a4-landscape".to_owned()
+                })?);
+            }
             "--all-views" => all_views = true,
             "--styles" => styles = parse_styles(arguments.next().as_deref())?,
             "--hooks" => hooks = true,
@@ -247,6 +268,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             all_views,
         },
         theme,
+        size,
         manifest,
         strict: strict.then_some(allowed),
     };
@@ -477,7 +499,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|theme.json>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
+    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|theme.json>] [--size <preset>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
        chartlet inspect <spec.json|-> [--disable <code>]... [--strict] [--format text|json] [--diagnostics text|json]
        chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
 }

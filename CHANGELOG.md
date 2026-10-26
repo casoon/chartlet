@@ -7,6 +7,13 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **Size presets:** `size` in the specification and `chartlet render --size` pick a canvas by name
+  (`doc`, `doc-wide`, `slide-16x9`, `slide-4x3`, `social-og`, `social-square`, `print-a4-landscape`,
+  `print-a3-landscape`, `print-letter-landscape`); an explicit `width` or `height` still wins. See the
+  [specification](https://casoon.github.io/chartlet/docs/reference/specification/).
+
 ### Changed
 
 - **Site:** the start page leads with a Sankey diagram rendered during the build, a terminal recording of
