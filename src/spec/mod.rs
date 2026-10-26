@@ -134,6 +134,9 @@ pub struct ChartSpec {
     pub category_axis: CategoryAxisSpec,
     #[serde(default)]
     pub value_axis: ValueAxisSpec,
+    /// A named canvas size: sets `width` and `height` unless the specification gives them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<SizePreset>,
     #[serde(default = "default_width")]
     pub width: u32,
     #[serde(default = "default_height")]
@@ -261,6 +264,41 @@ pub struct ChartSpec {
     /// A second layout for narrow containers. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mobile: Option<MobileSpec>,
+}
+
+/// A named canvas size for a destination: documents, slides, print or social previews.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum SizePreset {
+    Doc,
+    DocWide,
+    #[serde(rename = "slide-16x9")]
+    Slide16x9,
+    #[serde(rename = "slide-4x3")]
+    Slide4x3,
+    SocialOg,
+    SocialSquare,
+    PrintA4Landscape,
+    PrintA3Landscape,
+    PrintLetterLandscape,
+}
+
+impl SizePreset {
+    /// Width and height in CSS pixels. Print sizes are the paper at 96 dpi.
+    #[must_use]
+    pub const fn dimensions(self) -> (u32, u32) {
+        match self {
+            Self::Doc => (800, 450),
+            Self::DocWide => (1_200, 500),
+            Self::Slide16x9 => (1_920, 1_080),
+            Self::Slide4x3 => (1_600, 1_200),
+            Self::SocialOg => (1_200, 630),
+            Self::SocialSquare => (1_080, 1_080),
+            Self::PrintA4Landscape => (1_123, 794),
+            Self::PrintA3Landscape => (1_587, 1_123),
+            Self::PrintLetterLandscape => (1_056, 816),
+        }
+    }
 }
 
 /// The size of the mobile variant, and the container width below which the HTML profile shows it
@@ -680,7 +718,7 @@ impl ChartSpec {
     /// the versioned specification. Like every other error, both carry a JSON Pointer path; a
     /// syntax error points at the document root and names line and column in its message.
     pub fn from_json(input: &str) -> Result<Self, ChartError> {
-        serde_json::from_str(input).map_err(|error: serde_json::Error| {
+        let mut spec: Self = serde_json::from_str(input).map_err(|error: serde_json::Error| {
             let (code, (path, message)) = match error.classify() {
                 serde_json::error::Category::Syntax | serde_json::error::Category::Eof => {
                     ("invalid_json", ("/".to_owned(), error.to_string()))
@@ -690,7 +728,19 @@ impl ChartSpec {
                 }
             };
             ChartError::new(code, path, message)
-        })
+        })?;
+        if let Some(size) = spec.size {
+            // The input parsed as an object, so a second read only checks which sizes it names.
+            let given: serde_json::Value = serde_json::from_str(input).unwrap_or_default();
+            let (width, height) = size.dimensions();
+            if given.get("width").is_none() {
+                spec.width = width;
+            }
+            if given.get("height").is_none() {
+                spec.height = height;
+            }
+        }
+        Ok(spec)
     }
 
     pub(crate) fn validate(&self) -> Result<Vec<ChartWarning>, ChartError> {

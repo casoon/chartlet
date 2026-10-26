@@ -955,3 +955,30 @@ fn a_theme_restyles_the_chart_and_a_bad_one_is_reported() {
     assert!(!missing.status.success());
     assert!(String::from_utf8_lossy(&missing.stderr).contains("could not read"));
 }
+
+#[test]
+fn size_preset_sets_the_canvas_and_explicit_dimensions_win() {
+    let spec = r#"{"schemaVersion":1,"type":"bar","title":"T","data":[{"label":"a","value":1}]}"#;
+    let out = run_with_stdin(&["render", "-", "--size", "slide-16x9"], spec);
+    let svg = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success() && svg.contains("viewBox=\"0 0 1920 1080\""),
+        "{svg}"
+    );
+
+    let wide = r#"{"schemaVersion":1,"type":"bar","title":"T","size":"slide-16x9","width":1000,"data":[{"label":"a","value":1}]}"#;
+    let out = run_with_stdin(&["render", "-"], wide);
+    let svg = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success() && svg.contains("viewBox=\"0 0 1000 1080\""),
+        "{svg}"
+    );
+
+    let out = run_with_stdin(&["render", "-", "--size", "poster"], spec);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !out.status.success() && stderr.contains("invalid_spec at /size"),
+        "{stderr}"
+    );
+    assert!(stderr.contains("slide-16x9"), "{stderr}");
+}

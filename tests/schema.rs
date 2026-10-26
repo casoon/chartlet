@@ -118,3 +118,32 @@ fn tokens_and_theme_files_match_their_schemas() {
     }
     assert!(first_error(&theme_validator, &json!({ "title": "x" })).is_some());
 }
+
+#[test]
+fn size_presets_match_schema_and_resolve_to_documented_dimensions() {
+    let validator = validator();
+    let expected = [
+        ("doc", 800, 450),
+        ("doc-wide", 1200, 500),
+        ("slide-16x9", 1920, 1080),
+        ("slide-4x3", 1600, 1200),
+        ("social-og", 1200, 630),
+        ("social-square", 1080, 1080),
+        ("print-a4-landscape", 1123, 794),
+        ("print-a3-landscape", 1587, 1123),
+        ("print-letter-landscape", 1056, 816),
+    ];
+    for (name, width, height) in expected {
+        let spec = json!({"schemaVersion": 1, "type": "bar", "title": "T", "size": name,
+            "data": [{"label": "a", "value": 1}]});
+        assert_eq!(first_error(&validator, &spec), None, "{name}");
+        let parsed = chartlet::ChartSpec::from_json(&spec.to_string()).unwrap();
+        assert_eq!((parsed.width, parsed.height), (width, height), "{name}");
+    }
+    let spec = json!({"schemaVersion": 1, "type": "bar", "title": "T", "size": "poster",
+        "data": [{"label": "a", "value": 1}]});
+    assert!(first_error(&validator, &spec).is_some());
+    let error = chartlet::ChartSpec::from_json(&spec.to_string()).unwrap_err();
+    assert_eq!((error.code, error.path.as_str()), ("invalid_spec", "/size"));
+    assert!(error.message.contains("slide-16x9"), "{}", error.message);
+}

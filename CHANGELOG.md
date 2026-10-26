@@ -14,6 +14,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   through validation to the rendered result. Details:
   [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/).
 
+- **Size presets:** `size` in the specification and `chartlet render --size` pick a canvas by name
+  (`doc`, `doc-wide`, `slide-16x9`, `slide-4x3`, `social-og`, `social-square`, `print-a4-landscape`,
+  `print-a3-landscape`, `print-letter-landscape`); an explicit `width` or `height` still wins. See the
+  [specification](https://casoon.github.io/chartlet/docs/reference/specification/).
+
 ### Changed
 
 - **Docs:** [Support matrix](https://casoon.github.io/chartlet/docs/reference/support/#versioning-and-compatibility)
