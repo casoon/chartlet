@@ -8,7 +8,9 @@ its components and the WebAssembly target on the first `cargo` call (or with
 on purpose: change `channel`, run `cargo fmt --check`, the three `cargo clippy` calls and
 `cargo test` from `.github/workflows/ci.yml`, fix what they report, and commit that alone.
 
-The crate declares no `rust-version`: only the pinned version is built and tested.
+The crate declares `rust-version = "1.88"` in `Cargo.toml`, the oldest compiler it is meant to build
+with; development and CI use the newer pinned version. Raise it only when the code needs a newer
+language or library feature, and then update the installation docs and the README too.
 
 ## Reviewing changes to the rendered examples
 
@@ -109,3 +111,21 @@ where else it has to be carried.
 - [ ] Docs: `docs/reference/specification.md` and `docs/guides/chart-types.md`.
 - [ ] `CHANGELOG.md`, under Unreleased.
 - [ ] A golden example in `examples/`, listed in `tests/golden.rs`, with its SVG and HTML.
+
+## Releasing
+
+Before a version is published, from a clean checkout:
+
+- [ ] `cargo fmt --check`, the three `cargo clippy` calls and `cargo test` from
+      `.github/workflows/ci.yml`; the golden and schema tests are part of `cargo test`.
+- [ ] `npm test` in `packages/chartlet` and `packages/chartlet-mcp`.
+- [ ] `node scripts/smoke-install.mjs`: packs both npm packages, installs the tarballs into an empty
+      project outside the repository, renders a chart and a diagram through WebAssembly (the diagram
+      against its golden SVG), checks that `chartlet.wasm`, `chartlet.css` and the schema resolve from
+      `node_modules`, and starts the MCP server to list its tools and resources. It needs the Rust
+      toolchain only to pack, not to install or run. It is a local check and is not run by CI.
+- [ ] Versions: crate, both packages and the `@casoon/chartlet` range of `@casoon/chartlet-mcp`
+      agree; `CHANGELOG.md` moves `[Unreleased]` to the version; README and the site are current.
+- [ ] After publishing: install the published packages in an empty project and repeat the smoke
+      checks against them (`npm install @casoon/chartlet-mcp`), and `cargo install chartlet` once.
+- [ ] The compatibility contract in `docs/reference/support.md` still matches what the release does.
