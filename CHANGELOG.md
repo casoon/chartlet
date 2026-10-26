@@ -7,6 +7,13 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **MCP server:** the resource `chartlet://guide/types` maps what to show to the type and its fields
+  for every type of the schema, and the prompts `diagram`, `chart` and `redraw` lead from a request
+  through validation to the rendered result. Details:
+  [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/).
+
 ### Changed
 
 - **Site:** the start page leads with a Sankey diagram rendered during the build, a terminal recording of

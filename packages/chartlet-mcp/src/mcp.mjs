@@ -1,5 +1,5 @@
-// The MCP server: seven tools, the specification schema as a resource, and the MCP App view of
-// chartlet_render. The tools only read data, call the chartlet compiler and compute; there is no
+// The MCP server: seven tools, three prompts, the specification schema and the type guide as
+// resources, and the MCP App view of chartlet_render. The tools only read data, call the chartlet compiler and compute; there is no
 // model and no interpretation here.
 
 import { readFileSync } from "node:fs";
@@ -12,6 +12,7 @@ import { inspectChart } from "@casoon/chartlet";
 
 import { explainSpec, renderSpec, validateSpec } from "./charts.mjs";
 import { ARCHITECTURE_TEMPLATES, DIAGRAM_TYPES, diagramStarter } from "./diagrams.mjs";
+import { promptText, typeGuide } from "./guide.mjs";
 import { CHART_STARTER_TYPES, chartStarter } from "./starters.mjs";
 import { DISTINCT_CAP, inspectData } from "./inspect.mjs";
 import { supportsView, VIEW_META_KEY, VIEW_RESOURCE_META, VIEW_URI, viewHtml, viewPayload } from "./view.mjs";
@@ -409,6 +410,44 @@ Adapt the starter, then check it with chartlet_validate_spec and render it with 
       ],
     }),
   );
+
+  server.registerResource(
+    "type-guide",
+    "chartlet://guide/types",
+    {
+      title: "chartlet type selection guide",
+      description:
+        "Which chartlet type and fields to use for what you want to show, when not to draw, readability budgets and common mistakes. Built from the schema's types.",
+      mimeType: "text/markdown",
+    },
+    async (uri) => ({
+      contents: [{ uri: uri.href, mimeType: "text/markdown", text: typeGuide() }],
+    }),
+  );
+
+  const request = z.string().describe("What should be shown, in the user's words.");
+  for (const [name, title, description, argsSchema] of /** @type {const} */ ([
+    ["diagram", "Draw a diagram", "From a description to a rendered chartlet diagram: pick the type, validate, render.", { request }],
+    [
+      "chart",
+      "Chart some data",
+      "From data to a rendered chartlet chart: inspect the data, pick the type, validate, render.",
+      { request, data: z.string().optional().describe("The data as CSV text, if it is not already in the conversation.") },
+    ],
+    ["redraw", "Redraw an existing diagram", "Redraw a diagram from text, an image or a file as a chartlet specification, with a coverage report.", { request }],
+  ])) {
+    server.registerPrompt(name, { title, description, argsSchema: z.object(argsSchema) }, async (args) => ({
+      messages: [
+        {
+          role: "user",
+          content: {
+            type: "text",
+            text: promptText(name, "data" in args && args.data ? `${args.request}\n\nData (CSV):\n${args.data}` : args.request),
+          },
+        },
+      ],
+    }));
+  }
 
   registerAppResource(
     server,

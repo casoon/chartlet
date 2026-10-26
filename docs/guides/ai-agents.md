@@ -85,7 +85,23 @@ For Claude Desktop and project configuration, see the
   flow presets `prisma` and `instances`.
 
 The resource `chartlet://schema` holds the [specification](../../reference/specification/)
-schema.
+schema. The resource `chartlet://guide/types` maps what you want to show to the type and the
+fields to use, for every type of the schema, with when not to draw, readability budgets and the
+most common mistakes; it is built from the schema, so a new type appears in it.
+
+## Prompts
+
+Clients that support MCP prompts list them as slash commands. Each leads from a request through
+the tools above: read the type guide, state the plan (type, size, what is left out), draft from a
+starter, `chartlet_validate_spec` until `ok`, `chartlet_render`. They keep the data and the
+relationships as given, propose any aggregation explicitly, stop with a diagnosis instead of
+looping on the same error, and say when a table or a sentence serves better.
+
+- `diagram` draws a software diagram from a description.
+- `chart` makes a chart from data, starting with `chartlet_inspect_data`; the optional `data`
+  argument takes CSV text.
+- `redraw` redraws an existing diagram from text, an image or a file as a specification and ends
+  with a report of what was covered and what was left out.
 
 ## In the chat
 

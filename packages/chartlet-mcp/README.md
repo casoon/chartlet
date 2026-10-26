@@ -69,8 +69,15 @@ Without `CHARTLET_MCP_ROOT` the server refuses `outputPath` and returns the char
 | `chartlet_diagram_starter` | For `sequence`, `flow`, `state`, `architecture`, `tree` or `classes`: a valid starting specification, the kinds every element can take with the shape each is drawn in, and notes on ids, layout and orientation. For `architecture`, `template` `context`, `containers` or `deployment` gives a starter at that level of abstraction, with the `question` it answers and its `level`. | No |
 | `chartlet_chart_starter` | For `waterfall`, `waffle`, `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `timeline`, `forest`, `violin`, `prisma` or `instances`: a valid starting specification and notes on what the type takes and refuses. | No |
 
-Resources: `chartlet://schema` is the JSON Schema of the specification; `ui://chartlet/figure`
-is the view of `chartlet_render` for MCP Apps.
+Resources: `chartlet://schema` is the JSON Schema of the specification; `chartlet://guide/types`
+maps what you want to show to the type and its fields, with when not to draw and common mistakes
+(built from the schema's types, so every type is covered); `ui://chartlet/figure` is the view of
+`chartlet_render` for MCP Apps.
+
+Prompts, shown as slash commands by clients that support them: `diagram` (a description to a
+rendered diagram), `chart` (data to a rendered chart, starting with `chartlet_inspect_data`) and
+`redraw` (an existing diagram from text, an image or a file, ending with a coverage report). Each
+states its plan, validates until `ok`, renders, and says when a table or a sentence serves better.
 
 A typical session: `chartlet_inspect_data` on the user's table, draft a specification from a suggestion,
 `chartlet_validate_spec` until `ok` and the warnings are acceptable, `chartlet_render` with an `outputPath`,
