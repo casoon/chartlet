@@ -9,6 +9,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Documentation:** [Updating a diagram](https://casoon.github.io/chartlet/docs/reference/layout-stability/)
+  reports, measured on paired before/after diagrams, how much moves when a node or connection changes:
+  the order of the declarations is a layout input, so append new nodes and keep the existing order.
+  `scripts/layout-stability.mjs` reproduces it.
+
 - **Limits:** a specification of more than 4 MiB is refused with `spec_too_large` before it is parsed.
   [Limits and performance](https://casoon.github.io/chartlet/docs/reference/limits/) lists what is
   enforced and what is only advice, with measured render times, memory and output sizes, a
