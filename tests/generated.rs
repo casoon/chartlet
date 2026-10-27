@@ -237,6 +237,28 @@ fn network(seed: u64) -> Value {
     })
 }
 
+fn cycle(seed: u64) -> Value {
+    let mut random = Random(seed);
+    let count = 3 + random.below(6);
+    let steps: Vec<Value> = (0..count)
+        .map(|index| json!({ "id": format!("s{index}"), "label": random.label() }))
+        .collect();
+    let mut cycle = json!({ "steps": steps });
+    if random.chance(50) {
+        cycle["labels"] = json!("inside");
+    }
+    if random.chance(50) {
+        cycle["hub"] = json!({ "label": random.label() });
+    }
+    json!({
+        "schemaVersion": 1,
+        "type": "cycle",
+        "title": random.label(),
+        "width": random.width(),
+        "cycle": cycle,
+    })
+}
+
 /// Whether `svg` is one well-formed element: every tag closed in order, attributes quoted, and
 /// no number that did not resolve.
 fn check_well_formed(svg: &str) -> Result<(), String> {
@@ -355,6 +377,11 @@ fn generated_trees_render_deterministically() {
 #[test]
 fn generated_networks_render_deterministically() {
     check("network", network);
+}
+
+#[test]
+fn generated_cycles_render_deterministically() {
+    check("cycle", cycle);
 }
 
 #[test]

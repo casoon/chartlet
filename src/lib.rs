@@ -4,6 +4,7 @@ mod calendar;
 mod classes;
 mod color;
 mod contrast;
+mod cycle;
 mod dendrogram;
 mod describe;
 mod diagram;
@@ -59,22 +60,23 @@ pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
     CalendarLayout, CalendarSpec, CategoryAxisSpec, CategorySpec, ChartSpec, ChartType, ClassKind,
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionDirection, ConnectionSpec,
-    Curve, Dash, DataPoint, DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec,
-    FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec,
-    HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec, InstanceSpec, InterfaceSpec,
-    LaneSpec, LayerSpec, LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind,
-    MessageSpec, MobileSpec, NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder,
-    NetworkSpec, NodeKind, NoteSpec, OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec,
-    PartSpec, ParticipantKind, ParticipantSpec, PartySpec, PerspectiveSpec, PortSide, RangeDisplay,
-    RangeSort, RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec,
-    SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec,
-    ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec,
-    SeriesSpec, Shape, SizePreset, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec,
-    StripesSpec, Stroke, StrokeStyle, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec,
-    Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec,
-    Tooltips, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec,
-    TreemapSpec, ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec,
-    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    Curve, CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec, Dash, DataPoint,
+    DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec, FlowEdgeSpec, FlowNodeSpec,
+    FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder,
+    HeatmapScale, HeatmapSpec, InstanceSpec, InterfaceSpec, LaneSpec, LayerSpec, LegendPlacement,
+    Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
+    NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec, OhlcPoint,
+    Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
+    PartySpec, PerspectiveSpec, PortSide, RangeDisplay, RangeSort, RangeSpec, ReferenceSpec,
+    RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
+    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
+    ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind,
+    StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke, StrokeStyle,
+    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
+    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
+    TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
+    ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
+    ZoomStep,
 };
 pub use theme::{apply_theme, bundled_theme};
 

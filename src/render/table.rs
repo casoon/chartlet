@@ -102,6 +102,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::State => return crate::state::data_table(spec),
         ChartType::Classes => return crate::classes::data_table(spec),
         ChartType::Network => return crate::network::data_table(spec),
+        ChartType::Cycle => return crate::cycle::data_table(spec),
         ChartType::Architecture => return crate::architecture::data_table(spec),
         ChartType::Tree => return crate::tree::data_table(spec),
         ChartType::Timeline => return crate::timeline::data_table(spec),
@@ -135,6 +136,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::State
         | ChartType::Classes
         | ChartType::Network
+        | ChartType::Cycle
         | ChartType::Architecture
         | ChartType::Tree
         | ChartType::Timeline

@@ -3,6 +3,7 @@ mod boxplot;
 mod calendar;
 mod categorical;
 mod classes;
+mod cycle;
 mod dataset;
 mod deployment;
 mod flow;
@@ -44,6 +45,7 @@ pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use classes::{ClassKind, ClassSpec, ClassesSpec, PackageSpec, RelationKind, RelationSpec};
+pub use cycle::{CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec};
 pub use flow::{
     DiagramRole, DiagramSpacing, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec,
     MainPath, NodeKind, NoteSpec, PartSpec, PortSide,
@@ -253,6 +255,9 @@ pub struct ChartSpec {
     /// A network: nodes joined by edges on a circle or in rings around one node. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub network: Option<NetworkSpec>,
+    /// A cycle: steps on a ring where the last feeds the first, optionally around a hub. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cycle: Option<CycleSpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -478,11 +483,13 @@ pub enum ChartType {
     Classes,
     /// A network: nodes joined by edges, on a circle or in rings around one node.
     Network,
+    /// A cycle: steps on a ring where the last step feeds the first, optionally around a hub.
+    Cycle,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 25] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -507,6 +514,7 @@ impl ChartType {
         Self::Scatter,
         Self::Classes,
         Self::Network,
+        Self::Cycle,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -848,6 +856,7 @@ impl ChartSpec {
             ChartType::Heatmap => self.validate_heatmap(),
             ChartType::Waterfall => self.validate_waterfall(),
             ChartType::Network => self.validate_network(),
+            ChartType::Cycle => self.validate_cycle(),
             ChartType::Bar | ChartType::Line => self.validate_bar_and_line(),
         }?;
         warnings.extend(crate::contrast::warnings(self));
@@ -883,6 +892,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Heatmap => "heatmap",
         ChartType::Waterfall => "waterfall",
         ChartType::Network => "network",
+        ChartType::Cycle => "cycle",
     }
 }
 

@@ -67,6 +67,14 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   crisp, the print variant and PNG stay clean. Details:
   [Customize the look](https://casoon.github.io/chartlet/docs/guides/customize/#hand-drawn-strokes).
 
+- **Cycles:** `"type": "cycle"` draws three to eight steps on a ring, clockwise from twelve
+  o'clock, with arrows along the ring from each step to the next and from the last back to the
+  first. The labels stand outside the ring beside numbered dots or inside boxes on it; an optional
+  `hub` in the middle is fed by every step through a link that can carry a `hubLabel`. Roles, focus
+  links and the blueprint theme work as in other diagrams, and the description reads the cycle in
+  order. Details: [Cycles](https://casoon.github.io/chartlet/docs/guides/chart-types/#cycles).
+  Examples `improvement-cycle`, `growth-flywheel`.
+
 - **Slope and rank charts:** `"slope": true` on a `line` chart of two categories draws one line per
   series from its first value to its second, and `"rank": true` plots the rank of each series
   across several categories, 1 at the top. The names stand at both ends instead of a legend,

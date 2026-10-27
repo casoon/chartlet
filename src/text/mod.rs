@@ -22,12 +22,12 @@ pub(crate) use charts::{
     waterfall_summary, weighted_ranges, years_without_value, zone_times, zone_values,
 };
 pub(crate) use diagrams::{
-    bottlenecks, choices, closest_pair, composite, dendrogram_opening, dendrogram_order,
-    distance_axis, edge_weight, flow_group, flow_opening, flow_step, fragment, heaviest_edge,
-    last_join, loops, main_path, message_kind, most_connected, network_node, network_opening,
-    network_rings, node_kind, node_parts, node_values, notes, otherwise, participant, ring_name,
-    role, roles, sequence_message, sequence_opening, sinks, sources, state_opening, transition,
-    tree_collapsed, tree_opening, tree_root, unconnected_parts,
+    bottlenecks, choices, closest_pair, composite, cycle_hub, cycle_opening, dendrogram_opening,
+    dendrogram_order, distance_axis, edge_weight, flow_group, flow_opening, flow_step, fragment,
+    heaviest_edge, last_join, loops, main_path, message_kind, most_connected, network_node,
+    network_opening, network_rings, node_kind, node_parts, node_values, notes, otherwise,
+    participant, ring_name, role, roles, sequence_message, sequence_opening, sinks, sources,
+    state_opening, transition, tree_collapsed, tree_opening, tree_root, unconnected_parts,
 };
 pub(crate) use statistics::{
     box_display_note, boxplot_summary, on_dividing_line, points_above_line, quadrant_points,
@@ -178,6 +178,8 @@ pub(crate) struct Words {
     pub joins: &'static str,
     pub distance: &'static str,
     pub items: &'static str,
+    /// The column of a cycle's table with the label of a step's link to the hub.
+    pub hub_link: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -299,6 +301,7 @@ const EN: Words = Words {
     joins: "Joins",
     distance: "Distance",
     items: "Items",
+    hub_link: "Hub link",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -422,6 +425,7 @@ const DE: Words = Words {
     joins: "Verbindet",
     distance: "Abstand",
     items: "Elemente",
+    hub_link: "Verbindung zur Mitte",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],

@@ -869,6 +869,22 @@ const catalogue = [
       'The checkout service in the middle, the services it calls on the first ring, theirs on the second, and so on; arrowheads say which way a dependency runs. The description lists the rings with their services. Illustrative values.',
   },
   {
+    slug: 'improvement-cycle',
+    group: 'Trees and networks',
+    chart: 'Cycle with the labels inside boxes',
+    useCase: 'Show a loop that never ends',
+    blurb:
+      'The improvement cycle of a support team: five steps in boxes on a ring, an arrow from each to the next and one from the last back to the first. A note stands under two labels; one step is `critical` and one `planned`, drawn with the badges and outline patterns of roles. The description reads the steps in order and names the way back, the table has one row per step. With a phone variant. Illustrative steps.',
+  },
+  {
+    slug: 'growth-flywheel',
+    group: 'Trees and networks',
+    chart: 'Cycle around a hub',
+    useCase: 'Show a flywheel and what it feeds',
+    blurb:
+      'Five steps on a ring with numbered dots and their labels outside, and a hub in the middle that every step feeds through a dotted link with a label of its own. In the HTML profile each step is a focus link that keeps its neighbours and the hub and dims the rest. The description names the hub and every link label. With a phone variant. Illustrative steps.',
+  },
+  {
     slug: 'mobile-revenue',
     group: 'Mobile variant',
     chart: 'Mobile variant',

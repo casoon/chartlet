@@ -36,6 +36,7 @@ export const SHOWING = /** @type {Record<string, string>} */ ({
   tree: "a hierarchy: organization, ownership, family, a dendrogram, a mind map",
   classes: "classes with attributes and relations, or a database schema",
   network: "who is connected to whom, without a direction of flow or a hierarchy",
+  cycle: "steps that feed each other in a loop, such as an improvement loop or a flywheel around a hub",
 });
 
 /** Fields of the types that have no block of their own in the schema. */
