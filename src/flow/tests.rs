@@ -528,6 +528,7 @@ fn interleaved_groups_keep_a_plausible_canvas_and_name_the_overlap() {
 }
 
 #[test]
+#[allow(clippy::cast_possible_truncation)]
 fn random_groups_never_ask_for_an_absurd_canvas() {
     let mut state: u64 = 12345;
     let mut next = move |bound: u64| {
