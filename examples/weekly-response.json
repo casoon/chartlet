@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "type": "heatmap",
+  "title": "Median first response, in minutes",
+  "source": "Illustrative support data of one week",
+  "width": 760,
+  "height": 420,
+  "heatmap": {
+    "rows": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "columns": ["08–10", "10–12", "12–14", "14–16", "16–18"],
+    "valueLabel": "Minutes",
+    "cells": [
+      { "row": "Monday", "column": "08–10", "value": 42 },
+      { "row": "Monday", "column": "10–12", "value": 35 },
+      { "row": "Monday", "column": "12–14", "value": 28 },
+      { "row": "Monday", "column": "14–16", "value": 31 },
+      { "row": "Monday", "column": "16–18", "value": 47 },
+      { "row": "Tuesday", "column": "08–10", "value": 30 },
+      { "row": "Tuesday", "column": "10–12", "value": 22 },
+      { "row": "Tuesday", "column": "12–14", "value": 19 },
+      { "row": "Tuesday", "column": "14–16", "value": 24 },
+      { "row": "Tuesday", "column": "16–18", "value": 38 },
+      { "row": "Wednesday", "column": "08–10", "value": 27 },
+      { "row": "Wednesday", "column": "10–12", "value": 18 },
+      { "row": "Wednesday", "column": "14–16", "value": 21 },
+      { "row": "Wednesday", "column": "16–18", "value": 36 },
+      { "row": "Thursday", "column": "08–10", "value": 33 },
+      { "row": "Thursday", "column": "10–12", "value": 25 },
+      { "row": "Thursday", "column": "12–14", "value": 23 },
+      { "row": "Thursday", "column": "14–16", "value": 29 },
+      { "row": "Thursday", "column": "16–18", "value": 44 },
+      { "row": "Friday", "column": "08–10", "value": 39 },
+      { "row": "Friday", "column": "10–12", "value": 34 },
+      { "row": "Friday", "column": "12–14", "value": 41 },
+      { "row": "Friday", "column": "14–16", "value": 52 },
+      { "row": "Friday", "column": "16–18", "value": 61 }
+    ]
+  },
+  "mobile": { "width": 380, "height": 460 }
+}

@@ -427,8 +427,8 @@ const catalogue = [
       'A hundred squares for one year of electricity: wind, solar, gas and coal each take as many squares as percent, and the 12 squares that are left stand for the rest. Every square has a tooltip, the legend names value and share, and the table counts the squares. Illustrative shares, with a phone variant.',
   },
   {
-    slug: 'response-times',
-    group: 'Parts of a whole',
+    slug: 'weekly-response',
+    group: 'Ranges and distributions',
     chart: 'Heatmap',
     useCase: 'Find the hours that stand out',
     blurb:

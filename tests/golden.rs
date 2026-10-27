@@ -305,9 +305,9 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/energy-sources.svg"),
     ),
     (
-        "response-times",
-        include_str!("../examples/response-times.json"),
-        include_str!("../examples/response-times.svg"),
+        "weekly-response",
+        include_str!("../examples/weekly-response.json"),
+        include_str!("../examples/weekly-response.svg"),
     ),
     (
         "permission-matrix",
@@ -569,9 +569,9 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/energy-sources.mobile.svg"),
     ),
     (
-        "response-times",
-        include_str!("../examples/response-times.json"),
-        include_str!("../examples/response-times.mobile.svg"),
+        "weekly-response",
+        include_str!("../examples/weekly-response.json"),
+        include_str!("../examples/weekly-response.mobile.svg"),
     ),
     (
         "permission-matrix",
