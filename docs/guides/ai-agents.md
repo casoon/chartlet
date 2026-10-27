@@ -80,7 +80,7 @@ For Claude Desktop and project configuration, see the
   [Context, containers and deployment](../../guides/chart-types/#context-containers-and-deployment)
   for what each level shows and where it stops short of a complete architecture model.
 - `chartlet_chart_starter` returns a valid starting specification and notes for the charts that
-  are drawn from a block of their own: `waterfall`, `waffle`, `heatmap`, `parliament`, `treemap`, `sankey`,
+  are drawn from a block of their own: `waterfall`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `parliament`, `treemap`, `sankey`,
   `survival`, `scatter`, `timeline`, `forest` (a range bar chart), `violin` (a box plot) and the
   flow presets `prisma` and `instances`.
 

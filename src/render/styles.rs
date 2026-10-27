@@ -74,6 +74,14 @@ const CALENDAR_STYLE: &str =
 const TIMELINE_STYLE: &str = ".chartlet-timeline-phase{fill:var(--chartlet-accent);stroke:none;rx:3px}.chartlet-timeline-milestone{fill:var(--chartlet-accent);stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-timeline-group-1{fill:var(--chartlet-color-1)}.chartlet-timeline-group-2{fill:var(--chartlet-color-2)}.chartlet-timeline-group-3{fill:var(--chartlet-color-3)}.chartlet-timeline-group-4{fill:var(--chartlet-color-4)}.chartlet-timeline-weekend{fill:var(--chartlet-grid);fill-opacity:.55;stroke:none}.chartlet-timeline-done{fill:var(--chartlet-text);fill-opacity:.35;stroke:none;rx:3px}.chartlet-timeline-marker{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-timeline-marker-label{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-timeline-link{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}.chartlet-timeline-head{fill:var(--chartlet-zero);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Waterfalls: bars that rise, fall and total.
 const WATERFALL_STYLE: &str = ".chartlet-wf-up{fill:var(--chartlet-color-1);stroke:none}.chartlet-wf-down{fill:var(--chartlet-color-2);stroke:none}.chartlet-wf-total{fill:var(--chartlet-color-3);stroke:none}.chartlet-wf-link{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:3 3}";
+/// Polar charts: rings, wedges or lollipops in one color, and the values of the rings.
+const POLAR_STYLE: &str = ".chartlet-polar-ring{fill:none;stroke:var(--chartlet-grid);stroke-width:1}.chartlet-polar-bar{fill:var(--chartlet-color-1);stroke:none}.chartlet-polar-stem{stroke:var(--chartlet-color-1);stroke-width:2}.chartlet-polar-dot{fill:var(--chartlet-color-1);stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-polar-tick{font-size:11px;fill:var(--chartlet-muted);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
+/// Mosaic charts: segments in the palette colors with their share written on them.
+const MOSAIC_STYLE: &str = ".chartlet-mosaic-1{fill:var(--chartlet-color-1)}.chartlet-mosaic-2{fill:var(--chartlet-color-2)}.chartlet-mosaic-3{fill:var(--chartlet-color-3)}.chartlet-mosaic-4{fill:var(--chartlet-color-4)}.chartlet-mosaic-cell{stroke:var(--chartlet-background);stroke-width:1}.chartlet-mosaic-value{font-size:12px;font-weight:600;fill:var(--chartlet-background)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Radar charts: grid, polygons told apart by color and dash pattern, markers and ring values.
+const RADAR_STYLE: &str = ".chartlet-radar-ring{fill:none;stroke:var(--chartlet-grid);stroke-width:1}.chartlet-radar-spoke{stroke:var(--chartlet-grid);stroke-width:1}.chartlet-radar-area{fill-opacity:.14;stroke-width:2;stroke-linejoin:round}.chartlet-radar-key{stroke-width:2}.chartlet-radar-a1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-radar-a2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2);stroke-dasharray:7 4}.chartlet-radar-a3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3);stroke-dasharray:2 3}.chartlet-radar-a4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4);stroke-dasharray:8 3 2 3}.chartlet-radar-dot{stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-radar-d1{fill:var(--chartlet-color-1)}.chartlet-radar-d2{fill:var(--chartlet-color-2)}.chartlet-radar-d3{fill:var(--chartlet-color-3)}.chartlet-radar-d4{fill:var(--chartlet-color-4)}.chartlet-radar-tick{font-size:11px;fill:var(--chartlet-muted);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Funnels and pyramids: the bars or levels, and the rate between two stages.
+const FUNNEL_STYLE: &str = ".chartlet-funnel-bar{fill:var(--chartlet-color-1);stroke:none}.chartlet-funnel-rate{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Waffles: squares in the palette colors, and the rest.
 /// Heatmaps: a sequential and a diverging scale and their text colors, the palette colors of
 /// categories with their symbols, and the cells that have no value.
@@ -88,6 +96,9 @@ const SANKEY_STYLE: &str = ".chartlet-sk-1{fill:var(--chartlet-color-1)}.chartle
 /// Kaplan-Meier curves: step lines, bands, marks and swatches in the palette colors.
 const SURVIVAL_STYLE: &str = ".chartlet-km-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-km-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-km-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-km-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}.chartlet-km-line{fill:none;stroke-width:2.5;stroke-linejoin:round}.chartlet-km-band{stroke:none;fill-opacity:.15}.chartlet-km-mark{stroke-width:1.5}.chartlet-km-swatch{stroke:none}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Scatter plots: dots and swatches in the palette colors, threshold lines and names.
+/// The bubbles of a scatter plot with sizes: a ring in the color of the ground, and the circles of
+/// the size legend.
+const SCATTER_BUBBLE_STYLE: &str = ".chartlet-sc-bubble{stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-sc-ref{fill:none;stroke:var(--chartlet-muted);stroke-width:1.5}";
 const SCATTER_STYLE: &str = ".chartlet-sc-1{fill:var(--chartlet-color-1)}.chartlet-sc-2{fill:var(--chartlet-color-2)}.chartlet-sc-3{fill:var(--chartlet-color-3)}.chartlet-sc-4{fill:var(--chartlet-color-4)}.chartlet-sc-dot{fill-opacity:.65;stroke:none}.chartlet-sc-swatch{stroke:none;rx:5px}.chartlet-sc-fit{stroke-width:2;fill:none}.chartlet-sc-fit.chartlet-sc-1{stroke:var(--chartlet-color-1)}.chartlet-sc-fit.chartlet-sc-2{stroke:var(--chartlet-color-2)}.chartlet-sc-fit.chartlet-sc-3{stroke:var(--chartlet-color-3)}.chartlet-sc-fit.chartlet-sc-4{stroke:var(--chartlet-color-4)}.chartlet-sc-line{stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-sc-label{font-size:11px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Class diagrams, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: the members of a class, the
 /// hollow and solid marks at the ends of relations, and their cardinalities.
@@ -168,6 +179,10 @@ const fn type_style(chart_type: ChartType) -> &'static str {
         ChartType::Timeline => TIMELINE_STYLE,
         ChartType::Waterfall => WATERFALL_STYLE,
         ChartType::Waffle => WAFFLE_STYLE,
+        ChartType::Funnel => FUNNEL_STYLE,
+        ChartType::Radar => RADAR_STYLE,
+        ChartType::Polar => POLAR_STYLE,
+        ChartType::Mosaic => MOSAIC_STYLE,
         ChartType::Heatmap => HEATMAP_STYLE,
         ChartType::Parliament => PARLIAMENT_STYLE,
         ChartType::Treemap => TREEMAP_STYLE,
@@ -232,6 +247,12 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
         when(is_calendar, CALENDAR_STYLE),
         when(is_rangebar, RANGEBAR_STYLE),
         type_style(spec.chart_type),
+        when(
+            spec.scatter
+                .as_ref()
+                .is_some_and(crate::spec::ScatterSpec::is_sized),
+            SCATTER_BUBBLE_STYLE,
+        ),
         when(spec.has_error_bars(), ERROR_STYLE),
         when(
             is_rangebar && spec.ranges.iter().any(|range| range.group.is_some()),
@@ -283,9 +304,9 @@ const fn when(condition: bool, style: &str) -> &str {
 /// parts of two types never style the same element and may be concatenated in any order.
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Architecture, Bar, Boxplot, Calendar, Classes, Flow, Heatmap, Line, Multiples, Network,
-        Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
-        Tree, Treemap, Waffle, Waterfall,
+        Architecture, Bar, Boxplot, Calendar, Classes, Flow, Funnel, Heatmap, Line, Mosaic,
+        Multiples, Network, Parliament, Polar, Radar, Rangebar, Sankey, Scatter, Sequence, State,
+        Stripes, Survival, Time, Timeline, Tree, Treemap, Waffle, Waterfall,
     };
     let groups: &[(&str, &[ChartType])] = &[
         (STYLE, &[]),
@@ -339,12 +360,17 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         ),
         (WATERFALL_STYLE, &[Waterfall]),
         (WAFFLE_STYLE, &[Waffle]),
+        (FUNNEL_STYLE, &[Funnel]),
+        (RADAR_STYLE, &[Radar]),
+        (POLAR_STYLE, &[Polar]),
+        (MOSAIC_STYLE, &[Mosaic]),
         (HEATMAP_STYLE, &[Heatmap]),
         (PARLIAMENT_STYLE, &[Parliament]),
         (TREEMAP_STYLE, &[Treemap]),
         (SANKEY_STYLE, &[Sankey]),
         (SURVIVAL_STYLE, &[Survival]),
         (SCATTER_STYLE, &[Scatter]),
+        (SCATTER_BUBBLE_STYLE, &[Scatter]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();

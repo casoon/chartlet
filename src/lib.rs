@@ -10,18 +10,22 @@ mod diagram;
 mod diverging;
 mod error;
 mod flow;
+mod funnel;
 mod heat;
 mod heatmap;
 mod inspect;
 mod layout;
 mod metrics;
+mod mosaic;
 mod network;
 mod ohlc;
 mod parliament;
 mod parts;
 #[cfg(feature = "png")]
 mod png;
+mod polar;
 pub mod qr;
+mod radar;
 mod rangebar;
 mod reference;
 mod render;
@@ -59,21 +63,23 @@ pub use spec::{
     CalendarLayout, CalendarSpec, CategoryAxisSpec, CategorySpec, ChartSpec, ChartType, ClassKind,
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionDirection, ConnectionSpec,
     Curve, Dash, DataPoint, DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec,
-    FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec,
-    HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec, InstanceSpec, InterfaceSpec,
-    LaneSpec, LayerSpec, LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind,
-    MessageSpec, MobileSpec, NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder,
-    NetworkSpec, NodeKind, NoteSpec, OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec,
-    PartSpec, ParticipantKind, ParticipantSpec, PartySpec, PerspectiveSpec, PortSide, RangeSpec,
-    ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder,
-    SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
-    ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape,
-    SizePreset, Stack, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec,
-    Stroke, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
-    TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
-    TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec,
-    ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec,
-    WaterfallSpec, ZoomBound, ZoomStep,
+    FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, FunnelDisplay, FunnelSpec,
+    FunnelStageSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec,
+    InstanceSpec, InterfaceSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage, MainPath, Mark,
+    MarkerSpec, MessageKind, MessageSpec, MobileSpec, MosaicColumnSpec, MosaicSegmentSpec,
+    MosaicSpec, NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec,
+    NodeKind, NoteSpec, OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec,
+    ParticipantKind, ParticipantSpec, PartySpec, PerspectiveSpec, PolarDisplay, PolarPointSpec,
+    PolarSpec, PortSide, RadarAxisSpec, RadarSeriesSpec, RadarSpec, RangeSpec, ReferenceSpec,
+    RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
+    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
+    ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind,
+    StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke, SurvivalGroupSpec,
+    SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint,
+    TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
+    TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
+    ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
+    ZoomStep,
 };
 pub use theme::{apply_theme, bundled_theme};
 

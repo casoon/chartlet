@@ -9,6 +9,34 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Bubble size on scatter plots:** `size` on every point of a `scatter` chart makes the area of the
+  point proportional to a third value, with a size legend of three reference circles under the
+  title and the value written into the bubble where it fits; the tooltip, the description and the
+  data table have it as well. Details:
+  [Scatter plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#scatter-plots).
+
+- **Polar charts:** `"type": "polar"` draws one value per category of a cycle (months, hours,
+  directions) as wedges or lollipops around a center: the angle is the category, the distance the
+  value, zero at the center, with four rings that carry their values and the names outside.
+  Details: [Polar charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#polar-charts).
+
+- **Mosaic charts:** `"type": "mosaic"` (Marimekko) draws columns as wide as their share of the
+  whole, split by the share of their segments, with the shares written where they fit and the
+  column totals under the columns; the table has both levels. Details:
+  [Mosaic charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#mosaic-charts).
+
+- **Radar charts:** `"type": "radar"` draws 3 to 16 axes from the center, each with its own range, four
+  grid rings with their values, and up to four series as closed polygons with a marker on every
+  value, told apart by dash pattern as well as color. More than 8 axes or 3 series is reported as
+  hard to read; the description names the strongest and the weakest axis of each series. Details:
+  [Radar charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#radar-charts).
+
+- **Funnels and pyramids:** `"type": "funnel"` draws stages that narrow as centered bars as wide as
+  their values, with the rate between two stages; `"display": "pyramid"` stacks ranked levels, the
+  widest at the bottom, with optional values. The description names every stage, rate and the
+  biggest drop. Details:
+  [Funnels and pyramids](https://casoon.github.io/chartlet/docs/guides/chart-types/#funnels-and-pyramids).
+
 - **Slope and rank charts:** `"slope": true` on a `line` chart of two categories draws one line per
   series from its first value to its second, and `"rank": true` plots the rank of each series
   across several categories, 1 at the top. The names stand at both ends instead of a legend,
