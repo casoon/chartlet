@@ -126,6 +126,10 @@ Before a version is published, from a clean checkout:
       toolchain only to pack, not to install or run. The release workflow runs it again on the tag, before the publish.
 - [ ] Versions: crate, both packages and the `@casoon/chartlet` range of `@casoon/chartlet-mcp`
       agree; `CHANGELOG.md` moves `[Unreleased]` to the version; README and the site are current.
+      `node scripts/check-versions.mjs` compares the crate, both packages, the Rust version and
+      the statements in README and docs that repeat them, and the install paths of the README. The
+      site takes its version from the same manifests; open the deployed page and the playground
+      after the Pages build.
 - [ ] After publishing: install the published packages in an empty project and repeat the smoke
       checks against them (`npm install @casoon/chartlet-mcp`), and `cargo install chartlet` once.
 - [ ] The compatibility contract in `docs/reference/support.md` still matches what the release does.

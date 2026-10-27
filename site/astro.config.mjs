@@ -18,6 +18,7 @@ export default defineConfig({
       packages: [
         { label: 'crates.io', href: 'https://crates.io/crates/chartlet' },
         { label: 'npm', href: 'https://www.npmjs.com/package/@casoon/chartlet' },
+        { label: 'MCP server', href: 'https://www.npmjs.com/package/@casoon/chartlet-mcp' },
         { label: 'docs.rs', href: 'https://docs.rs/chartlet' },
       ],
       docsGroups: {

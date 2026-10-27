@@ -35,6 +35,34 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   card has an owner, a tag and a `blocked` sign. The description counts the cards per column and
   names the blocked ones. Details:
   [Kanban boards](https://casoon.github.io/chartlet/docs/guides/chart-types/#kanban-boards).
+- **Documentation:** [Updating a diagram](https://casoon.github.io/chartlet/docs/reference/layout-stability/)
+  reports, measured on paired before/after diagrams, how much moves when a node or connection changes:
+  the order of the declarations is a layout input, so append new nodes and keep the existing order.
+  `scripts/layout-stability.mjs` reproduces it.
+
+- **Limits:** a specification of more than 4 MiB is refused with `spec_too_large` before it is parsed.
+  [Limits and performance](https://casoon.github.io/chartlet/docs/reference/limits/) lists what is
+  enforced and what is only advice, with measured render times, memory and output sizes, a
+  reproducible benchmark (`scripts/bench.mjs`) and budgets. The seeded diagram tests now also check
+  that everything is drawn on the canvas.
+
+- **Playground:** the site has a [playground](https://casoon.github.io/chartlet/playground/) that runs
+  the compiler as WebAssembly in the browser, with JSON and form editing, diagnostics at the field
+  they name, checked corrections, undo and download of the specification, SVG and HTML.
+
+- **Diagnostics:** `--advice` (CLI), `advice: true` (WebAssembly, MCP `chartlet_validate_spec`) and
+  `advise_json` (Rust) add structured help to `canvas_too_small` and `text_truncated`: the field,
+  the documentation and a layout correction the compiler checked by rendering it, as a JSON Patch
+  that is never applied for you. A correction of content is guidance without a patch. Details:
+  [Actionable diagnostics](https://casoon.github.io/chartlet/docs/guides/warnings-and-errors/#actionable-diagnostics).
+
+- **Brand typography:** `typography` names the font `family`, the `technicalFamily` for sublabels and a
+  `widthScale` the layout reserves for them, so a brand font no longer needs a color-only theme to
+  fit. `chartlet render --font brand.ttf` measures text with a font file you supply, `--embed-font`
+  carries it in the SVG and `--format png` rasterizes with it; nothing is fetched, and a family that
+  is only named is disclosed with `font_not_embedded`. Missing glyphs are listed as
+  `font_glyphs_missing`. Details:
+  [Typography](https://casoon.github.io/chartlet/docs/guides/customize/#typography).
 
 - **Fishbone diagrams:** `"type": "fishbone"` draws one effect at the head of a spine and up to six
   categories as bones above and below it, each with causes and sub-causes on horizontal lines;

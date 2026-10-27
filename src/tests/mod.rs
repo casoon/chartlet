@@ -1,3 +1,4 @@
+mod advice;
 mod annotations;
 mod bars_and_lines;
 mod basics;
@@ -6,6 +7,7 @@ mod diagrams;
 mod distributions;
 mod fishbone;
 mod heatmap;
+mod limits;
 mod locale;
 mod manifest;
 mod multiples;

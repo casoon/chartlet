@@ -1,0 +1,389 @@
+---
+import Base from '@casoon/pages-theme/layouts/Base.astro';
+import { url } from '@casoon/pages-theme/url';
+import barRaw from '../../../examples/monthly-revenue.json?raw';
+import architectureRaw from '../../../examples/tenant-architecture.json?raw';
+
+// The starting points: a bar chart and a flow diagram for the form, one specification with an
+// error to correct, one canvas that is too narrow, and an architecture model.
+const flow = `{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Handling an order",
+  "width": 960,
+  "height": 300,
+  "flow": {
+    "nodes": [
+      { "id": "received", "label": "Order received", "kind": "start" },
+      { "id": "paid", "label": "Payment cleared?", "kind": "decision" },
+      { "id": "ship", "label": "Ship parcel" },
+      { "id": "done", "label": "Delivered", "kind": "end" },
+      { "id": "cancel", "label": "Cancelled", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "received", "to": "paid" },
+      { "from": "paid", "to": "ship", "label": "yes" },
+      { "from": "paid", "to": "cancel", "label": "no" },
+      { "from": "ship", "to": "done" }
+    ]
+  }
+}`;
+const broken = `{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Signups per month",
+  "data": [
+    { "label": "January", "value": 120 },
+    { "label": "January", "value": 180 },
+    { "label": "March", "value": 150 }
+  ]
+}`;
+const narrow = flow
+  .replace('"Handling an order"', '"A canvas that is too narrow"')
+  .replace('"width": 960', '"width": 320')
+  .replace('"height": 300', '"height": 240');
+const examples = [
+  { id: 'bar', label: 'Bar chart', json: barRaw.trim() },
+  { id: 'flow', label: 'Flow diagram', json: flow },
+  { id: 'error', label: 'A specification with an error', json: broken },
+  { id: 'narrow', label: 'A canvas that is too narrow', json: narrow },
+  { id: 'architecture', label: 'Architecture model', json: architectureRaw.trim() },
+];
+---
+
+<Base
+  title="Playground"
+  description="Edit a chartlet specification in your browser and see the compiled chart or diagram at once. The compiler runs locally as WebAssembly; nothing is uploaded."
+>
+  <div class="page">
+    <h1>Playground</h1>
+    <p class="lead">
+      Change a value or a step, read what the compiler says, and download the result. The same
+      compiler as the CLI runs here as WebAssembly in your browser; your specification never leaves
+      this tab. See <a href={url('docs/guides/playground/')}>how it works and what it needs</a>.
+    </p>
+
+    <div class="failure" id="pg-failure" role="alert" hidden>
+      <h2>The compiler could not be loaded</h2>
+      <p>
+        <span id="pg-failure-reason"></span> The playground needs WebAssembly and module workers
+        (see the <a href={url('docs/guides/playground/#browser-support')}>browser support</a>).
+        You can still edit and download the JSON. To render without the browser, install the CLI:
+      </p>
+      <pre><code>cargo install chartlet
+chartlet render chartlet.json -o chart.svg</code></pre>
+      <p>or <code>npm install @casoon/chartlet</code>; see <a href={url('docs/getting-started/installation/')}>Installation</a>.</p>
+    </div>
+
+    <div class="toolbar" role="group" aria-label="Specification">
+      <label>Start from
+        <select id="pg-example"></select>
+      </label>
+      <label>Theme
+        <select id="pg-theme">
+          <option value="light">light</option>
+          <option value="dark">dark</option>
+          <option value="blueprint">blueprint (diagrams)</option>
+        </select>
+      </label>
+      <label>Preview
+        <select id="pg-variant">
+          <option value="desktop">Figure (SVG with caption and table)</option>
+          <option value="mobile">Mobile layout</option>
+          <option value="print">Print variant</option>
+        </select>
+      </label>
+      <button type="button" id="pg-undo" disabled>Undo</button>
+      <button type="button" id="pg-redo" disabled>Redo</button>
+      <button type="button" id="pg-reset">Reset…</button>
+    </div>
+
+    <div class="workspace">
+      <section class="edit" aria-labelledby="pg-edit-heading">
+        <div class="head">
+          <h2 id="pg-edit-heading">Specification</h2>
+          <div class="modes" role="group" aria-label="Editing view">
+            <button type="button" id="pg-mode-json" aria-pressed="true">JSON</button>
+            <button type="button" id="pg-mode-guided" aria-pressed="false">Form</button>
+          </div>
+        </div>
+        <textarea
+          id="pg-editor"
+          spellcheck="false"
+          autocomplete="off"
+          autocapitalize="off"
+          aria-label="Specification as JSON"
+          aria-describedby="pg-status"
+          rows="22"></textarea>
+        <div id="pg-guided" class="guided" hidden></div>
+        <div class="exports" role="group" aria-label="Export">
+          <button type="button" id="pg-download-json">Download JSON</button>
+          <button type="button" id="pg-copy">Copy JSON</button>
+          <button type="button" id="pg-download-svg">Download SVG</button>
+          <button type="button" id="pg-download-html">Download HTML</button>
+        </div>
+      </section>
+
+      <section class="result" aria-labelledby="pg-result-heading">
+        <h2 id="pg-result-heading">Result</h2>
+        <p id="pg-status" class="status" role="status" aria-live="polite">Loading…</p>
+        <p id="pg-stale" class="stale-note" hidden>
+          Out of date: this is the last valid render. Fix the problems below to update it.
+        </p>
+        <div id="pg-preview" class="surface"></div>
+        <ol id="pg-diagnostics" class="diagnostics" aria-label="Diagnostics" hidden></ol>
+        <details class="alternative" open>
+          <summary>Text alternative: description and data table</summary>
+          <div id="pg-alternative"></div>
+        </details>
+      </section>
+    </div>
+
+    <p class="fine">
+      <span id="pg-payload">compiler not loaded yet</span>. No account, no upload, no analytics.
+      PNG is not offered in the browser; the CLI renders PNG.
+    </p>
+
+    <script type="application/json" id="pg-examples" data-base={url()} set:html={JSON.stringify(examples).replaceAll('<', '\\u003c')} />
+  </div>
+</Base>
+
+<script>
+  import '../playground/playground';
+</script>
+
+<style>
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 32px 16px 64px;
+  }
+  .lead {
+    font-size: 1.05rem;
+    max-width: 70ch;
+  }
+  .failure {
+    border: 1px solid var(--brand);
+    background: var(--brand-soft);
+    border-radius: 10px;
+    padding: 4px 16px 8px;
+    margin: 16px 0;
+  }
+  .failure[hidden] {
+    display: none;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px 16px;
+    margin: 20px 0 16px;
+  }
+  .toolbar label {
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  select,
+  button,
+  textarea,
+  :global(.guided input) {
+    font: inherit;
+    font-size: 14px;
+    color: var(--heading);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    padding: 8px 10px;
+    min-height: 40px;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  button[aria-pressed='true'] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+  }
+  :global(.page :focus-visible) {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  @media (min-width: 980px) {
+    .workspace {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+      align-items: start;
+    }
+  }
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .head h2,
+  .result h2 {
+    margin: 0 0 8px;
+    font-size: 1.1rem;
+  }
+  .modes {
+    display: flex;
+    gap: 6px;
+  }
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 420px;
+    resize: vertical;
+    tab-size: 2;
+  }
+  .exports {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .status {
+    margin: 0 0 8px;
+    font-size: 14px;
+    color: var(--heading);
+  }
+  .stale-note {
+    margin: 0 0 8px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--brand-soft);
+    color: var(--heading);
+    font-size: 14px;
+  }
+  .stale-note[hidden] {
+    display: none;
+  }
+  /* chartlet's light palette assumes a light surface; the site's theme may be dark. */
+  .surface {
+    background: #fff;
+    color: #172033;
+    color-scheme: light;
+    padding: 16px;
+    border-radius: 10px;
+    overflow-x: auto;
+    min-height: 80px;
+  }
+  .surface.stale {
+    opacity: 0.55;
+  }
+  .surface :global(svg) {
+    max-width: 100%;
+    height: auto;
+  }
+  .diagnostics {
+    list-style: none;
+    padding: 0;
+    margin: 16px 0 0;
+    display: grid;
+    gap: 10px;
+  }
+  .diagnostics[hidden] {
+    display: none;
+  }
+  .diagnostics :global(li) {
+    border: 1px solid var(--border-strong);
+    border-left-width: 4px;
+    border-radius: 8px;
+    padding: 8px 12px;
+    background: var(--surface);
+  }
+  .diagnostics :global(li.error) {
+    border-left-color: var(--brand);
+  }
+  .diagnostics :global(li.warning) {
+    border-left-color: #b45309;
+  }
+  .diagnostics :global(p) {
+    margin: 4px 0;
+    font-size: 14px;
+  }
+  .diagnostics :global(.actions) {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    align-items: center;
+  }
+  .diagnostics :global(.help) {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--border-strong);
+  }
+  .alternative {
+    margin-top: 16px;
+    font-size: 14px;
+  }
+  .alternative :global(table) {
+    border-collapse: collapse;
+    margin-top: 8px;
+  }
+  .alternative :global(th),
+  .alternative :global(td) {
+    border: 1px solid var(--border-strong);
+    padding: 4px 10px;
+    text-align: left;
+  }
+  .guided :global(.field) {
+    display: grid;
+    gap: 4px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .guided :global(.row) {
+    display: flex;
+    gap: 12px;
+  }
+  .guided :global(.guided-table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 8px;
+  }
+  .guided :global(.guided-table caption) {
+    text-align: left;
+    font-weight: 600;
+    color: var(--heading);
+    margin-bottom: 4px;
+  }
+  .guided :global(.guided-table th),
+  .guided :global(.guided-table td) {
+    padding: 3px 4px;
+    text-align: left;
+    font-size: 13px;
+  }
+  .guided :global(input),
+  .guided :global(select) {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .guided :global(input[aria-invalid='true']) {
+    border-color: var(--brand);
+    outline: 1px solid var(--brand);
+  }
+  .guided :global(.note) {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .fine {
+    margin-top: 24px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+</style>

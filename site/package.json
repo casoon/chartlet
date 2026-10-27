@@ -3,11 +3,13 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "predev": "node scripts/prepare-playground.mjs",
     "dev": "astro dev",
+    "prebuild": "node scripts/prepare-playground.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "type-check": "astro check",
-    "test": "pnpm build && playwright test"
+    "test": "node --test test/pointer.test.mjs && pnpm build && playwright test"
   },
   "dependencies": {
     "@casoon/chartlet": "link:../packages/chartlet",

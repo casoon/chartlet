@@ -28,8 +28,9 @@ for (const route of routes()) {
       expect(accessibility.violations).toEqual([]);
 
       // The theme's two small inline scripts only; nothing is loaded from elsewhere. The page of
-      // the optional interactive module loads that module, from the site itself.
-      if (route !== 'interactive/') {
+      // the optional interactive module loads that module, and the playground its own script and
+      // worker, all from the site itself.
+      if (route !== 'interactive/' && route !== 'playground/') {
         await expect(page.locator('script[src]')).toHaveCount(0);
       }
 
