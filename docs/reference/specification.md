@@ -35,6 +35,7 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `architecture` | [Architecture diagrams](#architecture-diagrams) | `architecture` |
 | `tree` | [Trees](#trees) | `tree` |
 | `network` | [Networks](#networks) | `network` |
+| `fishbone` | [Fishbone diagrams](#fishbone-diagrams) | `fishbone` |
 | `cycle` | [Cycles](#cycles) | `cycle` |
 
 Fields every type takes are in [Common fields](#common-fields), the value axis of the charts that
@@ -83,7 +84,7 @@ Rules:
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `heatmap`, `waterfall`,
-  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `columns`),
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
@@ -91,7 +92,7 @@ Rules:
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
   `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
-  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network` and `missing_cycle`. An empty list
+  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle` and `missing_fishbone`. An empty list
   where a type needs at least one entry is `empty_data`.
 - Stripes, calendars, timelines and every diagram are drawn from their block alone:
   `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
@@ -605,6 +606,25 @@ diverging scale.
 Rules: 2–40 steps (`too_many_data_points`) with unique labels (`duplicate_label`); a `delta` or
 `start` without value is `missing_value`; a `total` with a value other than the running total is
 `total_mismatch`.
+
+## Fishbone diagrams
+
+`"type": "fishbone"`: the causes of one effect on bones. See
+[Fishbone diagrams](../../guides/chart-types/#fishbone-diagrams).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `fishbone.effect` | string, up to 100 characters | yes | The effect at the head of the spine. |
+| `fishbone.bones` | array, 1–6 | yes | The categories of causes; they alternate above and below the spine. |
+| `fishbone.bones[].label` | string, up to 100 characters | yes | The category; unique. |
+| `fishbone.bones[].causes` | array, up to 8 | no | The causes on the bone. |
+| `fishbone.bones[].causes[].label` | string, up to 100 characters | yes | The cause. |
+| `fishbone.bones[].causes[].causes` | array, up to 4 | no | Sub-causes, `[{ "label": "No route training" }]`; the last level. |
+
+Rules: 1–6 bones, up to 8 causes per bone and 4 sub-causes per cause (`too_many_nodes`); bone
+labels are unique (`duplicate_label`); a cause below a sub-cause is not part of the specification
+and is refused as an unknown field. The canvas grows for the bones with a `canvas_too_small`
+warning.
 
 ## Diagram fields
 

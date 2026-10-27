@@ -6,6 +6,7 @@ mod classes;
 mod cycle;
 mod dataset;
 mod deployment;
+mod fishbone;
 mod flow;
 mod heatmap;
 mod network;
@@ -46,6 +47,7 @@ pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use classes::{ClassKind, ClassSpec, ClassesSpec, PackageSpec, RelationKind, RelationSpec};
 pub use cycle::{CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec};
+pub use fishbone::{FishboneBoneSpec, FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec};
 pub use flow::{
     DiagramRole, DiagramSpacing, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec,
     MainPath, NodeKind, NoteSpec, PartSpec, PortSide,
@@ -241,6 +243,9 @@ pub struct ChartSpec {
     /// A heatmap: values or categories in a grid of rows and columns. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub heatmap: Option<HeatmapSpec>,
+    /// A fishbone diagram: one effect and the categories of its causes on bones. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fishbone: Option<FishboneSpec>,
     /// A parliament: seats as dots in a semicircle, in blocks by party. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parliament: Option<ParliamentSpec>,
@@ -476,6 +481,8 @@ pub enum ChartType {
     Waffle,
     /// A heatmap: values or categories in a grid of rows and columns.
     Heatmap,
+    /// A fishbone diagram: one effect and the categories of its causes on bones.
+    Fishbone,
     /// A parliament: seats as dots in a semicircle, in blocks by party.
     Parliament,
     /// A treemap: rectangles whose areas follow the values.
@@ -496,7 +503,7 @@ pub enum ChartType {
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 26] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -514,6 +521,7 @@ impl ChartType {
         Self::Waterfall,
         Self::Waffle,
         Self::Heatmap,
+        Self::Fishbone,
         Self::Parliament,
         Self::Treemap,
         Self::Sankey,
@@ -871,6 +879,7 @@ impl ChartSpec {
             ChartType::Parliament => self.validate_parliament(),
             ChartType::Waffle => self.validate_waffle(),
             ChartType::Heatmap => self.validate_heatmap(),
+            ChartType::Fishbone => self.validate_fishbone(),
             ChartType::Waterfall => self.validate_waterfall(),
             ChartType::Network => self.validate_network(),
             ChartType::Cycle => self.validate_cycle(),
@@ -907,6 +916,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Parliament => "parliament",
         ChartType::Waffle => "waffle",
         ChartType::Heatmap => "heatmap",
+        ChartType::Fishbone => "fishbone",
         ChartType::Waterfall => "waterfall",
         ChartType::Network => "network",
         ChartType::Cycle => "cycle",

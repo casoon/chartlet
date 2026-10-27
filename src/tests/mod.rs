@@ -5,6 +5,7 @@ mod basics;
 mod collapsed_gaps;
 mod diagrams;
 mod distributions;
+mod fishbone;
 mod heatmap;
 mod limits;
 mod locale;

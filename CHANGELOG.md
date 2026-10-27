@@ -33,6 +33,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   `font_glyphs_missing`. Details:
   [Typography](https://casoon.github.io/chartlet/docs/guides/customize/#typography).
 
+- **Fishbone diagrams:** `"type": "fishbone"` draws one effect at the head of a spine and up to six
+  categories as bones above and below it, each with causes and sub-causes on horizontal lines;
+  labels are never set on a diagonal. The description and the table list the effect, the
+  categories and the causes in order. Details:
+  [Fishbone diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#fishbone-diagrams).
 - **Readability budget:** a diagram with more than 9 steps, states, components or classes or more
   than 12 edges, transitions, connections or relations (a sequence diagram: more than 6
   participants or 16 messages, a tree: more than 24 nodes) is reported as `diagram_over_budget`
