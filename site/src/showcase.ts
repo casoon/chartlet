@@ -395,6 +395,14 @@ const catalogue = [
       'Five services, one density curve each on a shared millisecond axis, stacked with a slight overlap: a single peak for search, two for checkout, a long tail for uploads. All curves share one scale, so their heights compare, and a line up to each curve marks its median. Illustrative measurements, with a phone variant.',
   },
   {
+    slug: 'topic-streams',
+    group: 'Time series',
+    chart: 'Streamgraph',
+    useCase: 'Show how the mix of a total shifts over time',
+    blurb:
+      'Four support topics stacked around a moving baseline instead of zero, so the shape of the whole reads as a stream: each band is named at its right end, and a scale bar stands in for the value axis because only thickness carries the value. The table lists each topic per fortnight. Illustrative figures, with a phone variant.',
+  },
+  {
     slug: 'gene-expression',
     group: 'Scatter plots and survival',
     chart: 'Volcano plot',

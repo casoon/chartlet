@@ -173,7 +173,7 @@ impl ChartSpec {
             values.push(0.0);
             match self.stack {
                 Some(Stack::Percent) => values = vec![0.0, 1.0],
-                Some(Stack::Normal) => values.extend(self.stack_totals()),
+                Some(Stack::Normal | Stack::Stream) => values.extend(self.stack_totals()),
                 None => {}
             }
         }

@@ -534,6 +534,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/response-ridges.json"),
         include_str!("../examples/response-ridges.svg"),
     ),
+    (
+        "topic-streams",
+        include_str!("../examples/topic-streams.json"),
+        include_str!("../examples/topic-streams.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -737,6 +742,11 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "response-ridges",
         include_str!("../examples/response-ridges.json"),
         include_str!("../examples/response-ridges.mobile.svg"),
+    ),
+    (
+        "topic-streams",
+        include_str!("../examples/topic-streams.json"),
+        include_str!("../examples/topic-streams.mobile.svg"),
     ),
 ];
 

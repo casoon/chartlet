@@ -9,6 +9,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Time charts:** `"stack": "stream"` on a pane of area layers centers the stack around a moving
+  baseline instead of zero (a streamgraph); the value axis becomes a scale bar for thickness and
+  each stream is named at its right end. Details:
+  [Streamgraphs](https://casoon.github.io/chartlet/docs/guides/chart-types/#streamgraphs).
+
 - **Box plots:** `"boxDisplay": "beeswarm"` draws every observation as a dot moved sideways just
   far enough that no two overlap, optionally over the box (`"showBox": true`). Details:
   [Box plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#box-plots).

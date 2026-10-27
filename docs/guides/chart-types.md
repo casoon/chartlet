@@ -29,6 +29,7 @@ order: 1
 | Time series with area, gaps and zoom | `"mark": "area"`, `null` values, `dash`, `zoomSteps` by time | [Data hall power draw](../../../showcase/sensor-readings/) |
 | Readings around a trend (scatter) | `"mark": "point"` next to a `line` layer | [Resting heart rate](../../../showcase/resting-heart-rate/) |
 | Stacked areas | `"stack": "normal"` on a pane of `area` layers, `"legend": "end"` | [Generation by source](../../../showcase/generation-mix/) |
+| Streamgraph: stacked areas centered on a moving baseline | `"stack": "stream"` on a pane of `area` layers | [Tickets by topic](../../../showcase/topic-streams/) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [Checkout API error rate](../../../showcase/release-incidents/) |
 | Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio`; `"gaps": "collapse"` | [Daily share price](../../../showcase/share-price/) |
 | Profile or deep time on a numeric axis, reversed | `"timeAxis": { "kind": "number", "reverse": true }` | [Deep-sea oxygen isotopes](../../../showcase/deep-sea-isotopes/) |
@@ -1627,6 +1628,42 @@ Limits: 1–40 nodes, up to 120 edges and 8 groups. A network that does not fit 
 drawn larger and reported as `canvas_too_small`. With `layout: "rings"` a `center` is required
 (`missing_center`) and `order` is refused; on a circle `center` is refused
 (`option_not_supported`).
+
+## Streamgraphs
+
+`"stack": "stream"` on a pane of a `time` chart stacks its `area` layers like `"normal"` does —
+in layer order, each on top of the ones before it — but around a moving baseline instead of zero:
+at every time the stack starts half its total below the middle, so that it is centered.
+
+```json
+{
+  "type": "time",
+  "panes": [
+    {
+      "valueAxis": { "title": "Tickets per week" },
+      "stack": "stream",
+      "layers": [
+        { "mark": "area", "name": "Billing", "points": [{ "time": "2026-01-05", "value": 48 }, { "time": "2026-01-19", "value": 51 }] },
+        { "mark": "area", "name": "Login", "points": [{ "time": "2026-01-05", "value": 30 }, { "time": "2026-01-19", "value": 28 }] }
+      ]
+    }
+  ]
+}
+```
+
+- **Thickness, not position.** The distance from zero means nothing on a stream, so the value axis
+  is a scale bar: one step of the scale, centered in the plot and labelled with its value (and the
+  axis `unit`), instead of a grid of ticks. The description says so.
+- **Names at the ends.** Each stream is named at its right end, in the middle of its band; a
+  stream chart needs no `"legend": "end"`.
+- **What a stream holds.** At least two `area` layers with the same times and curve and a value
+  of zero or more at every time (`unaligned_stack`, `negative_in_stack`), up to eight; the pane may
+  also hold reference lines of time. Lines, points, candles, bands and reference lines or markers
+  at a value, and a `valueAxis` with `min`, `max`, `exact`, `reverse` or a logarithmic scale, have
+  no meaning on a moving baseline and are `option_not_supported`, naming the field. `"stream"` on
+  a bar chart is `option_not_supported` at `/stack`.
+- **Text alternative.** The table and the tooltips give each layer's own value, as for a normal
+  stack; the interactive module marks the top edge of the stream under the pointer.
 
 ## Time series
 

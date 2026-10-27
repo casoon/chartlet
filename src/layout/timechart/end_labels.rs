@@ -6,7 +6,7 @@ use crate::{
     layout::{LABEL_LINE, LABEL_SIZE, fit_text},
     metrics::TextMetrics,
     scene::{Element, Text, TextAnchor},
-    spec::{ChartSpec, LayerRef},
+    spec::{ChartSpec, LayerRef, Stack},
 };
 
 /// The widest name a line takes at its end, with the gap before it, at most a third of the chart.
@@ -46,7 +46,14 @@ pub(super) fn push_end_labels(
             .filter_map(|entry| {
                 let (_, value) = *spec.drawn_points(entry, frame.zone).last()?;
                 let path = format!("/panes/{}/layers/{}/name", entry.pane, entry.local);
-                Some((frame.y(value) + 4.0, end_label(spec, entry), path))
+                // A stream is named in the middle of its band, not at its top edge.
+                let at = match spec.stack_base(entry, frame.zone) {
+                    Some(base) if spec.panes[entry.pane].stack == Some(Stack::Stream) => {
+                        f64::midpoint(frame.y(value), frame.y(*base.last()?))
+                    }
+                    _ => frame.y(value),
+                };
+                Some((at + 4.0, end_label(spec, entry), path))
             })
             .collect();
         crate::sort::by(&mut labels, |a, b| a.0.total_cmp(&b.0));

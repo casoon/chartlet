@@ -143,7 +143,7 @@ fn describe_stack(spec: &ChartSpec, dataset: &Dataset, show: &impl Fn(f64) -> St
     let locale = spec.locale;
     match spec.stack {
         Some(spec::Stack::Percent) => text::stacked_shares(locale).to_owned(),
-        Some(spec::Stack::Normal) => {
+        Some(spec::Stack::Normal | spec::Stack::Stream) => {
             let totals: Vec<(f64, &str)> = dataset
                 .categories
                 .iter()
@@ -569,7 +569,11 @@ fn describe_areas(spec: &ChartSpec, description: &mut String) {
         .filter_map(|entry| entry.layer.name.as_deref())
         .collect();
     if !stacked.is_empty() {
-        description.push_str(&text::stacked_areas(spec.locale, &stacked.join(", ")));
+        description.push_str(&text::stacked_areas(
+            spec.locale,
+            &stacked.join(", "),
+            spec.has_stream(),
+        ));
     }
     let areas: Vec<LayerRef> = spec
         .data_layers()

@@ -97,6 +97,7 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
 | Dumbbells: two dots per row joined by a line, the widest change first | `"display": "dumbbell"`, `"sort": "change"` on a `rangebar` | [satisfaction-change](examples/satisfaction-change.json) |
+| Streamgraph: stacked areas centered on a moving baseline, with a scale bar for thickness | `"stack": "stream"` on a pane of `area` layers | [topic-streams](examples/topic-streams.json) |
 | Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Forest plot: squares by weight, a summary diamond, the line of no effect | `"type": "rangebar"` with `weight`, `summary`, `references` | [trial-effects](examples/trial-effects.json) |
 | Timeline: phases, milestones, today's marker and dependencies (Gantt, roadmap) | `"type": "timeline"` with `items`, `markers` | [product-roadmap](examples/product-roadmap.json) |

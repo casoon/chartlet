@@ -544,6 +544,9 @@ impl LegendPlacement {
 pub enum Stack {
     Normal,
     Percent,
+    /// The areas of a time pane stacked around a moving baseline instead of zero, so that the
+    /// stack is centered: a streamgraph.
+    Stream,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
