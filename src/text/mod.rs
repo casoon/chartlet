@@ -25,7 +25,9 @@ pub(crate) use charts::{
     weighted_ranges, years_without_value, zone_times, zone_values,
 };
 pub(crate) use diagrams::{
-    area_kind, bottlenecks, choices, closest_pair, composite, cycle_hub, cycle_opening,
+    DeltaField, DeltaKind, area_kind, bottlenecks, choices, closest_pair, composite, cycle_hub,
+    cycle_opening, delta_connection, delta_connection_text, delta_field, delta_group, delta_kind,
+    delta_ledger, delta_moved, delta_none, delta_opening, delta_state, delta_unbounded,
     dendrogram_opening, dendrogram_order, distance_axis, edge_weight, flow_group, flow_opening,
     flow_step, fragment, heaviest_edge, item_kind, last_join, layers_entry, layers_opening, loops,
     main_path, message_kind, most_connected, network_node, network_opening, network_rings,
@@ -172,6 +174,10 @@ pub(crate) struct Words {
     /// The columns of a mosaic chart's table.
     /// The name of the third value of a bubble chart.
     pub size: &'static str,
+    /// The columns of the ledger of a delta.
+    pub change: &'static str,
+    pub subject: &'static str,
+    pub detail: &'static str,
     pub segment: &'static str,
     pub share_of_column: &'static str,
     pub share_of_total: &'static str,
@@ -309,6 +315,9 @@ const EN: Words = Words {
     axis: "Axis",
     axis_range: "Range",
     size: "Size",
+    change: "Change",
+    subject: "Concerns",
+    detail: "Detail",
     segment: "Segment",
     share_of_column: "Share of column",
     share_of_total: "Share of total",
@@ -445,6 +454,9 @@ const DE: Words = Words {
     axis: "Achse",
     axis_range: "Spanne",
     size: "Größe",
+    change: "Änderung",
+    subject: "Betrifft",
+    detail: "Einzelheit",
     segment: "Segment",
     share_of_column: "Anteil an der Spalte",
     share_of_total: "Anteil am Ganzen",

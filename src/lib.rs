@@ -7,6 +7,7 @@ mod classes;
 mod color;
 mod contrast;
 mod cycle;
+mod delta;
 mod dendrogram;
 mod describe;
 mod diagram;
@@ -79,11 +80,11 @@ pub use spec::{
     CalendarDay, CalendarLayout, CalendarSpec, CategoryAxisSpec, CategorySpec, ChartSpec,
     ChartType, ClassKind, ClassSpec, ClassesSpec, ComponentKind, ComponentSpec,
     ConnectionDirection, ConnectionSpec, Curve, CycleHubSpec, CycleLabels, CycleSpec,
-    CycleStepSpec, Dash, DataPoint, DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec,
-    FishboneBoneSpec, FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec, FlowEdgeSpec,
-    FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, FunnelDisplay, FunnelSpec, FunnelStageSpec,
-    Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec, InstanceSpec,
-    InterfaceSpec, ItemKind, ItemSpec, JourneyDisplay, JourneySpec, JourneyStageSpec,
+    CycleStepSpec, Dash, DataPoint, DeltaSpec, DiagramOrientation, DiagramRole, DiagramSpacing,
+    DistancesSpec, FishboneBoneSpec, FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec,
+    FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, FunnelDisplay, FunnelSpec,
+    FunnelStageSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec,
+    InstanceSpec, InterfaceSpec, ItemKind, ItemSpec, JourneyDisplay, JourneySpec, JourneyStageSpec,
     KanbanCardSpec, KanbanColumnSpec, KanbanSpec, LaneSpec, LayerSpec, LayersDisplay,
     LayersProjection, LayersSpec, LegendPlacement, Linkage, MainPath, Mark, MarkerSpec,
     MessageKind, MessageSpec, MobileSpec, MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec,
@@ -348,7 +349,9 @@ pub struct DataTable {
 /// Returns a structured error when the specification is invalid.
 pub fn text_alternative(spec: &ChartSpec) -> Result<TextAlternative, ChartError> {
     spec.validate()?;
-    if let Some(view) = spec.resolve_view(None)? {
+    if !spec.has_delta()
+        && let Some(view) = spec.resolve_view(None)?
+    {
         return text_alternative(&view.spec);
     }
     Ok(TextAlternative {
@@ -464,7 +467,7 @@ pub fn render_with_metrics(
     }
     // A model with views renders one of them, resolved to a diagram of its own; diagnostics
     // point into the model.
-    let view = if spec.has_views() || options.view.is_some() {
+    let view = if (spec.has_views() && !spec.has_delta()) || options.view.is_some() {
         spec.validate()?;
         spec.resolve_view(options.view.as_deref())?
     } else {

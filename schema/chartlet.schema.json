@@ -2241,6 +2241,7 @@
               "in": { "$ref": "#/$defs/identifier" },
               "role": { "$ref": "#/$defs/diagramRole" },
               "tags": { "description": "Names of groups the component belongs to, such as public or payments, by which views include or exclude it; not drawn.", "type": "array", "maxItems": 8, "uniqueItems": true, "items": { "$ref": "#/$defs/identifier" } },
+              "replaces": { "description": "In a delta, the id of the component this one stands in for in the state after: it takes the other's place and counts as changed, or moved when its boundary differs, instead of the other being removed and this one added.", "$ref": "#/$defs/identifier" },
               "provides": {
                 "description": "Interfaces the component provides, each a ball on a stem ahead of its box with the label beside it; connections require one by toInterface. Not on a person or a node.",
                 "type": "array",
@@ -2367,6 +2368,16 @@
           }
         },
         "defaultView": { "description": "The key of the view rendered when none is asked for; without it, the first view.", "$ref": "#/$defs/identifier" },
+        "delta": {
+          "description": "Compares two of the views as a change: the view that shows the state before and the one that shows the state after, side by side (one above the other on a narrow canvas), with the components present in both at the same places. A ledger lists what was added, removed, changed (label, technology or kind), moved to another boundary and rewired (connections); each is marked with a sign. Both keys name views of components, not deployment or dynamic views.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["before", "after"],
+          "properties": {
+            "before": { "description": "The key of the view that shows the state before.", "$ref": "#/$defs/identifier" },
+            "after": { "description": "The key of the view that shows the state after; another view than before.", "$ref": "#/$defs/identifier" }
+          }
+        },
         "perspectives": {
           "description": "Questions the model can be seen under, such as which team runs a component or how much technical debt it carries, each with its categories and the components in each. A diagram shows one perspective only when it is selected (perspective here or on a view, or the perspective render option in place of both), with a stripe in the category's color and its name in every box, a legend of the categories used, and the perspective in the description and the table. A component no category lists is shown as not stated. Nothing is derived.",
           "type": "array",

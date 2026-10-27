@@ -1037,6 +1037,8 @@ chart. See [Architecture diagrams](../../guides/chart-types/#architecture-diagra
 | `connections[].toInterface` | identifier | no | An interface `to` provides, which `from` requires: the connection ends in a socket around the ball, runs forward, takes no `toSide` and never joins a shared trunk. |
 | `connections[].tags` | array of identifiers, up to 8 | no | Groups the connection belongs to, by which views include or exclude it; not drawn. |
 | `connections[].role`, `connections[].fromSide`, `connections[].toSide` | | no | See [Diagram fields](#diagram-fields). |
+| `architecture.delta` | object | no | `{ "before": "today", "after": "target" }`: the `key`s of two views drawn side by side as before and after, with a ledger of what was added, removed, changed, moved and rewired. See [Architecture delta](../../guides/chart-types/#architecture-delta). `unknown_view`, `same_view`, `option_not_supported`. |
+| `components[].replaces` | identifier | no | In a delta, the component this one stands in for in the state after (`unknown_component`). |
 | `architecture.boundaries` | array, up to 12 | no | `[{ "id": "net", "label": "…", "in": "region" }]` (label up to 60 characters): frames such as a cloud region, a network or a system. |
 | `architecture.mainPath`, `architecture.sameRank`, `architecture.notes`, `architecture.orientation`, `architecture.spacing` | | no | See [Diagram fields](#diagram-fields), with components and connections. |
 | `architecture.sharedTrunks` | boolean | no | Draws connections that leave a component together, or reach one together, on one line that branches, where they read the same (no label, technology or step, usual direction, same `dash`, `weight` and `role`, off the main path, other ends in the same boundary). |

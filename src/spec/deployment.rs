@@ -16,6 +16,7 @@ use crate::error::ChartError;
 
 impl ChartSpec {
     /// The deployment view at `index` of a model whose views were checked.
+    #[allow(clippy::too_many_lines)]
     pub(super) fn resolved_deployment(&self, index: usize) -> ResolvedView {
         let model = self
             .architecture
@@ -78,6 +79,7 @@ impl ChartSpec {
             .map(|&note| model.notes[note].clone())
             .collect();
         architecture.views = Vec::new();
+        architecture.delta = None;
         architecture.default_view = None;
         architecture.perspective = view.perspective.clone().or(architecture.perspective);
         // A category holds the instances of its components, and the model connections that

@@ -860,3 +860,149 @@ pub(crate) fn plan_phases(locale: Locale, phases: &[(String, Vec<String>)]) -> S
         Locale::De => format!("Phasen: {phases}."),
     }
 }
+
+/// What about a component can change between two states.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum DeltaField {
+    Label,
+    Technology,
+    Kind,
+}
+
+/// One changed field of a component: `label: Old → New`.
+pub(crate) fn delta_field(locale: Locale, field: DeltaField, old: &str, new: &str) -> String {
+    let name = match (locale, field) {
+        (Locale::En, DeltaField::Label) => "label",
+        (Locale::En, DeltaField::Technology) => "technology",
+        (Locale::En, DeltaField::Kind) => "kind",
+        (Locale::De, DeltaField::Label) => "Bezeichnung",
+        (Locale::De, DeltaField::Technology) => "Technologie",
+        (Locale::De, DeltaField::Kind) => "Art",
+    };
+    format!("{name}: {old} → {new}")
+}
+
+/// The place of a component that is in no boundary.
+pub(crate) const fn delta_unbounded(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => "no boundary",
+        Locale::De => "keine Grenze",
+    }
+}
+
+/// A component that moved: `from A to B`.
+pub(crate) fn delta_moved(locale: Locale, from: &str, to: &str) -> String {
+    match locale {
+        Locale::En => format!("from {from} to {to}"),
+        Locale::De => format!("von {from} nach {to}"),
+    }
+}
+
+/// A connection one state has and the other lacks.
+pub(crate) fn delta_connection(locale: Locale, added: bool) -> String {
+    match (locale, added) {
+        (Locale::En, true) => "added".to_owned(),
+        (Locale::En, false) => "removed".to_owned(),
+        (Locale::De, true) => "hinzugefügt".to_owned(),
+        (Locale::De, false) => "entfernt".to_owned(),
+    }
+}
+
+/// A connection whose text changed: `old → new`, an empty text written as a dash.
+pub(crate) fn delta_connection_text(locale: Locale, old: &str, new: &str) -> String {
+    let dash = |text: &str| {
+        if text.is_empty() {
+            "–".to_owned()
+        } else {
+            text.to_owned()
+        }
+    };
+    match locale {
+        Locale::En => format!("text: {} → {}", dash(old), dash(new)),
+        Locale::De => format!("Text: {} → {}", dash(old), dash(new)),
+    }
+}
+
+/// The name of a kind of change.
+pub(crate) const fn delta_kind(locale: Locale, kind: DeltaKind) -> &'static str {
+    match (locale, kind) {
+        (Locale::En, DeltaKind::Added) => "added",
+        (Locale::En, DeltaKind::Removed) => "removed",
+        (Locale::En, DeltaKind::Changed) => "changed",
+        (Locale::En, DeltaKind::Moved) => "moved",
+        (Locale::En, DeltaKind::Rewired) => "rewired",
+        (Locale::De, DeltaKind::Added) => "hinzugefügt",
+        (Locale::De, DeltaKind::Removed) => "entfernt",
+        (Locale::De, DeltaKind::Changed) => "geändert",
+        (Locale::De, DeltaKind::Moved) => "verschoben",
+        (Locale::De, DeltaKind::Rewired) => "umverdrahtet",
+    }
+}
+
+/// The kinds of change, for [`delta_kind`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DeltaKind {
+    Added,
+    Removed,
+    Changed,
+    Moved,
+    Rewired,
+}
+
+/// The opening sentence of a delta: the two states and how many changes lie between them.
+pub(crate) fn delta_opening(
+    locale: Locale,
+    (before, after): (&str, &str),
+    changes: usize,
+) -> String {
+    match (locale, changes) {
+        (Locale::En, 0) => format!("Architecture change from {before} to {after}: no changes."),
+        (Locale::En, count) => format!(
+            "Architecture change from {before} to {after}: {count} change{}.",
+            plural(count, "", "s")
+        ),
+        (Locale::De, 0) => {
+            format!("Architekturänderung von {before} zu {after}: keine Änderungen.")
+        }
+        (Locale::De, count) => format!(
+            "Architekturänderung von {before} zu {after}: {count} {}.",
+            plural(count, "Änderung", "Änderungen")
+        ),
+    }
+}
+
+/// One group of the ledger: `Added: A, B.`; entries with a detail read `A (detail)`.
+pub(crate) fn delta_group(locale: Locale, kind: DeltaKind, entries: &[String]) -> String {
+    let name = delta_kind(locale, kind);
+    let mut name = name.to_owned();
+    if let Some(first) = name.get_mut(0..1) {
+        first.make_ascii_uppercase();
+    }
+    format!("{name}: {}.", entries.join("; "))
+}
+
+/// The heading of one panel: `Before: Today`.
+pub(crate) fn delta_state(locale: Locale, after: bool, title: &str) -> String {
+    match (locale, after) {
+        (Locale::En, false) => format!("Before: {title}"),
+        (Locale::En, true) => format!("After: {title}"),
+        (Locale::De, false) => format!("Vorher: {title}"),
+        (Locale::De, true) => format!("Nachher: {title}"),
+    }
+}
+
+/// The heading of the ledger.
+pub(crate) const fn delta_ledger(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => "Changes",
+        Locale::De => "Änderungen",
+    }
+}
+
+/// The ledger of a delta without changes.
+pub(crate) const fn delta_none(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => "No changes.",
+        Locale::De => "Keine Änderungen.",
+    }
+}

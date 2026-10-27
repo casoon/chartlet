@@ -64,6 +64,7 @@ order: 1
 | Scopes drawn inside each other | `"display": "nested"` | [Who owns what](../../../showcase/scope-nesting/) |
 | Floor plan at an angle with furniture and phases | `"type": "plan"` with `areas`, `items`, `phase` | [Office floor](../../../showcase/office-floor/) |
 | Site plan with buildings and open ground | `"kind": "building"`, `"kind": "outdoor"` | [School site](../../../showcase/campus-site/) |
+| Architecture before and after, with a ledger of changes | `architecture.delta` with `before` and `after` view keys; `replaces` on a component | [Orders platform: today and target](../../../showcase/orders-delta/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
 | Architecture diagram with its databases on one rank | `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` | [Order platform and its data stores](../../../showcase/data-tier/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
@@ -1643,6 +1644,32 @@ Where the starters stop short of a complete architecture model:
 - The deployment starter describes one environment. Another one, such as staging, is another
   view with an `environment` on the same model; see
   [Environments and instances](#environments-and-instances).
+
+### Architecture delta
+
+`architecture.delta` compares two of a model's views as a change: `"delta": { "before": "today",
+"after": "target" }` names the `key`s of the views that show the state before and the state after.
+Both are drawn side by side — one above the other below 900 pixels of width — from one layout of
+the components of both states, so that a component present in both stands at the same place in
+both; what a state lacks is left out of its panel, and a frame that then holds nothing goes with it.
+
+- **The ledger** below the panels lists what changed, each kind with a sign that needs no color:
+  `+` added, `−` removed, `~` changed (label, technology or kind), `→` moved to another boundary
+  and `↔` rewired (a connection that only one state has, or whose text changed). The signs also
+  stand on the corners of the components they concern; added components wear the outline of the
+  planned role, removed ones that of the deprecated role.
+- **Same component, different state.** Components are matched by `id`. A component that exists in
+  only one state is added or removed. To say that one component stands in for another — a service
+  rewritten in another technology, or moved into the cloud — give the new one `"replaces": "old-id"`
+  (the old one is not in the state after): they share a slot, so they stand at the same place, and
+  the differences in label, `sublabel` (the technology) and kind are `changed`, a different
+  boundary is `moved`. A moved component stands in both boundaries, once in each panel.
+- **Text alternative.** The description gives the two titles, the number of changes and every kind
+  with its entries; the table has one row per change with its sign and kind, what it concerns and
+  the detail.
+- Both keys must name views of components (`unknown_view`), differ (`same_view`) and not be a
+  deployment or dynamic view (`option_not_supported`); `replaces` names another component of the
+  model (`unknown_component`). `--view` still renders one view alone.
 
 ## Trees
 

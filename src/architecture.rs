@@ -37,6 +37,9 @@ pub(crate) fn layout(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let architecture = architecture(spec);
+    if architecture.delta.is_some() {
+        return crate::delta::layout(spec, warnings, metrics);
+    }
     let mut scene = layout_with_trunks(
         spec,
         &diagram(architecture, spec.locale),
@@ -538,6 +541,9 @@ fn view_scope(architecture: &ArchitectureSpec, locale: Locale) -> String {
 /// every component in reading order with where it connects to.
 #[allow(clippy::too_many_lines)]
 pub(crate) fn description(spec: &ChartSpec) -> String {
+    if architecture(spec).delta.is_some() {
+        return crate::delta::description(spec);
+    }
     let architecture = architecture(spec);
     let locale = spec.locale;
     let mut description = text::architecture_opening(
@@ -748,6 +754,9 @@ fn label<'a>(architecture: &'a ArchitectureSpec, id: &str) -> &'a str {
 /// One row per component in reading order: its label, kind, boundaries, role and where it
 /// connects to.
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
+    if architecture(spec).delta.is_some() {
+        return crate::delta::data_table(spec);
+    }
     let architecture = architecture(spec);
     let words = spec.locale.words();
     let bounded = !architecture.boundaries.is_empty();

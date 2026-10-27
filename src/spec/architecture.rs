@@ -66,6 +66,10 @@ pub struct ArchitectureSpec {
     /// The `key` of the perspective the diagram shows, and every view without one of its own.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub perspective: Option<String>,
+    /// Two of the views compared as a change: the state before and the state after, side by
+    /// side, with a ledger of what changed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta: Option<DeltaSpec>,
     /// How much of its model a resolved view shows, for its description.
     #[serde(skip)]
     pub(crate) scope: Option<ViewScope>,
@@ -102,6 +106,11 @@ pub struct ComponentSpec {
     /// connections can require by `toInterface`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub provides: Vec<InterfaceSpec>,
+    /// In a delta, the `id` of the component this one stands in for in the state after: it takes
+    /// the other's place and counts as changed, or moved when the boundary differs, instead of
+    /// the other being removed and this one added.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub replaces: Option<String>,
 }
 
 /// An interface a component provides, such as an API: an `id` unique within the component and
@@ -111,6 +120,15 @@ pub struct ComponentSpec {
 pub struct InterfaceSpec {
     pub id: String,
     pub label: String,
+}
+
+/// Two states of an architecture model to compare: the `key`s of the views that show the state
+/// before and the state after.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DeltaSpec {
+    pub before: String,
+    pub after: String,
 }
 
 /// A question the model can be seen under, such as who runs a component or how much technical
@@ -490,6 +508,7 @@ impl ChartSpec {
             "component or boundary",
         )?;
         self.validate_views()?;
+        self.validate_delta()?;
         Ok(Vec::new())
     }
 }

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "The orders platform: today and as targeted",
+  "width": 1280,
+  "height": 820,
+  "architecture": {
+    "components": [
+      { "id": "web", "label": "Web shop", "sublabel": "React", "kind": "frontend", "in": "cloud" },
+      { "id": "orders", "label": "Orders", "sublabel": "Java", "in": "datacenter" },
+      { "id": "orders-next", "label": "Orders", "sublabel": "Kotlin", "in": "cloud", "replaces": "orders" },
+      { "id": "legacy", "label": "Legacy ERP", "kind": "external", "in": "datacenter" },
+      { "id": "queue", "label": "Event bus", "kind": "queue", "in": "cloud" },
+      { "id": "billing", "label": "Billing", "in": "cloud" },
+      { "id": "db", "label": "Orders DB", "sublabel": "PostgreSQL", "kind": "database", "in": "cloud" }
+    ],
+    "boundaries": [
+      { "id": "cloud", "label": "Cloud region" },
+      { "id": "datacenter", "label": "Data center" }
+    ],
+    "connections": [
+      { "from": "web", "to": "orders", "label": "places orders", "technology": "HTTPS" },
+      { "from": "orders", "to": "legacy", "label": "syncs stock", "technology": "SOAP" },
+      { "from": "orders", "to": "db", "label": "reads and writes", "technology": "SQL" },
+      { "from": "web", "to": "orders-next", "label": "places orders", "technology": "HTTPS" },
+      { "from": "orders-next", "to": "queue", "label": "publishes order events" },
+      { "from": "queue", "to": "billing", "label": "delivers events" },
+      { "from": "orders-next", "to": "db", "label": "reads and writes", "technology": "SQL" }
+    ],
+    "views": [
+      {
+        "key": "today",
+        "title": "Today",
+        "components": ["web", "orders", "legacy", "db"]
+      },
+      {
+        "key": "target",
+        "title": "Target",
+        "components": ["web", "orders-next", "queue", "billing", "db"]
+      }
+    ],
+    "delta": { "before": "today", "after": "target" }
+  }
+}

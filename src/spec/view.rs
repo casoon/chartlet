@@ -183,6 +183,72 @@ impl ChartSpec {
         !self.views().is_empty()
     }
 
+    /// Whether the model asks for a delta: two of its views side by side.
+    pub(crate) fn has_delta(&self) -> bool {
+        self.architecture
+            .as_ref()
+            .is_some_and(|architecture| architecture.delta.is_some())
+    }
+
+    /// The views a delta names exist, differ and are views of components.
+    pub(super) fn validate_delta(&self) -> Result<(), ChartError> {
+        let Some(architecture) = &self.architecture else {
+            return Ok(());
+        };
+        // The components of a resolved view are a part of the model's: only the model is checked.
+        if !architecture.views.is_empty() {
+            for (index, component) in architecture.components.iter().enumerate() {
+                if let Some(replaces) = &component.replaces
+                    && (replaces == &component.id || architecture.component(replaces).is_none())
+                {
+                    return Err(ChartError::new(
+                        "unknown_component",
+                        format!("/architecture/components/{index}/replaces"),
+                        format!(
+                            "no other component has the id \"{replaces}\"; replaces names the component this one stands in for in a delta"
+                        ),
+                    ));
+                }
+            }
+        }
+        let Some(delta) = &architecture.delta else {
+            return Ok(());
+        };
+        for (field, key) in [("before", &delta.before), ("after", &delta.after)] {
+            let path = format!("/architecture/delta/{field}");
+            let Some(view) = architecture.views.iter().find(|view| &view.key == key) else {
+                return Err(ChartError::new(
+                    "unknown_view",
+                    path,
+                    format!(
+                        "no view has the key \"{key}\"; a delta compares two of the views: {}",
+                        architecture
+                            .views
+                            .iter()
+                            .map(|view| format!("\"{}\"", view.key))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                ));
+            };
+            if view.environment.is_some() || !view.steps.is_empty() {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    path,
+                    "a delta compares views of components; a deployment view or a dynamic view cannot be one side of it",
+                ));
+            }
+        }
+        if delta.before == delta.after {
+            return Err(ChartError::new(
+                "same_view",
+                "/architecture/delta/after",
+                "before and after name the same view; a delta compares two different views",
+            ));
+        }
+        Ok(())
+    }
+
     /// The view `key`, or the default view with `None`, of a validated specification; `None`
     /// for a specification without views when no view is asked for.
     pub(crate) fn resolve_view(
@@ -323,6 +389,7 @@ impl ChartSpec {
             .collect();
         architecture.views = Vec::new();
         architecture.default_view = None;
+        architecture.delta = None;
         architecture.perspective = view.perspective.clone().or(architecture.perspective);
         // A category keeps the components and connections the view shows.
         for perspective in &mut architecture.perspectives {

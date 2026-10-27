@@ -49,7 +49,7 @@ use crate::{
 };
 pub use architecture::{
     ArchitectureSpec, BoundarySpec, CategorySpec, ComponentKind, ComponentSpec,
-    ConnectionDirection, ConnectionSpec, InterfaceSpec, PerspectiveSpec,
+    ConnectionDirection, ConnectionSpec, DeltaSpec, InterfaceSpec, PerspectiveSpec,
 };
 pub(crate) use boxplot::BoxSummary;
 pub use boxplot::{BoxDisplay, BoxSpec, ViolinScale};

@@ -1034,6 +1034,14 @@ const catalogue = [
       'A school site: open ground with a dashed outline, four buildings with a heavier outline and a garden, the buildings and the garden in phases. The description gives the size of the grid and every area with its kind, size and phase. With a phone variant. Illustrative site.',
   },
   {
+    slug: 'orders-delta',
+    group: 'Trees and networks',
+    chart: 'Architecture before and after',
+    useCase: 'Show what a redesign changes',
+    blurb:
+      'The orders platform today and as targeted: two views of one model side by side, the web shop and the database at the same place in both, the legacy system gone, an event bus and billing added, the orders service rewritten in another technology and moved from the data center to the cloud. A ledger below lists every change with a sign — added, removed, changed, moved, rewired — and the description repeats it. Illustrative platform.',
+  },
+  {
     slug: 'mobile-revenue',
     group: 'Mobile variant',
     chart: 'Mobile variant',

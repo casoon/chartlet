@@ -9,6 +9,14 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Architecture delta:** `architecture.delta` names two views of a model, `before` and `after`, and
+  draws them side by side with the components present in both at the same places, plus a ledger of
+  what was added, removed, changed, moved to another boundary and rewired, each with a sign beside
+  the color. `replaces` on a component says which component it stands in for in the state after.
+  The description lists the ledger. Details:
+  [Architecture delta](https://casoon.github.io/chartlet/docs/guides/chart-types/#architecture-delta).
+  Example `orders-delta`.
+
 - **Plans:** `"type": "plan"` draws rooms, buildings and open ground on a grid, seen at an angle in
   2:1 dimetric projection with the walls cut low, so that every room shows. Areas have a kind, a
   size and an optional `phase`; furniture (`desk`, `shelf`, `table`, `bed`, `sofa`, `plant`) stands
