@@ -99,7 +99,7 @@ pub(super) fn layout_time(
     let width = f64::from(spec.width);
     let height = f64::from(spec.height);
     let left = time_gutter(spec, zone, warnings, metrics);
-    let end_labels = spec.legend == LegendPlacement::End;
+    let end_labels = spec.legend == LegendPlacement::End || spec.has_stream();
     let right = f64::from(super::plot_margin(spec.width))
         + if end_labels {
             end_label_room(spec, width, metrics)

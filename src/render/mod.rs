@@ -3,6 +3,7 @@
 
 mod hooks;
 mod html;
+mod sketch;
 mod styles;
 mod svg;
 mod table;

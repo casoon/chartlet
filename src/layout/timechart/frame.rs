@@ -188,6 +188,10 @@ pub(super) fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) 
                 .into_iter()
                 .map(|(_, value)| value),
         );
+        // A stream reaches below zero by half its total.
+        if spec.panes[entry.pane].stack == Some(crate::spec::Stack::Stream) {
+            values.extend(spec.stack_base(entry, zone).into_iter().flatten());
+        }
         for (_, lower, upper) in entry.layer.resolved_band(zone) {
             values.push(lower);
             values.push(upper);

@@ -154,6 +154,22 @@ for `tokens` in a specification, and
 [`chartlet-theme.schema.json`](https://github.com/casoon/chartlet/blob/main/schema/chartlet-theme.schema.json)
 for a theme file.
 
+## Hand-drawn strokes
+
+`"stroke": "sketch"` draws lines and shapes slightly wobbly, for essays and slides. Each corner of a
+rectangle is displaced by up to about a pixel, sides and straight lines bow a little, and the
+points of a polyline move by under a pixel. Text, circles, colors and contrast stay as they are.
+
+The displacement is seeded from the SHA-256 of the specification and drawn in scene order, so the
+same specification gives the same bytes; changing any field changes the wobble. The print variant
+and PNG draw clean strokes. A theme file carries colors only, so `stroke` is set in the
+specification. Data positions move by less than 1 px, so do not use it where exact geometry is
+read off the figure.
+
+```json
+{ "schemaVersion": 1, "type": "flow", "title": "From idea to shipped", "stroke": "sketch", "flow": { "nodes": [] } }
+```
+
 ## Print, social images and PNG
 
 Tokens are resolved like the theme's own colors, so the print and social variants and PNG output

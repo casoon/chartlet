@@ -88,6 +88,7 @@ fn without_hooks(content: &str) -> String {
         "data-chartlet-lane",
         "data-part",
         "data-stacked",
+        "data-stream",
         "data-x",
         "data-value",
         "data-name",
