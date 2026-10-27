@@ -51,7 +51,7 @@ pub use flow::{
 pub use heatmap::{HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
-pub use rangebar::RangeSpec;
+pub use rangebar::{RangeDisplay, RangeSort, RangeSpec};
 pub(crate) use sankey::SankeyGraph;
 pub use sankey::{SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec};
 pub(crate) use scatter::Quadrant;
@@ -111,11 +111,21 @@ pub struct ChartSpec {
     /// How a `type: "boxplot"` chart draws its observations: boxes (the default), violins or strips.
     #[serde(default, skip_serializing_if = "BoxDisplay::is_box")]
     pub box_display: BoxDisplay,
+    /// How a `type: "rangebar"` chart draws its spans: bars (the default) or dumbbells.
+    #[serde(default, skip_serializing_if = "RangeDisplay::is_bar")]
+    pub display: RangeDisplay,
+    /// The order of the spans of a `type: "rangebar"` chart: as listed (the default) or the
+    /// widest first.
+    #[serde(default, skip_serializing_if = "RangeSort::is_none")]
+    pub sort: RangeSort,
     /// With `"boxDisplay": "violin"`: `width` (default) makes every violin as wide as the others at
     /// its widest, `area` gives them the same area, `count` an area that follows their number of
     /// observations.
     #[serde(default, skip_serializing_if = "ViolinScale::is_width")]
     pub violin_scale: ViolinScale,
+    /// With `"boxDisplay": "beeswarm"`: draws the box and its whiskers under the points.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub show_box: bool,
     /// Marks the mean of the observations of every box of a `type: "boxplot"` chart with a
     /// diamond and adds a column to the table. Needs `values` on every box.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -537,6 +547,9 @@ impl LegendPlacement {
 pub enum Stack {
     Normal,
     Percent,
+    /// The areas of a time pane stacked around a moving baseline instead of zero, so that the
+    /// stack is centered: a streamgraph.
+    Stream,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]

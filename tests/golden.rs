@@ -520,9 +520,29 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/brand-typography.svg"),
     ),
     (
+        "satisfaction-change",
+        include_str!("../examples/satisfaction-change.json"),
+        include_str!("../examples/satisfaction-change.svg"),
+    ),
+    (
         "sketch-pipeline",
         include_str!("../examples/sketch-pipeline.json"),
         include_str!("../examples/sketch-pipeline.svg"),
+    ),
+    (
+        "response-swarm",
+        include_str!("../examples/response-swarm.json"),
+        include_str!("../examples/response-swarm.svg"),
+    ),
+    (
+        "response-ridges",
+        include_str!("../examples/response-ridges.json"),
+        include_str!("../examples/response-ridges.svg"),
+    ),
+    (
+        "topic-streams",
+        include_str!("../examples/topic-streams.json"),
+        include_str!("../examples/topic-streams.svg"),
     ),
 ];
 
@@ -712,6 +732,26 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "payment-interfaces",
         include_str!("../examples/payment-interfaces.json"),
         include_str!("../examples/payment-interfaces.mobile.svg"),
+    ),
+    (
+        "satisfaction-change",
+        include_str!("../examples/satisfaction-change.json"),
+        include_str!("../examples/satisfaction-change.mobile.svg"),
+    ),
+    (
+        "response-swarm",
+        include_str!("../examples/response-swarm.json"),
+        include_str!("../examples/response-swarm.mobile.svg"),
+    ),
+    (
+        "response-ridges",
+        include_str!("../examples/response-ridges.json"),
+        include_str!("../examples/response-ridges.mobile.svg"),
+    ),
+    (
+        "topic-streams",
+        include_str!("../examples/topic-streams.json"),
+        include_str!("../examples/topic-streams.mobile.svg"),
     ),
 ];
 

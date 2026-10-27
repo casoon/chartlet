@@ -93,10 +93,25 @@
       "type": "boolean",
       "default": false
     },
+    "display": {
+      "description": "type: \"rangebar\": how the spans are drawn: bars from low to high (the default) or dumbbells, an open dot at the low value and a filled dot at the high value with a line between them and both values written beside their dots. Dumbbells take no `mid`, `weight`, `summary` or `modeled` on a range.",
+      "enum": ["bar", "dumbbell"],
+      "default": "bar"
+    },
+    "sort": {
+      "description": "type: \"rangebar\": the order of the spans: as listed (none, the default) or the widest span first (change). The description and the table follow it.",
+      "enum": ["none", "change"],
+      "default": "none"
+    },
     "boxDisplay": {
-      "description": "type: \"boxplot\": how the observations are drawn: boxes with whiskers (the default), violins (the estimated density with the box inside) or strips (every observation as a point). Violins and strips need `values` on every box.",
-      "enum": ["box", "violin", "strip"],
+      "description": "type: \"boxplot\": how the observations are drawn: boxes with whiskers (the default), violins (the estimated density with the box inside), strips (every observation as a point), beeswarms (every observation as a point, moved sideways until none overlap) or ridgelines (one density curve per box on its own baseline, stacked with a slight overlap along a shared value axis). Every display but box needs `values` on every box.",
+      "enum": ["box", "violin", "strip", "beeswarm", "ridgeline"],
       "default": "box"
+    },
+    "showBox": {
+      "description": "type: \"boxplot\" with boxDisplay beeswarm: draw the box and its whiskers under the points.",
+      "type": "boolean",
+      "default": false
     },
     "violinScale": {
       "description": "type: \"boxplot\" with boxDisplay violin: width (default) makes every violin as wide as the others at its widest, area gives them the same area, count an area that follows their number of observations.",
@@ -2034,8 +2049,8 @@
         },
         "valueAxis": { "$ref": "#/$defs/valueAxis" },
         "stack": {
-          "description": "Time charts: \"normal\" stacks the pane's area layers in layer order, each on top of the ones before it. At least two area layers with the same times and curve, a value of zero or more at every time, no lower/upper band.",
-          "const": "normal"
+          "description": "Time charts: \"normal\" stacks the pane's area layers in layer order, each on top of the ones before it; \"stream\" does the same around a moving baseline instead of zero, so that the stack is centered (a streamgraph): the value axis then shows thickness as a scale bar, the areas are named at their right ends, and the pane takes area layers and reference lines of time only, with no min, max, exact, reverse or logarithmic axis. At least two area layers with the same times and curve, a value of zero or more at every time, no lower/upper band.",
+          "enum": ["normal", "stream"]
         },
         "layers": {
           "description": "Up to 6 data layers (8 in a stacked pane) — on a time chart at most 4 line and area layers of the whole chart without their own color — and up to 6 annotation layers (zones, reference lines and point markers together).",

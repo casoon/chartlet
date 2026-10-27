@@ -96,6 +96,8 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Warming stripes on a diverging scale | `"type": "stripes"` with `stripes` | [warming-stripes](examples/warming-stripes.json) |
 | Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
+| Dumbbells: two dots per row joined by a line, the widest change first | `"display": "dumbbell"`, `"sort": "change"` on a `rangebar` | [satisfaction-change](examples/satisfaction-change.json) |
+| Streamgraph: stacked areas centered on a moving baseline, with a scale bar for thickness | `"stack": "stream"` on a pane of `area` layers | [topic-streams](examples/topic-streams.json) |
 | Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Forest plot: squares by weight, a summary diamond, the line of no effect | `"type": "rangebar"` with `weight`, `summary`, `references` | [trial-effects](examples/trial-effects.json) |
 | Timeline: phases, milestones, today's marker and dependencies (Gantt, roadmap) | `"type": "timeline"` with `items`, `markers` | [product-roadmap](examples/product-roadmap.json) |
@@ -116,6 +118,8 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Box plot from observations, with a box given by its five numbers | `"type": "boxplot"` with `boxes` | [response-times](examples/response-times.json) |
 | Grouped box plots: boxes colored by group with a legend | `group` on every box | [latency-by-region](examples/latency-by-region.json) |
 | Violins and strips from the same observations | `"boxDisplay": "violin"` on a `boxplot` | [response-distribution](examples/response-distribution.json) |
+| Every observation as a dot, moved sideways until none overlap, with the box under it | `"boxDisplay": "beeswarm"`, `"showBox": true` on a `boxplot` | [response-swarm](examples/response-swarm.json) |
+| One density curve per group, stacked with a slight overlap | `"boxDisplay": "ridgeline"` on a `boxplot` | [response-ridges](examples/response-ridges.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 
 Each example has its rendered `.svg` and `.html` next to it; the SVG files are also the reference

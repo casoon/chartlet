@@ -197,7 +197,7 @@ Rules:
 | `panes` | array, 1–4 | yes | The panes, top to bottom. |
 | `panes[].heightRatio` | integer, 1–10 | no | The pane's share of the plot height against the other panes, default 1. |
 | `panes[].valueAxis` | object | no | `title`, `format`, `decimals`, `min`, `max`, `step`, `exact`, `thousandsSeparator`, `scale`, `reverse` and `unit` of the pane's own value axis. |
-| `panes[].stack` | `normal` | no | Stacks the pane's `area` layers in layer order, each on top of the ones before it, so that the top edge shows their total; line and point layers in the pane stay as they are. Markers and the end labels sit on top of the stack; tooltips and the data table give each layer's own value. |
+| `panes[].stack` | `normal`, `stream` | no | Stacks the pane's `area` layers in layer order, each on top of the ones before it, so that the top edge shows their total; line and point layers in the pane stay as they are. Markers and the end labels sit on top of the stack; tooltips and the data table give each layer's own value. `stream` stacks them around a moving baseline instead of zero, so that the stack is centered (a streamgraph): the value axis becomes a scale bar for thickness, the areas are named at their right ends, and the pane takes area layers and reference lines of time only, with no `min`, `max`, `exact`, `reverse` or logarithmic scale on its axis (`option_not_supported`). |
 | `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane) and six annotation layers. |
 | `sparkline` | boolean | no | `true` draws the lines and areas of one pane across the whole canvas, without axes, title, legend or value labels, with a dot at the end of each line; `width` 60–600 and `height` 16–200. The title and description remain the accessible name and description, and the HTML profile keeps its caption and table. Only line and area layers; no zoom steps or mobile variant. |
 | `tooltips` | `observations`, `markers` | no | `"observations"` (default) gives every observation a tooltip while observations stand at least 4 pixels apart, on an invisible target where no marker is drawn; `"markers"` gives tooltips only to drawn markers, so a line too dense for markers has none and its SVG stays small. |
@@ -358,7 +358,12 @@ least one value that is not `null` (`empty_series`); `min` below and `max` above
 | `ranges[].weight` | number above 0 | no | With `mid`: turns the central mark into a square whose area follows it. |
 | `ranges[].summary` | boolean | no | With `mid`: draws the span as a diamond, widest at `mid` — together with `references` a forest plot. |
 
-Rules: up to 100 ranges (`too_many_data_points`) with unique labels (`duplicate_label`); `low`
+| `display` | `bar`, `dumbbell` | no | Draws each span as a bar (the default) or as a dumbbell: an open dot at `low`, a filled dot at `high` and a line between them, both values written beside their dots. |
+| `sort` | `none`, `change` | no | `change` puts the widest span first, in the picture, the table and the description; `none` (default) keeps the order as listed. |
+
+Rules: a dumbbell takes no `mid`, `weight`, `summary` or `modeled` on a range
+(`option_not_supported`, with the path of the field), and `display` and `sort` belong to range bars
+only (`option_not_supported`); up to 100 ranges (`too_many_data_points`) with unique labels (`duplicate_label`); `low`
 above `high` is `invalid_range`, a `mid` outside them `mid_outside_range`; groups on every range or
 none (`missing_group`), at most 4 (`too_many_series`); a `weight` of zero or less is
 `invalid_weight`, and `weight` or `summary` without `mid` is `invalid_weight` or
@@ -377,15 +382,17 @@ none (`missing_group`), at most 4 (`too_many_series`); a `weight` of zero or les
 | `boxes[].min`, `boxes[].q1`, `boxes[].median`, `boxes[].q3`, `boxes[].max` | number | one of | The five numbers of a box computed elsewhere, in this order. |
 | `boxes[].outliers` | array of numbers | no | Points beyond the whiskers of a box given by its five numbers. |
 | `boxes[].group` | string, up to 60 characters | no | On every box (up to four groups): colors the boxes of a group alike, with a legend. |
-| `boxDisplay` | `box`, `violin`, `strip` | no | Draws the observations as boxes (the default), as violins or as strips; the last two need `values` on every box. |
+| `boxDisplay` | `box`, `violin`, `strip`, `beeswarm`, `ridgeline` | no | Draws the observations as boxes (the default), as violins, as strips, as a beeswarm (dots moved sideways until none overlap) or as a ridgeline (one density curve per box, stacked with a slight overlap); every display but `box` needs `values` on every box. |
+| `showBox` | boolean | no | Beeswarms only: draws the box and its whiskers under the dots. |
 | `violinScale` | `width`, `area`, `count` | no | Violins only: `width` (default) makes every violin as wide as the others at its widest, `area` gives them the same area, `count` an area that follows their number of observations. |
 | `showMean` | boolean | no | Marks the mean of every box with a diamond and adds a Mean column to the table; needs `values`. |
 
 Rules: 1–100 boxes (`too_many_data_points`) with unique labels (`duplicate_label`); `values` and
 the five numbers never both (`conflicting_data_shape`), never part of the five numbers
 (`incomplete_box`), the five numbers in order (`invalid_box`), and 5–1000 `values`
-(`invalid_values`); violins, strips and `showMean` need `values` on every box
-(`values_required`); groups on every box or none (`missing_group`), at most 4
+(`invalid_values`); violins, strips, beeswarms, ridgelines and `showMean` need `values` on every
+box (`values_required`); `showBox` belongs to beeswarms and `violinScale` to violins
+(`option_not_supported`); groups on every box or none (`missing_group`), at most 4
 (`too_many_series`). More than 16 boxes warn with `dense_chart`.
 
 ## Timelines

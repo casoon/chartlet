@@ -1,7 +1,8 @@
 use super::untagged::NO_VARIANT;
 use super::{
     AxisScale, BoxDisplay, ChartSpec, ChartType, LegendPlacement, MAX_AXIS_TICKS, MAX_DECIMALS,
-    Mark, Orientation, PaneSpec, Stack, Theme, Tooltips, ValueAxisSpec, ValueFormat, type_name,
+    Mark, Orientation, PaneSpec, RangeDisplay, RangeSort, Stack, Theme, Tooltips, ValueAxisSpec,
+    ValueFormat, type_name,
 };
 use crate::error::ChartError;
 
@@ -175,7 +176,7 @@ impl ChartSpec {
             values.push(0.0);
             match self.stack {
                 Some(Stack::Percent) => values = vec![0.0, 1.0],
-                Some(Stack::Normal) => values.extend(self.stack_totals()),
+                Some(Stack::Normal | Stack::Stream) => values.extend(self.stack_totals()),
                 None => {}
             }
         }
@@ -483,11 +484,18 @@ impl ChartSpec {
                 !self.violin_scale.is_width(),
                 ChartType::Boxplot,
             ),
+            ("/showBox", self.show_box, ChartType::Boxplot),
             (
                 "/boxDisplay",
                 self.box_display != BoxDisplay::Box,
                 ChartType::Boxplot,
             ),
+            (
+                "/display",
+                self.display != RangeDisplay::Bar,
+                ChartType::Rangebar,
+            ),
+            ("/sort", self.sort != RangeSort::None, ChartType::Rangebar),
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
             ("/classes", self.classes.is_some(), ChartType::Classes),
             ("/network", self.network.is_some(), ChartType::Network),

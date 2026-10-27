@@ -16,6 +16,23 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   is only named is disclosed with `font_not_embedded`. Missing glyphs are listed as
   `font_glyphs_missing`. Details:
   [Typography](https://casoon.github.io/chartlet/docs/guides/customize/#typography).
+- **Time charts:** `"stack": "stream"` on a pane of area layers centers the stack around a moving
+  baseline instead of zero (a streamgraph); the value axis becomes a scale bar for thickness and
+  each stream is named at its right end. Details:
+  [Streamgraphs](https://casoon.github.io/chartlet/docs/guides/chart-types/#streamgraphs).
+
+- **Box plots:** `"boxDisplay": "beeswarm"` draws every observation as a dot moved sideways just
+  far enough that no two overlap, optionally over the box (`"showBox": true`). Details:
+  [Box plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#box-plots).
+
+- **Box plots:** `"boxDisplay": "ridgeline"` draws one density curve per group, stacked with a
+  slight overlap along a shared value axis, on one scale so that heights compare. Details:
+  [Box plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#box-plots).
+
+- **Range bars:** `"display": "dumbbell"` draws each span as an open dot at the low value and a
+  filled dot at the high value joined by a line, with both values written beside their dots, and
+  `"sort": "change"` puts the widest span first. Details:
+  [Dumbbells](https://casoon.github.io/chartlet/docs/guides/chart-types/#dumbbells).
 
 - **Hand-drawn strokes:** `"stroke": "sketch"` draws lines and shapes slightly wobbly, for essays and
   slides. The displacement is seeded from the specification (same bytes every time), text stays

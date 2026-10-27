@@ -363,12 +363,44 @@ const catalogue = [
       'Response times of three endpoints measured in two regions: the boxes of a region share a color and a legend entry, so the two regions read side by side, and a diamond marks each mean. The table gains a Group column. Illustrative measurements, with a phone variant.',
   },
   {
+    slug: 'satisfaction-change',
+    group: 'Ranges and distributions',
+    chart: 'Dumbbell chart',
+    useCase: 'Compare two values per category, such as before and after',
+    blurb:
+      'Satisfaction scores of six support areas before and after a redesign: an open dot for the score before, a filled dot for the score after, a line between them, both values written beside the dots, and the area with the widest change first. The table lists both values per area. Illustrative survey scores, with a phone variant.',
+  },
+  {
     slug: 'response-distribution',
     group: 'Ranges and distributions',
     chart: 'Violin plot',
     useCase: 'Show the shape of a distribution',
     blurb:
       'The same kind of data as the box plot, drawn as violins: three endpoints with sixty response times each, where the outline shows what a box hides — a long tail for search, two peaks for checkout — with the quartile box and the median inside. A strip shows every observation instead. Illustrative measurements, with a phone variant.',
+  },
+  {
+    slug: 'response-swarm',
+    group: 'Ranges and distributions',
+    chart: 'Beeswarm plot',
+    useCase: 'Show every observation without hiding any behind another',
+    blurb:
+      'The same three endpoints as the violins, now every one of the sixty requests as a dot, moved sideways only as far as it must so that no dot overlaps another, with the box and the median under them. The width of the swarm shows where the requests pile up. Illustrative measurements, with a phone variant.',
+  },
+  {
+    slug: 'response-ridges',
+    group: 'Ranges and distributions',
+    chart: 'Ridgeline plot',
+    useCase: 'Compare the shapes of many distributions on one axis',
+    blurb:
+      'Five services, one density curve each on a shared millisecond axis, stacked with a slight overlap: a single peak for search, two for checkout, a long tail for uploads. All curves share one scale, so their heights compare, and a line up to each curve marks its median. Illustrative measurements, with a phone variant.',
+  },
+  {
+    slug: 'topic-streams',
+    group: 'Time series',
+    chart: 'Streamgraph',
+    useCase: 'Show how the mix of a total shifts over time',
+    blurb:
+      'Four support topics stacked around a moving baseline instead of zero, so the shape of the whole reads as a stream: each band is named at its right end, and a scale bar stands in for the value axis because only thickness carries the value. The table lists each topic per fortnight. Illustrative figures, with a phone variant.',
   },
   {
     slug: 'gene-expression',
