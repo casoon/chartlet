@@ -18,12 +18,13 @@ impl ChartSpec {
                 | ChartType::Tree
                 | ChartType::Classes
                 | ChartType::Network
+                | ChartType::Cycle
         );
         if self.theme == Theme::Blueprint && !diagram {
             return Err(ChartError::new(
                 "option_not_supported",
                 "/theme",
-                "the blueprint theme is made for diagrams (sequence, flow, state, architecture, tree, classes, network); use light or dark",
+                "the blueprint theme is made for diagrams (sequence, flow, state, architecture, tree, classes, network, cycle); use light or dark",
             ));
         }
         Ok(())
@@ -488,6 +489,7 @@ impl ChartSpec {
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
             ("/classes", self.classes.is_some(), ChartType::Classes),
             ("/network", self.network.is_some(), ChartType::Network),
+            ("/cycle", self.cycle.is_some(), ChartType::Cycle),
             ("/scatter", self.scatter.is_some(), ChartType::Scatter),
             ("/survival", self.survival.is_some(), ChartType::Survival),
             ("/sankey", self.sankey.is_some(), ChartType::Sankey),

@@ -136,6 +136,10 @@ const INTERFACE_STYLE: &str = ".chartlet-arch-ball{fill:var(--chartlet-backgroun
 /// The socket of an interface connection in the color of its category, where the perspective shown
 /// gives connections categories.
 const INTERFACE_CATEGORY_STYLE: &str = ".chartlet-flow-part-1 .chartlet-arch-socket{stroke:var(--chartlet-color-1)}.chartlet-flow-part-2 .chartlet-arch-socket{stroke:var(--chartlet-color-2)}.chartlet-flow-part-3 .chartlet-arch-socket{stroke:var(--chartlet-color-3)}.chartlet-flow-part-4 .chartlet-arch-socket{stroke:var(--chartlet-color-4)}.chartlet-flow-part-5 .chartlet-arch-socket{stroke:var(--chartlet-part-5)}.chartlet-flow-part-6 .chartlet-arch-socket{stroke:var(--chartlet-part-6)}.chartlet-flow-part-7 .chartlet-arch-socket{stroke:var(--chartlet-part-7)}.chartlet-flow-part-8 .chartlet-arch-socket{stroke:var(--chartlet-part-8)}";
+/// Cycles, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: the number in a step's dot, the hub and
+/// its links.
+const CYCLE_STYLE: &str = ".chartlet-cycle-num{font-size:13px;font-weight:700;fill:var(--chartlet-text)}.chartlet-cycle-hub{stroke-width:2.5}.chartlet-cycle-link{stroke-width:1.2;stroke-dasharray:2 4;stroke-linecap:round}";
+
 const ARCHITECTURE_STYLE: &str = ".chartlet-arch-head{fill:var(--chartlet-role-violet-fill);stroke:var(--chartlet-role-violet);stroke-width:1.5}.chartlet-arch-dot{fill:var(--chartlet-role-blue);stroke:none}";
 
 const FILTER_STYLE: &str = ".chartlet-wrapper{display:inline-block;max-width:100%}.chartlet-filter{border:none;padding:0;margin:0 0 12px 0}.chartlet-filter legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-filter label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-filter input{margin-right:4px}.chartlet-filter input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-wrapper:has(.chartlet-filter input.series-0:not(:checked)) .chartlet-root [data-series=\"0\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-2:not(:checked)) .chartlet-root [data-series=\"2\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-3:not(:checked)) .chartlet-root [data-series=\"3\"]{display:none}";
@@ -153,6 +157,7 @@ fn diagram_style(chart_type: ChartType) -> String {
         ChartType::State => &[DIAGRAM_STYLE, FLOW_STYLE, STATE_STYLE],
         ChartType::Classes => &[DIAGRAM_STYLE, FLOW_STYLE, CLASSES_STYLE],
         ChartType::Network => &[DIAGRAM_STYLE, FLOW_STYLE, NETWORK_STYLE],
+        ChartType::Cycle => &[DIAGRAM_STYLE, FLOW_STYLE, CYCLE_STYLE],
         ChartType::Architecture | ChartType::Tree => {
             &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE]
         }
@@ -281,11 +286,12 @@ const fn when(condition: bool, style: &str) -> &str {
 /// The shared stylesheet: with `common`, first the part every chart relies on, then the part of
 /// each of `chart_types` in their order. A type's part styles only charts of that type, so the
 /// parts of two types never style the same element and may be concatenated in any order.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Architecture, Bar, Boxplot, Calendar, Classes, Flow, Heatmap, Line, Multiples, Network,
-        Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time, Timeline,
-        Tree, Treemap, Waffle, Waterfall,
+        Architecture, Bar, Boxplot, Calendar, Classes, Cycle, Flow, Heatmap, Line, Multiples,
+        Network, Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes, Survival, Time,
+        Timeline, Tree, Treemap, Waffle, Waterfall,
     };
     let groups: &[(&str, &[ChartType])] = &[
         (STYLE, &[]),
@@ -311,12 +317,21 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (OUTLINE_STYLE, &[Bar]),
         (
             DIAGRAM_STYLE,
-            &[Sequence, Flow, State, Architecture, Tree, Classes, Network],
+            &[
+                Sequence,
+                Flow,
+                State,
+                Architecture,
+                Tree,
+                Classes,
+                Network,
+                Cycle,
+            ],
         ),
         (SEQUENCE_STYLE, &[Sequence]),
         (
             FLOW_STYLE,
-            &[Flow, State, Architecture, Tree, Classes, Network],
+            &[Flow, State, Architecture, Tree, Classes, Network, Cycle],
         ),
         (STATE_STYLE, &[State]),
         (CLASSES_STYLE, &[Classes]),
@@ -327,6 +342,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         crate::roles::STYLE_GROUPS[2],
         (WEIGHT_STYLE, &[Flow, Architecture, Network]),
         (NETWORK_STYLE, &[Network]),
+        (CYCLE_STYLE, &[Cycle]),
         (crate::heat::STYLE, &[Flow, Tree]),
         (crate::parts::STYLE, &[Flow, Tree, Architecture]),
         (crate::parts::UNSTATED_STYLE, &[Architecture]),
@@ -335,7 +351,16 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (INTERFACE_CATEGORY_STYLE, &[Architecture]),
         (
             BLUEPRINT_STYLE,
-            &[Sequence, Flow, State, Architecture, Tree, Classes, Network],
+            &[
+                Sequence,
+                Flow,
+                State,
+                Architecture,
+                Tree,
+                Classes,
+                Network,
+                Cycle,
+            ],
         ),
         (WATERFALL_STYLE, &[Waterfall]),
         (WAFFLE_STYLE, &[Waffle]),

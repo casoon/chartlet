@@ -210,6 +210,16 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/service-dependencies.svg"),
     ),
     (
+        "improvement-cycle",
+        include_str!("../examples/improvement-cycle.json"),
+        include_str!("../examples/improvement-cycle.svg"),
+    ),
+    (
+        "growth-flywheel",
+        include_str!("../examples/growth-flywheel.json"),
+        include_str!("../examples/growth-flywheel.svg"),
+    ),
+    (
         "department-budgets",
         include_str!("../examples/department-budgets.json"),
         include_str!("../examples/department-budgets.svg"),
@@ -522,6 +532,16 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "co-authors",
         include_str!("../examples/co-authors.json"),
         include_str!("../examples/co-authors.mobile.svg"),
+    ),
+    (
+        "improvement-cycle",
+        include_str!("../examples/improvement-cycle.json"),
+        include_str!("../examples/improvement-cycle.mobile.svg"),
+    ),
+    (
+        "growth-flywheel",
+        include_str!("../examples/growth-flywheel.json"),
+        include_str!("../examples/growth-flywheel.mobile.svg"),
     ),
     (
         "mobile-revenue",

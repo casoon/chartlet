@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "type": "cycle",
+  "title": "The improvement cycle of a support team",
+  "source": "Team handbook",
+  "width": 760,
+  "height": 520,
+  "mobile": { "width": 420, "height": 560 },
+  "cycle": {
+    "labels": "inside",
+    "steps": [
+      { "id": "collect", "label": "Collect tickets", "note": "every channel" },
+      { "id": "sort", "label": "Find patterns", "note": "weekly" },
+      { "id": "fix", "label": "Fix the cause", "role": "critical" },
+      { "id": "document", "label": "Write it down" },
+      { "id": "train", "label": "Train the team", "role": "planned" }
+    ]
+  }
+}

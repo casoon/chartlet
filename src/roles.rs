@@ -44,6 +44,7 @@ pub(crate) const STYLE_GROUPS: [(&str, &[ChartType]); 3] = [
             ChartType::Architecture,
             ChartType::State,
             ChartType::Network,
+            ChartType::Cycle,
             ChartType::Tree,
             ChartType::Classes,
         ],

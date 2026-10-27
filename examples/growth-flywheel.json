@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "type": "cycle",
+  "title": "Why a good product brings the next customers",
+  "width": 760,
+  "height": 540,
+  "mobile": { "width": 476, "height": 640 },
+  "cycle": {
+    "steps": [
+      { "id": "product", "label": "Better product", "note": "from feedback", "hubLabel": "delights" },
+      { "id": "happy", "label": "Happy customers", "hubLabel": "stay on" },
+      { "id": "word", "label": "Word of mouth", "hubLabel": "refer" },
+      { "id": "growth", "label": "More customers", "hubLabel": "inform" },
+      { "id": "revenue", "label": "Revenue to invest", "hubLabel": "reinvest" }
+    ],
+    "hub": { "label": "Customers", "note": "at the center" }
+  }
+}

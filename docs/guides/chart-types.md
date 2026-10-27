@@ -56,6 +56,8 @@ order: 1
 | Dendrogram built from a distance matrix | `"type": "tree"` with `distances` and `linkage` | [How alike the climates are](../../../showcase/climate-similarity/) |
 | Network on a circle, groups together, edges by weight | `"type": "network"` with `nodes`, `edges`, `group`, `weight` | [Joint papers](../../../showcase/co-authors/) |
 | Network in rings around one node, with arrowheads | `"layout": "rings"`, `center`, `"directed": true` | [What the checkout service depends on](../../../showcase/service-dependencies/) |
+| Cycle of steps on a ring with the labels inside boxes | `"type": "cycle"` with `steps`, `"labels": "inside"` | [Improvement cycle](../../../showcase/improvement-cycle/) |
+| Cycle around a hub, with a label on every link | `cycle.hub`, `steps[].hubLabel` | [Growth flywheel](../../../showcase/growth-flywheel/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
 | Architecture diagram with its databases on one rank | `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` | [Order platform and its data stores](../../../showcase/data-tier/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
@@ -1583,6 +1585,46 @@ Limits: 1–40 nodes, up to 120 edges and 8 groups. A network that does not fit 
 drawn larger and reported as `canvas_too_small`. With `layout: "rings"` a `center` is required
 (`missing_center`) and `order` is refused; on a circle `center` is refused
 (`option_not_supported`).
+
+## Cycles
+
+`"type": "cycle"` draws three to eight steps on a ring, clockwise from twelve o'clock, where each
+step feeds the next and the last feeds the first — an improvement loop, a release rhythm, a
+flywheel. An optional hub in the middle is what the steps feed.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "cycle",
+  "title": "Why a good product brings the next customers",
+  "cycle": {
+    "steps": [
+      { "id": "product", "label": "Better product", "hubLabel": "makes them happy" },
+      { "id": "happy", "label": "Happy customers" },
+      { "id": "word", "label": "Word of mouth" }
+    ],
+    "hub": { "label": "Customers" }
+  }
+}
+```
+
+- **Steps** have an `id`, a `label` (up to 60 characters), an optional `note` as a second, smaller
+  line and an optional `role`; the first stands at twelve o'clock. Arrows along the ring lead from
+  every step to the next and from the last back to the first.
+- **Labels** stand outside the ring beside numbered dots (`"labels": "outside"`, the default) or
+  inside boxes on the ring (`"labels": "inside"`, numbered by a badge). The ring is as large as the
+  canvas lets it be; where the labels do not fit, the canvas grows and `canvas_too_small` says so.
+- **Hub.** `hub` (a `label` and an optional `note`) puts a circle in the middle with a dotted
+  arrow from every step to it; `hubLabel` on a step writes a label on its link and needs a hub
+  (`option_not_supported` otherwise).
+- **Roles** (`critical`, `planned`, `deprecated`) draw a step as in other diagrams, with a badge on
+  its corner and a legend below. In the HTML profile every step is a focus link that keeps the
+  steps next to it and dims the rest.
+- **Text alternative.** The description reads the steps in order, names the way back from the last
+  to the first, the hub and its link labels, and the roles. The table has one row per step with its
+  number, label, note, hub link and role where the cycle has them.
+
+Limits: 3–8 steps (`too_few_steps`, `too_many_steps`), unique ids (`duplicate_id`).
 
 ## Time series
 
