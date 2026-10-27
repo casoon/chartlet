@@ -1,6 +1,7 @@
 import { renderChart } from '@casoon/chartlet';
 import type { ShowcaseExample } from '@casoon/pages-theme/showcase';
 import qrLink from '../../examples/qr/link.svg?raw';
+import brandTheme from '../../examples/recipes/brand.theme.json';
 
 type Spec = Record<string, unknown>;
 
@@ -867,6 +868,37 @@ let svg = code.to_svg("Link to the chartlet documentation", 4);`,
   output: { html: qrLink, kind: 'panel' },
 };
 
+/**
+ * The recipes of docs/guides/recipes.md: one example per job, rendered with the brand theme the
+ * recipes share. The tags name the task first, so a reader can find the example by what they
+ * want to do; tests/recipes.rs renders the same files without warnings.
+ */
+const recipeSpecs = import.meta.glob<Spec>('../../examples/recipes/*/spec.json', { import: 'default', eager: true });
+
+const recipes = [
+  { slug: 'report-from-csv', task: 'Report from CSV', chart: 'Bar (grouped)', outputs: 'HTML, narrow screen, print', blurb: 'Revenue per region and quarter from a CSV table, with a missing value kept as missing. Sample data, not real measurements.' },
+  { slug: 'blog-explanation', task: 'Blog explanation', chart: 'Flow chart', outputs: 'HTML with table, narrow screen', blurb: 'One idea explained with a decision flow, with its own description for the reader. Sample illustration.' },
+  { slug: 'architecture-views', task: 'Software architecture in views', chart: 'Architecture (views)', outputs: 'Page of all views, SVG per view', blurb: 'A context view and a numbered view of one booking from one model.' },
+  { slug: 'release-flow', task: 'Release flow', chart: 'Flow chart (lanes)', outputs: 'SVG, strict build, narrow screen', blurb: 'From tag to published release, with two lanes, a decision and a loop back. Illustrative process.' },
+  { slug: 'slide-figure', task: 'Slide and print figure', chart: 'Bar', outputs: '16:9 SVG, print SVG, PNG', blurb: 'A bar chart sized for a slide, with the print variant for PDF pipelines. Sample data.' },
+];
+
+const recipeExamples = recipes.map(({ slug, task, chart, outputs, blurb }): ShowcaseExample => {
+  const source = recipeSpecs[`../../examples/recipes/${slug}/spec.json`];
+  const { $schema: _schema, ...theme } = brandTheme as Spec;
+  const { html } = render({ ...source, ...theme }, `showcase-recipe-${slug}`);
+  return {
+    slug: `recipe-${slug}`,
+    group: 'Recipes',
+    title: String(source.title),
+    description: `${blurb} Recipe "${task}" in the Recipes guide of the documentation.`,
+    file: `examples/recipes/${slug}/spec.json`,
+    tags: [task, chart, outputs],
+    input: { code: JSON.stringify(source, null, 2), lang: 'json' },
+    output: { html, kind: 'panel' },
+  };
+});
+
 export const examples: ShowcaseExample[] = catalogue.map(({ slug, view, group, chart, useCase, blurb }): ShowcaseExample => {
   const source = spec(slug);
   const { html, warnings } = render(source, `showcase-${slug}`, 'html', view);
@@ -880,4 +912,4 @@ export const examples: ShowcaseExample[] = catalogue.map(({ slug, view, group, c
     input: { code: JSON.stringify(source, null, 2), lang: 'json' },
     output: { html, kind: 'panel' },
   };
-}).concat(qrExample);
+}).concat(recipeExamples, qrExample);
