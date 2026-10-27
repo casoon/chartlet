@@ -279,8 +279,6 @@ fn layers(seed: u64) -> Value {
     let mut block = json!({ "layers": layers });
     if nested {
         block["display"] = json!("nested");
-    } else if random.chance(50) {
-        block["projection"] = json!("exploded");
     }
     json!({
         "schemaVersion": 1,
