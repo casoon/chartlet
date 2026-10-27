@@ -74,6 +74,14 @@ const CALENDAR_STYLE: &str =
 const TIMELINE_STYLE: &str = ".chartlet-timeline-phase{fill:var(--chartlet-accent);stroke:none;rx:3px}.chartlet-timeline-milestone{fill:var(--chartlet-accent);stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-timeline-group-1{fill:var(--chartlet-color-1)}.chartlet-timeline-group-2{fill:var(--chartlet-color-2)}.chartlet-timeline-group-3{fill:var(--chartlet-color-3)}.chartlet-timeline-group-4{fill:var(--chartlet-color-4)}.chartlet-timeline-weekend{fill:var(--chartlet-grid);fill-opacity:.55;stroke:none}.chartlet-timeline-done{fill:var(--chartlet-text);fill-opacity:.35;stroke:none;rx:3px}.chartlet-timeline-marker{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-timeline-marker-label{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-timeline-link{fill:none;stroke:var(--chartlet-zero);stroke-width:1.4;stroke-linejoin:round}.chartlet-timeline-head{fill:var(--chartlet-zero);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Waterfalls: bars that rise, fall and total.
 const WATERFALL_STYLE: &str = ".chartlet-wf-up{fill:var(--chartlet-color-1);stroke:none}.chartlet-wf-down{fill:var(--chartlet-color-2);stroke:none}.chartlet-wf-total{fill:var(--chartlet-color-3);stroke:none}.chartlet-wf-link{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:3 3}";
+/// Polar charts: rings, wedges or lollipops in one color, and the values of the rings.
+const POLAR_STYLE: &str = ".chartlet-polar-ring{fill:none;stroke:var(--chartlet-grid);stroke-width:1}.chartlet-polar-bar{fill:var(--chartlet-color-1);stroke:none}.chartlet-polar-stem{stroke:var(--chartlet-color-1);stroke-width:2}.chartlet-polar-dot{fill:var(--chartlet-color-1);stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-polar-tick{font-size:11px;fill:var(--chartlet-muted);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
+/// Mosaic charts: segments in the palette colors with their share written on them.
+const MOSAIC_STYLE: &str = ".chartlet-mosaic-1{fill:var(--chartlet-color-1)}.chartlet-mosaic-2{fill:var(--chartlet-color-2)}.chartlet-mosaic-3{fill:var(--chartlet-color-3)}.chartlet-mosaic-4{fill:var(--chartlet-color-4)}.chartlet-mosaic-cell{stroke:var(--chartlet-background);stroke-width:1}.chartlet-mosaic-value{font-size:12px;font-weight:600;fill:var(--chartlet-background)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Radar charts: grid, polygons told apart by color and dash pattern, markers and ring values.
+const RADAR_STYLE: &str = ".chartlet-radar-ring{fill:none;stroke:var(--chartlet-grid);stroke-width:1}.chartlet-radar-spoke{stroke:var(--chartlet-grid);stroke-width:1}.chartlet-radar-area{fill-opacity:.14;stroke-width:2;stroke-linejoin:round}.chartlet-radar-key{stroke-width:2}.chartlet-radar-a1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-radar-a2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2);stroke-dasharray:7 4}.chartlet-radar-a3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3);stroke-dasharray:2 3}.chartlet-radar-a4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4);stroke-dasharray:8 3 2 3}.chartlet-radar-dot{stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-radar-d1{fill:var(--chartlet-color-1)}.chartlet-radar-d2{fill:var(--chartlet-color-2)}.chartlet-radar-d3{fill:var(--chartlet-color-3)}.chartlet-radar-d4{fill:var(--chartlet-color-4)}.chartlet-radar-tick{font-size:11px;fill:var(--chartlet-muted);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Funnels and pyramids: the bars or levels, and the rate between two stages.
+const FUNNEL_STYLE: &str = ".chartlet-funnel-bar{fill:var(--chartlet-color-1);stroke:none}.chartlet-funnel-rate{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Waffles: squares in the palette colors, and the rest.
 /// Heatmaps: a sequential and a diverging scale and their text colors, the palette colors of
 /// categories with their symbols, and the cells that have no value.
@@ -81,6 +89,16 @@ const HEATMAP_STYLE: &str = ".chartlet-hm-s0{fill:#cde0f5}.chartlet-hm-s1{fill:#
 const WAFFLE_STYLE: &str = ".chartlet-waffle-1{fill:var(--chartlet-color-1)}.chartlet-waffle-2{fill:var(--chartlet-color-2)}.chartlet-waffle-3{fill:var(--chartlet-color-3)}.chartlet-waffle-4{fill:var(--chartlet-color-4)}.chartlet-waffle-rest{fill:var(--chartlet-grid)}.chartlet-waffle-cell{stroke:none;rx:2px}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Fishbone diagrams: spine, head, bones with their category boxes, ribs and the labels on them.
 const FISHBONE_STYLE: &str = ".chartlet-fish-spine{stroke:var(--chartlet-text);stroke-width:3;stroke-linecap:round}.chartlet-fish-arrow{fill:var(--chartlet-text);stroke:var(--chartlet-text);stroke-width:1;stroke-linejoin:round}.chartlet-fish-bone{stroke:var(--chartlet-role-teal);stroke-width:2;stroke-linecap:round}.chartlet-fish-rib{stroke:var(--chartlet-zero);stroke-width:1.2}.chartlet-fish-head{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-role-blue);stroke-width:2;rx:8px}.chartlet-fish-head-text{font-size:13px;font-weight:700;fill:var(--chartlet-text)}.chartlet-fish-category{fill:var(--chartlet-role-teal-fill);stroke:var(--chartlet-role-teal);stroke-width:1.5;rx:6px}.chartlet-fish-category-text{font-size:13px;font-weight:650;fill:var(--chartlet-text)}.chartlet-fish-cause{font-size:12px;fill:var(--chartlet-text)}.chartlet-fish-subcause{font-size:12px;fill:var(--chartlet-muted)}";
+/// Venn diagrams: circles, region text and leader lines.
+const VENN_STYLE: &str = ".chartlet-venn{stroke-width:2;fill-opacity:.2}.chartlet-venn-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-venn-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-venn-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-venn-set{font-size:13px;font-weight:700;fill:var(--chartlet-text)}.chartlet-venn-label{font-size:12px;fill:var(--chartlet-text)}.chartlet-venn-count{font-size:14px;font-weight:700;fill:var(--chartlet-text)}.chartlet-venn-leader{stroke:var(--chartlet-zero);stroke-width:1}.chartlet-venn-dot{fill:var(--chartlet-text);stroke:none}";
+/// Kanban boards: lanes, cards, limits and signs.
+const KANBAN_STYLE: &str = ".chartlet-kan-lane{fill:var(--chartlet-lane);stroke:var(--chartlet-grid);stroke-width:1;rx:8px}.chartlet-kan-over{stroke:var(--chartlet-role-red);stroke-width:2;stroke-dasharray:6 3}.chartlet-kan-head{font-size:13px;font-weight:700;fill:var(--chartlet-text)}.chartlet-kan-load{font-size:12px;font-weight:600;fill:var(--chartlet-muted)}.chartlet-kan-over-text{fill:var(--chartlet-role-red);font-weight:700}.chartlet-kan-card{fill:var(--chartlet-background);stroke:var(--chartlet-grid);stroke-width:1;rx:6px}.chartlet-kan-blocked{stroke:var(--chartlet-role-red);stroke-width:2}.chartlet-kan-title{font-size:12px;fill:var(--chartlet-text)}.chartlet-kan-owner{font-size:11px;fill:var(--chartlet-muted)}.chartlet-kan-tag{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-role-blue);stroke-width:1;rx:8px}.chartlet-kan-tag-text{font-size:11px;fill:var(--chartlet-text)}.chartlet-kan-sign{fill:var(--chartlet-background);stroke:var(--chartlet-role-red);stroke-width:1.5}.chartlet-kan-sign-bar{stroke:var(--chartlet-role-red);stroke-width:2}.chartlet-kan-sign-text{font-size:11px;font-weight:800;fill:var(--chartlet-role-red)}.chartlet-kan-blocked-text{font-size:11px;font-weight:700;fill:var(--chartlet-role-red)}";
+/// Story maps: backbone, tasks, cards and cut lines.
+const STORY_STYLE: &str = ".chartlet-story-activity{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-role-blue);stroke-width:1.5;rx:6px}.chartlet-story-activity-text{font-size:12px;font-weight:700;fill:var(--chartlet-text)}.chartlet-story-task{fill:var(--chartlet-role-teal-fill);stroke:var(--chartlet-role-teal);stroke-width:1.5;rx:6px}.chartlet-story-task-text{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-story-card{fill:var(--chartlet-background);stroke:var(--chartlet-grid);stroke-width:1;rx:5px}.chartlet-story-card-text{font-size:12px;fill:var(--chartlet-text)}.chartlet-story-cut{stroke:var(--chartlet-zero);stroke-width:1.2;stroke-dasharray:6 4}.chartlet-story-release{font-size:12px;font-weight:700;fill:var(--chartlet-muted)}";
+/// Journeys and blueprints: stages, cells, lines and the sentiment.
+const JOURNEY_STYLE: &str = ".chartlet-journey-stage{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-role-blue);stroke-width:1.5;rx:6px}.chartlet-journey-stage-text{font-size:12px;font-weight:700;fill:var(--chartlet-text)}.chartlet-journey-cell{fill:var(--chartlet-background);stroke:var(--chartlet-grid);stroke-width:1;rx:4px}.chartlet-journey-text{font-size:12px;fill:var(--chartlet-text)}.chartlet-journey-row{font-size:12px;font-weight:700;fill:var(--chartlet-muted)}.chartlet-journey-line{stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:7 4}.chartlet-journey-line-label{font-size:11px;font-weight:600;fill:var(--chartlet-muted)}.chartlet-journey-scale{stroke:var(--chartlet-grid);stroke-width:1}.chartlet-journey-zero{stroke:var(--chartlet-zero);stroke-width:1}.chartlet-journey-scale-text{font-size:11px;fill:var(--chartlet-muted)}.chartlet-journey-sentiment{fill:none;stroke:var(--chartlet-accent);stroke-width:2.5;stroke-linejoin:round}.chartlet-journey-dot{fill:var(--chartlet-background);stroke:var(--chartlet-accent);stroke-width:2.5}.chartlet-journey-value{font-size:12px;font-weight:700;fill:var(--chartlet-text)}.chartlet-journey-step{fill:none;stroke:var(--chartlet-accent);stroke-width:1.5;rx:3px}.chartlet-journey-step-on{fill:var(--chartlet-accent)}";
+/// Value chain maps: frame, stages, dots, links and movement.
+const VMAP_STYLE: &str = ".chartlet-vmap-frame{fill:none;stroke:var(--chartlet-grid);stroke-width:1}.chartlet-vmap-stage-line{stroke:var(--chartlet-grid);stroke-width:1;stroke-dasharray:4 4}.chartlet-vmap-stage{font-size:12px;font-weight:600;fill:var(--chartlet-muted)}.chartlet-vmap-axis{font-size:12px;font-weight:700;fill:var(--chartlet-muted)}.chartlet-vmap-tick{font-size:11px;fill:var(--chartlet-muted)}.chartlet-vmap-link{stroke:var(--chartlet-zero);stroke-width:1.2}.chartlet-vmap-dot{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-role-blue);stroke-width:2}.chartlet-vmap-ghost{fill:none;stroke:var(--chartlet-role-blue);stroke-width:1.5;stroke-dasharray:3 2}.chartlet-vmap-move{fill:none;stroke:var(--chartlet-role-blue);stroke-width:1.5;stroke-dasharray:5 3}.chartlet-vmap-head{fill:var(--chartlet-role-blue);stroke:var(--chartlet-role-blue);stroke-width:1}.chartlet-vmap-inertia{stroke:var(--chartlet-role-red);stroke-width:3}.chartlet-vmap-label{font-size:12px;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
 /// Parliaments: seats by party, the majority line and the ring of a coalition.
 const PARLIAMENT_STYLE: &str = ".chartlet-root{--chartlet-parl-5:#0f766e;--chartlet-parl-6:#6d28d9;--chartlet-parl-7:#b45309;--chartlet-parl-8:#be185d}.chartlet-root.chartlet-theme-dark{--chartlet-parl-5:#2dd4bf;--chartlet-parl-6:#b69cff;--chartlet-parl-7:#fbbf24;--chartlet-parl-8:#f472b6}.chartlet-parl-1{fill:var(--chartlet-color-1)}.chartlet-parl-2{fill:var(--chartlet-color-2)}.chartlet-parl-3{fill:var(--chartlet-color-3)}.chartlet-parl-4{fill:var(--chartlet-color-4)}.chartlet-parl-5{fill:var(--chartlet-parl-5)}.chartlet-parl-6{fill:var(--chartlet-parl-6)}.chartlet-parl-7{fill:var(--chartlet-parl-7)}.chartlet-parl-8{fill:var(--chartlet-parl-8)}.chartlet-parl-seat{stroke:none}.chartlet-parl-coalition{fill:none;stroke:var(--chartlet-text);stroke-width:2}.chartlet-parl-majority{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:4 3}.chartlet-parl-total{font-size:28px;font-weight:700;fill:var(--chartlet-text)}.chartlet-parl-note{font-size:12px;fill:var(--chartlet-muted)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Treemaps: the rectangles in the palette colors.
@@ -90,6 +108,9 @@ const SANKEY_STYLE: &str = ".chartlet-sk-1{fill:var(--chartlet-color-1)}.chartle
 /// Kaplan-Meier curves: step lines, bands, marks and swatches in the palette colors.
 const SURVIVAL_STYLE: &str = ".chartlet-km-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-km-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-km-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-km-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}.chartlet-km-line{fill:none;stroke-width:2.5;stroke-linejoin:round}.chartlet-km-band{stroke:none;fill-opacity:.15}.chartlet-km-mark{stroke-width:1.5}.chartlet-km-swatch{stroke:none}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Scatter plots: dots and swatches in the palette colors, threshold lines and names.
+/// The bubbles of a scatter plot with sizes: a ring in the color of the ground, and the circles of
+/// the size legend.
+const SCATTER_BUBBLE_STYLE: &str = ".chartlet-sc-bubble{stroke:var(--chartlet-background);stroke-width:1.5}.chartlet-sc-ref{fill:none;stroke:var(--chartlet-muted);stroke-width:1.5}";
 const SCATTER_STYLE: &str = ".chartlet-sc-1{fill:var(--chartlet-color-1)}.chartlet-sc-2{fill:var(--chartlet-color-2)}.chartlet-sc-3{fill:var(--chartlet-color-3)}.chartlet-sc-4{fill:var(--chartlet-color-4)}.chartlet-sc-dot{fill-opacity:.65;stroke:none}.chartlet-sc-swatch{stroke:none;rx:5px}.chartlet-sc-fit{stroke-width:2;fill:none}.chartlet-sc-fit.chartlet-sc-1{stroke:var(--chartlet-color-1)}.chartlet-sc-fit.chartlet-sc-2{stroke:var(--chartlet-color-2)}.chartlet-sc-fit.chartlet-sc-3{stroke:var(--chartlet-color-3)}.chartlet-sc-fit.chartlet-sc-4{stroke:var(--chartlet-color-4)}.chartlet-sc-line{stroke:var(--chartlet-zero);stroke-width:1.5;stroke-dasharray:5 4}.chartlet-sc-label{font-size:11px;font-weight:600;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Class diagrams, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: the members of a class, the
 /// hollow and solid marks at the ends of relations, and their cardinalities.
@@ -172,7 +193,12 @@ fn diagram_style(chart_type: ChartType) -> String {
         ChartType::Architecture | ChartType::Tree => {
             &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE]
         }
-        ChartType::Fishbone => &[DIAGRAM_STYLE],
+        ChartType::Fishbone
+        | ChartType::Venn
+        | ChartType::Kanban
+        | ChartType::Storymap
+        | ChartType::Journey
+        | ChartType::Valuemap => &[DIAGRAM_STYLE],
         _ => &[],
     };
     parts.concat()
@@ -185,8 +211,17 @@ const fn type_style(chart_type: ChartType) -> &'static str {
         ChartType::Timeline => TIMELINE_STYLE,
         ChartType::Waterfall => WATERFALL_STYLE,
         ChartType::Waffle => WAFFLE_STYLE,
+        ChartType::Funnel => FUNNEL_STYLE,
+        ChartType::Radar => RADAR_STYLE,
+        ChartType::Polar => POLAR_STYLE,
+        ChartType::Mosaic => MOSAIC_STYLE,
         ChartType::Heatmap => HEATMAP_STYLE,
         ChartType::Fishbone => FISHBONE_STYLE,
+        ChartType::Venn => VENN_STYLE,
+        ChartType::Kanban => KANBAN_STYLE,
+        ChartType::Storymap => STORY_STYLE,
+        ChartType::Journey => JOURNEY_STYLE,
+        ChartType::Valuemap => VMAP_STYLE,
         ChartType::Parliament => PARLIAMENT_STYLE,
         ChartType::Treemap => TREEMAP_STYLE,
         ChartType::Sankey => SANKEY_STYLE,
@@ -254,6 +289,12 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
             DUMBBELL_STYLE,
         ),
         type_style(spec.chart_type),
+        when(
+            spec.scatter
+                .as_ref()
+                .is_some_and(crate::spec::ScatterSpec::is_sized),
+            SCATTER_BUBBLE_STYLE,
+        ),
         when(spec.has_error_bars(), ERROR_STYLE),
         when(
             is_rangebar && spec.ranges.iter().any(|range| range.group.is_some()),
@@ -306,9 +347,10 @@ const fn when(condition: bool, style: &str) -> &str {
 #[allow(clippy::too_many_lines)]
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Architecture, Bar, Boxplot, Calendar, Classes, Cycle, Fishbone, Flow, Heatmap, Layers,
-        Line, Multiples, Network, Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes,
-        Survival, Time, Timeline, Tree, Treemap, Waffle, Waterfall,
+        Architecture, Bar, Boxplot, Calendar, Classes, Cycle, Fishbone, Flow, Funnel, Heatmap,
+        Journey, Kanban, Layers, Line, Mosaic, Multiples, Network, Parliament, Polar, Radar,
+        Rangebar, Sankey, Scatter, Sequence, State, Storymap, Stripes, Survival, Time, Timeline,
+        Tree, Treemap, Valuemap, Venn, Waffle, Waterfall,
     };
     let groups: &[(&str, &[ChartType])] = &[
         (STYLE, &[]),
@@ -392,14 +434,27 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         ),
         (WATERFALL_STYLE, &[Waterfall]),
         (WAFFLE_STYLE, &[Waffle]),
+        (FUNNEL_STYLE, &[Funnel]),
+        (RADAR_STYLE, &[Radar]),
+        (POLAR_STYLE, &[Polar]),
+        (MOSAIC_STYLE, &[Mosaic]),
         (HEATMAP_STYLE, &[Heatmap]),
-        (DIAGRAM_STYLE, &[Fishbone]),
+        (
+            DIAGRAM_STYLE,
+            &[Fishbone, Venn, Kanban, Storymap, Journey, Valuemap],
+        ),
         (FISHBONE_STYLE, &[Fishbone]),
+        (VENN_STYLE, &[Venn]),
+        (KANBAN_STYLE, &[Kanban]),
+        (STORY_STYLE, &[Storymap]),
+        (JOURNEY_STYLE, &[Journey]),
+        (VMAP_STYLE, &[Valuemap]),
         (PARLIAMENT_STYLE, &[Parliament]),
         (TREEMAP_STYLE, &[Treemap]),
         (SANKEY_STYLE, &[Sankey]),
         (SURVIVAL_STYLE, &[Survival]),
         (SCATTER_STYLE, &[Scatter]),
+        (SCATTER_BUBBLE_STYLE, &[Scatter]),
         (OHLC_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();

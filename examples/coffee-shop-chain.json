@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "type": "valuemap",
+  "title": "Value chain of an online coffee shop",
+  "source": "Illustrative map of a small online retailer",
+  "width": 900,
+  "height": 560,
+  "mobile": { "width": 380, "height": 640 },
+  "valuemap": {
+    "components": [
+      { "id": "customer", "label": "Coffee at home", "visibility": 0.97, "evolution": 0.62 },
+      { "id": "shop", "label": "Web shop", "visibility": 0.84, "evolution": 0.55 },
+      { "id": "subscription", "label": "Subscription", "visibility": 0.76, "evolution": 0.3, "movesTo": { "evolution": 0.55 } },
+      { "id": "payment", "label": "Payment", "visibility": 0.62, "evolution": 0.88 },
+      { "id": "roasting", "label": "Roasting", "visibility": 0.5, "evolution": 0.35, "inertia": true },
+      { "id": "shipping", "label": "Shipping", "visibility": 0.44, "evolution": 0.78 },
+      { "id": "recommendation", "label": "Taste matching", "visibility": 0.58, "evolution": 0.12, "movesTo": { "evolution": 0.34 } },
+      { "id": "beans", "label": "Green beans", "visibility": 0.28, "evolution": 0.8 },
+      { "id": "hosting", "label": "Hosting", "visibility": 0.16, "evolution": 0.93 }
+    ],
+    "dependencies": [
+      { "from": "customer", "to": "shop" },
+      { "from": "shop", "to": "subscription" },
+      { "from": "shop", "to": "payment" },
+      { "from": "shop", "to": "recommendation" },
+      { "from": "subscription", "to": "roasting" },
+      { "from": "subscription", "to": "shipping" },
+      { "from": "roasting", "to": "beans" },
+      { "from": "shop", "to": "hosting" },
+      { "from": "recommendation", "to": "hosting" }
+    ]
+  }
+}

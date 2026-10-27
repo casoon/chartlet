@@ -26,6 +26,10 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `survival` | [Survival curves](#survival-curves) | `survival` |
 | `scatter` | [Scatter plots](#scatter-plots) | `scatter` |
 | `waffle` | [Waffle charts](#waffle-charts) | `waffle` |
+| `funnel` | [Funnels and pyramids](#funnels-and-pyramids) | `funnel` |
+| `radar` | [Radar charts](#radar-charts) | `radar` |
+| `polar` | [Polar charts](#polar-charts) | `polar` |
+| `mosaic` | [Mosaic charts](#mosaic-charts) | `mosaic` |
 | `heatmap` | [Heatmaps](#heatmaps) | `heatmap` |
 | `waterfall` | [Waterfalls](#waterfalls) | `waterfall` |
 | `sequence` | [Sequence diagrams](#sequence-diagrams) | `sequence` |
@@ -35,6 +39,11 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `architecture` | [Architecture diagrams](#architecture-diagrams) | `architecture` |
 | `tree` | [Trees](#trees) | `tree` |
 | `network` | [Networks](#networks) | `network` |
+| `venn` | [Venn diagrams](#venn-diagrams) | `venn` |
+| `valuemap` | [Value chain maps](#value-chain-maps) | `valuemap` |
+| `journey` | [User journeys](#user-journeys-and-service-blueprints) | `journey` |
+| `storymap` | [Story maps](#story-maps) | `storymap` |
+| `kanban` | [Kanban boards](#kanban-boards) | `kanban` |
 | `fishbone` | [Fishbone diagrams](#fishbone-diagrams) | `fishbone` |
 | `cycle` | [Cycles](#cycles) | `cycle` |
 | `layers` | [Layers](#layers) | `layers` |
@@ -56,6 +65,7 @@ have one in [Value axis](#value-axis), and what the diagrams share in
 | `theme` | `light`, `dark`, `blueprint` | no | `light` (default), `dark` or, for diagrams, `blueprint`; the palettes are CSS custom properties on the root. |
 | `tokens` | object | no | Single colors of the palette by the name of the `--chartlet-*` custom property without its prefix, such as `{ "accent": "#c2410c" }`; hex or `rgb()`/`rgba()` values. They win over the theme and carry into the print and social variants and PNG. `invalid_token` at `/tokens/<name>` for another name or value. See [Customize the look](../../guides/customize/). |
 | `stroke` | `clean`, `sketch` | no | `clean` (default) or `sketch`: lines and shapes are displaced by up to about a pixel and a half and bowed slightly, for essays and slides. The displacement is seeded from the specification, so the bytes are the same every time; text, colors and contrast are untouched. The print variant and PNG draw clean strokes. See [Customize the look](../../guides/customize/#hand-drawn-strokes). |
+| `typography` | object | no | `family` (titles and labels), `technicalFamily` (technical sublabels such as the technology of a node) and `widthScale` (0.7 to 1.5, the measured width of the family relative to the built-in metrics). The families come first in the font stack, before Inter; the output names them but does not carry them (`font_not_embedded`). `invalid_typography` at `/typography/<field>` for a value that is not a plain family name or scale. See [Typography](../../guides/customize/#typography). |
 | `locale` | `en`, `de` | no | `en` (default) or `de`: language of the generated texts (description, legend additions, tooltips, calendar month and weekday names, HTML caption and table) the number format (`1,5`) and dates: ISO 8601 (`2026-08-31`) in English, `31.08.2026` and `08.2026` in German. Available for every chart type. Negative numbers always use the true minus sign `−`. |
 | `size` | `doc`, `doc-wide`, `slide-16x9`, `slide-4x3`, `social-og`, `social-square`, `print-a4-landscape`, `print-a3-landscape`, `print-letter-landscape` | no | A named canvas size that sets `width` and `height`: 800 × 450, 1200 × 500, 1920 × 1080, 1600 × 1200, 1200 × 630, 1080 × 1080, 1123 × 794, 1587 × 1123 and 1056 × 816 CSS pixels (the paper sizes at 96 dpi). A `width` or `height` in the specification overrides that side of the preset; without `size` nothing changes. `chartlet render --size <preset>` sets it from the command line. The preset sets the canvas only: type size, margins and colors are not scaled with it, and the `social` and `print` variants stay as they are. An unknown name is `invalid_spec` at `/size`, and the message lists the valid names. |
 | `width`, `height` | integer | no | Size in pixels: 200–2400 × 160–1600, default 800 × 450. Below 320 pixels a chart is compact, for a panel in a grid of columns: a narrower value-axis gutter and margin keep room for the plot, and the text keeps its size when the chart is shown at the width it was rendered for. Text shrinks with the chart when a page scales it down, so render at the width of its place. |
@@ -83,16 +93,16 @@ Rules:
 - Numbers must be finite (`non_finite_value`) and zero or of a magnitude between `1e-100` and
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
-  `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `heatmap`, `waterfall`,
-  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `layers`, `columns`),
+  `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `waterfall`,
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `kanban`, `storymap`, `journey`, `valuemap`, `venn`, `layers`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
 - A type whose block is absent is refused with the block's own code: `missing_stripes`,
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
-  `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_heatmap`, `missing_waterfall`,
+  `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_funnel`, `missing_radar`, `missing_polar`, `missing_mosaic`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
-  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle`, `missing_layers` and `missing_fishbone`. An empty list
+  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle`, `missing_fishbone`, `missing_kanban`, `missing_storymap`, `missing_journey`, `missing_valuemap`, `missing_layers` and `missing_venn`. An empty list
   where a type needs at least one entry is `empty_data`.
 - Stripes, calendars, timelines and every diagram are drawn from their block alone:
   `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
@@ -527,6 +537,8 @@ two or more groups (`log_rank_needs_groups`).
 | `scatter.points[].x`, `scatter.points[].y` | number | yes | The position. |
 | `scatter.points[].group` | string, up to 60 characters | no | On every point or none, up to 4 groups with a legend. |
 | `scatter.points[].label` | string, up to 60 characters | no | Writes a name beside the point where there is room. |
+| `scatter.points[].size` | number above 0 | no | On every point or none (`missing_size`): the area of the point is proportional to it, with a size legend of three reference circles; adds a column to the table. |
+| `scatter.sizeTitle` | string, up to 60 characters | no | What the sizes are, named in the size legend, tooltips and table; default the word for a size. Needs sizes on the points (`option_not_supported`). |
 | `scatter.lines` | array, up to 8 | no | `[{ "axis": "y", "value": 1.3, "label": "p = 0.05" }]`: lines across the plot. |
 | `scatter.lines[].axis` | `x`, `y` | yes | The axis the value lies on. |
 | `scatter.lines[].value` | number | yes | Where the line stands. |
@@ -567,6 +579,80 @@ Rules: up to 4 parts (`too_many_series`) with unique labels (`duplicate_label`) 
 zero (`invalid_value`); `cells` outside 10–400, or no more cells than parts, is
 `invalid_cells`; `columns` outside 2–40 is `invalid_columns`; a `total` below the sum of the parts
 is `invalid_total`.
+
+## Funnels and pyramids
+
+`"type": "funnel"`: stages that narrow as centered bars, or ranked levels as a pyramid. See
+[Funnels and pyramids](../../guides/chart-types/#funnels-and-pyramids).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `funnel.stages` | array, 2–12 | yes | `[{ "label": "Visits", "value": 12400 }]`, first stage first (at the top). |
+| `funnel.stages[].label` | string, up to 100 characters | yes | The stage; unique. |
+| `funnel.stages[].value` | number above 0 | funnel: yes; pyramid: all or none | Its amount. |
+| `funnel.display` | `"funnel"` or `"pyramid"` | no | Default `funnel`: bars as wide as the values, with the rate between two stages. `pyramid`: levels of a triangle, the widest at the bottom. |
+
+Rules: labels are unique (`duplicate_label`); a value is above zero, on every stage of a funnel and
+on all or none of the levels of a pyramid (`invalid_value`); fewer than 2 stages is `empty_data`,
+more than 12 is `too_many_data_points`. A funnel whose stage is larger than the one before it is
+drawn and reported with the warning `stage_exceeds_previous`.
+
+## Radar charts
+
+`"type": "radar"`: one axis per measure, one closed polygon per series. See
+[Radar charts](../../guides/chart-types/#radar-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `radar.axes` | array, 3–16 | yes | `[{ "label": "Speed", "max": 100 }]` |
+| `radar.axes[].label` | string, up to 100 characters | yes | The axis; unique. |
+| `radar.axes[].min` | number | no | The value at the center; default 0. |
+| `radar.axes[].max` | number | no | The value at the end of the axis; default the next step of four grid rings above the largest value. Must be greater than `min`. |
+| `radar.series` | array, 1–4 | yes | `[{ "name": "Engine A", "values": [92, 58, 74] }]` |
+| `radar.series[].name` | string, up to 100 characters | yes | The series; unique. |
+| `radar.series[].values` | array of numbers | yes | One value for every axis, in the order of `axes`, within the range of its axis. |
+
+Rules: fewer than 3 axes or no series is `empty_data`, more than 16 axes `too_many_data_points`,
+more than 4 series `too_many_series`; labels and names are unique (`duplicate_label`,
+`duplicate_series`); a series has one value per axis (`series_length_mismatch`) inside the range of
+its axis (`value_outside_axis`); `max` above `min` (`invalid_axis_range`). More than 8 axes or more
+than 3 series is drawn and reported with the warning `dense_chart`.
+
+## Polar charts
+
+`"type": "polar"`: one value per category of a cycle, as wedges or lollipops around a center. See
+[Polar charts](../../guides/chart-types/#polar-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `polar.points` | array, 3–60 | yes | `[{ "label": "Jan", "value": 52 }]`, the first at the top, the others clockwise. |
+| `polar.points[].label` | string, up to 100 characters | yes | The category; unique. |
+| `polar.points[].value` | number, 0 or more | yes | Its value; zero is the center. |
+| `polar.display` | `"bars"` or `"lollipops"` | no | Default `bars`. |
+| `polar.max` | number above 0 | no | The value at the outer ring; default the next step of four grid rings above the largest value. |
+| `polar.valueLabel` | string | no | What the values are, named in the table; default the word for a value. |
+
+Rules: fewer than 3 points is `empty_data`, more than 60 `too_many_data_points`; labels are unique
+(`duplicate_label`); a value is not negative (`invalid_value`) and not above `max`
+(`value_outside_axis`); `max` is above zero (`invalid_axis_range`). Category names that do not fit
+around the chart are left out and reported with the warning `labels_omitted`.
+
+## Mosaic charts
+
+`"type": "mosaic"`: columns as wide as their share of the whole, split by the share of their
+segments. See [Mosaic charts](../../guides/chart-types/#mosaic-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `mosaic.columns` | array, 1–12 | yes | `[{ "label": "Europe", "segments": [{ "label": "Hardware", "value": 120 }] }]` |
+| `mosaic.columns[].label` | string, up to 100 characters | yes | The column; unique. |
+| `mosaic.columns[].segments` | array | yes | At least one segment per column. |
+| `mosaic.columns[].segments[].label` | string, up to 100 characters | yes | The segment; unique within its column. Segments of one label share a color across columns. |
+| `mosaic.columns[].segments[].value` | number above 0 | yes | Its amount. |
+
+Rules: no column is `empty_data`, more than 12 `too_many_data_points`; a column without segments is
+`empty_data`; labels are unique within their level (`duplicate_label`); values are above zero
+(`invalid_value`); more than 4 different segment labels in all is `too_many_series`.
 
 ## Heatmaps
 
@@ -625,6 +711,101 @@ Rules: 1–6 bones, up to 8 causes per bone and 4 sub-causes per cause (`too_man
 labels are unique (`duplicate_label`); a cause below a sub-cause is not part of the specification
 and is refused as an unknown field. The canvas grows for the bones with a `canvas_too_small`
 warning.
+
+## Kanban boards
+
+`"type": "kanban"`: columns of cards. See [Kanban boards](../../guides/chart-types/#kanban-boards).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `kanban.columns` | array, 1–6 | yes | The states, left to right. |
+| `kanban.columns[].label` | string, up to 60 characters | yes | The state; unique. |
+| `kanban.columns[].limit` | integer, 1 or more | no | The most cards the column should hold; written as `3/4`, marked when exceeded. |
+| `kanban.columns[].cards` | array, up to 20 | no | The cards, top to bottom. |
+| `kanban.columns[].cards[].title` | string, up to 100 characters | yes | The card. |
+| `kanban.columns[].cards[].owner` | string, up to 40 characters | no | Who holds it. |
+| `kanban.columns[].cards[].tag` | string, up to 30 characters | no | A kind of work, drawn as a chip. |
+| `kanban.columns[].cards[].blocked` | boolean | no | Default `false`; drawn with a sign and the word. |
+
+Rules: 1–6 columns and up to 20 cards per column (`too_many_nodes`); column labels are unique
+(`duplicate_label`); a `limit` of 0 is `invalid_limit`. A column over its limit is drawn, not
+refused. The canvas grows for long boards with a `canvas_too_small` warning.
+
+## Story maps
+
+`"type": "storymap"`: activities, tasks and stories in release slices. See
+[Story maps](../../guides/chart-types/#story-maps).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `storymap.releases` | array of strings, 1–5 | yes | The slices from the top down, such as `["MVP", "Release 2"]`; unique. |
+| `storymap.activities` | array, 1–8 | yes | The backbone, left to right; unique labels. |
+| `storymap.activities[].label` | string, up to 100 characters | yes | The activity. |
+| `storymap.activities[].tasks` | array, at least 1 | yes | The user tasks under it; 16 in all. |
+| `storymap.activities[].tasks[].label` | string, up to 100 characters | yes | The task. |
+| `storymap.activities[].tasks[].stories` | array, up to 12 | no | `[{ "title": "Search by name", "release": "MVP" }]`. |
+
+Rules: up to 5 releases, 8 activities and 16 tasks (`too_many_nodes`); an activity needs a task
+(`empty_data`); release names and activity labels are unique (`duplicate_label`); a story names a
+release of the map (`unknown_release`).
+
+## User journeys and service blueprints
+
+`"type": "journey"`: stages with rows of actions, touchpoints, thoughts and sentiment. See
+[User journeys and service blueprints](../../guides/chart-types/#user-journeys-and-service-blueprints).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `journey.stages` | array, 2–8 | yes | The stages, left to right. |
+| `journey.stages[].label` | string, up to 60 characters | yes | The stage; unique. |
+| `journey.stages[].action`, `touchpoint`, `thought` | string, up to 160 characters | no | What the customer does, where, and thinks. |
+| `journey.stages[].sentiment` | integer, -2 to 2 | no | How the customer feels, drawn as a line with the value written. |
+| `journey.display` | `"journey"` or `"blueprint"` | no | Default `journey`; `blueprint` allows the three rows below and draws the lines of interaction and visibility. |
+| `journey.stages[].frontstage`, `backstage`, `support` | string, up to 160 characters | no | What the service does where the customer sees it, out of sight, and the systems under it. Blueprint only. |
+
+Rules: 2–8 stages (`empty_data`, `too_many_nodes`) with unique labels (`duplicate_label`); a
+sentiment outside -2…2 is `invalid_value`; `frontstage`, `backstage` and `support` without
+`"display": "blueprint"` are `option_not_supported`. The canvas grows for long texts with a
+`canvas_too_small` warning.
+
+## Value chain maps
+
+`"type": "valuemap"`: components by visibility and evolution. See
+[Value chain maps](../../guides/chart-types/#value-chain-maps).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `valuemap.components` | array, 1–40 | yes | The components of the map. |
+| `valuemap.components[].id` | string, up to 60 characters | yes | Identifies it in `dependencies`; unique. |
+| `valuemap.components[].label` | string, up to 100 characters | yes | The name drawn beside the dot; unique. |
+| `valuemap.components[].visibility` | number, 0–1 | yes | 1 is the user's need itself, 0 is hidden; drawn up. |
+| `valuemap.components[].evolution` | number, 0–1 | yes | 0 is genesis, 1 commodity; drawn right. Stages begin at 0, 0.17, 0.4 and 0.7. |
+| `valuemap.components[].movesTo` | object | no | `{ "evolution": 0.6, "visibility": 0.5 }`; a dashed arrow to the place; `visibility` defaults to the component's own. |
+| `valuemap.components[].inertia` | boolean | no | Default `false`; a bar beside the dot. |
+| `valuemap.dependencies` | array, up to 80 | no | `[{ "from": "shop", "to": "hosting" }]`: `from` needs `to`. |
+
+Rules: 1–40 components (`too_many_nodes`) with unique ids (`duplicate_id`) and labels
+(`duplicate_label`); positions between 0 and 1 and a movement to more evolution
+(`invalid_position`); dependencies name components (`unknown_node`), none to itself
+(`self_loop`) and each once (`duplicate_edge`).
+
+## Venn diagrams
+
+`"type": "venn"`: two or three sets and the regions where they overlap. See
+[Venn diagrams](../../guides/chart-types/#venn-diagrams).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `venn.sets` | array of strings, 2–3 | yes | The names of the sets; unique, up to 60 characters. |
+| `venn.regions` | array, up to 7 | no | `[{ "sets": ["Design", "Code"], "label": "Prototyping", "count": 4 }]`; the region that lies in exactly the sets it names. |
+| `venn.regions[].sets` | array of set names | yes | One to three of `venn.sets`, each once. |
+| `venn.regions[].label` | string, up to 100 characters | no | Written in the region, or beside the diagram on a leader line. |
+| `venn.regions[].count` | number, 0 or more | no | Written under the label; formatted like other numbers (`locale`). |
+
+Rules: fewer than two sets is `not_enough_sets`, more than three `too_many_sets`; set names are
+unique (`duplicate_label`); a region names sets that exist (`unknown_set`) and is given once
+(`duplicate_region`); a negative `count` is `invalid_value`. The table lists every region, also
+those that are not given.
 
 ## Diagram fields
 

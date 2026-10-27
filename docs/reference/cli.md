@@ -28,6 +28,9 @@ chartlet render <spec.json | -> [options]
 | `--size <preset>` | Sets the `size` of the specification, a named canvas such as `slide-16x9` or `print-a4-landscape`; a `width` or `height` in the specification still wins. See [Specification](../specification/). |
 | `-o <path>`, `--output <path>` | Writes to a file instead of standard output. |
 | `--manifest <path>` | Also writes a provenance manifest of the render as JSON to `<path>`, see [Provenance](../../guides/warnings-and-errors/#provenance). |
+| `--advice` | With the warnings: structured help, the field to look at, the documentation and corrections the compiler checked by rendering them. With `--diagnostics json` it is the `help` array of the report, without it `help[...]` lines. See [Actionable diagnostics](../../guides/warnings-and-errors/#actionable-diagnostics). |
+| `--font <file.ttf>` | Measures text with the advance widths of a TrueType or OpenType file, used under `typography.family` of the specification; for PNG the file is also used for rasterizing. See [Typography](../../guides/customize/#typography). |
+| `--embed-font` | With `--font` and SVG output: carries the font in the SVG as a base64 `@font-face`. The license of the file decides whether you may. |
 | `--strict` | Fails on any warning. Useful in CI. |
 | `--allow-warning <code>` | With `--strict`, lets warnings with this code through; they are still reported. Repeatable, for example `--allow-warning dense_chart`. |
 | `--styles inline\|external` | `inline` (default): the chart carries its whole stylesheet. `external`: only its own declared colors; the page loads the output of `chartlet stylesheet` once. |

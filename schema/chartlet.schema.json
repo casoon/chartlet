@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "heatmap", "fishbone", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle", "layers"]
+      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "funnel", "radar", "polar", "mosaic", "heatmap", "valuemap", "journey", "storymap", "kanban", "venn", "fishbone", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle", "layers"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -16,6 +16,29 @@
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
     "theme": { "enum": ["light", "dark", "blueprint"], "default": "light" },
     "tokens": { "$ref": "#/$defs/tokens" },
+    "typography": {
+      "description": "Font families and the width the layout reserves for text. A family is only named in the output, not embedded; render with the CLI option --font to measure and rasterize with a font file you supply.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "description": "The family of every text, put before Inter and the system fonts.",
+          "type": "string",
+          "pattern": "^[\\p{L}\\p{N} ._-]{1,64}$"
+        },
+        "technicalFamily": {
+          "description": "The family of technical sublabels such as the technology of a node; defaults to family.",
+          "type": "string",
+          "pattern": "^[\\p{L}\\p{N} ._-]{1,64}$"
+        },
+        "widthScale": {
+          "description": "Measured width of the family relative to the built-in metrics: 1.1 reserves 10 percent more room for every text.",
+          "type": "number",
+          "minimum": 0.7,
+          "maximum": 1.5
+        }
+      }
+    },
     "stroke": {
       "description": "How lines and shapes are drawn: clean (the default) or sketch, slightly wobbly, deterministic from the specification. Text is not affected; the print variant and PNG draw clean strokes.",
       "enum": ["clean", "sketch"],
@@ -180,9 +203,45 @@
       "description": "The parts of a type: \"waffle\" chart.",
       "$ref": "#/$defs/waffle"
     },
+    "funnel": {
+      "description": "The stages of a type: \"funnel\" chart, a funnel or a pyramid.",
+      "$ref": "#/$defs/funnel"
+    },
+    "radar": {
+      "description": "The axes and series of a type: \"radar\" chart.",
+      "$ref": "#/$defs/radar"
+    },
+    "polar": {
+      "description": "The points of a type: \"polar\" chart.",
+      "$ref": "#/$defs/polar"
+    },
+    "mosaic": {
+      "description": "The columns of a type: \"mosaic\" chart.",
+      "$ref": "#/$defs/mosaic"
+    },
     "heatmap": {
       "description": "The rows, columns and cells of a type: \"heatmap\" chart.",
       "$ref": "#/$defs/heatmap"
+    },
+    "valuemap": {
+      "description": "The components and dependencies of a type: \"valuemap\" (a value chain map).",
+      "$ref": "#/$defs/valuemap"
+    },
+    "journey": {
+      "description": "The stages of a type: \"journey\" (a user journey or service blueprint).",
+      "$ref": "#/$defs/journey"
+    },
+    "storymap": {
+      "description": "The releases, activities, tasks and stories of a type: \"storymap\".",
+      "$ref": "#/$defs/storymap"
+    },
+    "kanban": {
+      "description": "The columns and cards of a type: \"kanban\" board.",
+      "$ref": "#/$defs/kanban"
+    },
+    "venn": {
+      "description": "The sets and regions of a type: \"venn\" diagram.",
+      "$ref": "#/$defs/venn"
     },
     "fishbone": {
       "description": "The effect and bones of a type: \"fishbone\" diagram.",
@@ -466,6 +525,50 @@
           }
         },
         {
+          "required": ["polar"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["mosaic"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["radar"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["funnel"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["cycle"],
           "not": {
             "anyOf": [
@@ -499,6 +602,61 @@
         },
         {
           "required": ["heatmap"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["valuemap"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["journey"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["storymap"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["kanban"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["venn"],
           "not": {
             "anyOf": [
               { "required": ["data"] },
@@ -671,6 +829,26 @@
       "else": { "not": { "required": ["network"] } }
     },
     {
+      "if": { "properties": { "type": { "const": "polar" } } },
+      "then": { "required": ["polar"] },
+      "else": { "not": { "required": ["polar"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "mosaic" } } },
+      "then": { "required": ["mosaic"] },
+      "else": { "not": { "required": ["mosaic"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "radar" } } },
+      "then": { "required": ["radar"] },
+      "else": { "not": { "required": ["radar"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "funnel" } } },
+      "then": { "required": ["funnel"] },
+      "else": { "not": { "required": ["funnel"] } }
+    },
+    {
       "if": { "properties": { "type": { "const": "cycle" } } },
       "then": { "required": ["cycle"] },
       "else": { "not": { "required": ["cycle"] } }
@@ -688,6 +866,31 @@
       "if": { "properties": { "type": { "const": "heatmap" } } },
       "then": { "required": ["heatmap"] },
       "else": { "not": { "required": ["heatmap"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "valuemap" } } },
+      "then": { "required": ["valuemap"] },
+      "else": { "not": { "required": ["valuemap"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "journey" } } },
+      "then": { "required": ["journey"] },
+      "else": { "not": { "required": ["journey"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "storymap" } } },
+      "then": { "required": ["storymap"] },
+      "else": { "not": { "required": ["storymap"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "kanban" } } },
+      "then": { "required": ["kanban"] },
+      "else": { "not": { "required": ["kanban"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "venn" } } },
+      "then": { "required": ["venn"] },
+      "else": { "not": { "required": ["venn"] } }
     },
     {
       "if": { "properties": { "type": { "const": "fishbone" } } },
@@ -1202,7 +1405,8 @@
               "x": { "type": "number" },
               "y": { "type": "number" },
               "group": { "type": "string", "minLength": 1, "maxLength": 60 },
-              "label": { "type": "string", "minLength": 1, "maxLength": 60 }
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "size": { "type": "number", "exclusiveMinimum": 0, "description": "A third value: the area of the point is proportional to it, with a size legend of three reference circles and the value written into the bubble where it fits. On every point or none." }
             }
           }
         },
@@ -1261,7 +1465,8 @@
         "yTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
         "regression": { "type": "boolean", "default": false, "description": "Draw the least-squares line through the points, one for each group; on a logarithmic axis it is fitted to the logarithms." },
         "xScale": { "enum": ["linear", "log"], "default": "linear" },
-        "yScale": { "enum": ["linear", "log"], "default": "linear" }
+        "yScale": { "enum": ["linear", "log"], "default": "linear" },
+        "sizeTitle": { "type": "string", "minLength": 1, "maxLength": 60, "description": "What `size` stands for, named in the size legend, the tooltips and the table. Only with sizes on the points." }
       }
     },
     "survival": {
@@ -1392,6 +1597,125 @@
         "coalition": { "type": "array", "items": { "type": "string" } }
       }
     },
+    "polar": {
+      "description": "A polar chart: one value per category of a cycle (months, hours, directions), the first category at the top and the others clockwise; the angle is the category and the distance from the center the value, zero at the center. Drawn as wedges (default) or lollipops, with four rings; `max` sets the outer ring, by default the next step of the grid above the largest value. 3–60 points with unique labels and values of zero or more.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["points"],
+      "properties": {
+        "points": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 60,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "value"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "value": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "display": { "enum": ["bars", "lollipops"], "default": "bars" },
+        "max": { "type": "number", "exclusiveMinimum": 0 },
+        "valueLabel": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "mosaic": {
+      "description": "A mosaic (Marimekko) chart: columns as wide as their share of the whole, each split by the share of its segments. Up to 12 columns with unique labels; segments of one label share a color across columns, at most 4 different segment labels in all; values above zero.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns"],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "segments"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "segments": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["label", "value"],
+                  "properties": {
+                    "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+                    "value": { "type": "number", "exclusiveMinimum": 0 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "radar": {
+      "description": "A radar chart: 3–16 axes drawn from the center like the spokes of a wheel and 1–4 series, each a closed polygon through one value per axis. An axis runs from `min` (default 0) to `max` (default: the next step of four grid rings above the largest value); a value must lie within it. More than 8 axes or 3 series is reported as hard to read.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axes", "series"],
+      "properties": {
+        "axes": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "min": { "type": "number", "default": 0 },
+              "max": { "type": "number" }
+            }
+          }
+        },
+        "series": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "values"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "values": { "type": "array", "items": { "type": "number" } }
+            }
+          }
+        }
+      }
+    },
+    "funnel": {
+      "description": "A funnel or a pyramid. A funnel (default) draws centered bars as wide as the values with the rate between two stages and needs a value on every stage; a pyramid draws the levels of a triangle, the widest at the bottom, and takes values on all levels or on none. 2–12 stages with unique labels, values above zero.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stages"],
+      "properties": {
+        "stages": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "value": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        },
+        "display": { "enum": ["funnel", "pyramid"], "default": "funnel" }
+      }
+    },
     "waffle": {
       "description": "A waffle: a grid of squares that each stand for the same share of a whole, filled by the parts in reading order, each part with at least one square. Up to 4 parts; cells 10–400 (default 100), columns 2–40; a total above the sum of the parts leaves the squares of the rest.",
       "type": "object",
@@ -1458,6 +1782,204 @@
                   }
                 }
               }
+            }
+          }
+        }
+      }
+    },
+    "venn": {
+      "description": "A Venn diagram of two or three sets: circles at fixed places, not sized by their contents. A region is named by the sets it lies in and may carry a label and a count; a region that is not listed stays empty. Labels sit inside where they fit and otherwise beside the diagram on leader lines. More than three sets are refused.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sets"],
+      "properties": {
+        "sets": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": { "type": "string", "minLength": 1, "maxLength": 60 }
+        },
+        "regions": {
+          "type": "array",
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["sets"],
+            "properties": {
+              "sets": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 3,
+                "items": { "type": "string", "minLength": 1, "maxLength": 60 }
+              },
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "count": { "type": "number", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "kanban": {
+      "description": "A kanban board: up to 6 columns for states, each with up to 20 cards and an optional limit on the cards in progress, shown as 3/4 and marked with a sign when exceeded. A card has a title, an optional owner and tag, and may be blocked (drawn with a sign and the word).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns"],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "limit": { "type": "integer", "minimum": 1 },
+              "cards": {
+                "type": "array",
+                "maxItems": 20,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["title"],
+                  "properties": {
+                    "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+                    "owner": { "type": "string", "minLength": 1, "maxLength": 40 },
+                    "tag": { "type": "string", "minLength": 1, "maxLength": 30 },
+                    "blocked": { "type": "boolean", "default": false }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "storymap": {
+      "description": "A user story map: up to 8 activities across the top, the user tasks under each (up to 16 in all), and the stories of every task in release slices (up to 5) separated by labeled cut lines. A story names its release.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["releases", "activities"],
+      "properties": {
+        "releases": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": { "type": "string", "minLength": 1, "maxLength": 60 }
+        },
+        "activities": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "tasks"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "tasks": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["label"],
+                  "properties": {
+                    "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+                    "stories": {
+                      "type": "array",
+                      "maxItems": 12,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["title", "release"],
+                        "properties": {
+                          "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+                          "release": { "type": "string", "minLength": 1, "maxLength": 60 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "journey": {
+      "description": "A user journey: 2 to 8 stages as columns with rows of actions, touchpoints and thoughts (a row that no stage fills is left out) and a sentiment from -2 to 2 drawn as a line with every value written. With \"display\": \"blueprint\" the frontstage, backstage and support rows of a service blueprint are allowed, parted by the lines of interaction and visibility. On a narrow canvas every stage is a block of its own.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stages"],
+      "properties": {
+        "display": { "enum": ["journey", "blueprint"], "default": "journey" },
+        "stages": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "action": { "type": "string", "minLength": 1, "maxLength": 160 },
+              "touchpoint": { "type": "string", "minLength": 1, "maxLength": 160 },
+              "thought": { "type": "string", "minLength": 1, "maxLength": 160 },
+              "sentiment": { "type": "integer", "minimum": -2, "maximum": 2 },
+              "frontstage": { "type": "string", "minLength": 1, "maxLength": 160 },
+              "backstage": { "type": "string", "minLength": 1, "maxLength": 160 },
+              "support": { "type": "string", "minLength": 1, "maxLength": 160 }
+            }
+          }
+        }
+      }
+    },
+    "valuemap": {
+      "description": "A value chain map: up to 40 components placed by visibility to the user (0 hidden to 1 the need itself, drawn up) and evolution (0 genesis to 1 commodity, drawn right, in the stages genesis 0, custom 0.17, product 0.4 and commodity 0.7), with dependencies as lines (`from` needs `to`), planned movement as dashed arrows to a greater evolution, and an inertia mark. Positions are the specification's, not computed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["components"],
+      "properties": {
+        "components": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "visibility", "evolution"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "visibility": { "type": "number", "minimum": 0, "maximum": 1 },
+              "evolution": { "type": "number", "minimum": 0, "maximum": 1 },
+              "movesTo": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["evolution"],
+                "properties": {
+                  "evolution": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "visibility": { "type": "number", "minimum": 0, "maximum": 1 }
+                }
+              },
+              "inertia": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "dependencies": {
+          "type": "array",
+          "maxItems": 80,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "type": "string" },
+              "to": { "type": "string" }
             }
           }
         }

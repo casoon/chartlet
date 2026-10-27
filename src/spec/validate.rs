@@ -10,6 +10,9 @@ impl ChartSpec {
     /// The blueprint look is made for diagrams; a chart with axes and series keeps light or dark.
     pub(super) fn validate_theme(&self) -> Result<(), ChartError> {
         crate::theme::validate(&self.tokens)?;
+        if let Some(typography) = &self.typography {
+            typography.validate()?;
+        }
         let diagram = matches!(
             self.chart_type,
             ChartType::Sequence
@@ -510,7 +513,16 @@ impl ChartSpec {
                 ChartType::Parliament,
             ),
             ("/waffle", self.waffle.is_some(), ChartType::Waffle),
+            ("/funnel", self.funnel.is_some(), ChartType::Funnel),
+            ("/radar", self.radar.is_some(), ChartType::Radar),
+            ("/polar", self.polar.is_some(), ChartType::Polar),
+            ("/mosaic", self.mosaic.is_some(), ChartType::Mosaic),
             ("/heatmap", self.heatmap.is_some(), ChartType::Heatmap),
+            ("/venn", self.venn.is_some(), ChartType::Venn),
+            ("/valuemap", self.valuemap.is_some(), ChartType::Valuemap),
+            ("/journey", self.journey.is_some(), ChartType::Journey),
+            ("/storymap", self.storymap.is_some(), ChartType::Storymap),
+            ("/kanban", self.kanban.is_some(), ChartType::Kanban),
             ("/fishbone", self.fishbone.is_some(), ChartType::Fishbone),
             ("/waterfall", self.waterfall.is_some(), ChartType::Waterfall),
             ("/sequence", self.sequence.is_some(), ChartType::Sequence),

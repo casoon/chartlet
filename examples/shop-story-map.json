@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "type": "storymap",
+  "title": "Story map of an online shop",
+  "source": "Illustrative backlog of a small shop",
+  "width": 960,
+  "height": 560,
+  "mobile": { "width": 380, "height": 900 },
+  "storymap": {
+    "releases": ["MVP", "Release 2", "Later"],
+    "activities": [
+      {
+        "label": "Find a product",
+        "tasks": [
+          {
+            "label": "Browse the catalog",
+            "stories": [
+              { "title": "List products by category", "release": "MVP" },
+              { "title": "Filter by price", "release": "Release 2" }
+            ]
+          },
+          {
+            "label": "Search",
+            "stories": [
+              { "title": "Search by name", "release": "MVP" },
+              { "title": "Suggest while typing", "release": "Later" }
+            ]
+          }
+        ]
+      },
+      {
+        "label": "Buy it",
+        "tasks": [
+          {
+            "label": "Fill the cart",
+            "stories": [
+              { "title": "Add and remove items", "release": "MVP" },
+              { "title": "Save the cart for later", "release": "Release 2" }
+            ]
+          },
+          {
+            "label": "Pay",
+            "stories": [
+              { "title": "Pay by card", "release": "MVP" },
+              { "title": "Pay by invoice", "release": "Release 2" },
+              { "title": "Split the payment", "release": "Later" }
+            ]
+          }
+        ]
+      },
+      {
+        "label": "Receive it",
+        "tasks": [
+          {
+            "label": "Follow the order",
+            "stories": [
+              { "title": "Confirmation email", "release": "MVP" },
+              { "title": "Tracking page", "release": "Release 2" }
+            ]
+          },
+          {
+            "label": "Return an item",
+            "stories": [{ "title": "Return label by email", "release": "Release 2" }]
+          }
+        ]
+      }
+    ]
+  }
+}

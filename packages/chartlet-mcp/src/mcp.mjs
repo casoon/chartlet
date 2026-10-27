@@ -34,6 +34,26 @@ const diagnostic = z.object({
   message: z.string(),
 });
 
+const help = z.object({
+  code: z.string().describe("The warning code the help is about."),
+  path: z.string().describe("The path of that warning."),
+  field: z.string().describe("The field of the specification to look at first."),
+  docs: z.string().describe("The documentation page, relative to https://casoon.github.io/chartlet/."),
+  note: z.string().optional(),
+  remedies: z.array(
+    z.object({
+      id: z.string(),
+      kind: z.enum(["layout", "content"]).describe("layout changes the canvas only; content needs the author's decision and has no patch."),
+      summary: z.string(),
+      patch: z
+        .array(z.object({ op: z.enum(["add", "replace"]), path: z.string(), value: z.unknown() }))
+        .describe("JSON Patch operations proposed for the spec; empty for guidance. Apply only when the user wants it: the spec you passed is not changed."),
+      validated: z.boolean().describe("The patched spec was rendered with the compiler to check it."),
+      resolves: z.boolean().describe("That render no longer had the warning and had no new layout warning."),
+    }),
+  ),
+});
+
 const manifest = z
   .object({
     chartlet: z.string(),
@@ -152,16 +172,25 @@ suggestions lists fitting chart types with the columns to use and a reason, by f
       title: "Validate a chartlet specification",
       description: `Check a chartlet specification with the real compiler: it is rendered (HTML profile, which also lays out a mobile variant) and the output discarded. Returns ok, the first error with code, JSON Pointer path and message, and all layout warnings (e.g. text_truncated, label_overlap, dense_chart).
 
-Use after drafting or editing a spec and before chartlet_render. An invalid spec is a normal result with ok: false, not a tool error. Fix the field the error path points to and validate again.`,
-      inputSchema: z.object({ spec }),
+Use after drafting or editing a spec and before chartlet_render. An invalid spec is a normal result with ok: false, not a tool error. Fix the field the error path points to and validate again.
+
+With advice: true, canvas_too_small and text_truncated also come with help: the field to change and, where the compiler could check it by rendering, a JSON Patch that resolves the warning (layout only: the canvas size). A remedy without a patch is guidance for a change to the content that only the author can decide. Never apply a patch without the user wanting it, and never shorten or drop their content to silence a warning. Off by default so that the response stays small.`,
+      inputSchema: z.object({
+        spec,
+        advice: z
+          .boolean()
+          .optional()
+          .describe("Add help for layout warnings: the field, the documentation and corrections checked with the compiler."),
+      }),
       outputSchema: z.object({
         ok: z.boolean(),
         error: diagnostic.optional(),
         warnings: z.array(diagnostic),
+        help: z.array(help).optional(),
       }),
       annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async ({ spec }) => success(validateSpec(spec)),
+    async ({ spec, advice }) => success(validateSpec(spec, { advice })),
   );
 
   registerAppTool(
@@ -515,7 +544,7 @@ chartlet lays a diagram out itself; the specification only says what is connecte
     "chartlet_chart_starter",
     {
       title: "Start a chart from a block",
-      description: `Return a valid starting specification and notes for a chartlet chart that is drawn from a block of its own rather than from table rows: waterfall (a running total of deltas, starts and totals), waffle (shares as squares), heatmap (values or categories in a grid of rows and columns), parliament (seats by party with majority and coalition), treemap (rectangles by value, in groups), sankey (flows between nodes), survival (Kaplan-Meier curves from times with censoring), scatter (points with groups, threshold lines and names: volcano and Manhattan plots), timeline (phases, milestones and dependencies), cycle (steps on a ring that feed each other, optionally around a hub), forest (a range bar chart as a forest plot) violin (a box plot drawn as violins), prisma (a PRISMA/CONSORT study-selection flow) and instances (a chain of courts or authorities); the last two are presets on the flow chart.
+      description: `Return a valid starting specification and notes for a chartlet chart that is drawn from a block of its own rather than from table rows: waterfall (a running total of deltas, starts and totals), waffle (shares as squares), funnel (stages that narrow, or a pyramid of ranked levels), radar (series compared on several axes), polar (one value per category of a cycle around a center), mosaic (column widths and segment shares at once), heatmap (values or categories in a grid of rows and columns), parliament (seats by party with majority and coalition), treemap (rectangles by value, in groups), sankey (flows between nodes), survival (Kaplan-Meier curves from times with censoring), scatter (points with groups, threshold lines and names: volcano and Manhattan plots), timeline (phases, milestones and dependencies), cycle (steps on a ring that feed each other, optionally around a hub), forest (a range bar chart as a forest plot) violin (a box plot drawn as violins), prisma (a PRISMA/CONSORT study-selection flow) and instances (a chain of courts or authorities); the last two are presets on the flow chart.
 
 Adapt the starter, then check it with chartlet_validate_spec and render it with chartlet_render.`,
       inputSchema: z.object({

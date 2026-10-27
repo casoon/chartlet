@@ -20,7 +20,11 @@ const FONTS: [&[u8]; 4] = [
 pub(crate) const MAX_SCALE: f32 = 4.0;
 
 /// Rasterizes `svg` at `scale` times its size in pixels.
-pub(crate) fn rasterize(svg: &str, scale: f32) -> Result<Vec<u8>, ChartError> {
+pub(crate) fn rasterize(
+    svg: &str,
+    scale: f32,
+    brand: Option<(&str, &[u8])>,
+) -> Result<Vec<u8>, ChartError> {
     let mut fonts = usvg::fontdb::Database::new();
     for font in FONTS {
         fonts.load_font_data(font.to_vec());
@@ -46,6 +50,25 @@ pub(crate) fn rasterize(svg: &str, scale: f32) -> Result<Vec<u8>, ChartError> {
         fonts.push_face_info(face);
     }
     fonts.set_sans_serif_family("Inter");
+    // The font of the caller joins under the family the specification names, ahead of Inter in
+    // the stack the SVG states.
+    if let Some((family, data)) = brand {
+        let known: Vec<usvg::fontdb::ID> = fonts.faces().map(|face| face.id).collect();
+        fonts.load_font_data(data.to_vec());
+        let added: Vec<usvg::fontdb::FaceInfo> = fonts
+            .faces()
+            .filter(|face| !known.contains(&face.id))
+            .cloned()
+            .collect();
+        for mut face in added {
+            fonts.remove_face(face.id);
+            face.families = vec![(
+                family.to_owned(),
+                usvg::fontdb::Language::English_UnitedStates,
+            )];
+            fonts.push_face_info(face);
+        }
+    }
     let options = usvg::Options {
         font_family: "Inter".to_owned(),
         fontdb: Arc::new(fonts),

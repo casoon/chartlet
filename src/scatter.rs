@@ -32,6 +32,112 @@ const DOTS: [&str; 4] = [
     "chartlet-sc-dot chartlet-sc-3",
     "chartlet-sc-dot chartlet-sc-4",
 ];
+/// Dots that are bubbles: the area follows a size, and a ring in the color of the ground keeps
+/// overlapping bubbles apart.
+const BUBBLES: [&str; 4] = [
+    "chartlet-sc-dot chartlet-sc-bubble chartlet-sc-1",
+    "chartlet-sc-dot chartlet-sc-bubble chartlet-sc-2",
+    "chartlet-sc-dot chartlet-sc-bubble chartlet-sc-3",
+    "chartlet-sc-dot chartlet-sc-bubble chartlet-sc-4",
+];
+/// The radius of the largest bubble on a wide and on a narrow chart, and of the smallest bubble.
+const MAX_BUBBLE: (f64, f64) = (20.0, 14.0);
+const MIN_BUBBLE: f64 = 2.5;
+
+/// The radius of the largest bubble of a chart.
+fn max_bubble(spec: &ChartSpec) -> f64 {
+    if spec.width < crate::layout::NARROW {
+        MAX_BUBBLE.1
+    } else {
+        MAX_BUBBLE.0
+    }
+}
+
+/// The radius of a bubble whose area is proportional to its size: the largest size has the
+/// largest radius.
+fn bubble_radius(spec: &ChartSpec, size: f64) -> f64 {
+    let (_, largest) = scatter(spec).size_range();
+    (max_bubble(spec) * (size / largest).sqrt()).max(MIN_BUBBLE)
+}
+
+/// The largest of 1, 2 and 5 times a power of ten that is at most `value`.
+fn nice_floor(value: f64) -> f64 {
+    #[allow(clippy::cast_possible_truncation)]
+    let power = 10_f64.powi(value.log10().floor() as i32);
+    [5.0, 2.0, 1.0]
+        .into_iter()
+        .map(|mantissa| mantissa * power)
+        .find(|step| *step <= value * (1.0 + 1e-9))
+        .unwrap_or(power)
+}
+
+/// The sizes the legend draws a circle for: a round size at most the largest, and rounder sizes at
+/// a quarter and a sixteenth of it.
+fn reference_sizes(largest: f64) -> Vec<f64> {
+    let top = nice_floor(largest);
+    let mut sizes = vec![top];
+    for divisor in [4.0, 16.0] {
+        let size = nice_floor(top / divisor);
+        if sizes.last().is_some_and(|last| size < *last) {
+            sizes.push(size);
+        }
+    }
+    sizes
+}
+
+/// What the sizes are called: the `sizeTitle`, or the word for a size.
+fn size_name(spec: &ChartSpec) -> String {
+    scatter(spec)
+        .size_title
+        .clone()
+        .unwrap_or_else(|| spec.locale.words().size.to_owned())
+}
+
+/// The size legend in a row: its name and a circle of the area of three reference sizes, each with
+/// its value. Returns where it ends.
+fn push_size_legend(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    (left, top): (f64, f64),
+    metrics: &impl TextMetrics,
+) -> f64 {
+    let (_, largest) = scatter(spec).size_range();
+    let name = size_name(spec);
+    let reference = reference_sizes(largest);
+    let tallest = bubble_radius(spec, reference[0]);
+    let middle = top + tallest + 2.0;
+    elements.push(Element::Text(Text {
+        x: left,
+        y: middle + 4.0,
+        class: "chartlet-legend",
+        anchor: TextAnchor::Start,
+        content: name.clone(),
+    }));
+    let mut x = left + metrics.width(&name, LABEL_SIZE) + 16.0;
+    for size in reference {
+        let radius = bubble_radius(spec, size);
+        elements.push(Element::Circle(Circle {
+            cx: x + radius,
+            cy: middle,
+            radius,
+            class: "chartlet-sc-ref",
+            series_index: None,
+            style_index: None,
+            tooltip: None,
+        }));
+        let value = format_value(size, spec.number_style());
+        elements.push(Element::Text(Text {
+            x: x + 2.0 * radius + 6.0,
+            y: middle + 4.0,
+            class: "chartlet-legend",
+            anchor: TextAnchor::Start,
+            content: value.clone(),
+        }));
+        x += 2.0 * radius + 6.0 + metrics.width(&value, LABEL_SIZE) + 18.0;
+    }
+    top + 2.0 * tallest + 12.0
+}
+
 const SWATCHES: [&str; 4] = [
     "chartlet-sc-swatch chartlet-sc-1",
     "chartlet-sc-swatch chartlet-sc-2",
@@ -113,6 +219,7 @@ fn listed(scatter: &ScatterSpec) -> Vec<usize> {
     highest
 }
 
+#[allow(clippy::too_many_lines)]
 pub(crate) fn layout(
     spec: &ChartSpec,
     warnings: &mut Vec<ChartWarning>,
@@ -133,16 +240,22 @@ pub(crate) fn layout(
     );
     let mut top = 56.0 + title_extra(spec, width - left - right, metrics);
     top = push_legend(&mut elements, warnings, spec, (left, top - 10.0), metrics);
+    let sized = scatter.is_sized();
+    if sized {
+        top = push_size_legend(&mut elements, spec, (left, top - 4.0), metrics);
+    }
+    // A bubble reaches beyond its point: the plot leaves room for the largest.
+    let pad = if sized { max_bubble(spec) } else { 0.0 };
     let bottom = if scatter.x_title.is_some() {
         62.0
     } else {
         36.0
     };
     let plot = (
-        left,
-        top + 8.0,
-        width - left - right,
-        plot_height(height - top - 8.0 - bottom, warnings),
+        left + pad,
+        top + 8.0 + pad,
+        width - left - right - 2.0 * pad,
+        plot_height(height - top - 8.0 - bottom - 2.0 * pad, warnings),
     );
     let (xs, ys) = (
         axis_scale(scatter, ScatterAxis::X),
@@ -169,16 +282,44 @@ pub(crate) fn layout(
     }
     push_fits(&mut elements, scatter, (&x, &y));
     let few = scatter.points.len() <= FEW;
-    for point in &scatter.points {
+    // Bubbles are drawn from the largest to the smallest, so that none hides another.
+    let mut order: Vec<&ScatterPointSpec> = scatter.points.iter().collect();
+    if sized {
+        crate::sort::by(&mut order, |a, b| {
+            b.size.unwrap_or(0.0).total_cmp(&a.size.unwrap_or(0.0))
+        });
+    }
+    for point in order {
         elements.push(Element::Circle(Circle {
             cx: x(point.x),
             cy: y(point.y),
-            radius: if few { 3.5 } else { 2.0 },
-            class: DOTS[scatter.color(point) - 1],
+            radius: match point.size {
+                Some(size) => bubble_radius(spec, size),
+                None if few => 3.5,
+                None => 2.0,
+            },
+            class: if sized {
+                BUBBLES[scatter.color(point) - 1]
+            } else {
+                DOTS[scatter.color(point) - 1]
+            },
             series_index: None,
             style_index: None,
             tooltip: (few || point.label.is_some()).then(|| tooltip(spec, point)),
         }));
+        if let Some(size) = point.size {
+            let value = format_value(size, spec.number_style());
+            let radius = bubble_radius(spec, size);
+            if metrics.width(&value, LABEL_SIZE) + 4.0 <= 2.0 * radius {
+                elements.push(Element::Text(Text {
+                    x: x(point.x),
+                    y: y(point.y) + 4.0,
+                    class: "chartlet-sc-label",
+                    anchor: TextAnchor::Middle,
+                    content: value,
+                }));
+            }
+        }
     }
     elements.extend(names.into_iter().map(|(_, text)| Element::Text(text)));
     warn_if_labels_omitted(omitted, warnings);
@@ -274,6 +415,13 @@ fn tooltip(spec: &ChartSpec, point: &ScatterPointSpec) -> String {
         format_value(point.x, spec.number_style()),
         format_value(point.y, spec.number_style())
     );
+    let at = point.size.map_or(at.clone(), |size| {
+        format!(
+            "{at}, {}: {}",
+            size_name(spec),
+            format_value(size, spec.number_style())
+        )
+    });
     point
         .label
         .as_ref()
@@ -297,11 +445,14 @@ fn place_names(
         let Some(label) = &point.label else { continue };
         let reach = metrics.width(label, LABEL_SIZE);
         let (cx, cy) = (x(point.x), y(point.y));
-        let beside_right = cx + 7.0 + reach <= plot.0 + plot.2;
+        let gap = point
+            .size
+            .map_or(7.0, |size| bubble_radius(spec, size) + 4.0);
+        let beside_right = cx + gap + reach <= plot.0 + plot.2;
         let start = if beside_right {
-            cx + 7.0
+            cx + gap
         } else {
-            cx - 7.0 - reach
+            cx - gap - reach
         };
         let rect = (start, cy - 9.0, start + reach, cy + 5.0);
         let clash = placed.iter().any(|(t, _)| overlap(rect, *t));
@@ -771,6 +922,34 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         (&groups.join(", "), &lines.join("; ")),
         &fit_sentences(spec),
     );
+    if scatter.is_sized() {
+        let (low, high) = scatter.size_range();
+        let largest = scatter
+            .points
+            .iter()
+            .enumerate()
+            .fold(None, |best: Option<(usize, f64)>, (index, point)| {
+                let size = point.size.unwrap_or(0.0);
+                if best.is_none_or(|(_, top)| size > top) {
+                    Some((index, size))
+                } else {
+                    best
+                }
+            })
+            .map_or_else(String::new, |(index, _)| {
+                scatter.points[index]
+                    .label
+                    .clone()
+                    .unwrap_or_else(|| format!("{} {}", spec.locale.words().point, index + 1))
+            });
+        description.push(' ');
+        description.push_str(&text::scatter_sizes(
+            spec.locale,
+            &size_name(spec),
+            (&show(low), &show(high)),
+            &largest,
+        ));
+    }
     if let Some(quadrants) = &scatter.quadrants {
         description.push(' ');
         description.push_str(&quadrant_sentences(spec, quadrants));
@@ -847,6 +1026,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     }
     columns.push(scatter.x_title.clone().unwrap_or_else(|| "x".to_owned()));
     columns.push(scatter.y_title.clone().unwrap_or_else(|| "y".to_owned()));
+    if scatter.is_sized() {
+        columns.push(size_name(spec));
+    }
     if scatter.quadrants.is_some() {
         columns.push(words.quadrant.to_owned());
     }
@@ -865,6 +1047,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             }
             row.push(format_value(point.x, spec.number_style()));
             row.push(format_value(point.y, spec.number_style()));
+            if let Some(size) = point.size {
+                row.push(format_value(size, spec.number_style()));
+            }
             if let Some(quadrants) = &scatter.quadrants {
                 row.push(quadrant_name(spec, quadrants, point));
             }

@@ -80,7 +80,10 @@ not been verified. A skill and a server are independent: either works without th
 - `chartlet_validate_spec` renders the specification and discards the output. It returns `ok`, the error
   with `code`, JSON Pointer `path` and `message`, and every warning, for the desktop and the
   `mobile` layout. An invalid specification is a regular result, so the assistant can fix the
-  field the path points to and try again.
+  field the path points to and try again. With `advice: true` it adds `help` for layout
+  warnings: the field and, where the compiler checked it, a JSON Patch for a layout correction such as
+  a larger canvas. The assistant shows it to the user; it does not shorten or drop content to silence
+  a warning.
 - `chartlet_render` returns the SVG or HTML with warnings, CSP `styleHashes` and the provenance
   [manifest](../warnings-and-errors/#provenance). With `outputPath` it writes the file below the
   directory named by `CHARTLET_MCP_ROOT` instead and returns the path and size. Without a `theme`,
@@ -117,7 +120,7 @@ not been verified. A skill and a server are independent: either works without th
   `write` the files go to `chartlet.theme.json` and `chartlet.theme.dark.json` below
   `CHARTLET_MCP_ROOT`, and are never replaced without `overwrite`. The server fetches nothing.
 - `chartlet_chart_starter` returns a valid starting specification and notes for the charts that
-  are drawn from a block of their own: `waterfall`, `waffle`, `heatmap`, `parliament`, `treemap`, `sankey`,
+  are drawn from a block of their own: `waterfall`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `parliament`, `treemap`, `sankey`,
   `survival`, `scatter`, `timeline`, `forest` (a range bar chart), `violin` (a box plot) and the
   flow presets `prisma` and `instances`.
 

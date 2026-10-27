@@ -31,6 +31,11 @@ jobs:
       - name: Build CLI
         run: cargo build --release
 
+      # The playground runs the compiler as WebAssembly; site/scripts/prepare-playground.mjs
+      # copies the module next to the page. Without it the page shows its load-failure state.
+      - name: Build WebAssembly renderer
+        run: node packages/chartlet/scripts/build-wasm.mjs
+
       - uses: pnpm/action-setup@v6
         with:
           version: 10

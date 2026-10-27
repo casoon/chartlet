@@ -8,15 +8,22 @@ mod dataset;
 mod deployment;
 mod fishbone;
 mod flow;
+mod funnel;
 mod heatmap;
+mod journey;
+mod kanban;
 mod layers;
+mod mosaic;
 mod network;
 mod parliament;
+mod polar;
+mod radar;
 mod rangebar;
 mod sankey;
 mod scatter;
 mod sequence;
 mod state;
+mod storymap;
 mod stripes;
 mod survival;
 mod timechart;
@@ -25,6 +32,8 @@ mod tree;
 mod treemap;
 pub(crate) mod untagged;
 mod validate;
+mod valuemap;
+mod venn;
 mod view;
 mod waffle;
 mod waterfall;
@@ -53,10 +62,18 @@ pub use flow::{
     DiagramRole, DiagramSpacing, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec,
     MainPath, NodeKind, NoteSpec, PartSpec, PortSide,
 };
+pub use funnel::{FunnelDisplay, FunnelSpec, FunnelStageSpec};
 pub use heatmap::{HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec};
+pub(crate) use journey::JourneyRow;
+pub use journey::{JourneyDisplay, JourneySpec, JourneyStageSpec};
+pub use kanban::{KanbanCardSpec, KanbanColumnSpec, KanbanSpec};
 pub use layers::{LayersDisplay, LayersSpec, StackLayerSpec};
+pub use mosaic::{MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
+pub use polar::{PolarDisplay, PolarPointSpec, PolarSpec};
+pub(crate) use radar::RINGS;
+pub use radar::{RadarAxisSpec, RadarSeriesSpec, RadarSpec};
 pub use rangebar::{RangeDisplay, RangeSort, RangeSpec};
 pub(crate) use sankey::SankeyGraph;
 pub use sankey::{SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec};
@@ -70,6 +87,7 @@ pub use sequence::{
     ParticipantKind, ParticipantSpec, SequenceSpec,
 };
 pub use state::{StateKind, StateNodeSpec, StateSpec, TransitionSpec};
+pub use storymap::{StorymapActivitySpec, StorymapSpec, StorymapStorySpec, StorymapTaskSpec};
 pub(crate) use stripes::Diverging;
 pub use stripes::StripesSpec;
 pub(crate) use survival::{KmCurve, KmStep};
@@ -86,6 +104,9 @@ pub(crate) use treemap::{TmNode, TmTree};
 pub use treemap::{TreemapItemSpec, TreemapSpec};
 pub(crate) use validate::validate_number;
 use validate::{json_pointer, validate_optional_text, validate_text};
+pub(crate) use valuemap::{VALUEMAP_STAGES, ValuemapStage};
+pub use valuemap::{ValuemapComponentSpec, ValuemapDependencySpec, ValuemapMoveSpec, ValuemapSpec};
+pub use venn::{VennRegionSpec, VennSpec};
 pub use view::{InstanceSpec, ViewSpec, ViewStepSpec};
 pub use waffle::{WafflePartSpec, WaffleSpec};
 pub(crate) use waterfall::WaterfallBar;
@@ -99,6 +120,10 @@ pub(crate) const MAX_SERIES: usize = 4;
 pub(crate) const MAX_AXIS_TICKS: f64 = 50.0;
 /// Reference lines on a bar chart; beyond this the lines crowd the bars they explain.
 pub(crate) const MAX_REFERENCES: usize = 4;
+/// The largest specification that is read, in bytes. The largest figure at the declared limits
+/// (six time-series layers of 2000 points) is about a tenth of it; the cap keeps a browser tab or
+/// an MCP server from parsing a payload of any size before a count limit can refuse it.
+pub(crate) const MAX_SPEC_BYTES: usize = 4 * 1024 * 1024;
 /// Fixed decimal places; beyond this a value stops being readable as a number.
 pub(crate) const MAX_DECIMALS: u8 = 6;
 
@@ -192,6 +217,9 @@ pub struct ChartSpec {
     /// essays and slides. Text is not affected.
     #[serde(default, skip_serializing_if = "StrokeStyle::is_clean")]
     pub stroke: StrokeStyle,
+    /// Font families and the width scale the layout reserves for them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub typography: Option<crate::typography::TypographySpec>,
     /// Colors of the palette, by the name of the `--chartlet-*` custom property without its
     /// prefix, as hex values. They win over the theme. Skipped while empty, like `theme`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -235,9 +263,36 @@ pub struct ChartSpec {
     /// A waffle: squares that each stand for a share of a whole. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waffle: Option<WaffleSpec>,
+    /// A funnel or pyramid: stages that narrow, or ranked levels. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub funnel: Option<FunnelSpec>,
+    /// A radar chart: one axis per measure, one polygon per series. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub radar: Option<RadarSpec>,
+    /// A polar chart: one value per category of a cycle, as wedges or lollipops around a center. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub polar: Option<PolarSpec>,
+    /// A mosaic chart: columns as wide as their share, split by the share of their segments. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mosaic: Option<MosaicSpec>,
     /// A heatmap: values or categories in a grid of rows and columns. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub heatmap: Option<HeatmapSpec>,
+    /// A Venn diagram of two or three sets. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub venn: Option<VennSpec>,
+    /// A value chain map: components by visibility and evolution. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valuemap: Option<ValuemapSpec>,
+    /// A user journey or service blueprint: stages with rows of actions, touchpoints, thoughts and sentiment. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub journey: Option<JourneySpec>,
+    /// A user story map: activities, tasks and stories in release slices. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub storymap: Option<StorymapSpec>,
+    /// A kanban board: columns for states with cards. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kanban: Option<KanbanSpec>,
     /// A fishbone diagram: one effect and the categories of its causes on bones. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fishbone: Option<FishboneSpec>,
@@ -477,8 +532,26 @@ pub enum ChartType {
     Waterfall,
     /// A waffle: squares that each stand for a share of a whole.
     Waffle,
+    /// A funnel or pyramid: stages that narrow, or ranked levels.
+    Funnel,
+    /// A radar chart: one axis per measure, one polygon per series.
+    Radar,
+    /// A polar chart: one value per category of a cycle, as wedges or lollipops around a center.
+    Polar,
+    /// A mosaic chart: columns as wide as their share, split by the share of their segments.
+    Mosaic,
     /// A heatmap: values or categories in a grid of rows and columns.
     Heatmap,
+    /// A Venn diagram of two or three sets.
+    Venn,
+    /// A value chain map: components by visibility and evolution.
+    Valuemap,
+    /// A user journey or service blueprint: stages with rows of actions, touchpoints, thoughts and sentiment.
+    Journey,
+    /// A user story map: activities, tasks and stories in release slices.
+    Storymap,
+    /// A kanban board: columns for states with cards.
+    Kanban,
     /// A fishbone diagram: one effect and the categories of its causes on bones.
     Fishbone,
     /// A parliament: seats as dots in a semicircle, in blocks by party.
@@ -503,7 +576,7 @@ pub enum ChartType {
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 27] = [
+    pub const ALL: [Self; 36] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -520,7 +593,16 @@ impl ChartType {
         Self::Timeline,
         Self::Waterfall,
         Self::Waffle,
+        Self::Funnel,
+        Self::Radar,
+        Self::Polar,
+        Self::Mosaic,
         Self::Heatmap,
+        Self::Venn,
+        Self::Valuemap,
+        Self::Journey,
+        Self::Storymap,
+        Self::Kanban,
         Self::Fishbone,
         Self::Parliament,
         Self::Treemap,
@@ -795,6 +877,16 @@ impl ChartSpec {
     /// the versioned specification. Like every other error, both carry a JSON Pointer path; a
     /// syntax error points at the document root and names line and column in its message.
     pub fn from_json(input: &str) -> Result<Self, ChartError> {
+        if input.len() > MAX_SPEC_BYTES {
+            return Err(ChartError::new(
+                "spec_too_large",
+                "/",
+                format!(
+                    "the specification is {} bytes; at most {MAX_SPEC_BYTES} (4 MiB) are read. The largest figure at the declared limits is far smaller; remove padding, or split the data over several charts",
+                    input.len()
+                ),
+            ));
+        }
         let mut spec: Self = serde_json::from_str(input).map_err(|error: serde_json::Error| {
             let (code, (path, message)) = match error.classify() {
                 serde_json::error::Category::Syntax | serde_json::error::Category::Eof => {
@@ -869,7 +961,16 @@ impl ChartSpec {
             ChartType::Treemap => self.validate_treemap(),
             ChartType::Parliament => self.validate_parliament(),
             ChartType::Waffle => self.validate_waffle(),
+            ChartType::Funnel => self.validate_funnel(),
+            ChartType::Radar => self.validate_radar(),
+            ChartType::Polar => self.validate_polar(),
+            ChartType::Mosaic => self.validate_mosaic(),
             ChartType::Heatmap => self.validate_heatmap(),
+            ChartType::Venn => self.validate_venn(),
+            ChartType::Valuemap => self.validate_valuemap(),
+            ChartType::Journey => self.validate_journey(),
+            ChartType::Storymap => self.validate_storymap(),
+            ChartType::Kanban => self.validate_kanban(),
             ChartType::Fishbone => self.validate_fishbone(),
             ChartType::Waterfall => self.validate_waterfall(),
             ChartType::Network => self.validate_network(),
@@ -907,7 +1008,16 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Treemap => "treemap",
         ChartType::Parliament => "parliament",
         ChartType::Waffle => "waffle",
+        ChartType::Funnel => "funnel",
+        ChartType::Radar => "radar",
+        ChartType::Polar => "polar",
+        ChartType::Mosaic => "mosaic",
         ChartType::Heatmap => "heatmap",
+        ChartType::Venn => "venn",
+        ChartType::Valuemap => "valuemap",
+        ChartType::Journey => "journey",
+        ChartType::Storymap => "storymap",
+        ChartType::Kanban => "kanban",
         ChartType::Fishbone => "fishbone",
         ChartType::Waterfall => "waterfall",
         ChartType::Network => "network",

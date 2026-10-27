@@ -54,7 +54,16 @@ impl ChartSpec {
             | ChartType::Timeline
             | ChartType::Waterfall
             | ChartType::Waffle
+            | ChartType::Funnel
+            | ChartType::Radar
+            | ChartType::Polar
+            | ChartType::Mosaic
             | ChartType::Heatmap
+            | ChartType::Venn
+            | ChartType::Valuemap
+            | ChartType::Journey
+            | ChartType::Storymap
+            | ChartType::Kanban
             | ChartType::Fishbone
             | ChartType::Parliament
             | ChartType::Treemap
@@ -374,7 +383,16 @@ impl ChartSpec {
             | ChartType::Tree
             | ChartType::Timeline
             | ChartType::Waffle
+            | ChartType::Funnel
+            | ChartType::Radar
+            | ChartType::Polar
+            | ChartType::Mosaic
             | ChartType::Heatmap
+            | ChartType::Venn
+            | ChartType::Valuemap
+            | ChartType::Journey
+            | ChartType::Storymap
+            | ChartType::Kanban
             | ChartType::Fishbone
             | ChartType::Parliament
             | ChartType::Treemap
@@ -441,7 +459,16 @@ impl ChartSpec {
             | ChartType::Tree
             | ChartType::Timeline
             | ChartType::Waffle
+            | ChartType::Funnel
+            | ChartType::Radar
+            | ChartType::Polar
+            | ChartType::Mosaic
             | ChartType::Heatmap
+            | ChartType::Venn
+            | ChartType::Valuemap
+            | ChartType::Journey
+            | ChartType::Storymap
+            | ChartType::Kanban
             | ChartType::Fishbone
             | ChartType::Parliament
             | ChartType::Treemap

@@ -452,6 +452,62 @@ const catalogue = [
       'From revenue to operating profit in eight steps: a start bar, costs that take the running total down, a license income that lifts it, and two totals. A dashed line carries the total from bar to bar; every change is written with its sign. The table gives the change and the total after each step. Illustrative figures, with a phone variant.',
   },
   {
+    slug: 'checkout-funnel',
+    group: 'Parts of a whole',
+    chart: 'Funnel chart',
+    useCase: 'Find where visitors drop out',
+    blurb:
+      'Five stages from a visit to an order as centered bars as wide as their values, with the share of the stage before that remains written between the bars. Labels stand left and values right of the bars, the description names the biggest drop, and the table has value, share and rate for every stage. Illustrative shop data, with a phone variant.',
+  },
+  {
+    slug: 'support-tiers',
+    group: 'Parts of a whole',
+    chart: 'Pyramid chart',
+    useCase: 'Rank levels of an organization',
+    blurb:
+      'Four levels of a support organization, the narrowest at the top, with the headcount of each written beside it. The triangle ranks the levels and does not measure them; the table gives the position and the value of each. Illustrative figures, with a phone variant.',
+  },
+  {
+    slug: 'framework-profile',
+    group: 'Ranges and distributions',
+    chart: 'Radar chart',
+    useCase: 'Compare profiles on several measures',
+    blurb:
+      'Two storage engines on six measures, each a closed polygon with a marker on every value: a solid line and a dashed one, so that color is not the only cue. Four grid rings carry their values along the first axis, and the description names the strongest and the weakest measure of each engine. Illustrative scores, with a phone variant.',
+  },
+  {
+    slug: 'monthly-rainfall',
+    group: 'Ranges and distributions',
+    chart: 'Polar chart',
+    useCase: 'Show a yearly cycle',
+    blurb:
+      'Rainfall of twelve months as wedges around a center: January at the top, the others clockwise, the distance from the center is the amount and zero is the center. Four rings carry their values, the month names stand outside, and the table has every month. Illustrative totals, with a phone variant.',
+  },
+  {
+    slug: 'wind-directions',
+    group: 'Ranges and distributions',
+    chart: 'Polar chart (lollipops)',
+    useCase: 'Show where it blows from',
+    blurb:
+      'The share of hours a year that the wind blows from each of eight directions, as lollipops from the center: a line and a dot, so that the long southwest and west arms stand out. The description names the highest and the lowest direction. Illustrative shares, with a phone variant.',
+  },
+  {
+    slug: 'market-by-region',
+    group: 'Parts of a whole',
+    chart: 'Mosaic chart',
+    useCase: 'See two shares at once',
+    blurb:
+      'Revenue by region and product: the width of a column is the region\'s share of the whole and the segments split it by product, in one color per product across all regions. Shares are written into the segments, the totals under the columns, and the table has both levels. Illustrative revenue, with a phone variant.',
+  },
+  {
+    slug: 'product-portfolio',
+    group: 'Ranges and distributions',
+    chart: 'Bubble chart',
+    useCase: 'Weigh growth, margin and revenue',
+    blurb:
+      'Seven products on market growth and operating margin, the area of each bubble proportional to its revenue, in one color per product family. A row of three reference circles under the title is the size legend, the revenue is written into every bubble that has room for it, and the table has a column for it. Illustrative figures, with a phone variant.',
+  },
+  {
     slug: 'energy-sources',
     group: 'Parts of a whole',
     chart: 'Waffle chart',
@@ -891,6 +947,53 @@ const catalogue = [
       'Five steps on a ring with numbered dots and their labels outside, and a hub in the middle that every step feeds through a dotted link with a label of its own. In the HTML profile each step is a focus link that keeps its neighbours and the hub and dims the rest. The description names the hub and every link label. With a phone variant. Illustrative steps.',
   },
   {
+    slug: 'sprint-board',
+    group: 'Outlines and boards',
+    chart: 'Kanban board',
+    useCase: 'Show work by state',
+    blurb:
+      'Four states of a small team\'s sprint: cards with owner and tag, a column over its work-in-progress limit (3/2) marked with a sign and a dashed outline, and a blocked card with its own sign. On a phone the columns stand one under the other. The description counts cards per column and names the blocked ones. Illustrative board, with a phone variant.',
+  },
+  {
+    slug: 'shop-story-map',
+    group: 'Outlines and boards',
+    chart: 'Story map',
+    useCase: 'Plan releases from the user\'s view',
+    blurb:
+      'Three activities of an online shop, six user tasks and eleven stories in three release slices, each opened by a dashed cut line named MVP, Release 2 and Later. On a phone the map becomes a list with the release beside each story. The table lists every story by activity, task and release. Illustrative backlog, with a phone variant.',
+  },
+  {
+    slug: 'customer-support-journey',
+    group: 'Outlines and boards',
+    chart: 'User journey',
+    useCase: 'Follow a customer through stages',
+    blurb:
+      'Five stages of a customer who asks for help: actions, touchpoints and thoughts in rows, and a sentiment line from -2 to 2 with every value written beside its dot. The description walks through the stages and the table has a row for each. On a phone every stage is a block of its own. Illustrative journey, with a phone variant.',
+  },
+  {
+    slug: 'support-blueprint',
+    group: 'Outlines and boards',
+    chart: 'Service blueprint',
+    useCase: 'Show the service behind the journey',
+    blurb:
+      'The same kind of support request as a service blueprint: the customer\'s rows above the line of interaction, the frontstage between it and the line of visibility, and the backstage and support systems below. Illustrative blueprint, with a phone variant.',
+  },
+  {
+    slug: 'coffee-shop-chain',
+    group: 'Outlines and boards',
+    chart: 'Value chain map',
+    useCase: 'Show what a service depends on and where it is going',
+    blurb:
+      'Nine components of an online coffee shop from the user\'s need down to hosting: positions from the specification on a visibility and evolution plane with four named stages, dependency lines, two dashed arrows for planned movement and an inertia bar on roasting. The description lists the components from the most visible down. Illustrative map, with a phone variant.',
+  },
+  {
+    slug: 'team-skills',
+    group: 'Outlines and boards',
+    chart: 'Venn diagram',
+    useCase: 'Show what sets share',
+    blurb:
+      'Three skills of a product team of 24 as circles at fixed places, each of the seven regions with a label and a count. Text stays inside where it fits and moves to a leader line where it does not; the circles are named at their edge. The description and the table name every region. Illustrative survey, with a phone variant.',
+
     slug: 'platform-layers',
     group: 'Trees and networks',
     chart: 'Layer stack',

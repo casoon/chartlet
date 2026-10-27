@@ -456,6 +456,155 @@ one percent is read more easily than a pie.
   and lists every part with its value, share and squares; the table has a row for each, with the
   rest.
 
+## Funnels and pyramids
+
+`"type": "funnel"` shows stages that narrow, such as visits that become orders, as centered bars
+as wide as their values. `"display": "pyramid"` stacks ranked levels, the widest at the bottom.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "funnel",
+  "title": "From visit to order",
+  "funnel": {
+    "stages": [
+      { "label": "Visits", "value": 12400 },
+      { "label": "Added to cart", "value": 2100 },
+      { "label": "Orders", "value": 840 }
+    ]
+  }
+}
+```
+
+- **Funnel.** Every stage needs a value above zero. The bars are centered and never 3D; their width
+  follows the value, and the rate between two stages (the share of the stage before that remains)
+  stands in the gap, with a line below the chart that says so. Labels are left of the bars and
+  values right of them, so no text sits on a fill. A stage larger than the one before it is
+  reported as `stage_exceeds_previous`.
+- **Pyramid.** `"display": "pyramid"` draws the levels of a triangle, the first listed at the top.
+  The shape ranks the levels and does not measure them: values are optional (all levels or none)
+  and are written right of each level.
+- **Text alternative.** The description of a funnel gives both ends, the share that is left, every
+  stage with its rate and the biggest drop; the table has a row per stage with value, share of the
+  first stage and rate. A pyramid is described level by level from the top, and its table adds the
+  position and the value.
+
+## Radar charts
+
+`"type": "radar"` compares a few things on several measures at once: one axis per measure, drawn
+from the center like the spokes of a wheel, and one closed polygon per series.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "radar",
+  "title": "Two storage engines compared",
+  "radar": {
+    "axes": [
+      { "label": "Read speed", "max": 100 },
+      { "label": "Write speed", "max": 100 },
+      { "label": "Durability", "max": 100 }
+    ],
+    "series": [
+      { "name": "Engine A", "values": [92, 58, 74] },
+      { "name": "Engine B", "values": [64, 88, 90] }
+    ]
+  }
+}
+```
+
+- **Axes.** 3 to 16 axes, each from `min` (0 by default) at the center to `max` at the end. Without
+  `max` an axis ends at the next round step of the grid (such as 1, 2, 2.5, 4, 5, 6 or 8 times a
+  power of ten) above its largest value. A value outside its axis is refused, not clipped. Four grid rings mark equal
+  steps, with their values written along the first axis; the axis names stand outside the outer
+  ring.
+- **Series.** Up to four, each a closed polygon with a marker on every value. A series is told
+  apart by its dash pattern as well as its color, in the legend and on the chart.
+- **Readability.** More than 8 axes or 3 series draws, with the warning `dense_chart`: such a chart
+  is better as bars.
+- **Text alternative.** The description names the axes and, for every series, the axis where it
+  stands strongest and weakest (by the place of its value between the center and the end of its
+  axis); the table has a row per axis with its range and every value, and is always part of the
+  HTML output.
+
+## Polar charts
+
+`"type": "polar"` shows one value per category of a cycle (months, hours, directions): the angle is
+the category and the distance from the center is the value, drawn as wedges or as lollipops.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "polar",
+  "title": "Wind by direction",
+  "polar": {
+    "display": "lollipops",
+    "valueLabel": "Percent of hours",
+    "points": [
+      { "label": "N", "value": 6 },
+      { "label": "E", "value": 8 },
+      { "label": "S", "value": 11 },
+      { "label": "W", "value": 21 }
+    ]
+  }
+}
+```
+
+- **Angle and radius.** The first category is at the top and the others follow clockwise, each
+  taking an equal part of the circle. The radius is linear in the value, zero at the center, so a
+  value is never negative. Four rings carry their values along the top; `max` sets the outer ring,
+  by default the next round step of the grid above the largest value. Wedges grow in area with the square of the value; the rings and the table are what to
+  read the values from.
+- **Display.** `"display": "bars"` (default) draws a wedge from the center to the value,
+  `"lollipops"` a line with a dot at its end.
+- **Names.** Category names stand outside the outer ring. A name that would run into the one before
+  it is left out (`labels_omitted`); with 12 or fewer categories all of them fit at 600 px.
+- **Text alternative.** The description lists the categories in order with the highest and the lowest
+  and the outer ring; the table has a row per category.
+
+## Mosaic charts
+
+`"type": "mosaic"` (a Marimekko chart) shows two shares at once: the width of a column is its share
+of the whole, and its segments split the column by their share, such as revenue by region and
+product.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "mosaic",
+  "title": "Revenue by region and product",
+  "mosaic": {
+    "columns": [
+      {
+        "label": "Europe",
+        "segments": [
+          { "label": "Hardware", "value": 120 },
+          { "label": "Software", "value": 180 }
+        ]
+      },
+      {
+        "label": "Asia",
+        "segments": [
+          { "label": "Hardware", "value": 140 },
+          { "label": "Software", "value": 60 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+- **Columns and segments.** Up to 12 columns; the width of a column is its sum over the sum of all
+  columns, and a segment's height is its share of its column. Segments of one label share a color
+  across the columns, up to four different labels, listed in a legend in the order they first
+  appear; every column stacks them in that order, and leaves a missing one out.
+- **Labels.** Each segment that is large enough writes its share of the column; the name of each
+  column stands under it with its total and its share of the whole where they fit. A name wider than
+  its column is shortened with a `text_truncated` warning.
+- **Text alternative.** The description gives every column's share of the whole and each segment's
+  share of its column; the table has a row per segment with its value, its share of the column and
+  its share of the whole, and a total row per column.
+
 ## Heatmaps
 
 `"type": "heatmap"` shows values, or categories, in a grid of rows and columns: a response time by
@@ -711,6 +860,14 @@ any cloud of observations — with groups, threshold lines and names on the poin
   reported as `quadrant_without_room`. The description names the points of every area, and the
   data table gains a Quadrant column; a point on a dividing line belongs to no area and is said to
   be on it.
+- **Bubble size.** `size` on every point (or none, `missing_size`) makes the area of the point
+  proportional to a third value above zero: the largest size has the largest bubble and a size a
+  quarter as large a bubble half as wide. Bubbles are drawn from the largest to the smallest, with
+  a ring in the color of the ground between them, and the plot leaves room for the largest. A row
+  under the title shows the size legend, three circles of round reference sizes with their values,
+  headed by `sizeTitle` (default the word for a size). The value is written into a bubble that is
+  wide enough for it, so size is never the only channel: the tooltip, the description (range and
+  largest point) and an extra column of the data table have it too.
 - **Names.** A point with a `label` gets its name beside it, in the order of the list; a name that
   would run over one already written is left out (`value_labels_omitted`).
 - **Many points.** Up to 300 points have a tooltip each; beyond that the dots are small and plain.
@@ -1740,6 +1897,10 @@ flywheel. An optional hub in the middle is what the steps feed.
 
 Limits: 3–8 steps (`too_few_steps`, `too_many_steps`), unique ids (`duplicate_id`).
 
+## Kanban boards
+
+`"type": "kanban"` shows work by state: columns, each with its cards.
+
 ## Layers
 
 `"type": "layers"` draws abstraction levels stacked on each other, or scopes drawn inside each
@@ -1748,6 +1909,21 @@ other: the layers of a software stack, the levels of a model, organization ⊃ t
 ```json
 {
   "schemaVersion": 1,
+  "type": "kanban",
+  "title": "Sprint board",
+  "kanban": {
+    "columns": [
+      { "label": "To do", "cards": [{ "title": "Export as CSV", "tag": "Feature" }] },
+      {
+        "label": "In progress",
+        "limit": 2,
+        "cards": [
+          { "title": "Single sign-on", "owner": "Mara", "tag": "Feature" },
+          { "title": "Duplicate email on signup", "owner": "Jonas", "tag": "Bug", "blocked": true }
+        ]
+      },
+      { "label": "Done" }
+
   "type": "layers",
   "title": "A web application, from the machine up",
   "layers": {
@@ -1759,6 +1935,167 @@ other: the layers of a software stack, the levels of a model, organization ⊃ t
   }
 }
 ```
+
+- **Columns.** One to six, each with up to 20 cards and unique labels. A `limit` (at least 1) is the
+  most cards the column should hold: its count is written as `3/4`. A column that holds more is
+  marked with its own dashed outline, a warning sign and a red count, so that the state does not
+  rest on color.
+- **Cards.** A `title`, and optionally an `owner`, a `tag` (drawn as a chip) and `blocked`: a
+  blocked card has a red outline, a sign and the word "Blocked".
+- **Layout.** Columns stand side by side where each is at least 150 pixels wide, and one under the
+  other on a narrower canvas, such as the phone variant.
+- **Text alternative.** The description counts the cards of every column, says which are over
+  their limit and names the blocked cards with their columns; the table has a row for every card
+  with its column, the load of the column, owner, tag and status.
+
+## Story maps
+
+`"type": "storymap"` lays out a product backlog as a map: the activities of a user across the top, the
+tasks under each, and below them the stories in release slices.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "storymap",
+  "title": "Story map of an online shop",
+  "storymap": {
+    "releases": ["MVP", "Release 2"],
+    "activities": [
+      {
+        "label": "Find a product",
+        "tasks": [
+          {
+            "label": "Search",
+            "stories": [
+              { "title": "Search by name", "release": "MVP" },
+              { "title": "Suggest while typing", "release": "Release 2" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+- **Backbone.** Up to eight activities, each spanning the columns of its tasks (16 tasks in all).
+- **Slices.** `releases` (up to five) are the slices from the top down. Each starts with a dashed
+  cut line that carries its name; a story names its release and stands under its task in that
+  slice.
+- **Narrow canvases.** Where the tasks would be narrower than 110 pixels the map reads as a list:
+  each activity, its tasks, and under each task its stories with the release written beside them.
+- **Text alternative.** The description gives the size of the map and then, for each activity, its
+  tasks with their stories by release; the table has a row for every story with its activity, task
+  and release, and one for a task without stories.
+
+## User journeys and service blueprints
+
+`"type": "journey"` follows a customer through stages: what they do, where, what they think and how
+they feel. `"display": "blueprint"` adds the service behind it.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "journey",
+  "title": "A customer asks for help",
+  "journey": {
+    "stages": [
+      { "label": "Notice", "action": "Cannot export a report", "touchpoint": "Product", "sentiment": -1 },
+      { "label": "Contact", "action": "Opens a chat", "touchpoint": "Chat widget", "sentiment": 0 },
+      { "label": "Solved", "action": "Follows the steps", "thought": "That was simple", "sentiment": 2 }
+    ]
+  }
+}
+```
+
+- **Stages.** Two to eight columns. Rows of `action`, `touchpoint` and `thought` text (up to 160
+  characters each) appear where some stage fills them; a row no stage fills is left out.
+- **Sentiment.** A whole number from -2 to 2 per stage, drawn as a line over the five levels with
+  every value written beside its dot, so that the feeling is never only a position or a color. A
+  stage without a value breaks the line.
+- **Blueprint.** With `"display": "blueprint"` the stages also take `frontstage`, `backstage` and
+  `support`: the customer's rows stand above the line of interaction, the frontstage between it and
+  the line of visibility, and the backstage and support below that. These fields are refused
+  without `"display": "blueprint"` (`option_not_supported`).
+- **Narrow canvases.** Where each stage would be narrower than 100 pixels, every stage is a block of
+  its own from top to bottom, with the sentiment as five steps and its value.
+- **Text alternative.** The description walks through the stages and what is said of each; the table
+  has one row per stage and a column for every row drawn.
+
+## Value chain maps
+
+`"type": "valuemap"` places the components of a service by how visible they are to the user (up) and
+how far they have evolved (right), with their dependencies and where each is going.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "valuemap",
+  "title": "Value chain of an online shop",
+  "valuemap": {
+    "components": [
+      { "id": "customer", "label": "Coffee at home", "visibility": 0.97, "evolution": 0.62 },
+      { "id": "shop", "label": "Web shop", "visibility": 0.84, "evolution": 0.55 },
+      { "id": "recommend", "label": "Taste matching", "visibility": 0.58, "evolution": 0.12,
+        "movesTo": { "evolution": 0.34 } },
+      { "id": "hosting", "label": "Hosting", "visibility": 0.16, "evolution": 0.93 }
+    ],
+    "dependencies": [
+      { "from": "customer", "to": "shop" },
+      { "from": "shop", "to": "recommend" },
+      { "from": "shop", "to": "hosting" }
+    ]
+  }
+}
+```
+
+- **Positions.** `visibility` and `evolution` are numbers from 0 to 1 and are the specification's
+  own: chartlet does not compute them. The x axis has four stages with their names written under
+  them: genesis (from 0), custom (from 0.17), product (from 0.4) and commodity (from 0.7).
+- **Dependencies.** `from` needs `to`; each is a line between the two dots.
+- **Movement.** `movesTo` gives where a component is expected to go: a dashed arrow to a hollow
+  dot at a greater evolution, optionally with another visibility.
+- **Inertia.** `"inertia": true` marks a component something holds back with a bar beside its dot.
+- **Labels.** Each label stands to the right of its dot, or to the left, above or below where
+  something else would be covered; the canvas has room for up to 40 components.
+- **Text alternative.** The description lists the components from the most visible down with their
+  visibility, stage, movement and inertia, and then the dependencies; the table has a row for each
+  component.
+
+## Venn diagrams
+
+`"type": "venn"` shows how two or three sets overlap: circles at fixed places, with a label and a
+count for each region.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "venn",
+  "title": "Where the team's skills overlap",
+  "venn": {
+    "sets": ["Design", "Engineering"],
+    "regions": [
+      { "sets": ["Design"], "label": "Visual design only", "count": 3 },
+      { "sets": ["Design", "Engineering"], "label": "Prototyping", "count": 4 },
+      { "sets": ["Engineering"], "label": "Engineering only", "count": 9 }
+    ]
+  }
+}
+```
+
+- **Sets.** Two or three, with unique names. More are refused (`too_many_sets`): circles cannot
+  overlap in every combination of four sets.
+- **Regions.** A region is named by the sets it lies in: `["Design"]` is the part of Design that
+  lies in no other set, `["Design", "Engineering"]` the overlap of those two and no third. Each
+  takes an optional `label` and `count`; a region that is not listed stays empty. A region is given
+  once (`duplicate_region`).
+- **Layout.** The circles stand at fixed places, equal in size: the diagram shows which regions
+  exist, not how large they are. A label and its count sit inside their region where they fit.
+  Otherwise they stand beside the diagram, on the left or the right, joined to the region by a
+  line that ends in a dot. Each circle is named at its outer edge.
+- **Text alternative.** The description names the sets and every region the specification says
+  something about, and the table has a row for each of the two to seven regions, with its label
+  and count where it has them.
 
 - **Stack** (`"display": "stack"`, the default). The layers are listed from the bottom up: the
   first stands at the bottom, the last on top. Every layer is a band with its label and, below it,

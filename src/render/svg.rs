@@ -114,10 +114,14 @@ pub(crate) fn svg(
         escape(description),
     )
     .expect("writing to String cannot fail");
-    if !stylesheet.is_empty() || !tokens.is_empty() {
+    let typography = spec
+        .typography
+        .as_ref()
+        .map_or_else(String::new, |typography| typography.css(id_prefix));
+    if !stylesheet.is_empty() || !tokens.is_empty() || !typography.is_empty() {
         write!(
             output,
-            "<style>{}{tokens}</style>",
+            "<style>{}{tokens}{typography}</style>",
             scope_stylesheet(&stylesheet, &format!("#{id_prefix}"), print),
         )
         .expect("writing to String cannot fail");

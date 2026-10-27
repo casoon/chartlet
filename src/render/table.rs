@@ -95,6 +95,7 @@ pub(super) fn render_data_table(
 
 /// The data table of a chart as text: its caption, the column heads and one row per category,
 /// each starting with the category, with values written as the chart writes them.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     match spec.chart_type {
         ChartType::Sequence => return crate::sequence::data_table(spec),
@@ -113,7 +114,16 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Treemap => return crate::treemap::data_table(spec),
         ChartType::Parliament => return crate::parliament::data_table(spec),
         ChartType::Waffle => return crate::waffle::data_table(spec),
+        ChartType::Funnel => return crate::funnel::data_table(spec),
+        ChartType::Radar => return crate::radar::data_table(spec),
+        ChartType::Polar => return crate::polar::data_table(spec),
+        ChartType::Mosaic => return crate::mosaic::data_table(spec),
         ChartType::Heatmap => return crate::heatmap::data_table(spec),
+        ChartType::Venn => return crate::venn::data_table(spec),
+        ChartType::Valuemap => return crate::valuemap::data_table(spec),
+        ChartType::Journey => return crate::journey::data_table(spec),
+        ChartType::Storymap => return crate::storymap::data_table(spec),
+        ChartType::Kanban => return crate::kanban::data_table(spec),
         ChartType::Fishbone => return crate::fishbone::data_table(spec),
         ChartType::Waterfall => return crate::waterfall::data_table(spec),
         _ => {}
@@ -145,7 +155,16 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Timeline
         | ChartType::Waterfall
         | ChartType::Waffle
+        | ChartType::Funnel
+        | ChartType::Radar
+        | ChartType::Polar
+        | ChartType::Mosaic
         | ChartType::Heatmap
+        | ChartType::Venn
+        | ChartType::Valuemap
+        | ChartType::Journey
+        | ChartType::Storymap
+        | ChartType::Kanban
         | ChartType::Fishbone
         | ChartType::Parliament
         | ChartType::Treemap

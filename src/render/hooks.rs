@@ -92,6 +92,7 @@ pub(super) struct TableHooks {
     pub(super) values: Vec<Vec<Option<f64>>>,
 }
 
+#[allow(clippy::too_many_lines)]
 pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
     // A diagram's table holds text only: its columns belong to no series and its rows carry no
     // values.
@@ -113,7 +114,16 @@ pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Treemap
             | ChartType::Parliament
             | ChartType::Waffle
+            | ChartType::Funnel
+            | ChartType::Radar
+            | ChartType::Polar
+            | ChartType::Mosaic
             | ChartType::Heatmap
+            | ChartType::Venn
+            | ChartType::Valuemap
+            | ChartType::Journey
+            | ChartType::Storymap
+            | ChartType::Kanban
             | ChartType::Fishbone
             | ChartType::Waterfall
     ) {

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "type": "journey",
+  "title": "Service blueprint of a support request",
+  "source": "Illustrative blueprint of a software subscription's support",
+  "width": 960,
+  "height": 640,
+  "mobile": {
+    "width": 380,
+    "height": 1300
+  },
+  "journey": {
+    "display": "blueprint",
+    "stages": [
+      {
+        "label": "Ask",
+        "action": "Opens a chat and describes the problem",
+        "touchpoint": "Chat widget",
+        "sentiment": -1,
+        "frontstage": "Greets the customer and asks for the account",
+        "backstage": "Routes the chat by product and language",
+        "support": "Chat platform, customer database"
+      },
+      {
+        "label": "Solve",
+        "action": "Follows the steps",
+        "touchpoint": "Chat, email",
+        "sentiment": 1,
+        "frontstage": "Sends the steps and checks that they worked",
+        "backstage": "Files a bug when the cause is the product",
+        "support": "Knowledge base, issue tracker"
+      },
+      {
+        "label": "Close",
+        "action": "Rates the conversation",
+        "touchpoint": "Email survey",
+        "sentiment": 2,
+        "frontstage": "Thanks the customer and closes the chat",
+        "backstage": "Tags the conversation, updates the article",
+        "support": "Survey tool, knowledge base"
+      }
+    ]
+  }
+}

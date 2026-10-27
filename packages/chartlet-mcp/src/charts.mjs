@@ -22,11 +22,14 @@ import { NO_THEME_NOTE, readProjectTheme } from "./theme.mjs";
  * @param {SpecInput} spec
  * @returns {Validation}
  */
-export function validateSpec(spec) {
-  const result = renderChartDetailed(spec, { format: "html", manifest: false });
-  return result.ok
-    ? { ok: true, warnings: result.warnings }
-    : { ok: false, error: result.error, warnings: result.warnings };
+export function validateSpec(spec, { advice = false } = {}) {
+  const result = renderChartDetailed(spec, { format: "html", manifest: false, advice });
+  if (!result.ok) {
+    return { ok: false, error: result.error, warnings: result.warnings };
+  }
+  return result.help?.length
+    ? { ok: true, warnings: result.warnings, help: result.help }
+    : { ok: true, warnings: result.warnings };
 }
 
 /**

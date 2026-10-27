@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "type": "polar",
+  "title": "Wind by direction",
+  "source": "Illustrative share of hours per year the wind blows from each direction",
+  "width": 640,
+  "height": 480,
+  "polar": {
+    "display": "lollipops",
+    "valueLabel": "Percent of hours",
+    "points": [
+      { "label": "N", "value": 6 },
+      { "label": "NE", "value": 9 },
+      { "label": "E", "value": 8 },
+      { "label": "SE", "value": 7 },
+      { "label": "S", "value": 11 },
+      { "label": "SW", "value": 24 },
+      { "label": "W", "value": 21 },
+      { "label": "NW", "value": 14 }
+    ]
+  },
+  "mobile": { "width": 380, "height": 420 }
+}

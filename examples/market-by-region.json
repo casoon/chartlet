@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "type": "mosaic",
+  "title": "Revenue by region and product",
+  "source": "Illustrative revenue in million euros",
+  "width": 760,
+  "height": 460,
+  "mosaic": {
+    "columns": [
+      {
+        "label": "Europe",
+        "segments": [
+          { "label": "Hardware", "value": 120 },
+          { "label": "Software", "value": 180 },
+          { "label": "Services", "value": 100 }
+        ]
+      },
+      {
+        "label": "North America",
+        "segments": [
+          { "label": "Hardware", "value": 90 },
+          { "label": "Software", "value": 210 },
+          { "label": "Services", "value": 150 }
+        ]
+      },
+      {
+        "label": "Asia",
+        "segments": [
+          { "label": "Hardware", "value": 140 },
+          { "label": "Software", "value": 60 },
+          { "label": "Services", "value": 40 }
+        ]
+      },
+      {
+        "label": "Other",
+        "segments": [
+          { "label": "Hardware", "value": 60 },
+          { "label": "Software", "value": 50 },
+          { "label": "Services", "value": 40 }
+        ]
+      }
+    ]
+  },
+  "mobile": { "width": 380, "height": 460 }
+}

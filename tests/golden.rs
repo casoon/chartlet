@@ -335,6 +335,41 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/support-rank.svg"),
     ),
     (
+        "checkout-funnel",
+        include_str!("../examples/checkout-funnel.json"),
+        include_str!("../examples/checkout-funnel.svg"),
+    ),
+    (
+        "support-tiers",
+        include_str!("../examples/support-tiers.json"),
+        include_str!("../examples/support-tiers.svg"),
+    ),
+    (
+        "framework-profile",
+        include_str!("../examples/framework-profile.json"),
+        include_str!("../examples/framework-profile.svg"),
+    ),
+    (
+        "monthly-rainfall",
+        include_str!("../examples/monthly-rainfall.json"),
+        include_str!("../examples/monthly-rainfall.svg"),
+    ),
+    (
+        "wind-directions",
+        include_str!("../examples/wind-directions.json"),
+        include_str!("../examples/wind-directions.svg"),
+    ),
+    (
+        "market-by-region",
+        include_str!("../examples/market-by-region.json"),
+        include_str!("../examples/market-by-region.svg"),
+    ),
+    (
+        "product-portfolio",
+        include_str!("../examples/product-portfolio.json"),
+        include_str!("../examples/product-portfolio.svg"),
+    ),
+    (
         "election-result",
         include_str!("../examples/election-result.json"),
         include_str!("../examples/election-result.svg"),
@@ -525,6 +560,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/payment-notes.svg"),
     ),
     (
+        "brand-typography",
+        include_str!("../examples/brand-typography.json"),
+        include_str!("../examples/brand-typography.svg"),
+    ),
+    (
         "delivery-delays",
         include_str!("../examples/delivery-delays.json"),
         include_str!("../examples/delivery-delays.svg"),
@@ -553,6 +593,36 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         "topic-streams",
         include_str!("../examples/topic-streams.json"),
         include_str!("../examples/topic-streams.svg"),
+    ),
+    (
+        "team-skills",
+        include_str!("../examples/team-skills.json"),
+        include_str!("../examples/team-skills.svg"),
+    ),
+    (
+        "sprint-board",
+        include_str!("../examples/sprint-board.json"),
+        include_str!("../examples/sprint-board.svg"),
+    ),
+    (
+        "shop-story-map",
+        include_str!("../examples/shop-story-map.json"),
+        include_str!("../examples/shop-story-map.svg"),
+    ),
+    (
+        "customer-support-journey",
+        include_str!("../examples/customer-support-journey.json"),
+        include_str!("../examples/customer-support-journey.svg"),
+    ),
+    (
+        "support-blueprint",
+        include_str!("../examples/support-blueprint.json"),
+        include_str!("../examples/support-blueprint.svg"),
+    ),
+    (
+        "coffee-shop-chain",
+        include_str!("../examples/coffee-shop-chain.json"),
+        include_str!("../examples/coffee-shop-chain.svg"),
     ),
     (
         "platform-layers",
@@ -657,6 +727,41 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "support-rank",
         include_str!("../examples/support-rank.json"),
         include_str!("../examples/support-rank.mobile.svg"),
+    ),
+    (
+        "checkout-funnel",
+        include_str!("../examples/checkout-funnel.json"),
+        include_str!("../examples/checkout-funnel.mobile.svg"),
+    ),
+    (
+        "support-tiers",
+        include_str!("../examples/support-tiers.json"),
+        include_str!("../examples/support-tiers.mobile.svg"),
+    ),
+    (
+        "framework-profile",
+        include_str!("../examples/framework-profile.json"),
+        include_str!("../examples/framework-profile.mobile.svg"),
+    ),
+    (
+        "monthly-rainfall",
+        include_str!("../examples/monthly-rainfall.json"),
+        include_str!("../examples/monthly-rainfall.mobile.svg"),
+    ),
+    (
+        "wind-directions",
+        include_str!("../examples/wind-directions.json"),
+        include_str!("../examples/wind-directions.mobile.svg"),
+    ),
+    (
+        "market-by-region",
+        include_str!("../examples/market-by-region.json"),
+        include_str!("../examples/market-by-region.mobile.svg"),
+    ),
+    (
+        "product-portfolio",
+        include_str!("../examples/product-portfolio.json"),
+        include_str!("../examples/product-portfolio.mobile.svg"),
     ),
     (
         "election-result",
@@ -787,6 +892,36 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "topic-streams",
         include_str!("../examples/topic-streams.json"),
         include_str!("../examples/topic-streams.mobile.svg"),
+    ),
+    (
+        "team-skills",
+        include_str!("../examples/team-skills.json"),
+        include_str!("../examples/team-skills.mobile.svg"),
+    ),
+    (
+        "sprint-board",
+        include_str!("../examples/sprint-board.json"),
+        include_str!("../examples/sprint-board.mobile.svg"),
+    ),
+    (
+        "shop-story-map",
+        include_str!("../examples/shop-story-map.json"),
+        include_str!("../examples/shop-story-map.mobile.svg"),
+    ),
+    (
+        "customer-support-journey",
+        include_str!("../examples/customer-support-journey.json"),
+        include_str!("../examples/customer-support-journey.mobile.svg"),
+    ),
+    (
+        "support-blueprint",
+        include_str!("../examples/support-blueprint.json"),
+        include_str!("../examples/support-blueprint.mobile.svg"),
+    ),
+    (
+        "coffee-shop-chain",
+        include_str!("../examples/coffee-shop-chain.json"),
+        include_str!("../examples/coffee-shop-chain.mobile.svg"),
     ),
     (
         "platform-layers",

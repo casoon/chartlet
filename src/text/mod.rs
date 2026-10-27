@@ -14,13 +14,15 @@ pub(crate) use architecture::{
 };
 pub(crate) use charts::{
     CandleSummary, areas, axis_noun, bands, calendar_opening, candle_values, candles,
-    categories_opening, diverging_scale, dumbbell_note, equal_values, error_bars, gaps_collapsed,
-    heatmap_categories, heatmap_values, missing_values, modeled_ranges, multiples_opening,
+    categories_opening, diverging_scale, dumbbell_note, equal_values, error_bars, funnel_note,
+    funnel_summary, gaps_collapsed, heatmap_categories, heatmap_values, missing_values,
+    modeled_ranges, mosaic_summary, mosaic_tooltip, multiples_opening, of_previous_stage,
     panel_bars_opening, panel_notes, panes, parliament_coalition, parliament_summary, percent_done,
-    range_groups, rangebar_opening, rank_summary, sankey_summary, series_at, slope_summary,
-    stacked_areas, stacked_shares, stacked_totals, stripes_opening, summary_ranges, time_opening,
-    timeline_item, timeline_markers, timeline_opening, treemap_summary, waffle_summary,
-    waterfall_summary, weighted_ranges, years_without_value, zone_times, zone_values,
+    polar_summary, pyramid_summary, radar_series, radar_summary, range_groups, rangebar_opening,
+    rank_summary, sankey_summary, scatter_sizes, series_at, slope_summary, stacked_areas,
+    stacked_shares, stacked_totals, stripes_opening, summary_ranges, time_opening, timeline_item,
+    timeline_markers, timeline_opening, treemap_summary, waffle_summary, waterfall_summary,
+    weighted_ranges, years_without_value, zone_times, zone_values,
 };
 pub(crate) use diagrams::{
     bottlenecks, choices, closest_pair, composite, cycle_hub, cycle_opening, dendrogram_opening,
@@ -31,7 +33,7 @@ pub(crate) use diagrams::{
     sequence_opening, sinks, sources, state_opening, transition, tree_collapsed, tree_opening,
     tree_root, unconnected_parts,
 };
-pub(crate) use outlines::{FishboneRow, belongs_columns, fishbone_opening, fishbone_row};
+pub(crate) use outlines::*;
 pub(crate) use statistics::{
     box_display_note, boxplot_summary, on_dividing_line, points_above_line, quadrant_points,
     quadrant_position, quadrants_opening, scatter_caption, scatter_fit, scatter_summary,
@@ -161,6 +163,18 @@ pub(crate) struct Words {
     /// The columns of a heatmap's table.
     pub row: &'static str,
     pub column: &'static str,
+    /// The words of a funnel's table.
+    pub stage: &'static str,
+    pub rate: &'static str,
+    /// The columns of a radar chart's table.
+    pub axis: &'static str,
+    pub axis_range: &'static str,
+    /// The columns of a mosaic chart's table.
+    /// The name of the third value of a bubble chart.
+    pub size: &'static str,
+    pub segment: &'static str,
+    pub share_of_column: &'static str,
+    pub share_of_total: &'static str,
     /// The words of a parliament chart.
     pub party: &'static str,
     pub seats: &'static str,
@@ -287,6 +301,14 @@ const EN: Words = Words {
     rank: "Rank",
     row: "Row",
     column: "Column",
+    stage: "Stage",
+    rate: "Rate",
+    axis: "Axis",
+    axis_range: "Range",
+    size: "Size",
+    segment: "Segment",
+    share_of_column: "Share of column",
+    share_of_total: "Share of total",
     party: "Party",
     seats: "Seats",
     seat: "seat",
@@ -413,6 +435,14 @@ const DE: Words = Words {
     rank: "Rang",
     row: "Zeile",
     column: "Spalte",
+    stage: "Stufe",
+    rate: "Quote",
+    axis: "Achse",
+    axis_range: "Spanne",
+    size: "Größe",
+    segment: "Segment",
+    share_of_column: "Anteil an der Spalte",
+    share_of_total: "Anteil am Ganzen",
     party: "Partei",
     seats: "Sitze",
     seat: "Sitz",

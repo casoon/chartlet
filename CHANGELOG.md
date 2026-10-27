@@ -9,6 +9,88 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Venn diagrams:** `"type": "venn"` draws two or three sets as circles at fixed places, with a
+  label and a count for each region (`only A`, `A and B`, …); text sits inside where it fits and on
+  leader lines otherwise. More than three sets are refused. Details:
+  [Venn diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#venn-diagrams).
+
+- **Value chain maps:** `"type": "valuemap"` places components by visibility to the user (up) and
+  evolution (right, in the stages genesis, custom, product and commodity) at positions given in the
+  specification, with dependencies as lines, planned movement as dashed arrows and an inertia mark.
+  Details: [Value chain maps](https://casoon.github.io/chartlet/docs/guides/chart-types/#value-chain-maps).
+
+- **User journeys and service blueprints:** `"type": "journey"` follows a customer through stages with
+  rows of actions, touchpoints and thoughts and a sentiment line from -2 to 2 with every value
+  written; `"display": "blueprint"` adds the frontstage, backstage and support rows between the
+  lines of interaction and visibility. On a narrow canvas every stage is a block of its own.
+  Details: [User journeys and service blueprints](https://casoon.github.io/chartlet/docs/guides/chart-types/#user-journeys-and-service-blueprints).
+
+- **Story maps:** `"type": "storymap"` draws a backbone of activities, the user tasks under them and
+  the stories in release slices parted by labeled cut lines (`MVP`, `Release 2`); on a narrow
+  canvas it reads as a list with the release beside each story. The table lists every story by
+  activity, task and release. Details: [Story maps](https://casoon.github.io/chartlet/docs/guides/chart-types/#story-maps).
+
+- **Kanban boards:** `"type": "kanban"` draws the states of work as columns with cards. A column
+  can carry a limit, written as `3/4` and marked with a sign and its own outline when exceeded; a
+  card has an owner, a tag and a `blocked` sign. The description counts the cards per column and
+  names the blocked ones. Details:
+  [Kanban boards](https://casoon.github.io/chartlet/docs/guides/chart-types/#kanban-boards).
+- **Bubble size on scatter plots:** `size` on every point of a `scatter` chart makes the area of the
+  point proportional to a third value, with a size legend of three reference circles under the
+  title and the value written into the bubble where it fits; the tooltip, the description and the
+  data table have it as well. Details:
+  [Scatter plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#scatter-plots).
+
+- **Polar charts:** `"type": "polar"` draws one value per category of a cycle (months, hours,
+  directions) as wedges or lollipops around a center: the angle is the category, the distance the
+  value, zero at the center, with four rings that carry their values and the names outside.
+  Details: [Polar charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#polar-charts).
+
+- **Mosaic charts:** `"type": "mosaic"` (Marimekko) draws columns as wide as their share of the
+  whole, split by the share of their segments, with the shares written where they fit and the
+  column totals under the columns; the table has both levels. Details:
+  [Mosaic charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#mosaic-charts).
+
+- **Radar charts:** `"type": "radar"` draws 3 to 16 axes from the center, each with its own range, four
+  grid rings with their values, and up to four series as closed polygons with a marker on every
+  value, told apart by dash pattern as well as color. More than 8 axes or 3 series is reported as
+  hard to read; the description names the strongest and the weakest axis of each series. Details:
+  [Radar charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#radar-charts).
+
+- **Funnels and pyramids:** `"type": "funnel"` draws stages that narrow as centered bars as wide as
+  their values, with the rate between two stages; `"display": "pyramid"` stacks ranked levels, the
+  widest at the bottom, with optional values. The description names every stage, rate and the
+  biggest drop. Details:
+  [Funnels and pyramids](https://casoon.github.io/chartlet/docs/guides/chart-types/#funnels-and-pyramids).
+- **Documentation:** [Updating a diagram](https://casoon.github.io/chartlet/docs/reference/layout-stability/)
+  reports, measured on paired before/after diagrams, how much moves when a node or connection changes:
+  the order of the declarations is a layout input, so append new nodes and keep the existing order.
+  `scripts/layout-stability.mjs` reproduces it.
+
+- **Limits:** a specification of more than 4 MiB is refused with `spec_too_large` before it is parsed.
+  [Limits and performance](https://casoon.github.io/chartlet/docs/reference/limits/) lists what is
+  enforced and what is only advice, with measured render times, memory and output sizes, a
+  reproducible benchmark (`scripts/bench.mjs`) and budgets. The seeded diagram tests now also check
+  that everything is drawn on the canvas.
+
+- **Playground:** the site has a [playground](https://casoon.github.io/chartlet/playground/) that runs
+  the compiler as WebAssembly in the browser, with JSON and form editing, diagnostics at the field
+  they name, checked corrections, undo and download of the specification, SVG and HTML.
+
+- **Diagnostics:** `--advice` (CLI), `advice: true` (WebAssembly, MCP `chartlet_validate_spec`) and
+  `advise_json` (Rust) add structured help to `canvas_too_small` and `text_truncated`: the field,
+  the documentation and a layout correction the compiler checked by rendering it, as a JSON Patch
+  that is never applied for you. A correction of content is guidance without a patch. Details:
+  [Actionable diagnostics](https://casoon.github.io/chartlet/docs/guides/warnings-and-errors/#actionable-diagnostics).
+
+- **Brand typography:** `typography` names the font `family`, the `technicalFamily` for sublabels and a
+  `widthScale` the layout reserves for them, so a brand font no longer needs a color-only theme to
+  fit. `chartlet render --font brand.ttf` measures text with a font file you supply, `--embed-font`
+  carries it in the SVG and `--format png` rasterizes with it; nothing is fetched, and a family that
+  is only named is disclosed with `font_not_embedded`. Missing glyphs are listed as
+  `font_glyphs_missing`. Details:
+  [Typography](https://casoon.github.io/chartlet/docs/guides/customize/#typography).
+
 - **Fishbone diagrams:** `"type": "fishbone"` draws one effect at the head of a spine and up to six
   categories as bones above and below it, each with causes and sub-causes on horizontal lines;
   labels are never set on a diagonal. The description and the table list the effect, the
