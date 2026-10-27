@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "type": "layers",
+  "title": "The layers of the platform, from the machine up",
+  "source": "Platform team, architecture overview",
+  "width": 860,
+  "height": 600,
+  "mobile": { "width": 360, "height": 640 },
+  "layers": {
+    "layers": [
+      {
+        "id": "infrastructure",
+        "label": "Infrastructure",
+        "items": ["Compute", "Storage", "Network"],
+        "note": "Rented from one provider; capacity is changed by the platform team only."
+      },
+      {
+        "id": "runtime",
+        "label": "Runtime and data",
+        "items": ["Containers", "Message broker", "Relational database", "Object store"]
+      },
+      {
+        "id": "services",
+        "label": "Domain services",
+        "items": ["Orders", "Catalog", "Billing", "Customers"],
+        "note": "One team per service; services talk only through published interfaces.",
+        "role": "critical"
+      },
+      {
+        "id": "experience",
+        "label": "Experience",
+        "items": ["Web shop", "Mobile app", "Partner API"],
+        "note": "The partner API is planned for next year.",
+        "role": "planned"
+      }
+    ]
+  }
+}

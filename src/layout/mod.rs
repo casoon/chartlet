@@ -278,6 +278,7 @@ pub(crate) fn layout(
         (ChartType::Classes, _) => crate::classes::layout(spec, warnings, metrics),
         (ChartType::Network, _) => crate::network::layout(spec, warnings, metrics),
         (ChartType::Cycle, _) => crate::cycle::layout(spec, warnings, metrics),
+        (ChartType::Layers, _) => crate::layers::layout(spec, warnings, metrics),
         (ChartType::Scatter, _) => crate::scatter::layout(spec, warnings, metrics),
         (ChartType::Survival, _) => crate::survival::layout(spec, warnings, metrics),
         (ChartType::Sankey, _) => crate::sankey::layout(spec, warnings, metrics),

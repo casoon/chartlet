@@ -14,6 +14,7 @@ mod flow;
 mod heat;
 mod heatmap;
 mod inspect;
+mod layers;
 mod layout;
 mod metrics;
 mod network;
@@ -62,17 +63,18 @@ pub use spec::{
     Curve, CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec, Dash, DataPoint,
     DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec, FlowEdgeSpec, FlowNodeSpec,
     FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder,
-    HeatmapScale, HeatmapSpec, InstanceSpec, InterfaceSpec, LaneSpec, LayerSpec, LegendPlacement,
-    Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
-    NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec, OhlcPoint,
-    Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
-    PartySpec, PerspectiveSpec, PortSide, RangeDisplay, RangeSort, RangeSpec, ReferenceSpec,
-    RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
-    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
-    ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind,
-    StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke, StrokeStyle,
-    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
-    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
+    HeatmapScale, HeatmapSpec, InstanceSpec, InterfaceSpec, LaneSpec, LayerSpec, LayersDisplay,
+    LayersSpec, LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec,
+    MobileSpec, NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec,
+    NodeKind, NoteSpec, OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec,
+    ParticipantKind, ParticipantSpec, PartySpec, PerspectiveSpec, PortSide, RangeDisplay,
+    RangeSort, RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec,
+    SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec,
+    ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec,
+    SeriesSpec, Shape, SizePreset, Stack, StackLayerSpec, StateKind, StateNodeSpec, StateSpec,
+    StepKind, StepSpec, StripesSpec, Stroke, StrokeStyle, SurvivalGroupSpec,
+    SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint,
+    TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
     TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
     ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
     ZoomStep,

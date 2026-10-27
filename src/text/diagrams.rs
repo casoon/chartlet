@@ -705,3 +705,54 @@ pub(crate) fn cycle_hub(locale: Locale, hub: &str, links: &[String]) -> String {
         Locale::De => format!("Jeder Schritt speist die Mitte {hub}.{links}"),
     }
 }
+
+/// One layer for the description: `number label`, and in parentheses what it holds.
+pub(crate) fn layers_entry(
+    locale: Locale,
+    (number, label): (usize, &str),
+    items: &[String],
+    note: Option<&str>,
+) -> String {
+    let mut details: Vec<String> = Vec::new();
+    if !items.is_empty() {
+        details.push(match locale {
+            Locale::En => format!("items: {}", listed(locale, items)),
+            Locale::De => format!("Elemente: {}", listed(locale, items)),
+        });
+    }
+    if let Some(note) = note {
+        details.push(match locale {
+            Locale::En => format!("note: {note}"),
+            Locale::De => format!("Hinweis: {note}"),
+        });
+    }
+    if details.is_empty() {
+        format!("{number} {label}")
+    } else {
+        format!("{number} {label} ({})", details.join("; "))
+    }
+}
+
+/// The sentence of a layer diagram: how many layers and in which direction they are read.
+pub(crate) fn layers_opening(locale: Locale, nested: bool, entries: &[String]) -> String {
+    let count = entries.len();
+    let entries = entries.join("; ");
+    match (locale, nested) {
+        (Locale::En, false) => format!(
+            "Layer stack of {count} layer{}, from the bottom: {entries}.",
+            plural(count, "", "s")
+        ),
+        (Locale::En, true) => format!(
+            "{count} nested scope{}, from the outermost to the innermost: {entries}.",
+            plural(count, "", "s")
+        ),
+        (Locale::De, false) => format!(
+            "Schichtenstapel aus {count} {}, von unten nach oben: {entries}.",
+            plural(count, "Schicht", "Schichten")
+        ),
+        (Locale::De, true) => format!(
+            "{count} ineinander liegende {}, vom äußersten zum innersten: {entries}.",
+            plural(count, "Bereich", "Bereiche")
+        ),
+    }
+}

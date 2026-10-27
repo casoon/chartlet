@@ -36,6 +36,7 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `tree` | [Trees](#trees) | `tree` |
 | `network` | [Networks](#networks) | `network` |
 | `cycle` | [Cycles](#cycles) | `cycle` |
+| `layers` | [Layers](#layers) | `layers` |
 
 Fields every type takes are in [Common fields](#common-fields), the value axis of the charts that
 have one in [Value axis](#value-axis), and what the diagrams share in
@@ -74,7 +75,7 @@ Rules:
   Warnings that only the mobile layout raises are reported with the same code and path and a
   message that begins with `mobile variant: `. Asking for the mobile variant of a specification
   without `mobile` is `missing_mobile` at `/mobile`.
-- `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class, network and cycle
+- `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class, network, cycle and layers
   diagrams; any other type refuses it (`option_not_supported` at `/theme`).
 - Texts must contain visible text (`empty_text`), stay within their length (`text_too_long`) and
   hold no control character that XML 1.0 cannot represent (`invalid_xml_character`).
@@ -82,7 +83,7 @@ Rules:
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `heatmap`, `waterfall`,
-  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `columns`),
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `layers`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
@@ -90,7 +91,7 @@ Rules:
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
   `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
-  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network` and `missing_cycle`. An empty list
+  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle` and `missing_layers`. An empty list
   where a type needs at least one entry is `empty_data`.
 - Stripes, calendars, timelines and every diagram are drawn from their block alone:
   `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
@@ -623,7 +624,7 @@ digits, hyphens or underscores (`invalid_id`).
 | `notes` | array, up to 12 | flow, classes, architecture | `[{ "on": "a", "text": "…" }, { "text": "…" }]`. |
 | `notes[].on` | identifier | — | The step, class, package, component or boundary the note explains; flow charts take notes on steps only. |
 | `notes[].text` | string, up to 160 characters | — | Required; wraps onto as many lines as it needs. |
-| `role` | `critical`, `planned`, `deprecated` | flow, state, classes, architecture, tree, network, cycle | What a node or an edge means beyond its kind, drawn alike in every diagram. |
+| `role` | `critical`, `planned`, `deprecated` | flow, state, classes, architecture, tree, network, cycle, layers | What a node or an edge means beyond its kind, drawn alike in every diagram. |
 
 **Notes.** A note on an element is drawn beside it and joined to it by a dotted line that is no
 edge, relation or connection; a note on a package or boundary stands inside that frame, at the
@@ -1006,6 +1007,24 @@ See [Cycles](../../guides/chart-types/#cycles).
 
 Rules: 3 to 8 steps (`too_few_steps`, `too_many_steps`); identifiers are unique (`duplicate_id`);
 `hubLabel` needs a `hub` (`option_not_supported`).
+
+## Layers
+
+`"type": "layers"`: abstraction levels stacked on each other, or scopes drawn inside each other.
+See [Layers](../../guides/chart-types/#layers).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `layers.layers` | array, 1–10 (6 nested) | yes | `[{ "id": "a", "label": "…", "items": ["…"], "note": "…", "role": "critical" }]`: from the bottom up in a stack, from the outermost inwards in nested scopes. |
+| `layers[].id` | identifier | yes | Unique. |
+| `layers[].label` | string, up to 60 characters | yes | The name. |
+| `layers[].items` | array of up to 12 strings of up to 40 characters | no | What lies in the layer, drawn as small boxes. |
+| `layers[].note` | string, up to 120 characters | no | A remark at the side of the layer (under its label on a narrow canvas). |
+| `layers[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `layers.display` | `stack`, `nested` | no | `stack` (default): bands, the first at the bottom; `nested`: frames inside each other, the first the outermost. |
+
+Rules: at least one layer, at most 10 in a stack and 6 nested scopes (`too_many_layers`); at most
+12 items per layer (`too_many_items`); identifiers are unique (`duplicate_id`).
 
 ## Diverging scale
 

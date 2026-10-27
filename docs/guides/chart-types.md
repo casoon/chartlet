@@ -59,6 +59,8 @@ order: 1
 | Network in rings around one node, with arrowheads | `"layout": "rings"`, `center`, `"directed": true` | [What the checkout service depends on](../../../showcase/service-dependencies/) |
 | Cycle of steps on a ring with the labels inside boxes | `"type": "cycle"` with `steps`, `"labels": "inside"` | [Improvement cycle](../../../showcase/improvement-cycle/) |
 | Cycle around a hub, with a label on every link | `cycle.hub`, `steps[].hubLabel` | [Growth flywheel](../../../showcase/growth-flywheel/) |
+| Stack of abstraction levels with items and notes | `"type": "layers"` with `layers`, `items`, `note` | [Platform layers](../../../showcase/platform-layers/) |
+| Scopes drawn inside each other | `"display": "nested"` | [Who owns what](../../../showcase/scope-nesting/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
 | Architecture diagram with its databases on one rank | `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` | [Order platform and its data stores](../../../showcase/data-tier/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
@@ -1706,6 +1708,45 @@ flywheel. An optional hub in the middle is what the steps feed.
   number, label, note, hub link and role where the cycle has them.
 
 Limits: 3–8 steps (`too_few_steps`, `too_many_steps`), unique ids (`duplicate_id`).
+
+## Layers
+
+`"type": "layers"` draws abstraction levels stacked on each other, or scopes drawn inside each
+other: the layers of a software stack, the levels of a model, organization ⊃ team ⊃ service.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "layers",
+  "title": "A web application, from the machine up",
+  "layers": {
+    "layers": [
+      { "id": "hardware", "label": "Hardware", "items": ["CPU", "Memory", "Disk"] },
+      { "id": "os", "label": "Operating system", "note": "Schedules the processes and owns the disk." },
+      { "id": "app", "label": "Application", "items": ["API", "Web client"], "role": "critical" }
+    ]
+  }
+}
+```
+
+- **Stack** (`"display": "stack"`, the default). The layers are listed from the bottom up: the
+  first stands at the bottom, the last on top. Every layer is a band with its label and, below it,
+  its `items` as small boxes that wrap onto rows. A `note` stands in a column at the side, joined
+  to its layer by a dotted line; on a narrow canvas it stands under the label.
+- **Nested scopes** (`"display": "nested"`). The layers are listed from the outermost inwards: the
+  first is the frame around all the others. Every scope has its label, its items below it and the
+  next scope inside, inset on every side; the notes stand at the side as in a stack.
+- **Roles** (`critical`, `planned`, `deprecated`) mark a layer as in other diagrams, with a badge
+  and an outline pattern, and a legend below. In the HTML profile every layer is a focus link that
+  dims the others.
+- **Text alternative.** The description gives the number of layers and the direction they are read
+  in — from the bottom, or from the outermost to the innermost — and every layer in the order of
+  `layers`, with its items and note, and the roles. The table has one row per layer with its level
+  (1 is the bottom of a stack, the outermost scope), label, items, note and role.
+
+Limits: up to 10 layers in a stack and 6 nested scopes (`too_many_layers`), up to 12 items per
+layer of at most 40 characters (`too_many_items`), unique ids (`duplicate_id`). A diagram that does
+not fit its canvas is drawn larger and reported as `canvas_too_small`.
 
 ## Time series
 

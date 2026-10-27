@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "type": "layers",
+  "title": "Who owns what: organization, team, service",
+  "width": 820,
+  "height": 540,
+  "mobile": { "width": 360, "height": 640 },
+  "layers": {
+    "display": "nested",
+    "layers": [
+      {
+        "id": "organization",
+        "label": "Organization",
+        "items": ["Security policy", "Shared tooling"],
+        "note": "Sets the rules every team works under."
+      },
+      {
+        "id": "team",
+        "label": "Payments team",
+        "items": ["On-call rota", "Roadmap"],
+        "note": "Owns its services from design to operation."
+      },
+      {
+        "id": "service",
+        "label": "Billing service",
+        "items": ["Invoices", "Reminders", "Tax rules"],
+        "role": "critical"
+      }
+    ]
+  }
+}

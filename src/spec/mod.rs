@@ -8,6 +8,7 @@ mod dataset;
 mod deployment;
 mod flow;
 mod heatmap;
+mod layers;
 mod network;
 mod parliament;
 mod rangebar;
@@ -51,6 +52,7 @@ pub use flow::{
     MainPath, NodeKind, NoteSpec, PartSpec, PortSide,
 };
 pub use heatmap::{HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec};
+pub use layers::{LayersDisplay, LayersSpec, StackLayerSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::{RangeDisplay, RangeSort, RangeSpec};
@@ -258,6 +260,9 @@ pub struct ChartSpec {
     /// A cycle: steps on a ring where the last feeds the first, optionally around a hub. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cycle: Option<CycleSpec>,
+    /// Layers: levels of abstraction stacked on each other, or scopes drawn inside each other. Skipped while absent, like `stripes`.
+    #[serde(default, rename = "layers", skip_serializing_if = "Option::is_none")]
+    pub layer_stack: Option<LayersSpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -485,11 +490,13 @@ pub enum ChartType {
     Network,
     /// A cycle: steps on a ring where the last step feeds the first, optionally around a hub.
     Cycle,
+    /// Layers: levels of abstraction stacked on each other, or scopes drawn inside each other.
+    Layers,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 26] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -515,6 +522,7 @@ impl ChartType {
         Self::Classes,
         Self::Network,
         Self::Cycle,
+        Self::Layers,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -857,6 +865,7 @@ impl ChartSpec {
             ChartType::Waterfall => self.validate_waterfall(),
             ChartType::Network => self.validate_network(),
             ChartType::Cycle => self.validate_cycle(),
+            ChartType::Layers => self.validate_layers(),
             ChartType::Bar | ChartType::Line => self.validate_bar_and_line(),
         }?;
         warnings.extend(crate::contrast::warnings(self));
@@ -892,6 +901,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Waterfall => "waterfall",
         ChartType::Network => "network",
         ChartType::Cycle => "cycle",
+        ChartType::Layers => "layers",
     }
 }
 

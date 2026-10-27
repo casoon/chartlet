@@ -549,6 +549,16 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/topic-streams.json"),
         include_str!("../examples/topic-streams.svg"),
     ),
+    (
+        "platform-layers",
+        include_str!("../examples/platform-layers.json"),
+        include_str!("../examples/platform-layers.svg"),
+    ),
+    (
+        "scope-nesting",
+        include_str!("../examples/scope-nesting.json"),
+        include_str!("../examples/scope-nesting.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -767,6 +777,16 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "topic-streams",
         include_str!("../examples/topic-streams.json"),
         include_str!("../examples/topic-streams.mobile.svg"),
+    ),
+    (
+        "platform-layers",
+        include_str!("../examples/platform-layers.json"),
+        include_str!("../examples/platform-layers.mobile.svg"),
+    ),
+    (
+        "scope-nesting",
+        include_str!("../examples/scope-nesting.json"),
+        include_str!("../examples/scope-nesting.mobile.svg"),
     ),
 ];
 

@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "heatmap", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle"]
+      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "heatmap", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle", "layers"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -151,6 +151,10 @@
     "cycle": {
       "description": "The steps of a type: \"cycle\" chart.",
       "$ref": "#/$defs/cycle"
+    },
+    "layers": {
+      "description": "The layers of a type: \"layers\" chart.",
+      "$ref": "#/$defs/layers"
     },
     "scatter": {
       "description": "The points of a type: \"scatter\" chart.",
@@ -467,6 +471,16 @@
               { "required": ["panes"] }
             ]
           }
+        },        {
+          "required": ["layers"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
         },
         {
           "required": ["waffle"],
@@ -645,6 +659,10 @@
       "if": { "properties": { "type": { "const": "cycle" } } },
       "then": { "required": ["cycle"] },
       "else": { "not": { "required": ["cycle"] } }
+    },    {
+      "if": { "properties": { "type": { "const": "layers" } } },
+      "then": { "required": ["layers"] },
+      "else": { "not": { "required": ["layers"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waffle" } } },
@@ -1017,6 +1035,32 @@
         "center": { "description": "The node in the middle of the rings; required with layout rings, refused on a circle.", "$ref": "#/$defs/identifier" },
         "directed": { "description": "Whether edges lead from one node to the other: drawn with an arrowhead.", "type": "boolean", "default": false },
         "order": { "description": "The order around a circle: groups together with as few crossings as swaps find (crossings), or as listed.", "enum": ["crossings", "listed"], "default": "crossings" }
+      }
+    },
+    "layers": {
+      "description": "Layers: either abstraction levels stacked on each other (display stack, the default), listed from the bottom up, or scopes drawn inside each other (display nested), listed from the outermost inwards. Every layer has a label, optional items drawn as small boxes, an optional note at the side and an optional role. Up to 10 layers in a stack and 6 nested scopes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layers"],
+      "properties": {
+        "layers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "items": { "description": "What lies in the layer, as small boxes.", "type": "array", "maxItems": 12, "items": { "type": "string", "minLength": 1, "maxLength": 40 } },
+              "note": { "description": "A remark at the side of the layer.", "type": "string", "minLength": 1, "maxLength": 120 },
+              "role": { "$ref": "#/$defs/diagramRole" }
+            }
+          }
+        },
+        "display": { "enum": ["stack", "nested"], "default": "stack" }
       }
     },
     "cycle": {

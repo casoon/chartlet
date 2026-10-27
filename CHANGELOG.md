@@ -9,6 +9,13 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Layers:** `"type": "layers"` draws abstraction levels stacked on each other (`"display":
+  "stack"`, the first layer at the bottom) or scopes inside each other (`"display": "nested"`, the
+  first the outermost). Every layer has a label, optional `items` as small boxes, a `note` at the
+  side and a `role`; the description reads the layers in order and the table has one row per layer.
+  Details: [Layers](https://casoon.github.io/chartlet/docs/guides/chart-types/#layers). Examples
+  `platform-layers`, `scope-nesting`.
+
 - **Time charts:** `"stack": "stream"` on a pane of area layers centers the stack around a moving
   baseline instead of zero (a streamgraph); the value axis becomes a scale bar for thickness and
   each stream is named at its right end. Details:

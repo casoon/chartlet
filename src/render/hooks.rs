@@ -103,6 +103,7 @@ pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Classes
             | ChartType::Network
             | ChartType::Cycle
+            | ChartType::Layers
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline

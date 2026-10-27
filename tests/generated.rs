@@ -259,6 +259,38 @@ fn cycle(seed: u64) -> Value {
     })
 }
 
+fn layers(seed: u64) -> Value {
+    let mut random = Random(seed);
+    let count = 1 + random.below(6);
+    let nested = random.chance(40);
+    let layers: Vec<Value> = (0..count)
+        .map(|index| {
+            let items: Vec<Value> = (0..random.below(6))
+                .map(|_| json!(random.pick(&["Compute", "Storage", "Network", "Queue", "Cache"])))
+                .collect();
+            let mut layer =
+                json!({ "id": format!("l{index}"), "label": random.label(), "items": items });
+            if random.chance(40) {
+                layer["note"] = json!(random.label());
+            }
+            layer
+        })
+        .collect();
+    let mut block = json!({ "layers": layers });
+    if nested {
+        block["display"] = json!("nested");
+    } else if random.chance(50) {
+        block["projection"] = json!("exploded");
+    }
+    json!({
+        "schemaVersion": 1,
+        "type": "layers",
+        "title": random.label(),
+        "width": random.width(),
+        "layers": block,
+    })
+}
+
 /// Whether `svg` is one well-formed element: every tag closed in order, attributes quoted, and
 /// no number that did not resolve.
 fn check_well_formed(svg: &str) -> Result<(), String> {
@@ -382,6 +414,11 @@ fn generated_networks_render_deterministically() {
 #[test]
 fn generated_cycles_render_deterministically() {
     check("cycle", cycle);
+}
+
+#[test]
+fn generated_layers_render_deterministically() {
+    check("layers", layers);
 }
 
 #[test]

@@ -652,9 +652,13 @@ impl ChartSpec {
                     .iter()
                     .any(|transition| transition.role.is_some())
         }) || self
-            .cycle
+            .layer_stack
             .as_ref()
-            .is_some_and(|cycle| cycle.steps.iter().any(|step| step.role.is_some()))
+            .is_some_and(|layers| layers.layers.iter().any(|layer| layer.role.is_some()))
+            || self
+                .cycle
+                .as_ref()
+                .is_some_and(|cycle| cycle.steps.iter().any(|step| step.role.is_some()))
             || self.network.as_ref().is_some_and(|network| {
                 network.nodes.iter().any(|node| node.role.is_some())
                     || network.edges.iter().any(|edge| edge.role.is_some())

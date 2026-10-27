@@ -884,6 +884,22 @@ const catalogue = [
       'Five steps on a ring with numbered dots and their labels outside, and a hub in the middle that every step feeds through a dotted link with a label of its own. In the HTML profile each step is a focus link that keeps its neighbours and the hub and dims the rest. The description names the hub and every link label. With a phone variant. Illustrative steps.',
   },
   {
+    slug: 'platform-layers',
+    group: 'Trees and networks',
+    chart: 'Layer stack',
+    useCase: 'Show the levels of a platform',
+    blurb:
+      'Four levels of a platform from the infrastructure up, each a band with its parts as small boxes that wrap onto rows, notes in a column at the side joined by a dotted line, and two roles — `critical` and `planned` — with a badge and an outline pattern. The description reads the layers from the bottom, the table has one row per layer with its level. With a phone variant, where the notes move under the labels. Illustrative platform.',
+  },
+  {
+    slug: 'scope-nesting',
+    group: 'Trees and networks',
+    chart: 'Nested scopes',
+    useCase: 'Show what contains what',
+    blurb:
+      'Organization, team and service as frames inside each other, every one with its own items and the outer two with a note at the side. The description reads the scopes from the outermost to the innermost. With a phone variant. Illustrative organization.',
+  },
+  {
     slug: 'mobile-revenue',
     group: 'Mobile variant',
     chart: 'Mobile variant',
