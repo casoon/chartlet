@@ -27,6 +27,7 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Changed
 
+- **Releases:** both npm packages are published by a Release workflow on the version tag, with npm Trusted Publishing (provenance, no stored token), after approval in the `npm` environment.
 - **Docs:** [Support matrix](https://casoon.github.io/chartlet/docs/reference/support/#versioning-and-compatibility)
   states the compatibility contract: reproducibility, byte stability, supported runtimes,
   experimental features, pinning before 1.0 and the migration policy with an upgrade example.
