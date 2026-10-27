@@ -481,12 +481,6 @@ fn tag_end(tag: &str) -> Option<usize> {
     None
 }
 
-/// Open findings, as of the first run of the canvas check: flow seeds 4 and 37 draw a 246 pixel
-/// wide label box up to 105 pixels left of the canvas (a long label on a canvas that is grown to
-/// the size `canvas_too_small` asks for), architecture seeds 20 and 28 do the same for a frame or a
-/// box, and cycle seed 33 draws a connector 100 pixels below its canvas. Each is a defect of its
-/// layout, not of this test; fix the layout, then remove the seed from the list.
-///
 /// Renders every seed of `generate` twice and checks the output. `off_canvas` lists the seeds whose
 /// drawing is known to leave its canvas: open findings of this test, each a layout defect that has
 /// to be fixed in its layout. The list is exact in both directions: a seed that starts to fit must
@@ -539,12 +533,12 @@ fn check(kind: &str, generate: fn(u64) -> Value, off_canvas: &[u64]) {
 
 #[test]
 fn generated_flow_charts_render_deterministically() {
-    check("flow", flow, &[4, 37]);
+    check("flow", flow, &[]);
 }
 
 #[test]
 fn generated_architecture_diagrams_render_deterministically() {
-    check("architecture", architecture, &[20, 28]);
+    check("architecture", architecture, &[]);
 }
 
 #[test]
@@ -559,7 +553,7 @@ fn generated_networks_render_deterministically() {
 
 #[test]
 fn generated_cycles_render_deterministically() {
-    check("cycle", cycle, &[33]);
+    check("cycle", cycle, &[]);
 }
 
 #[test]

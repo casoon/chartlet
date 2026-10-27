@@ -234,6 +234,10 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 - **Flow groups:** groups whose steps interleave in the layers no longer blow the canvas up (a
   grouped crate diagram asked for about 514 million pixels). Where the frames cannot all be cleared,
   the layout stays compact and `group_overlap` names the groups.
+- **Flow, architecture, cycle:** drawings no longer leave their canvas. An edge label wider than the
+  page starts at the left edge and the canvas grows to its right; the frame of a group named at
+  length is laid out at the width of its name (nested frames no longer reach past the left edge);
+  and the arrows of a cycle that bulge between two steps are counted into the canvas.
 
 ## [0.21.0] - 2026-10-24
 

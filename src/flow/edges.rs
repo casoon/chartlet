@@ -174,6 +174,12 @@ impl Label {
                 _ => self.at.0 += 2.0 - left,
             }
         }
+        // A label wider than the page, moved back from the right edge, ends up past the left
+        // one: it starts at the left edge instead, and the canvas grows to its right.
+        let (left, _, _, _) = chip_box(&self.lines, self.at, self.anchor, metrics);
+        if left < 2.0 {
+            self.at.0 += 2.0 - left;
+        }
     }
 }
 

@@ -131,6 +131,8 @@ pub(super) struct Model<'a> {
     pub(super) across: Vec<(Option<Across>, Option<Across>)>,
     /// Per step, the room the edges that meet it across the flow take on its low and high side.
     pub(super) side_room: Vec<(f64, f64)>,
+    /// Per group, the width its frame needs for its name, which sits in the top left corner.
+    pub(super) group_names: Vec<f64>,
 }
 
 impl<'a> Model<'a> {
@@ -187,6 +189,11 @@ impl<'a> Model<'a> {
             .collect();
         let across = across_sides(diagram, &graph, warnings);
         let side_room = side_room(diagram.nodes.len(), &graph, &across, spacing.passing_gap);
+        let group_names = diagram
+            .groups
+            .iter()
+            .map(|group| (metrics.width(&group.label, SUBLABEL_SIZE) + 16.0).ceil())
+            .collect();
         Self {
             diagram,
             spacing,
@@ -203,6 +210,7 @@ impl<'a> Model<'a> {
             trunks: Trunks::none(diagram.edges.len()),
             across,
             side_room,
+            group_names,
         }
     }
 }

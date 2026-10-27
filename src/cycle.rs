@@ -4,7 +4,7 @@
 //! as the canvas lets it be and grows the canvas where the labels do not fit. The description
 //! reads the cycle in order.
 
-use std::f64::consts::TAU;
+use std::f64::consts::{FRAC_PI_2, TAU};
 
 use crate::{
     DataTable,
@@ -22,6 +22,8 @@ use crate::{
 const MARGIN: f64 = 24.0;
 const COMPACT_MARGIN: f64 = 12.0;
 const BOTTOM: f64 = 16.0;
+/// The air an arrow along the ring keeps to the edge of the page.
+const EDGE: f64 = 2.0;
 /// The size of the labels of the steps and of their notes.
 const LABEL_SIZE: f64 = 13.0;
 const NOTE_SIZE: f64 = 11.0;
@@ -257,6 +259,23 @@ impl Ring {
         }
         extent
     }
+
+    /// The points where the arrows along the ring reach furthest from the middle: its top, right,
+    /// bottom and left, wherever no step stands there. They lie beyond the steps' own boxes.
+    fn bulges(&self) -> Vec<(f64, f64)> {
+        let steps = self.centres.len();
+        let mut points = Vec::new();
+        for index in 0..steps {
+            let (from, to) = (angle(index, steps), angle(index + 1, steps));
+            for quarter in 0..4 {
+                let at = FRAC_PI_2 * f64::from(quarter);
+                if from + 1e-9 < at && at < to - 1e-9 {
+                    points.push(polar(self.radius, at));
+                }
+            }
+        }
+        points
+    }
 }
 
 /// The label of a step beside its dot: above a dot at the top, below one at the bottom, beside it
@@ -359,12 +378,28 @@ fn plan(cycle: &CycleSpec, measure: &Measure, spec: &ChartSpec, (top, margin): (
     };
     let extent = ring.extent(measure);
     let page_width = width.max(extent.2 - extent.0 + 2.0 * margin);
-    let page_height = height.max(top + extent.3 - extent.1 + BOTTOM);
-    let center = (
+    let mut page_width = page_width;
+    let mut page_height = height.max(top + extent.3 - extent.1 + BOTTOM);
+    let mut center = (
         page_width / 2.0 - f64::midpoint(extent.0, extent.2),
         // Spare height is shared above and below, but never more than a margin above.
         top + ((page_height - top - BOTTOM - (extent.3 - extent.1)) / 2.0).min(24.0) - extent.1,
     );
+    // The arrows along the ring bulge past the steps between two of them: the page grows, and the
+    // ring moves, until they are on it too.
+    for (x, y) in ring.bulges() {
+        let (left, above) = (center.0 + x - EDGE, center.1 + y - EDGE);
+        if left < 0.0 {
+            center.0 -= left;
+            page_width -= left;
+        }
+        if above < 0.0 {
+            center.1 -= above;
+            page_height -= above;
+        }
+        page_width = page_width.max(center.0 + x + EDGE);
+        page_height = page_height.max(center.1 + y + EDGE);
+    }
     Plan {
         ring,
         center,
