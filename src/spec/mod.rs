@@ -51,7 +51,7 @@ pub use flow::{
 pub use heatmap::{HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
-pub use rangebar::RangeSpec;
+pub use rangebar::{RangeDisplay, RangeSort, RangeSpec};
 pub(crate) use sankey::SankeyGraph;
 pub use sankey::{SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec};
 pub(crate) use scatter::Quadrant;
@@ -111,6 +111,13 @@ pub struct ChartSpec {
     /// How a `type: "boxplot"` chart draws its observations: boxes (the default), violins or strips.
     #[serde(default, skip_serializing_if = "BoxDisplay::is_box")]
     pub box_display: BoxDisplay,
+    /// How a `type: "rangebar"` chart draws its spans: bars (the default) or dumbbells.
+    #[serde(default, skip_serializing_if = "RangeDisplay::is_bar")]
+    pub display: RangeDisplay,
+    /// The order of the spans of a `type: "rangebar"` chart: as listed (the default) or the
+    /// widest first.
+    #[serde(default, skip_serializing_if = "RangeSort::is_none")]
+    pub sort: RangeSort,
     /// With `"boxDisplay": "violin"`: `width` (default) makes every violin as wide as the others at
     /// its widest, `area` gives them the same area, `count` an area that follows their number of
     /// observations.

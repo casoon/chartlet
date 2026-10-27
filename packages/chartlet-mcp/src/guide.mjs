@@ -17,7 +17,7 @@ export const SHOWING = /** @type {Record<string, string>} */ ({
   time: "values over real dates or numbers: gaps, bands, candlesticks (ohlc), several stacked panes",
   stripes: "one value per year as warming stripes",
   calendar: "one value per day inside a year, as a calendar heatmap",
-  rangebar: "a range per item, or a forest plot (effects with intervals and a line of no effect)",
+  rangebar: "a range per item, as bars or dumbbells, or a forest plot (effects with intervals and a line of no effect)",
   multiples: "the same measure side by side in small panels, one per group",
   boxplot: "the spread of observations per group (box, violin or strip)",
   timeline: "phases, milestones and dependencies on a time axis, such as a roadmap",

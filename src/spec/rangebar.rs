@@ -5,6 +5,44 @@ use serde::{Deserialize, Serialize};
 use super::{ChartSpec, MAX_DATA_POINTS, MAX_SERIES, is_false, validate_number, validate_text};
 use crate::error::{ChartError, ChartWarning};
 
+/// How the spans of a `rangebar` chart are drawn.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum RangeDisplay {
+    /// A bar from low to high.
+    #[default]
+    Bar,
+    /// An open dot at the low value, a filled dot at the high value and a line between them.
+    Dumbbell,
+}
+
+impl RangeDisplay {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub(super) const fn is_bar(&self) -> bool {
+        matches!(self, Self::Bar)
+    }
+}
+
+/// The order of the spans of a `rangebar` chart.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum RangeSort {
+    /// As listed.
+    #[default]
+    None,
+    /// The widest span first: the biggest change between low and high.
+    Change,
+}
+
+impl RangeSort {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    pub(super) const fn is_none(&self) -> bool {
+        matches!(self, Self::None)
+    }
+}
+
 /// One span of a `rangebar` chart: a category with a low and a high value and, optionally, a
 /// central estimate.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -34,6 +72,16 @@ pub struct RangeSpec {
 }
 
 impl ChartSpec {
+    /// The indices of the spans in the order they are shown: as listed, or the widest span first.
+    pub(crate) fn range_order(&self) -> Vec<usize> {
+        let mut order: Vec<usize> = (0..self.ranges.len()).collect();
+        if self.sort == RangeSort::Change {
+            let change = |index: usize| self.ranges[index].high - self.ranges[index].low;
+            crate::sort::by(&mut order, |a, b| change(*b).total_cmp(&change(*a)));
+        }
+        order
+    }
+
     /// The groups of a `rangebar` chart in the order they first appear; empty without groups.
     pub(crate) fn range_groups(&self) -> Vec<&str> {
         let mut groups: Vec<&str> = Vec::new();
@@ -82,6 +130,7 @@ impl ChartSpec {
     }
 
     /// Spans per category: a low no higher than its high, and a central value between them.
+    #[allow(clippy::too_many_lines)]
     pub(super) fn validate_rangebar(&self) -> Result<Vec<ChartWarning>, ChartError> {
         for (field, present) in [
             ("/data", !self.data.is_empty()),
@@ -132,6 +181,22 @@ impl ChartSpec {
                     format!("{path}/high"),
                     "high must not be below low",
                 ));
+            }
+            if self.display == RangeDisplay::Dumbbell {
+                for (field, present) in [
+                    ("mid", range.mid.is_some()),
+                    ("weight", range.weight.is_some()),
+                    ("summary", range.summary),
+                    ("modeled", range.modeled),
+                ] {
+                    if present {
+                        return Err(ChartError::new(
+                            "option_not_supported",
+                            format!("{path}/{field}"),
+                            "a dumbbell connects the low and the high value of a span; remove this field or draw bars",
+                        ));
+                    }
+                }
             }
             if let Some(weight) = range.weight {
                 validate_number(weight, &format!("{path}/weight"))?;

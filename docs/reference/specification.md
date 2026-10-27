@@ -356,7 +356,12 @@ least one value that is not `null` (`empty_series`); `min` below and `max` above
 | `ranges[].weight` | number above 0 | no | With `mid`: turns the central mark into a square whose area follows it. |
 | `ranges[].summary` | boolean | no | With `mid`: draws the span as a diamond, widest at `mid` — together with `references` a forest plot. |
 
-Rules: up to 100 ranges (`too_many_data_points`) with unique labels (`duplicate_label`); `low`
+| `display` | `bar`, `dumbbell` | no | Draws each span as a bar (the default) or as a dumbbell: an open dot at `low`, a filled dot at `high` and a line between them, both values written beside their dots. |
+| `sort` | `none`, `change` | no | `change` puts the widest span first, in the picture, the table and the description; `none` (default) keeps the order as listed. |
+
+Rules: a dumbbell takes no `mid`, `weight`, `summary` or `modeled` on a range
+(`option_not_supported`, with the path of the field), and `display` and `sort` belong to range bars
+only (`option_not_supported`); up to 100 ranges (`too_many_data_points`) with unique labels (`duplicate_label`); `low`
 above `high` is `invalid_range`, a `mid` outside them `mid_outside_range`; groups on every range or
 none (`missing_group`), at most 4 (`too_many_series`); a `weight` of zero or less is
 `invalid_weight`, and `weight` or `summary` without `mid` is `invalid_weight` or

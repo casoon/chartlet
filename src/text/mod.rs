@@ -13,7 +13,7 @@ pub(crate) use architecture::{
 };
 pub(crate) use charts::{
     CandleSummary, areas, axis_noun, bands, calendar_opening, candle_values, candles,
-    categories_opening, diverging_scale, equal_values, error_bars, gaps_collapsed,
+    categories_opening, diverging_scale, dumbbell_note, equal_values, error_bars, gaps_collapsed,
     heatmap_categories, heatmap_values, missing_values, modeled_ranges, multiples_opening,
     panel_bars_opening, panel_notes, panes, parliament_coalition, parliament_summary, percent_done,
     range_groups, rangebar_opening, rank_summary, sankey_summary, series_at, slope_summary,

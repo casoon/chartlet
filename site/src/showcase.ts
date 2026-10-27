@@ -363,6 +363,14 @@ const catalogue = [
       'Response times of three endpoints measured in two regions: the boxes of a region share a color and a legend entry, so the two regions read side by side, and a diamond marks each mean. The table gains a Group column. Illustrative measurements, with a phone variant.',
   },
   {
+    slug: 'satisfaction-change',
+    group: 'Ranges and distributions',
+    chart: 'Dumbbell chart',
+    useCase: 'Compare two values per category, such as before and after',
+    blurb:
+      'Satisfaction scores of six support areas before and after a redesign: an open dot for the score before, a filled dot for the score after, a line between them, both values written beside the dots, and the area with the widest change first. The table lists both values per area. Illustrative survey scores, with a phone variant.',
+  },
+  {
     slug: 'response-distribution',
     group: 'Ranges and distributions',
     chart: 'Violin plot',

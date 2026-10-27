@@ -1,7 +1,8 @@
 use super::untagged::NO_VARIANT;
 use super::{
     AxisScale, BoxDisplay, ChartSpec, ChartType, LegendPlacement, MAX_AXIS_TICKS, MAX_DECIMALS,
-    Mark, Orientation, PaneSpec, Stack, Theme, Tooltips, ValueAxisSpec, ValueFormat, type_name,
+    Mark, Orientation, PaneSpec, RangeDisplay, RangeSort, Stack, Theme, Tooltips, ValueAxisSpec,
+    ValueFormat, type_name,
 };
 use crate::error::ChartError;
 
@@ -485,6 +486,12 @@ impl ChartSpec {
                 self.box_display != BoxDisplay::Box,
                 ChartType::Boxplot,
             ),
+            (
+                "/display",
+                self.display != RangeDisplay::Bar,
+                ChartType::Rangebar,
+            ),
+            ("/sort", self.sort != RangeSort::None, ChartType::Rangebar),
             ("/timeline", self.timeline.is_some(), ChartType::Timeline),
             ("/classes", self.classes.is_some(), ChartType::Classes),
             ("/network", self.network.is_some(), ChartType::Network),

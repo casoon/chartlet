@@ -13,8 +13,8 @@ use crate::{
         push_category_label, push_side_label, title_extra, warn_if_labels_omitted,
     },
     metrics::TextMetrics,
-    scene::{Element, Line, Rect, Scene, Text, TextAnchor},
-    spec::{ChartSpec, Orientation, RangeSpec},
+    scene::{Circle, Element, Line, Rect, Scene, Text, TextAnchor},
+    spec::{ChartSpec, Orientation, RangeDisplay, RangeSpec},
     text,
 };
 
@@ -25,6 +25,32 @@ const GROUP_CLASSES: [&str; crate::spec::MAX_SERIES] = [
     "chartlet-range chartlet-range-series-3",
     "chartlet-range chartlet-range-series-4",
 ];
+/// The line of a dumbbell, and its open and its filled dot, plain and in each group's color.
+const DUMBBELL_LINE: [&str; 5] = [
+    "chartlet-dumbbell-line",
+    "chartlet-dumbbell-line chartlet-range-series-1",
+    "chartlet-dumbbell-line chartlet-range-series-2",
+    "chartlet-dumbbell-line chartlet-range-series-3",
+    "chartlet-dumbbell-line chartlet-range-series-4",
+];
+const DUMBBELL_LOW: [&str; 5] = [
+    "chartlet-dumbbell-low",
+    "chartlet-dumbbell-low chartlet-range-series-1",
+    "chartlet-dumbbell-low chartlet-range-series-2",
+    "chartlet-dumbbell-low chartlet-range-series-3",
+    "chartlet-dumbbell-low chartlet-range-series-4",
+];
+const DUMBBELL_HIGH: [&str; 5] = [
+    "chartlet-dumbbell-high",
+    "chartlet-dumbbell-high chartlet-range-series-1",
+    "chartlet-dumbbell-high chartlet-range-series-2",
+    "chartlet-dumbbell-high chartlet-range-series-3",
+    "chartlet-dumbbell-high chartlet-range-series-4",
+];
+/// The radius of the dots of a dumbbell.
+const DUMBBELL_DOT: f64 = 5.5;
+/// How far the value at the end of a dumbbell stands from the center of its dot.
+const DUMBBELL_REACH: f64 = 11.0;
 /// Gap between two legend entries.
 const LEGEND_GAP: f64 = 16.0;
 
@@ -258,6 +284,114 @@ fn push_legend(
     }
 }
 
+/// The palette color of the span, from 1, or 0 without groups.
+fn range_tone(spec: &ChartSpec, range: &RangeSpec) -> usize {
+    range.group.as_deref().map_or(0, |group| {
+        spec.range_groups()
+            .iter()
+            .position(|known| *known == group)
+            .map_or(0, |position| position + 1)
+    })
+}
+
+/// A dumbbell: a line from the low to the high value with an open dot at the low end and a filled
+/// one at the high end, so that the two ends differ in form as well as in position.
+fn push_dumbbell(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    range: &RangeSpec,
+    orientation: Orientation,
+    along: &impl Fn(f64) -> f64,
+    across: (f64, f64),
+) {
+    let tone = range_tone(spec, range);
+    let middle = across.0 + across.1 / 2.0;
+    let page = |value: f64| match orientation {
+        Orientation::Horizontal => (along(value), middle),
+        Orientation::Vertical => (middle, along(value)),
+    };
+    let (from, to) = (page(range.low), page(range.high));
+    elements.push(Element::Line(Line {
+        x1: from.0,
+        y1: from.1,
+        x2: to.0,
+        y2: to.1,
+        class: DUMBBELL_LINE[tone],
+    }));
+    for (at, class) in [(from, DUMBBELL_LOW[tone]), (to, DUMBBELL_HIGH[tone])] {
+        elements.push(Element::Circle(Circle {
+            cx: at.0,
+            cy: at.1,
+            radius: DUMBBELL_DOT,
+            class,
+            series_index: None,
+            style_index: None,
+            tooltip: Some(tooltip(spec, range)),
+        }));
+    }
+}
+
+/// The two ends of a dumbbell as `(value, side)`: the side its value is written on, away from the
+/// other end, as -1 for lower page coordinates and 1 for higher ones. `along` maps a value onto
+/// the value axis.
+fn end_sides(range: &RangeSpec, along: &impl Fn(f64) -> f64) -> [(f64, f64); 2] {
+    if along(range.low) <= along(range.high) {
+        [(range.low, -1.0), (range.high, 1.0)]
+    } else {
+        [(range.low, 1.0), (range.high, -1.0)]
+    }
+}
+
+/// The value at one end of a dumbbell, written beside its dot at `at` along the axis and `middle`
+/// across it, on the given side.
+fn push_end_value(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    value: f64,
+    (at, middle, side): (f64, f64, f64),
+    orientation: Orientation,
+) {
+    let content = format_value(value, spec.number_style());
+    let offset = side * DUMBBELL_REACH;
+    elements.push(Element::Text(match orientation {
+        Orientation::Horizontal => Text {
+            x: at + offset,
+            y: middle + 4.0,
+            class: "chartlet-value",
+            anchor: if side < 0.0 {
+                TextAnchor::End
+            } else {
+                TextAnchor::Start
+            },
+            content,
+        },
+        Orientation::Vertical => Text {
+            x: middle,
+            y: at + offset + if side < 0.0 { -2.0 } else { 6.0 },
+            class: "chartlet-value",
+            anchor: TextAnchor::Middle,
+            content,
+        },
+    }));
+}
+
+/// Whether a dumbbell chart writes the value at each end beside its dot: values are shown, and
+/// `fits` agrees for every end, given the range, the value and its side. Otherwise the combined
+/// label of a span stands after its high end.
+fn split_values(
+    spec: &ChartSpec,
+    fits: impl Fn(&RangeSpec, f64, f64) -> bool,
+    along: &impl Fn(f64) -> f64,
+) -> bool {
+    spec.display == RangeDisplay::Dumbbell
+        && spec.show_values
+        && spec.ranges.iter().all(|range| {
+            end_sides(range, along)
+                .into_iter()
+                .all(|(value, side)| fits(range, value, side))
+        })
+}
+
 /// The bar of one span, its hatching if modeled, and its central mark. `along` maps a value onto
 /// the value axis; `across` is the leading edge and thickness of the bar.
 fn push_span(
@@ -287,6 +421,10 @@ fn push_span(
             tooltip: Some(tooltip(spec, range)),
         })
     };
+    if spec.display == RangeDisplay::Dumbbell {
+        push_dumbbell(elements, spec, range, orientation, &along, across);
+        return;
+    }
     if range.summary {
         push_diamond(elements, spec, range, orientation, &along, across);
         return;
@@ -397,6 +535,7 @@ fn horizontal_gutter(spec: &ChartSpec, metrics: &impl TextMetrics) -> f64 {
     (widest + 29.0).clamp(88.0, 210.0)
 }
 
+#[allow(clippy::too_many_lines)]
 fn layout_horizontal(
     spec: &ChartSpec,
     scale: &NumericScale,
@@ -450,8 +589,22 @@ fn layout_horizontal(
         .map(|reference| along(reference.value))
         .collect();
 
-    for (index, range) in spec.ranges.iter().enumerate() {
-        let center = plot.top + band * (count(index) + 0.5);
+    // A dumbbell writes both values beside their dots if the low ones, which lie on the left
+    // unless the axis is reversed, have room before the labels of the categories.
+    let split = split_values(
+        spec,
+        |_, value, side| {
+            side > 0.0 || {
+                let reach = WithReserve(metrics)
+                    .width(&format_value(value, spec.number_style()), LABEL_SIZE);
+                along(value) - plot.left >= reach + DUMBBELL_REACH
+            }
+        },
+        &along,
+    );
+    for (row, index) in spec.range_order().into_iter().enumerate() {
+        let range = &spec.ranges[index];
+        let center = plot.top + band * (count(row) + 0.5);
         push_span(
             &mut elements,
             spec,
@@ -461,7 +614,17 @@ fn layout_horizontal(
             (center - thickness / 2.0, thickness),
             max_weight,
         );
-        if spec.show_values {
+        if split {
+            for (value, side) in end_sides(range, &along) {
+                push_end_value(
+                    &mut elements,
+                    spec,
+                    value,
+                    (along(value), center, side),
+                    Orientation::Horizontal,
+                );
+            }
+        } else if spec.show_values {
             // A reference line never runs through the label: it moves to the line's far side.
             let start = along(range.high).max(along(range.low)) + 8.0;
             let reach = WithReserve(metrics).width(&span_label(spec, range), LABEL_SIZE);
@@ -492,6 +655,7 @@ fn layout_horizontal(
     elements
 }
 
+#[allow(clippy::too_many_lines)]
 fn layout_vertical(
     spec: &ChartSpec,
     scale: &NumericScale,
@@ -527,8 +691,20 @@ fn layout_vertical(
     let along = |value| scale.map(value, plot.top + plot.height, plot.top);
     let mut omitted = false;
 
-    for (index, range) in spec.ranges.iter().enumerate() {
-        let center = plot.left + band * (count(index) + 0.5);
+    // A dumbbell writes both values beside their dots if the lower one, which lies below its
+    // dot, stays above the labels of the categories and both fit the width of a band.
+    let split = split_values(
+        spec,
+        |_, value, side| {
+            let width = metrics.width(&format_value(value, spec.number_style()), LABEL_SIZE);
+            width <= band - 4.0
+                && (side < 0.0 || along(value) + DUMBBELL_REACH <= plot.top + plot.height)
+        },
+        &along,
+    );
+    for (row, index) in spec.range_order().into_iter().enumerate() {
+        let range = &spec.ranges[index];
+        let center = plot.left + band * (count(row) + 0.5);
         push_span(
             &mut elements,
             spec,
@@ -538,7 +714,17 @@ fn layout_vertical(
             (center - thickness / 2.0, thickness),
             max_weight,
         );
-        if spec.show_values {
+        if split {
+            for (value, side) in end_sides(range, &along) {
+                push_end_value(
+                    &mut elements,
+                    spec,
+                    value,
+                    (along(value), center, side),
+                    Orientation::Vertical,
+                );
+            }
+        } else if spec.show_values {
             let content = span_label(spec, range);
             if metrics.width(&content, LABEL_SIZE) <= band - 4.0 {
                 elements.push(Element::Text(Text {
@@ -639,6 +825,21 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     }
     if spec.ranges.iter().any(|range| range.weight.is_some()) {
         description.push_str(&text::weighted_ranges(spec.locale));
+    }
+    if spec.display == RangeDisplay::Dumbbell {
+        let widest = spec
+            .range_order()
+            .into_iter()
+            .map(|index| &spec.ranges[index])
+            .fold(None::<&RangeSpec>, |best, range| match best {
+                Some(known) if known.high - known.low >= range.high - range.low => Some(known),
+                _ => Some(range),
+            })
+            .expect("validated rangebar charts have a range");
+        description.push_str(&text::dumbbell_note(
+            spec.locale,
+            (&show(widest.high - widest.low), &widest.label),
+        ));
     }
     if !spec.references.is_empty() {
         let words = spec.locale.words();

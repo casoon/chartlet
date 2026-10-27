@@ -253,6 +253,35 @@ extreme values within reach and a point for every value beyond.
   picture, with the median across. Both need `values` on every box (`values_required`); the
   value axis reaches every observation.
 
+## Dumbbells
+
+`"display": "dumbbell"` on a `rangebar` chart draws each span as two dots joined by a line: an
+**open** dot at `low` and a **filled** dot at `high`, so the two ends differ in form as well as in
+position. It suits before and after, or two groups, one row per category.
+
+```json
+{
+  "type": "rangebar",
+  "display": "dumbbell",
+  "sort": "change",
+  "orientation": "horizontal",
+  "ranges": [
+    { "label": "Onboarding", "low": 58, "high": 81 },
+    { "label": "Billing", "low": 49, "high": 64 }
+  ]
+}
+```
+
+- `showValues` writes the value beside each dot, on the side away from the other dot. Where the
+  low values would run into the labels of the categories, or into the labels of the axis on a
+  vertical chart, each span writes its combined label after the high end instead.
+- `"sort": "change"` puts the widest span first, in the picture, the data table and the
+  description; without it the spans keep the order they are listed in. `sort` applies to bars too.
+- `group` colors the line and the dots of a group and adds the legend. A dumbbell has no `mid`,
+  `weight`, `summary` or `modeled`: `option_not_supported` names the field.
+- The description names the widest change and says which dot is which; the table is the one of
+  range bars, with a Low and a High column.
+
 ## Forest plots
 
 A range bar chart becomes a forest plot — the usual picture of a meta-analysis — with three

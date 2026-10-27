@@ -1,5 +1,6 @@
 use super::{
-    ChartSpec, ChartType, Dataset, LayerRef, MAX_SERIES, NumberStyle, Series, ValueFormat,
+    ChartSpec, ChartType, Dataset, LayerRef, MAX_SERIES, NumberStyle, RangeSpec, Series,
+    ValueFormat,
     timechart::{Gaps, LayerSpec, Mark},
 };
 use crate::{error::ChartError, time::TimeValue};
@@ -134,38 +135,50 @@ impl ChartSpec {
 
     fn rangebar_dataset(&self) -> Dataset {
         let words = self.locale.words();
+        let ranges: Vec<&RangeSpec> = self
+            .range_order()
+            .into_iter()
+            .map(|index| &self.ranges[index])
+            .collect();
         let mut series = vec![
             Series {
                 name: Some(words.range_low.to_owned()),
-                values: self.ranges.iter().map(|range| Some(range.low)).collect(),
+                values: ranges
+                    .iter()
+                    .copied()
+                    .map(|range| Some(range.low))
+                    .collect(),
                 style: None,
             },
             Series {
                 name: Some(words.range_high.to_owned()),
-                values: self.ranges.iter().map(|range| Some(range.high)).collect(),
+                values: ranges
+                    .iter()
+                    .copied()
+                    .map(|range| Some(range.high))
+                    .collect(),
                 style: None,
             },
         ];
-        if self.ranges.iter().any(|range| range.weight.is_some()) {
+        if ranges.iter().copied().any(|range| range.weight.is_some()) {
             series.push(Series {
                 name: Some(words.weight.to_owned()),
-                values: self.ranges.iter().map(|range| range.weight).collect(),
+                values: ranges.iter().copied().map(|range| range.weight).collect(),
                 style: None,
             });
         }
-        if self.ranges.iter().any(|range| range.mid.is_some()) {
+        if ranges.iter().copied().any(|range| range.mid.is_some()) {
             series.insert(
                 1,
                 Series {
                     name: Some(words.range_mid.to_owned()),
-                    values: self.ranges.iter().map(|range| range.mid).collect(),
+                    values: ranges.iter().copied().map(|range| range.mid).collect(),
                     style: None,
                 },
             );
         }
         Dataset {
-            categories: self
-                .ranges
+            categories: ranges
                 .iter()
                 .map(|range| {
                     let notes: Vec<&str> = range

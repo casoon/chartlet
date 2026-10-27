@@ -523,6 +523,20 @@ pub(crate) fn summary_ranges(locale: Locale, summaries: &str) -> String {
     }
 }
 
+/// What the dots of a dumbbell chart mean, and the span with the biggest change between them.
+pub(crate) fn dumbbell_note(locale: Locale, widest: (&str, &str)) -> String {
+    match locale {
+        Locale::En => format!(
+            " Each row connects an open dot at the low value with a filled dot at the high value. Widest change: {} ({}).",
+            widest.0, widest.1
+        ),
+        Locale::De => format!(
+            " Jede Zeile verbindet einen offenen Punkt beim unteren mit einem gefüllten Punkt beim oberen Wert. Größte Veränderung: {} ({}).",
+            widest.0, widest.1
+        ),
+    }
+}
+
 /// What the squares of a range chart mean.
 pub(crate) fn weighted_ranges(locale: Locale) -> String {
     match locale {
