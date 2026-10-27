@@ -9,6 +9,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Fishbone diagrams:** `"type": "fishbone"` draws one effect at the head of a spine and up to six
+  categories as bones above and below it, each with causes and sub-causes on horizontal lines;
+  labels are never set on a diagonal. The description and the table list the effect, the
+  categories and the causes in order. Details:
+  [Fishbone diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#fishbone-diagrams).
+
 - **Slope and rank charts:** `"slope": true` on a `line` chart of two categories draws one line per
   series from its first value to its second, and `"rank": true` plots the rank of each series
   across several categories, 1 at the top. The names stand at both ends instead of a legend,

@@ -4,6 +4,7 @@
 mod architecture;
 mod charts;
 mod diagrams;
+mod outlines;
 mod statistics;
 
 pub(crate) use architecture::{
@@ -29,6 +30,7 @@ pub(crate) use diagrams::{
     role, roles, sequence_message, sequence_opening, sinks, sources, state_opening, transition,
     tree_collapsed, tree_opening, tree_root, unconnected_parts,
 };
+pub(crate) use outlines::{FishboneRow, belongs_columns, fishbone_opening, fishbone_row};
 pub(crate) use statistics::{
     boxplot_summary, on_dividing_line, points_above_line, quadrant_points, quadrant_position,
     quadrants_opening, scatter_caption, scatter_fit, scatter_summary, survival_group,

@@ -514,6 +514,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/payment-notes.json"),
         include_str!("../examples/payment-notes.svg"),
     ),
+    (
+        "delivery-delays",
+        include_str!("../examples/delivery-delays.json"),
+        include_str!("../examples/delivery-delays.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -702,6 +707,11 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "payment-interfaces",
         include_str!("../examples/payment-interfaces.json"),
         include_str!("../examples/payment-interfaces.mobile.svg"),
+    ),
+    (
+        "delivery-delays",
+        include_str!("../examples/delivery-delays.json"),
+        include_str!("../examples/delivery-delays.mobile.svg"),
     ),
 ];
 

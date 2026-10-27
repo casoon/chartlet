@@ -1584,6 +1584,46 @@ drawn larger and reported as `canvas_too_small`. With `layout: "rings"` a `cente
 (`missing_center`) and `order` is refused; on a circle `center` is refused
 (`option_not_supported`).
 
+## Fishbone diagrams
+
+`"type": "fishbone"` draws the causes of one effect: the effect at the head of a spine, and on
+bones that alternate above and below it the categories of its causes, each with causes and
+sub-causes. It is the diagram for a root cause review.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "fishbone",
+  "title": "Why parcels arrive late",
+  "fishbone": {
+    "effect": "Late deliveries",
+    "bones": [
+      {
+        "label": "People",
+        "causes": [
+          { "label": "New drivers", "causes": [{ "label": "No route training" }] },
+          { "label": "Uneven shifts" }
+        ]
+      },
+      { "label": "Process", "causes": [{ "label": "Late dispatch" }] }
+    ]
+  }
+}
+```
+
+- **Bones.** One to six, alternating above and below the spine in the order listed, two to a
+  column. A bone leans toward the head; its category stands in a box at the outer end.
+- **Causes.** Up to eight per bone, each with up to four sub-causes: two levels, no more. A cause
+  is a horizontal line that meets its bone, with its label above the line; a sub-cause is a
+  shorter, indented line below its cause. Labels are never set on a diagonal, and a label that
+  is wider than its line wraps onto a second line.
+- **Size.** The canvas grows when the bones do not fit it and says how large it needs to be
+  (`canvas_too_small`).
+- **Text alternative.** The description names the effect, the number of categories and causes,
+  and then every category with its causes and their sub-causes in the order listed; the table
+  has one row for the effect, each category, each cause and each sub-cause, with what it belongs
+  to.
+
 ## Time series
 
 `"type": "time"` drops categories altogether: an observation carries a timestamp, the ticks land
