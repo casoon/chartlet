@@ -4,6 +4,7 @@ mod basics;
 mod collapsed_gaps;
 mod diagrams;
 mod distributions;
+mod heatmap;
 mod locale;
 mod manifest;
 mod multiples;

@@ -26,6 +26,7 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `survival` | [Survival curves](#survival-curves) | `survival` |
 | `scatter` | [Scatter plots](#scatter-plots) | `scatter` |
 | `waffle` | [Waffle charts](#waffle-charts) | `waffle` |
+| `heatmap` | [Heatmaps](#heatmaps) | `heatmap` |
 | `waterfall` | [Waterfalls](#waterfalls) | `waterfall` |
 | `sequence` | [Sequence diagrams](#sequence-diagrams) | `sequence` |
 | `flow` | [Flow charts](#flow-charts) | `flow` |
@@ -78,14 +79,14 @@ Rules:
 - Numbers must be finite (`non_finite_value`) and zero or of a magnitude between `1e-100` and
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
-  `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `waterfall`,
+  `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `heatmap`, `waterfall`,
   `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
 - A type whose block is absent is refused with the block's own code: `missing_stripes`,
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
-  `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_waterfall`,
+  `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
   `missing_classes`, `missing_architecture`, `missing_tree` and `missing_network`. An empty list
   where a type needs at least one entry is `empty_data`.
@@ -553,6 +554,29 @@ Rules: up to 4 parts (`too_many_series`) with unique labels (`duplicate_label`) 
 zero (`invalid_value`); `cells` outside 10–400, or no more cells than parts, is
 `invalid_cells`; `columns` outside 2–40 is `invalid_columns`; a `total` below the sum of the parts
 is `invalid_total`.
+
+## Heatmaps
+
+`"type": "heatmap"`: values, or categories, in a grid of rows and columns. See
+[Heatmaps](../../guides/chart-types/#heatmaps).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `heatmap.rows` | array of strings, 1–60 | yes | The rows; unique labels. |
+| `heatmap.columns` | array of strings, 1–60 | yes | The columns; unique labels. |
+| `heatmap.cells` | array | yes | `[{ "row": "Mon", "column": "AM", "value": 42 }]`; a cell that is not listed has no value. With `categories`, `category` takes the place of `value`. |
+| `heatmap.categories` | array of strings, up to 4 | no | Makes the heatmap categorical: each category has a palette color and a symbol. |
+| `heatmap.scale` | `"sequential"` or `"diverging"` | no | Default `sequential`: six steps from the smallest value to the largest. `diverging` has seven, parted at the midpoint. |
+| `heatmap.midpoint` | number | no | Where a diverging scale turns; default 0. |
+| `heatmap.valueLabel` | string | no | What the values are, named in the key and the table; default the word for a value. |
+| `heatmap.rowOrder`, `heatmap.columnOrder` | `"listed"`, `"label"` or `"value"` | no | The order of the rows or columns: as listed (default), by label, or by the mean of their values, the largest first. |
+
+Rules: a cell names a row and a column that exist (`unknown_row`, `unknown_column`) once
+(`duplicate_cell`), and holds a `value` or, with `categories`, a `category` of the list
+(`invalid_cell`, `unknown_category`); labels are unique (`duplicate_label`); up to 4 categories
+(`too_many_series`); a categorical heatmap takes no `scale`, `midpoint` or `valueLabel`
+(`option_not_supported`) and no ordering by `value` (`invalid_order`); a `midpoint` belongs to a
+diverging scale.
 
 ## Waterfalls
 

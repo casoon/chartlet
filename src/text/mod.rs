@@ -13,13 +13,13 @@ pub(crate) use architecture::{
 };
 pub(crate) use charts::{
     CandleSummary, areas, axis_noun, bands, calendar_opening, candle_values, candles,
-    categories_opening, diverging_scale, equal_values, error_bars, gaps_collapsed, missing_values,
-    modeled_ranges, multiples_opening, panel_bars_opening, panel_notes, panes,
-    parliament_coalition, parliament_summary, percent_done, range_groups, rangebar_opening,
-    sankey_summary, series_at, stacked_areas, stacked_shares, stacked_totals, stripes_opening,
-    summary_ranges, time_opening, timeline_item, timeline_markers, timeline_opening,
-    treemap_summary, waffle_summary, waterfall_summary, weighted_ranges, years_without_value,
-    zone_times, zone_values,
+    categories_opening, diverging_scale, equal_values, error_bars, gaps_collapsed,
+    heatmap_categories, heatmap_values, missing_values, modeled_ranges, multiples_opening,
+    panel_bars_opening, panel_notes, panes, parliament_coalition, parliament_summary, percent_done,
+    range_groups, rangebar_opening, sankey_summary, series_at, stacked_areas, stacked_shares,
+    stacked_totals, stripes_opening, summary_ranges, time_opening, timeline_item, timeline_markers,
+    timeline_opening, treemap_summary, waffle_summary, waterfall_summary, weighted_ranges,
+    years_without_value, zone_times, zone_values,
 };
 pub(crate) use diagrams::{
     bottlenecks, choices, closest_pair, composite, dendrogram_opening, dendrogram_order,
@@ -152,6 +152,9 @@ pub(crate) struct Words {
     pub part: &'static str,
     pub squares: &'static str,
     pub rest: &'static str,
+    /// The columns of a heatmap's table.
+    pub row: &'static str,
+    pub column: &'static str,
     /// The words of a parliament chart.
     pub party: &'static str,
     pub seats: &'static str,
@@ -270,6 +273,8 @@ const EN: Words = Words {
     part: "Part",
     squares: "Squares",
     rest: "Rest",
+    row: "Row",
+    column: "Column",
     party: "Party",
     seats: "Seats",
     seat: "seat",
@@ -390,6 +395,8 @@ const DE: Words = Words {
     part: "Teil",
     squares: "Felder",
     rest: "Rest",
+    row: "Zeile",
+    column: "Spalte",
     party: "Partei",
     seats: "Sitze",
     seat: "Sitz",

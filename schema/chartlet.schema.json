@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network"]
+      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "heatmap", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -141,6 +141,10 @@
     "waffle": {
       "description": "The parts of a type: \"waffle\" chart.",
       "$ref": "#/$defs/waffle"
+    },
+    "heatmap": {
+      "description": "The rows, columns and cells of a type: \"heatmap\" chart.",
+      "$ref": "#/$defs/heatmap"
     },
     "waterfall": {
       "description": "The steps of a type: \"waterfall\" chart.",
@@ -431,6 +435,17 @@
           }
         },
         {
+          "required": ["heatmap"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["waterfall"],
           "not": {
             "anyOf": [
@@ -585,6 +600,11 @@
       "if": { "properties": { "type": { "const": "waffle" } } },
       "then": { "required": ["waffle"] },
       "else": { "not": { "required": ["waffle"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "heatmap" } } },
+      "then": { "required": ["heatmap"] },
+      "else": { "not": { "required": ["heatmap"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waterfall" } } },
@@ -1245,6 +1265,51 @@
         "cells": { "type": "integer", "minimum": 10, "maximum": 400, "default": 100 },
         "columns": { "type": "integer", "minimum": 2, "maximum": 40 },
         "total": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "heatmap": {
+      "description": "A heatmap: values, or categories, in a grid of rows and columns. A cell that is not listed has no value and is drawn as such. Numeric cells take a step of a sequential (six steps) or diverging (seven steps, parted at `midpoint`) scale and are written into the cell where they fit; with `categories` (up to 4) every cell names one, drawn with a fill and a symbol. Up to 60 rows and 60 columns.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "columns", "cells"],
+      "properties": {
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": { "type": "string", "minLength": 1, "maxLength": 100 }
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 60,
+          "items": { "type": "string", "minLength": 1, "maxLength": 100 }
+        },
+        "cells": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["row", "column"],
+            "properties": {
+              "row": { "type": "string" },
+              "column": { "type": "string" },
+              "value": { "type": "number" },
+              "category": { "type": "string" }
+            }
+          }
+        },
+        "categories": {
+          "type": "array",
+          "maxItems": 4,
+          "items": { "type": "string", "minLength": 1, "maxLength": 100 }
+        },
+        "scale": { "enum": ["sequential", "diverging"], "default": "sequential" },
+        "midpoint": { "type": "number", "default": 0 },
+        "valueLabel": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "rowOrder": { "enum": ["listed", "label", "value"], "default": "listed" },
+        "columnOrder": { "enum": ["listed", "label", "value"], "default": "listed" }
       }
     },
     "waterfall": {

@@ -412,7 +412,7 @@ const catalogue = [
   },
   {
     slug: 'revenue-to-profit',
-    group: 'Parts of a whole',
+    group: 'Ranges and distributions',
     chart: 'Waterfall chart',
     useCase: 'Explain how a total comes about',
     blurb:
@@ -425,6 +425,22 @@ const catalogue = [
     useCase: 'Make a share countable',
     blurb:
       'A hundred squares for one year of electricity: wind, solar, gas and coal each take as many squares as percent, and the 12 squares that are left stand for the rest. Every square has a tooltip, the legend names value and share, and the table counts the squares. Illustrative shares, with a phone variant.',
+  },
+  {
+    slug: 'response-times',
+    group: 'Parts of a whole',
+    chart: 'Heatmap',
+    useCase: 'Find the hours that stand out',
+    blurb:
+      'Median first response of a support team by weekday and time of day: six blues from the quickest to the slowest, the minutes written into every cell, and a dashed box where no tickets were answered. The key names the unit and both ends of the scale, and the table has a row for every cell. Illustrative data, with a phone variant.',
+  },
+  {
+    slug: 'permission-matrix',
+    group: 'Ranges and distributions',
+    chart: 'Heatmap (categories)',
+    useCase: 'Show who may do what',
+    blurb:
+      'Four roles against four areas of a project: read, write and none, each with its own fill and symbol so that color is never the only cue, and a dashed box for the combination nobody defined. Illustrative roles, with a phone variant.',
   },
   {
     slug: 'election-result',

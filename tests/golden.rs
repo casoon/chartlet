@@ -305,6 +305,16 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/energy-sources.svg"),
     ),
     (
+        "response-times",
+        include_str!("../examples/response-times.json"),
+        include_str!("../examples/response-times.svg"),
+    ),
+    (
+        "permission-matrix",
+        include_str!("../examples/permission-matrix.json"),
+        include_str!("../examples/permission-matrix.svg"),
+    ),
+    (
         "election-result",
         include_str!("../examples/election-result.json"),
         include_str!("../examples/election-result.svg"),
@@ -557,6 +567,16 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "energy-sources",
         include_str!("../examples/energy-sources.json"),
         include_str!("../examples/energy-sources.mobile.svg"),
+    ),
+    (
+        "response-times",
+        include_str!("../examples/response-times.json"),
+        include_str!("../examples/response-times.mobile.svg"),
+    ),
+    (
+        "permission-matrix",
+        include_str!("../examples/permission-matrix.json"),
+        include_str!("../examples/permission-matrix.mobile.svg"),
     ),
     (
         "election-result",

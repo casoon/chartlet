@@ -29,6 +29,7 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         ChartType::Treemap => return crate::treemap::description(spec),
         ChartType::Parliament => return crate::parliament::description(spec),
         ChartType::Waffle => return crate::waffle::description(spec),
+        ChartType::Heatmap => return crate::heatmap::description(spec),
         ChartType::Waterfall => return crate::waterfall::description(spec),
         ChartType::Bar | ChartType::Line => {}
     }

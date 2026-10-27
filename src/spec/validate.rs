@@ -498,6 +498,7 @@ impl ChartSpec {
                 ChartType::Parliament,
             ),
             ("/waffle", self.waffle.is_some(), ChartType::Waffle),
+            ("/heatmap", self.heatmap.is_some(), ChartType::Heatmap),
             ("/waterfall", self.waterfall.is_some(), ChartType::Waterfall),
             ("/sequence", self.sequence.is_some(), ChartType::Sequence),
             ("/flow", self.flow.is_some(), ChartType::Flow),

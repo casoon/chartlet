@@ -9,6 +9,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Heatmaps:** `"type": "heatmap"` shows values in a grid of rows and columns on a sequential or
+  a diverging scale, with the value written into the cell where it fits and a key below; or
+  categories, each with a fill and a symbol. Cells that are not listed are drawn as missing, rows
+  and columns can be sorted by label or value, and the table has every cell. Details:
+  [Heatmaps](https://casoon.github.io/chartlet/docs/guides/chart-types/#heatmaps).
+
 - **MCP server:** the resource `chartlet://guide/types` maps what to show to the type and its fields
   for every type of the schema, and the prompts `diagram`, `chart` and `redraw` lead from a request
   through validation to the rendered result. Details:

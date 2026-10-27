@@ -6,6 +6,7 @@
 export const CHART_STARTER_TYPES = /** @type {const} */ ([
   "waterfall",
   "waffle",
+  "heatmap",
   "parliament",
   "treemap",
   "sankey",
@@ -48,6 +49,23 @@ const STARTERS = {
         { label: "Coal", value: 17 },
       ],
       total: 100,
+    },
+  },
+  heatmap: {
+    schemaVersion: 1,
+    type: "heatmap",
+    title: "Median first response, in minutes",
+    heatmap: {
+      rows: ["Monday", "Tuesday"],
+      columns: ["Morning", "Noon", "Afternoon"],
+      valueLabel: "Minutes",
+      cells: [
+        { row: "Monday", column: "Morning", value: 42 },
+        { row: "Monday", column: "Noon", value: 28 },
+        { row: "Monday", column: "Afternoon", value: 47 },
+        { row: "Tuesday", column: "Morning", value: 30 },
+        { row: "Tuesday", column: "Afternoon", value: 38 },
+      ],
     },
   },
   parliament: {
@@ -376,6 +394,11 @@ const NOTES = {
   waffle: [
     "Up to four parts, each with at least one square; a total above their sum leaves the squares of the rest.",
     "cells (10–400, default 100) and columns (2–40) set the grid.",
+  ],
+  heatmap: [
+    "Rows and columns are labels (up to 60 each); a cell names one of each, once, with a value. A cell that is not listed has no value and is drawn as an empty, dashed box.",
+    'For categories (a permission matrix) list "categories" (up to four) and give every cell a "category" instead of a value: each has a fill and a symbol.',
+    '"scale": "diverging" with a "midpoint" parts two hues; rowOrder and columnOrder sort by "label" or "value" (the mean).',
   ],
   parliament: [
     "Up to 8 parties and 800 seats, in blocks from left to right in the order of the list.",

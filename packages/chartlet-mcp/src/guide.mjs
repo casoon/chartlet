@@ -23,6 +23,7 @@ export const SHOWING = /** @type {Record<string, string>} */ ({
   timeline: "phases, milestones and dependencies on a time axis, such as a roadmap",
   waterfall: "how a start value becomes an end value through additions and subtractions",
   waffle: "a few shares of one whole, as squares",
+  heatmap: "values, or categories such as a permission matrix, in a grid of rows and columns",
   parliament: "seats by party with a majority line and coalitions",
   treemap: "many positive parts of a whole, in groups, by area",
   sankey: "quantities flowing between stages or nodes",

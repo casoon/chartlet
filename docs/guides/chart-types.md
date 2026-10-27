@@ -373,6 +373,48 @@ one percent is read more easily than a pie.
   and lists every part with its value, share and squares; the table has a row for each, with the
   rest.
 
+## Heatmaps
+
+`"type": "heatmap"` shows values, or categories, in a grid of rows and columns: a response time by
+weekday and hour, or who may do what.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "heatmap",
+  "title": "Median first response, in minutes",
+  "heatmap": {
+    "rows": ["Monday", "Tuesday"],
+    "columns": ["08–10", "10–12", "12–14"],
+    "valueLabel": "Minutes",
+    "cells": [
+      { "row": "Monday", "column": "08–10", "value": 42 },
+      { "row": "Monday", "column": "10–12", "value": 35 },
+      { "row": "Tuesday", "column": "08–10", "value": 30 },
+      { "row": "Tuesday", "column": "10–12", "value": 22 },
+      { "row": "Tuesday", "column": "12–14", "value": 19 }
+    ]
+  }
+}
+```
+
+- **Values.** Each value takes a step of a sequential scale, six blues from the smallest value to
+  the largest, and is written into its cell where it fits, in a text color that keeps at least
+  4.5:1 against the fill. `"scale": "diverging"` has seven steps, two hues parted at `midpoint`
+  (0 by default), for values above and below a reference. A key below the grid names what the
+  values are and gives both ends, and the midpoint of a diverging scale.
+- **Categories.** List `categories` (up to four) and let every cell name one instead of a value,
+  for example `read`, `write` and `none` in a permission matrix. A category has a palette color
+  and a symbol — circle, square, triangle, diamond — so that color is never the only cue.
+- **Missing cells.** A cell that is not listed is drawn as an empty, dashed box, and the key says
+  what it means. The table says "no value" for it.
+- **Order.** Rows and columns keep the order of their lists. `rowOrder` and `columnOrder` can sort
+  by `label`, or by `value`, the mean of the values with the largest first.
+- **Text alternative.** The description gives the size, what the colors show, the lowest and the
+  highest cell, and how many cells have no value; the table has a row for every cell. A narrow
+  cell shortens its column label with a `text_truncated` warning, and leaves out a value that does
+  not fit; the table still has it.
+
 ## Parliament charts
 
 `"type": "parliament"` shows who holds the seats of an assembly: one dot for every seat, in a

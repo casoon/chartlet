@@ -6,6 +6,7 @@ mod classes;
 mod dataset;
 mod deployment;
 mod flow;
+mod heatmap;
 mod network;
 mod parliament;
 mod rangebar;
@@ -47,6 +48,7 @@ pub use flow::{
     DiagramRole, DiagramSpacing, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec,
     MainPath, NodeKind, NoteSpec, PartSpec, PortSide,
 };
+pub use heatmap::{HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::RangeSpec;
@@ -205,6 +207,9 @@ pub struct ChartSpec {
     /// A waffle: squares that each stand for a share of a whole. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waffle: Option<WaffleSpec>,
+    /// A heatmap: values or categories in a grid of rows and columns. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub heatmap: Option<HeatmapSpec>,
     /// A parliament: seats as dots in a semicircle, in blocks by party. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parliament: Option<ParliamentSpec>,
@@ -415,6 +420,8 @@ pub enum ChartType {
     Waterfall,
     /// A waffle: squares that each stand for a share of a whole.
     Waffle,
+    /// A heatmap: values or categories in a grid of rows and columns.
+    Heatmap,
     /// A parliament: seats as dots in a semicircle, in blocks by party.
     Parliament,
     /// A treemap: rectangles whose areas follow the values.
@@ -433,7 +440,7 @@ pub enum ChartType {
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 24] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -450,6 +457,7 @@ impl ChartType {
         Self::Timeline,
         Self::Waterfall,
         Self::Waffle,
+        Self::Heatmap,
         Self::Parliament,
         Self::Treemap,
         Self::Sankey,
@@ -792,6 +800,7 @@ impl ChartSpec {
             ChartType::Treemap => self.validate_treemap(),
             ChartType::Parliament => self.validate_parliament(),
             ChartType::Waffle => self.validate_waffle(),
+            ChartType::Heatmap => self.validate_heatmap(),
             ChartType::Waterfall => self.validate_waterfall(),
             ChartType::Network => self.validate_network(),
             ChartType::Bar | ChartType::Line => self.validate_bar_and_line(),
@@ -825,6 +834,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Treemap => "treemap",
         ChartType::Parliament => "parliament",
         ChartType::Waffle => "waffle",
+        ChartType::Heatmap => "heatmap",
         ChartType::Waterfall => "waterfall",
         ChartType::Network => "network",
     }

@@ -598,6 +598,53 @@ pub(crate) fn waterfall_summary(
     text
 }
 
+/// What a heatmap of values shows: its size, what the colors stand for, both ends of the scale
+/// with the cell that holds them, and the cells without a value.
+pub(crate) fn heatmap_values(
+    locale: Locale,
+    (rows, columns): (usize, usize),
+    name: &str,
+    ((low, lowest), (high, highest)): ((&str, &str), (&str, &str)),
+    missing: usize,
+) -> String {
+    let rest = match (locale, missing) {
+        (_, 0) => String::new(),
+        (Locale::En, missing) => format!(" {missing} without a value."),
+        (Locale::De, missing) => format!(" {missing} ohne Wert."),
+    };
+    match locale {
+        Locale::En => format!(
+            "Heatmap of {rows} rows by {columns} columns. Color shows {name}, from {low} (lowest: {lowest}) to {high} (highest: {highest}).{rest}"
+        ),
+        Locale::De => format!(
+            "Heatmap aus {rows} Zeilen und {columns} Spalten. Die Farbe zeigt {name}, von {low} (am niedrigsten: {lowest}) bis {high} (am höchsten: {highest}).{rest}"
+        ),
+    }
+}
+
+/// What a heatmap of categories shows: its size, how many cells each category has, and the cells
+/// without a value.
+pub(crate) fn heatmap_categories(
+    locale: Locale,
+    (rows, columns): (usize, usize),
+    counts: &str,
+    missing: usize,
+) -> String {
+    let rest = match (locale, missing) {
+        (_, 0) => String::new(),
+        (Locale::En, missing) => format!(" {missing} without a value."),
+        (Locale::De, missing) => format!(" {missing} ohne Wert."),
+    };
+    match locale {
+        Locale::En => format!(
+            "Heatmap of {rows} rows by {columns} columns, each cell one category. Cells by category: {counts}.{rest}"
+        ),
+        Locale::De => format!(
+            "Heatmap aus {rows} Zeilen und {columns} Spalten, jede Zelle eine Kategorie. Zellen je Kategorie: {counts}.{rest}"
+        ),
+    }
+}
+
 /// What a waffle shows: its squares, what one stands for, and every part.
 pub(crate) fn waffle_summary(locale: Locale, (squares, each): (u32, &str), parts: &str) -> String {
     match locale {

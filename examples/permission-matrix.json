@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "type": "heatmap",
+  "title": "Who may do what",
+  "source": "Illustrative roles of a documentation project",
+  "width": 760,
+  "height": 380,
+  "heatmap": {
+    "rows": ["Reader", "Contributor", "Maintainer", "Owner"],
+    "columns": ["Pages", "Comments", "Releases", "Settings"],
+    "categories": ["Read", "Write", "None"],
+    "cells": [
+      { "row": "Reader", "column": "Pages", "category": "Read" },
+      { "row": "Reader", "column": "Comments", "category": "Read" },
+      { "row": "Reader", "column": "Releases", "category": "None" },
+      { "row": "Reader", "column": "Settings", "category": "None" },
+      { "row": "Contributor", "column": "Pages", "category": "Write" },
+      { "row": "Contributor", "column": "Comments", "category": "Write" },
+      { "row": "Contributor", "column": "Releases", "category": "Read" },
+      { "row": "Contributor", "column": "Settings", "category": "None" },
+      { "row": "Maintainer", "column": "Pages", "category": "Write" },
+      { "row": "Maintainer", "column": "Comments", "category": "Write" },
+      { "row": "Maintainer", "column": "Releases", "category": "Write" },
+      { "row": "Maintainer", "column": "Settings", "category": "Read" },
+      { "row": "Owner", "column": "Pages", "category": "Write" },
+      { "row": "Owner", "column": "Comments", "category": "Write" },
+      { "row": "Owner", "column": "Releases", "category": "Write" }
+    ]
+  },
+  "mobile": { "width": 380, "height": 460 }
+}
