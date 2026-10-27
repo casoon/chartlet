@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "How a cached page is served",
+  "source": "Illustration for this recipe",
+  "description": "A request is answered from the cache when the page is there and still fresh; otherwise the server renders it, stores it and answers.",
+  "width": 1200,
+  "height": 420,
+  "flow": {
+    "nodes": [
+      { "id": "request", "label": "Request arrives", "kind": "start" },
+      { "id": "lookup", "label": "In the cache?", "kind": "decision" },
+      { "id": "fresh", "label": "Still fresh?", "kind": "decision" },
+      { "id": "render", "label": "Render the page" },
+      { "id": "store", "label": "Store it", "kind": "store" },
+      { "id": "answer", "label": "Send the answer", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "request", "to": "lookup" },
+      { "from": "lookup", "to": "fresh", "label": "yes" },
+      { "from": "lookup", "to": "render", "label": "no" },
+      { "from": "fresh", "to": "answer", "label": "yes" },
+      { "from": "fresh", "to": "render", "label": "no" },
+      { "from": "render", "to": "store" },
+      { "from": "store", "to": "answer" }
+    ]
+  },
+  "mobile": { "width": 360, "height": 640 }
+}

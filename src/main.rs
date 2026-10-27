@@ -11,6 +11,10 @@ use chartlet::{
 };
 use serde_json::{Value, json};
 
+/// The theme file a project sets its look in: found in the working directory and applied like
+/// `--theme` unless another theme is given.
+const PROJECT_THEME: &str = "chartlet.theme.json";
+
 mod inspect_command;
 mod preview;
 mod watch;
@@ -137,11 +141,11 @@ fn render_job(job: &Job, input: &str) -> Result<Rendered, Failure> {
         Err("--scale requires --format png".to_owned().into())
     } else {
         let rendered = render_json(input, job.format, &job.options).map_err(spec_failure)?;
-        Ok((
-            Content::Text(rendered.content),
-            rendered.warnings,
-            rendered.manifest,
-        ))
+        let manifest = rendered.manifest.map(|manifest| chartlet::Manifest {
+            theme: job.theme.clone(),
+            ..manifest
+        });
+        Ok((Content::Text(rendered.content), rendered.warnings, manifest))
     }
 }
 
@@ -250,6 +254,12 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
         }
     }
 
+    // The project's own look applies unless another theme is asked for.
+    let theme = theme.or_else(|| {
+        Path::new(PROJECT_THEME)
+            .is_file()
+            .then(|| PROJECT_THEME.to_owned())
+    });
     let job = Job {
         input,
         format,

@@ -35,6 +35,7 @@ Warnings are written to standard error, and the chart is still produced:
 | `color_not_resolved` | Print and social variants only: a layer declares its color as `var(--name)` without a fallback, which they cannot resolve; it is drawn in the text color. Give it a fallback, `var(--name, #2563eb)`, or a literal color so that layers stay distinguishable. |
 | `canvas_too_small` | A diagram does not fit its canvas in either orientation and was drawn larger; the path names `/width` or `/height`, the message the size it needs. A page that scales the SVG to its container still shows all of it. |
 | `low_contrast` | A color set in `tokens` lies on a color it is drawn on top of with less contrast than WCAG 2.2 asks for: 4.5:1 for text, 3:1 for marks. The path is the token; the message names both colors and the ratio. See [Customize the look](../customize/#contrast). |
+| `diagram_over_budget` | A diagram has more than reads well at its size, as an overview: more than 9 steps, states, components or classes or more than 12 edges, transitions, connections or relations (sequence: more than 6 participants or 16 messages; tree: more than 24 nodes). The budget grows with the area of the canvas. Split the diagram into an overview and details, in views for an architecture model, try the other orientation or a larger size, or keep it if it reads well. The counts are a heuristic: a large, clearly laid out diagram may be fine, and a crowded one below the budget is not caught. `chartlet inspect` and `chartlet_inspect` report it as a hint. |
 | `group_overlap` | A step outside a group of a flow chart, or a component outside a boundary of an architecture diagram, lies inside its frame. |
 | `package_orientation_ignored` | A class diagram package with an `orientation` of its own cannot be laid out as a block: a relation from outside would have to cross another class, relation or label of the package to reach its class, in every orientation the diagram may take. The package follows the diagram's orientation. |
 | `port_side_ignored` | A `fromSide` or `toSide` of a flow chart edge or an architecture connection lies along the flow but against the edge, such as `start` on an edge that leads on to a later step, and would turn it back over its own step; the edge meets the step where the flow leads instead. |
@@ -90,6 +91,7 @@ security, nor whether a process or a class model is sound.
 | `flow_without_end` | hint | Flow: a flow with a `start` step but no `end` step. | A flow with neither, a part of a larger one. |
 | `class_without_members` | gap | Class diagram: a class without `attributes` and `methods`. | A diagram in which no class has members, an overview of names. |
 | `isolated_class` | hint | Class diagram: a class without a relation to another class; notes are no relations. | A diagram of a single class. |
+| `diagram_over_budget` | hint | Architecture, flow and class diagrams: more items or relations than the [`diagram_over_budget` warning](#warnings) allows for the canvas. | An architecture model with `views`, whose views are drawn one by one. |
 
 A rule that does not fit a model is left out with `--disable <code>`, for example
 `--disable connection_without_technology` for a model that leaves protocols to its components,
@@ -116,6 +118,7 @@ check in CI that a committed chart still matches its specification and the chart
 | `view` | Only for an architecture model with `views`: the key of the view that was rendered (`--view`, or the default view). `specHash` stays the hash of the whole model. |
 | `views` | Only with `--all-views`: the keys of the views on the page, in its order. `idPrefix` is then the prefix of the page. |
 | `perspective` | Only for an architecture diagram that shows a perspective: its key, the one asked for with `--perspective` or the one the model or the view selects. |
+| `theme` | Only when a theme was applied by the host: a bundled theme by name, or the path of the theme file, such as `chartlet.theme.json` found in the working directory. |
 | `warnings` | The warnings of the render, each with `code`, `path` and `message`. |
 
 The canonical specification is the parsed form, serialized again: key order, whitespace and

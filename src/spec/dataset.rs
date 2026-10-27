@@ -55,6 +55,7 @@ impl ChartSpec {
             | ChartType::Waterfall
             | ChartType::Waffle
             | ChartType::Heatmap
+            | ChartType::Fishbone
             | ChartType::Parliament
             | ChartType::Treemap
             | ChartType::Sankey
@@ -374,6 +375,7 @@ impl ChartSpec {
             | ChartType::Timeline
             | ChartType::Waffle
             | ChartType::Heatmap
+            | ChartType::Fishbone
             | ChartType::Parliament
             | ChartType::Treemap
             | ChartType::Sankey
@@ -440,6 +442,7 @@ impl ChartSpec {
             | ChartType::Timeline
             | ChartType::Waffle
             | ChartType::Heatmap
+            | ChartType::Fishbone
             | ChartType::Parliament
             | ChartType::Treemap
             | ChartType::Sankey

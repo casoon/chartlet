@@ -9,6 +9,46 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Fishbone diagrams:** `"type": "fishbone"` draws one effect at the head of a spine and up to six
+  categories as bones above and below it, each with causes and sub-causes on horizontal lines;
+  labels are never set on a diagonal. The description and the table list the effect, the
+  categories and the causes in order. Details:
+  [Fishbone diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#fishbone-diagrams).
+- **Readability budget:** a diagram with more than 9 steps, states, components or classes or more
+  than 12 edges, transitions, connections or relations (a sequence diagram: more than 6
+  participants or 16 messages, a tree: more than 24 nodes) is reported as `diagram_over_budget`
+  with the advice to split it into an overview and details. The budget grows with the canvas, the
+  counts are guidance and not a limit, `--allow-warning diagram_over_budget` lets it through, and
+  `chartlet inspect` reports it as a hint. Details:
+  [Warnings and errors](https://casoon.github.io/chartlet/docs/guides/warnings-and-errors/).
+
+- **Project theme:** a `chartlet.theme.json` in the working directory (the MCP server: in
+  `CHARTLET_MCP_ROOT`) is applied like `--theme` unless another theme is given. The provenance
+  manifest and the `chartlet_render` result name the theme that was applied, and without a theme
+  file `chartlet_render` notes that the default look is used. Details:
+  [Customize the look](https://casoon.github.io/chartlet/docs/guides/customize/).
+
+- **MCP server:** `chartlet_theme_from_brand` turns brand colors an assistant read from a site into
+  a light and a dark theme file with a receipt of every adjustment for contrast; fonts are
+  recorded and not applied. `chartlet_check_coverage` compares a redrawn diagram with the
+  inventory of its source: kept, changed, merged, ambiguous, missing and added, by ids, endpoints
+  and members rather than labels alone. Details:
+  [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/).
+
+- **Agent skill:** `skills/chartlet/` is a portable skill (a `SKILL.md` with references) that leads
+  an assistant from a request through data inspection, a starter, validation and rendering to the
+  delivered file, with the MCP tools when they exist and the CLI otherwise. It never aggregates,
+  invents data or drops relationships to make a figure fit. Install, update, uninstall and
+  troubleshooting for Claude Code and Codex are in the skill's references; the part that has been
+  run is listed there. Details:
+  [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/#agent-skill).
+
+- **Recipes:** five task-oriented examples (a report from CSV, a blog explanation, architecture in
+  views, a release flow, a slide and print figure) with a shared brand theme, sample data marked as
+  such, the exact commands and a Node, Astro and Markdown route, in `examples/recipes/` and in the
+  showcase. Details:
+  [Recipes](https://casoon.github.io/chartlet/docs/guides/recipes/).
+
 - **Layers:** `"type": "layers"` draws abstraction levels stacked on each other (`"display":
   "stack"`, the first layer at the bottom) or scopes inside each other (`"display": "nested"`, the
   first the outermost). Every layer has a label, optional `items` as small boxes, a `note` at the

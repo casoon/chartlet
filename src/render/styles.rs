@@ -79,6 +79,8 @@ const WATERFALL_STYLE: &str = ".chartlet-wf-up{fill:var(--chartlet-color-1);stro
 /// categories with their symbols, and the cells that have no value.
 const HEATMAP_STYLE: &str = ".chartlet-hm-s0{fill:#cde0f5}.chartlet-hm-s1{fill:#a7c8ea}.chartlet-hm-s2{fill:#81afdf}.chartlet-hm-s3{fill:#5b97d3}.chartlet-hm-s4{fill:#0f66ac}.chartlet-hm-s5{fill:#064f89}.chartlet-hm-d0{fill:#9c4a05}.chartlet-hm-d1{fill:#e0852a}.chartlet-hm-d2{fill:#f6c389}.chartlet-hm-d3{fill:#f4f4f4}.chartlet-hm-d4{fill:#a9cfe6}.chartlet-hm-d5{fill:#5b97d3}.chartlet-hm-d6{fill:#0f66ac}.chartlet-hm-c1{fill:var(--chartlet-color-1)}.chartlet-hm-c2{fill:var(--chartlet-color-2)}.chartlet-hm-c3{fill:var(--chartlet-color-3)}.chartlet-hm-c4{fill:var(--chartlet-color-4)}.chartlet-hm-cell{stroke:var(--chartlet-background);stroke-width:1}.chartlet-hm-key{stroke:var(--chartlet-grid);stroke-width:1}.chartlet-hm-missing{fill:none;stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:3 3}.chartlet-hm-value{font-size:12px;font-weight:600}.chartlet-hm-on-light{fill:#172033}.chartlet-hm-on-dark{fill:#fff}.chartlet-hm-symbol{fill:var(--chartlet-background);stroke:var(--chartlet-text);stroke-width:1.5}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 const WAFFLE_STYLE: &str = ".chartlet-waffle-1{fill:var(--chartlet-color-1)}.chartlet-waffle-2{fill:var(--chartlet-color-2)}.chartlet-waffle-3{fill:var(--chartlet-color-3)}.chartlet-waffle-4{fill:var(--chartlet-color-4)}.chartlet-waffle-rest{fill:var(--chartlet-grid)}.chartlet-waffle-cell{stroke:none;rx:2px}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Fishbone diagrams: spine, head, bones with their category boxes, ribs and the labels on them.
+const FISHBONE_STYLE: &str = ".chartlet-fish-spine{stroke:var(--chartlet-text);stroke-width:3;stroke-linecap:round}.chartlet-fish-arrow{fill:var(--chartlet-text);stroke:var(--chartlet-text);stroke-width:1;stroke-linejoin:round}.chartlet-fish-bone{stroke:var(--chartlet-role-teal);stroke-width:2;stroke-linecap:round}.chartlet-fish-rib{stroke:var(--chartlet-zero);stroke-width:1.2}.chartlet-fish-head{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-role-blue);stroke-width:2;rx:8px}.chartlet-fish-head-text{font-size:13px;font-weight:700;fill:var(--chartlet-text)}.chartlet-fish-category{fill:var(--chartlet-role-teal-fill);stroke:var(--chartlet-role-teal);stroke-width:1.5;rx:6px}.chartlet-fish-category-text{font-size:13px;font-weight:650;fill:var(--chartlet-text)}.chartlet-fish-cause{font-size:12px;fill:var(--chartlet-text)}.chartlet-fish-subcause{font-size:12px;fill:var(--chartlet-muted)}";
 /// Parliaments: seats by party, the majority line and the ring of a coalition.
 const PARLIAMENT_STYLE: &str = ".chartlet-root{--chartlet-parl-5:#0f766e;--chartlet-parl-6:#6d28d9;--chartlet-parl-7:#b45309;--chartlet-parl-8:#be185d}.chartlet-root.chartlet-theme-dark{--chartlet-parl-5:#2dd4bf;--chartlet-parl-6:#b69cff;--chartlet-parl-7:#fbbf24;--chartlet-parl-8:#f472b6}.chartlet-parl-1{fill:var(--chartlet-color-1)}.chartlet-parl-2{fill:var(--chartlet-color-2)}.chartlet-parl-3{fill:var(--chartlet-color-3)}.chartlet-parl-4{fill:var(--chartlet-color-4)}.chartlet-parl-5{fill:var(--chartlet-parl-5)}.chartlet-parl-6{fill:var(--chartlet-parl-6)}.chartlet-parl-7{fill:var(--chartlet-parl-7)}.chartlet-parl-8{fill:var(--chartlet-parl-8)}.chartlet-parl-seat{stroke:none}.chartlet-parl-coalition{fill:none;stroke:var(--chartlet-text);stroke-width:2}.chartlet-parl-majority{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:4 3}.chartlet-parl-total{font-size:28px;font-weight:700;fill:var(--chartlet-text)}.chartlet-parl-note{font-size:12px;fill:var(--chartlet-muted)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Treemaps: the rectangles in the palette colors.
@@ -170,6 +172,7 @@ fn diagram_style(chart_type: ChartType) -> String {
         ChartType::Architecture | ChartType::Tree => {
             &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE]
         }
+        ChartType::Fishbone => &[DIAGRAM_STYLE],
         _ => &[],
     };
     parts.concat()
@@ -183,6 +186,7 @@ const fn type_style(chart_type: ChartType) -> &'static str {
         ChartType::Waterfall => WATERFALL_STYLE,
         ChartType::Waffle => WAFFLE_STYLE,
         ChartType::Heatmap => HEATMAP_STYLE,
+        ChartType::Fishbone => FISHBONE_STYLE,
         ChartType::Parliament => PARLIAMENT_STYLE,
         ChartType::Treemap => TREEMAP_STYLE,
         ChartType::Sankey => SANKEY_STYLE,
@@ -302,8 +306,8 @@ const fn when(condition: bool, style: &str) -> &str {
 #[allow(clippy::too_many_lines)]
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
-        Architecture, Bar, Boxplot, Calendar, Classes, Cycle, Flow, Heatmap, Layers, Line,
-        Multiples, Network, Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes,
+        Architecture, Bar, Boxplot, Calendar, Classes, Cycle, Fishbone, Flow, Heatmap, Layers,
+        Line, Multiples, Network, Parliament, Rangebar, Sankey, Scatter, Sequence, State, Stripes,
         Survival, Time, Timeline, Tree, Treemap, Waffle, Waterfall,
     };
     let groups: &[(&str, &[ChartType])] = &[
@@ -389,6 +393,8 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (WATERFALL_STYLE, &[Waterfall]),
         (WAFFLE_STYLE, &[Waffle]),
         (HEATMAP_STYLE, &[Heatmap]),
+        (DIAGRAM_STYLE, &[Fishbone]),
+        (FISHBONE_STYLE, &[Fishbone]),
         (PARLIAMENT_STYLE, &[Parliament]),
         (TREEMAP_STYLE, &[Treemap]),
         (SANKEY_STYLE, &[Sankey]),

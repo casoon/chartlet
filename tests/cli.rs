@@ -956,6 +956,89 @@ fn a_theme_restyles_the_chart_and_a_bad_one_is_reported() {
     assert!(String::from_utf8_lossy(&missing.stderr).contains("could not read"));
 }
 
+/// Renders a bar chart in `directory` with `args`, and returns the SVG and the manifest.
+fn render_in(directory: &std::path::Path, args: &[&str]) -> (String, serde_json::Value) {
+    let manifest = directory.join("manifest.json");
+    let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+        .current_dir(directory)
+        .args(["render", "chart.json", "--manifest"])
+        .arg(&manifest)
+        .args(args)
+        .output()
+        .expect("chartlet CLI should start");
+    assert!(output.status.success(), "{output:?}");
+    let manifest = serde_json::from_slice(&std::fs::read(&manifest).expect("a manifest"))
+        .expect("the manifest should be JSON");
+    (
+        String::from_utf8(output.stdout).expect("SVG should be UTF-8"),
+        manifest,
+    )
+}
+
+#[test]
+fn a_project_theme_file_is_found_in_the_working_directory_and_named_in_the_manifest() {
+    let directory = std::env::temp_dir().join(format!("chartlet-theme-{}", std::process::id()));
+    std::fs::create_dir_all(&directory).expect("temporary directory should be writable");
+    std::fs::write(
+        directory.join("chart.json"),
+        r#"{"schemaVersion":1,"type":"bar","title":"T","data":[{"label":"a","value":1}]}"#,
+    )
+    .expect("a spec");
+
+    let (plain, manifest) = render_in(&directory, &[]);
+    assert!(manifest.get("theme").is_none(), "{manifest}");
+    assert!(!plain.contains("#123456"));
+
+    std::fs::write(
+        directory.join("chartlet.theme.json"),
+        r##"{"tokens":{"accent":"#123456"}}"##,
+    )
+    .expect("a theme");
+    let (found, manifest) = render_in(&directory, &[]);
+    assert!(found.contains("#123456"), "{found}");
+    assert_eq!(manifest["theme"], "chartlet.theme.json");
+
+    let (other, manifest) = render_in(&directory, &["--theme", "dark"]);
+    assert!(!other.contains("#123456"));
+    assert_eq!(manifest["theme"], "dark");
+    std::fs::remove_dir_all(&directory).expect("cleanup");
+}
+
+#[test]
+fn a_crowded_diagram_warns_and_the_warning_can_be_allowed() {
+    let nodes = (0..10)
+        .map(|index| format!(r#"{{"id":"s{index}","label":"Step {index}"}}"#))
+        .collect::<Vec<_>>()
+        .join(",");
+    let edges = (0..9)
+        .map(|index| format!(r#"{{"from":"s{index}","to":"s{}"}}"#, index + 1))
+        .collect::<Vec<_>>()
+        .join(",");
+    let spec = format!(
+        r#"{{"schemaVersion":1,"type":"flow","title":"Steps","flow":{{"nodes":[{nodes}],"edges":[{edges}]}}}}"#
+    );
+    let warned = run_with_stdin(&["render", "-"], &spec);
+    assert!(warned.status.success());
+    assert!(
+        String::from_utf8_lossy(&warned.stderr).contains("warning[diagram_over_budget] at /flow")
+    );
+    let strict = run_with_stdin(&["render", "-", "--strict"], &spec);
+    assert!(!strict.status.success());
+    let allowed = run_with_stdin(
+        &[
+            "render",
+            "-",
+            "--strict",
+            "--allow-warning",
+            "diagram_over_budget",
+            "--allow-warning",
+            "canvas_too_small",
+        ],
+        &spec,
+    );
+    assert!(allowed.status.success(), "{allowed:?}");
+}
+
 #[test]
 fn size_preset_sets_the_canvas_and_explicit_dimensions_win() {
     let spec = r#"{"schemaVersion":1,"type":"bar","title":"T","data":[{"label":"a","value":1}]}"#;
