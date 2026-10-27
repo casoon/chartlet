@@ -6,6 +6,7 @@ use super::{GROUP_HEAD, GROUP_PAD, measure::Model, model::Diagram};
 /// inside it, with the room a frame takes on either side.
 fn frame_range(
     diagram: &Diagram,
+    names: &[f64],
     cross: &[f64],
     cross_size: &impl Fn(usize) -> f64,
     group: usize,
@@ -21,14 +22,20 @@ fn frame_range(
         });
     let inner = (0..diagram.groups.len())
         .filter(|child| diagram.groups[*child].parent == Some(group))
-        .map(|child| frame_range(diagram, cross, cross_size, child, landscape));
+        .map(|child| frame_range(diagram, names, cross, cross_size, child, landscape));
     let (low, high) = own
         .chain(inner)
         .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), (a, b)| {
             (low.min(a), high.max(b))
         });
     let head = if landscape { GROUP_HEAD } else { 0.0 };
-    (low - GROUP_PAD - head, high + GROUP_PAD)
+    // Across the page a frame is as wide as its own name, which it grows by on both sides.
+    let extra = if landscape {
+        0.0
+    } else {
+        (names[group] - (high - low + 2.0 * GROUP_PAD)).max(0.0) / 2.0
+    };
+    (low - GROUP_PAD - head - extra, high + GROUP_PAD + extra)
 }
 
 /// Moves the steps that do not belong to a group out of its frame, with the steps beyond them, to
@@ -67,7 +74,14 @@ pub(super) fn clear_frames(
                 if diagram.inside(node, group) {
                     continue;
                 }
-                let (low, high) = frame_range(diagram, cross, cross_size, group, landscape);
+                let (low, high) = frame_range(
+                    diagram,
+                    &model.group_names,
+                    cross,
+                    cross_size,
+                    group,
+                    landscape,
+                );
                 let half = item_size(item) / 2.0;
                 let (start, end) = (cross[item] - half - MARGIN, cross[item] + half + MARGIN);
                 if end <= low || start >= high {
@@ -161,8 +175,10 @@ fn separate_frames(
                 if a_last < b_first || b_last < a_first {
                     continue;
                 }
-                let (a_low, a_high) = frame_range(diagram, cross, cross_size, a, landscape);
-                let (b_low, b_high) = frame_range(diagram, cross, cross_size, b, landscape);
+                let (a_low, a_high) =
+                    frame_range(diagram, &model.group_names, cross, cross_size, a, landscape);
+                let (b_low, b_high) =
+                    frame_range(diagram, &model.group_names, cross, cross_size, b, landscape);
                 // `a` is the frame on the low side of the cross axis.
                 if a_low + a_high >= b_low + b_high
                     || a_high + SEPARATION <= b_low
@@ -201,7 +217,16 @@ pub(super) fn frames_reach(
     let diagram = model.diagram;
     (0..diagram.groups.len())
         .filter(|group| diagram.groups[*group].parent.is_none())
-        .map(|group| frame_range(diagram, cross, cross_size, group, landscape))
+        .map(|group| {
+            frame_range(
+                diagram,
+                &model.group_names,
+                cross,
+                cross_size,
+                group,
+                landscape,
+            )
+        })
         .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), (a, b)| {
             (low.min(a), high.max(b))
         })

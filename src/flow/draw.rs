@@ -345,11 +345,18 @@ impl Plan {
             );
             // A frame is at least as wide as its own name, which sits in its top left corner.
             let named = (metrics.width(&diagram.groups[group].label, SUBLABEL_SIZE) + 16.0).ceil();
-            let extra = (named - (right - left + 2.0 * GROUP_PAD)).max(0.0) / 2.0;
+            let extra = (named - (right - left + 2.0 * GROUP_PAD)).max(0.0);
+            // Along the flow the frame grows to the right only, away from the frames around it;
+            // across it, on both sides.
+            let (before, after) = if self.landscape {
+                (0.0, extra)
+            } else {
+                (extra / 2.0, extra / 2.0)
+            };
             frames[group] = (
-                left - GROUP_PAD - extra,
+                left - GROUP_PAD - before,
                 top - GROUP_PAD - GROUP_HEAD,
-                right + GROUP_PAD + extra,
+                right + GROUP_PAD + after,
                 bottom + GROUP_PAD,
             );
         }
