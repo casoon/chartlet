@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "type": "layers",
+  "title": "The platform layers, lifted apart",
+  "source": "Platform team, architecture overview",
+  "width": 960,
+  "height": 640,
+  "mobile": { "width": 420, "height": 640 },
+  "layers": {
+    "projection": "exploded",
+    "layers": [
+      {
+        "id": "infrastructure",
+        "label": "Infrastructure",
+        "items": ["Compute", "Storage", "Network"],
+        "note": "Rented from one provider; capacity is changed by the platform team only."
+      },
+      {
+        "id": "runtime",
+        "label": "Runtime and data",
+        "items": ["Containers", "Message broker", "Relational database"]
+      },
+      {
+        "id": "services",
+        "label": "Domain services",
+        "items": ["Orders", "Catalog", "Billing"],
+        "note": "One team per service.",
+        "role": "critical"
+      },
+      {
+        "id": "experience",
+        "label": "Experience",
+        "items": ["Web shop", "Mobile app"],
+        "role": "planned"
+      }
+    ]
+  }
+}

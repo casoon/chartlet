@@ -1223,6 +1223,7 @@ See [Layers](../../guides/chart-types/#layers).
 | `layers[].note` | string, up to 120 characters | no | A remark at the side of the layer (under its label on a narrow canvas). |
 | `layers[].role` | role | no | See [Diagram fields](#diagram-fields). |
 | `layers.display` | `stack`, `nested` | no | `stack` (default): bands, the first at the bottom; `nested`: frames inside each other, the first the outermost. |
+| `layers.projection` | `flat`, `exploded` | no | `flat` (default); `exploded` draws a stack as slabs in 2:1 dimetric projection, lifted apart, with the labels on leader lines (a flat stack on a narrow canvas). Not with `nested` (`option_not_supported`). |
 
 Rules: at least one layer, at most 10 in a stack and 6 nested scopes (`too_many_layers`); at most
 12 items per layer (`too_many_items`); identifiers are unique (`duplicate_id`).

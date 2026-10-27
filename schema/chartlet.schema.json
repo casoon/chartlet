@@ -1283,7 +1283,8 @@
             }
           }
         },
-        "display": { "enum": ["stack", "nested"], "default": "stack" }
+        "display": { "enum": ["stack", "nested"], "default": "stack" },
+        "projection": { "description": "A stack seen flat (default) or exploded: slabs in 2:1 dimetric projection lifted apart at equal gaps, the labels on leader lines; a narrow canvas draws the flat stack instead. Not for nested scopes.", "enum": ["flat", "exploded"], "default": "flat" }
       }
     },
     "cycle": {

@@ -60,6 +60,7 @@ order: 1
 | Cycle of steps on a ring with the labels inside boxes | `"type": "cycle"` with `steps`, `"labels": "inside"` | [Improvement cycle](../../../showcase/improvement-cycle/) |
 | Cycle around a hub, with a label on every link | `cycle.hub`, `steps[].hubLabel` | [Growth flywheel](../../../showcase/growth-flywheel/) |
 | Stack of abstraction levels with items and notes | `"type": "layers"` with `layers`, `items`, `note` | [Platform layers](../../../showcase/platform-layers/) |
+| Layer stack lifted apart in 2:1 projection | `"projection": "exploded"` | [Platform exploded](../../../showcase/platform-exploded/) |
 | Scopes drawn inside each other | `"display": "nested"` | [Who owns what](../../../showcase/scope-nesting/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
 | Architecture diagram with its databases on one rank | `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` | [Order platform and its data stores](../../../showcase/data-tier/) |
@@ -2111,6 +2112,14 @@ count for each region.
   in — from the bottom, or from the outermost to the innermost — and every layer in the order of
   `layers`, with its items and note, and the roles. The table has one row per layer with its level
   (1 is the bottom of a stack, the outermost scope), label, items, note and role.
+
+- **Exploded view** (`"projection": "exploded"`, stacks only). The layers are drawn as slabs in 2:1
+  dimetric projection — the axes run at a slope of one to two — lifted apart at equal gaps, the
+  first at the bottom, with dotted guides between their corners. Labels, items and notes stand at
+  the side on leader lines; every corner comes from one projection function, so the same input
+  always gives the same picture. On a narrow canvas (below 480 pixels) the stack is drawn flat
+  instead; the description and the table are the same either way. Nested scopes refuse it
+  (`option_not_supported`).
 
 Limits: up to 10 layers in a stack and 6 nested scopes (`too_many_layers`), up to 12 items per
 layer of at most 40 characters (`too_many_items`), unique ids (`duplicate_id`). A diagram that does

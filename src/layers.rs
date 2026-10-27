@@ -14,7 +14,7 @@ use crate::{
     metrics::TextMetrics,
     roles,
     scene::{Element, Hotspot, Line, Rect, Scene, Text, TextAnchor},
-    spec::{ChartSpec, DiagramRole, LayersDisplay, LayersSpec},
+    spec::{ChartSpec, DiagramRole, LayersDisplay, LayersProjection, LayersSpec},
     text,
 };
 
@@ -276,6 +276,10 @@ pub(crate) fn layout(
 ) -> Scene {
     let layers = layers(spec);
     let compact = spec.width < NARROW;
+    // On a compact canvas the exploded view falls back to the flat stack.
+    if layers.projection == LayersProjection::Exploded && !compact {
+        return crate::exploded::layout(spec, warnings, metrics);
+    }
     let margin = if compact { COMPACT_MARGIN } else { MARGIN };
     let width = f64::from(spec.width);
     let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);

@@ -67,7 +67,7 @@ pub use heatmap::{HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec};
 pub(crate) use journey::JourneyRow;
 pub use journey::{JourneyDisplay, JourneySpec, JourneyStageSpec};
 pub use kanban::{KanbanCardSpec, KanbanColumnSpec, KanbanSpec};
-pub use layers::{LayersDisplay, LayersSpec, StackLayerSpec};
+pub use layers::{LayersDisplay, LayersProjection, LayersSpec, StackLayerSpec};
 pub use mosaic::{MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};

@@ -17,6 +17,9 @@ pub struct LayersSpec {
     pub layers: Vec<StackLayerSpec>,
     #[serde(default, skip_serializing_if = "LayersDisplay::is_stack")]
     pub display: LayersDisplay,
+    /// A stack seen flat, or in 2:1 dimetric projection with the layers lifted apart.
+    #[serde(default, skip_serializing_if = "LayersProjection::is_flat")]
+    pub projection: LayersProjection,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,6 +56,26 @@ impl LayersDisplay {
     }
 }
 
+/// How a stack is drawn.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum LayersProjection {
+    /// Bands in the plane of the page.
+    #[default]
+    Flat,
+    /// Slabs in 2:1 dimetric projection, lifted apart at equal gaps, with leader lines to the
+    /// labels at the side.
+    Exploded,
+}
+
+impl LayersProjection {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_flat(&self) -> bool {
+        matches!(self, Self::Flat)
+    }
+}
+
 impl ChartSpec {
     /// Layers with unique ids and texts; an exploded projection only for a stack.
     pub(super) fn validate_layers(&self) -> Result<Vec<ChartWarning>, ChartError> {
@@ -80,6 +103,15 @@ impl ChartSpec {
                 "too_many_layers",
                 "/layers/layers",
                 format!("at most {most} layers are supported in this display"),
+            ));
+        }
+        if layers.projection == LayersProjection::Exploded
+            && layers.display == LayersDisplay::Nested
+        {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/layers/projection",
+                "an exploded view lifts the layers of a stack apart; nested scopes have no stack to lift: use \"display\": \"stack\" or remove projection",
             ));
         }
         let mut ids = BTreeSet::new();

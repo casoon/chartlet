@@ -634,6 +634,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/scope-nesting.json"),
         include_str!("../examples/scope-nesting.svg"),
     ),
+    (
+        "platform-exploded",
+        include_str!("../examples/platform-exploded.json"),
+        include_str!("../examples/platform-exploded.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -932,6 +937,11 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "scope-nesting",
         include_str!("../examples/scope-nesting.json"),
         include_str!("../examples/scope-nesting.mobile.svg"),
+    ),
+    (
+        "platform-exploded",
+        include_str!("../examples/platform-exploded.json"),
+        include_str!("../examples/platform-exploded.mobile.svg"),
     ),
 ];
 

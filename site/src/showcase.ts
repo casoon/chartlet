@@ -1010,6 +1010,14 @@ const catalogue = [
       'Organization, team and service as frames inside each other, every one with its own items and the outer two with a note at the side. The description reads the scopes from the outermost to the innermost. With a phone variant. Illustrative organization.',
   },
   {
+    slug: 'platform-exploded',
+    group: 'Trees and networks',
+    chart: 'Exploded layer stack',
+    useCase: 'Show the levels of a system apart',
+    blurb:
+      'The same platform as the flat layer stack, its layers lifted apart as slabs in 2:1 dimetric projection at equal gaps, with dotted guides between their corners and the labels, items and notes at the side on leader lines. The description and table are those of the flat stack; on a phone-width canvas the stack is drawn flat. Illustrative platform.',
+  },
+  {
     slug: 'mobile-revenue',
     group: 'Mobile variant',
     chart: 'Mobile variant',

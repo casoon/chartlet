@@ -9,6 +9,13 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Layers:** `"projection": "exploded"` on a stack draws the layers as slabs in 2:1 dimetric
+  projection, lifted apart at equal gaps, with the labels on leader lines at the side. Every corner
+  comes from one projection function; a narrow canvas falls back to the flat stack, and the
+  description is the same. Details:
+  [Layers](https://casoon.github.io/chartlet/docs/guides/chart-types/#layers). Example
+  `platform-exploded`.
+
 - **Venn diagrams:** `"type": "venn"` draws two or three sets as circles at fixed places, with a
   label and a count for each region (`only A`, `A and B`, …); text sits inside where it fits and on
   leader lines otherwise. More than three sets are refused. Details:
