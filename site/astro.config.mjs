@@ -12,7 +12,6 @@ export default defineConfig({
       description:
         'Compiles a small JSON specification into a deterministic, accessible SVG or HTML chart or software diagram at build time.',
       tagline: 'Accessible SVG charts at build time',
-      website: 'https://chartlet.casoon.de',
       repo: 'casoon/chartlet',
       license: 'MIT',
       demo: 'Customize',
