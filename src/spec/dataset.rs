@@ -54,6 +54,10 @@ impl ChartSpec {
             | ChartType::Timeline
             | ChartType::Waterfall
             | ChartType::Waffle
+            | ChartType::Funnel
+            | ChartType::Radar
+            | ChartType::Polar
+            | ChartType::Mosaic
             | ChartType::Heatmap
             | ChartType::Venn
             | ChartType::Valuemap
@@ -378,6 +382,10 @@ impl ChartSpec {
             | ChartType::Tree
             | ChartType::Timeline
             | ChartType::Waffle
+            | ChartType::Funnel
+            | ChartType::Radar
+            | ChartType::Polar
+            | ChartType::Mosaic
             | ChartType::Heatmap
             | ChartType::Venn
             | ChartType::Valuemap
@@ -449,6 +457,10 @@ impl ChartSpec {
             | ChartType::Tree
             | ChartType::Timeline
             | ChartType::Waffle
+            | ChartType::Funnel
+            | ChartType::Radar
+            | ChartType::Polar
+            | ChartType::Mosaic
             | ChartType::Heatmap
             | ChartType::Venn
             | ChartType::Valuemap

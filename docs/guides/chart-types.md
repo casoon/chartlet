@@ -454,6 +454,155 @@ one percent is read more easily than a pie.
   and lists every part with its value, share and squares; the table has a row for each, with the
   rest.
 
+## Funnels and pyramids
+
+`"type": "funnel"` shows stages that narrow, such as visits that become orders, as centered bars
+as wide as their values. `"display": "pyramid"` stacks ranked levels, the widest at the bottom.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "funnel",
+  "title": "From visit to order",
+  "funnel": {
+    "stages": [
+      { "label": "Visits", "value": 12400 },
+      { "label": "Added to cart", "value": 2100 },
+      { "label": "Orders", "value": 840 }
+    ]
+  }
+}
+```
+
+- **Funnel.** Every stage needs a value above zero. The bars are centered and never 3D; their width
+  follows the value, and the rate between two stages (the share of the stage before that remains)
+  stands in the gap, with a line below the chart that says so. Labels are left of the bars and
+  values right of them, so no text sits on a fill. A stage larger than the one before it is
+  reported as `stage_exceeds_previous`.
+- **Pyramid.** `"display": "pyramid"` draws the levels of a triangle, the first listed at the top.
+  The shape ranks the levels and does not measure them: values are optional (all levels or none)
+  and are written right of each level.
+- **Text alternative.** The description of a funnel gives both ends, the share that is left, every
+  stage with its rate and the biggest drop; the table has a row per stage with value, share of the
+  first stage and rate. A pyramid is described level by level from the top, and its table adds the
+  position and the value.
+
+## Radar charts
+
+`"type": "radar"` compares a few things on several measures at once: one axis per measure, drawn
+from the center like the spokes of a wheel, and one closed polygon per series.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "radar",
+  "title": "Two storage engines compared",
+  "radar": {
+    "axes": [
+      { "label": "Read speed", "max": 100 },
+      { "label": "Write speed", "max": 100 },
+      { "label": "Durability", "max": 100 }
+    ],
+    "series": [
+      { "name": "Engine A", "values": [92, 58, 74] },
+      { "name": "Engine B", "values": [64, 88, 90] }
+    ]
+  }
+}
+```
+
+- **Axes.** 3 to 16 axes, each from `min` (0 by default) at the center to `max` at the end. Without
+  `max` an axis ends at the next round step of the grid (such as 1, 2, 2.5, 4, 5, 6 or 8 times a
+  power of ten) above its largest value. A value outside its axis is refused, not clipped. Four grid rings mark equal
+  steps, with their values written along the first axis; the axis names stand outside the outer
+  ring.
+- **Series.** Up to four, each a closed polygon with a marker on every value. A series is told
+  apart by its dash pattern as well as its color, in the legend and on the chart.
+- **Readability.** More than 8 axes or 3 series draws, with the warning `dense_chart`: such a chart
+  is better as bars.
+- **Text alternative.** The description names the axes and, for every series, the axis where it
+  stands strongest and weakest (by the place of its value between the center and the end of its
+  axis); the table has a row per axis with its range and every value, and is always part of the
+  HTML output.
+
+## Polar charts
+
+`"type": "polar"` shows one value per category of a cycle (months, hours, directions): the angle is
+the category and the distance from the center is the value, drawn as wedges or as lollipops.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "polar",
+  "title": "Wind by direction",
+  "polar": {
+    "display": "lollipops",
+    "valueLabel": "Percent of hours",
+    "points": [
+      { "label": "N", "value": 6 },
+      { "label": "E", "value": 8 },
+      { "label": "S", "value": 11 },
+      { "label": "W", "value": 21 }
+    ]
+  }
+}
+```
+
+- **Angle and radius.** The first category is at the top and the others follow clockwise, each
+  taking an equal part of the circle. The radius is linear in the value, zero at the center, so a
+  value is never negative. Four rings carry their values along the top; `max` sets the outer ring,
+  by default the next round step of the grid above the largest value. Wedges grow in area with the square of the value; the rings and the table are what to
+  read the values from.
+- **Display.** `"display": "bars"` (default) draws a wedge from the center to the value,
+  `"lollipops"` a line with a dot at its end.
+- **Names.** Category names stand outside the outer ring. A name that would run into the one before
+  it is left out (`labels_omitted`); with 12 or fewer categories all of them fit at 600 px.
+- **Text alternative.** The description lists the categories in order with the highest and the lowest
+  and the outer ring; the table has a row per category.
+
+## Mosaic charts
+
+`"type": "mosaic"` (a Marimekko chart) shows two shares at once: the width of a column is its share
+of the whole, and its segments split the column by their share, such as revenue by region and
+product.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "mosaic",
+  "title": "Revenue by region and product",
+  "mosaic": {
+    "columns": [
+      {
+        "label": "Europe",
+        "segments": [
+          { "label": "Hardware", "value": 120 },
+          { "label": "Software", "value": 180 }
+        ]
+      },
+      {
+        "label": "Asia",
+        "segments": [
+          { "label": "Hardware", "value": 140 },
+          { "label": "Software", "value": 60 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+- **Columns and segments.** Up to 12 columns; the width of a column is its sum over the sum of all
+  columns, and a segment's height is its share of its column. Segments of one label share a color
+  across the columns, up to four different labels, listed in a legend in the order they first
+  appear; every column stacks them in that order, and leaves a missing one out.
+- **Labels.** Each segment that is large enough writes its share of the column; the name of each
+  column stands under it with its total and its share of the whole where they fit. A name wider than
+  its column is shortened with a `text_truncated` warning.
+- **Text alternative.** The description gives every column's share of the whole and each segment's
+  share of its column; the table has a row per segment with its value, its share of the column and
+  its share of the whole, and a total row per column.
+
 ## Heatmaps
 
 `"type": "heatmap"` shows values, or categories, in a grid of rows and columns: a response time by
@@ -709,6 +858,14 @@ any cloud of observations — with groups, threshold lines and names on the poin
   reported as `quadrant_without_room`. The description names the points of every area, and the
   data table gains a Quadrant column; a point on a dividing line belongs to no area and is said to
   be on it.
+- **Bubble size.** `size` on every point (or none, `missing_size`) makes the area of the point
+  proportional to a third value above zero: the largest size has the largest bubble and a size a
+  quarter as large a bubble half as wide. Bubbles are drawn from the largest to the smallest, with
+  a ring in the color of the ground between them, and the plot leaves room for the largest. A row
+  under the title shows the size legend, three circles of round reference sizes with their values,
+  headed by `sizeTitle` (default the word for a size). The value is written into a bubble that is
+  wide enough for it, so size is never the only channel: the tooltip, the description (range and
+  largest point) and an extra column of the data table have it too.
 - **Names.** A point with a `label` gets its name beside it, in the order of the list; a name that
   would run over one already written is left out (`value_labels_omitted`).
 - **Many points.** Up to 300 points have a tooltip each; beyond that the dots are small and plain.

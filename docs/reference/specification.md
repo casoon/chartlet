@@ -26,6 +26,10 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `survival` | [Survival curves](#survival-curves) | `survival` |
 | `scatter` | [Scatter plots](#scatter-plots) | `scatter` |
 | `waffle` | [Waffle charts](#waffle-charts) | `waffle` |
+| `funnel` | [Funnels and pyramids](#funnels-and-pyramids) | `funnel` |
+| `radar` | [Radar charts](#radar-charts) | `radar` |
+| `polar` | [Polar charts](#polar-charts) | `polar` |
+| `mosaic` | [Mosaic charts](#mosaic-charts) | `mosaic` |
 | `heatmap` | [Heatmaps](#heatmaps) | `heatmap` |
 | `waterfall` | [Waterfalls](#waterfalls) | `waterfall` |
 | `sequence` | [Sequence diagrams](#sequence-diagrams) | `sequence` |
@@ -88,14 +92,14 @@ Rules:
 - Numbers must be finite (`non_finite_value`) and zero or of a magnitude between `1e-100` and
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
-  `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `heatmap`, `waterfall`,
+  `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `waterfall`,
   `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `kanban`, `storymap`, `journey`, `valuemap`, `venn`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
 - A type whose block is absent is refused with the block's own code: `missing_stripes`,
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
-  `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_heatmap`, `missing_waterfall`,
+  `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_funnel`, `missing_radar`, `missing_polar`, `missing_mosaic`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
   `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle`, `missing_fishbone`, `missing_kanban`, `missing_storymap`, `missing_journey`, `missing_valuemap` and `missing_venn`. An empty list
   where a type needs at least one entry is `empty_data`.
@@ -532,6 +536,8 @@ two or more groups (`log_rank_needs_groups`).
 | `scatter.points[].x`, `scatter.points[].y` | number | yes | The position. |
 | `scatter.points[].group` | string, up to 60 characters | no | On every point or none, up to 4 groups with a legend. |
 | `scatter.points[].label` | string, up to 60 characters | no | Writes a name beside the point where there is room. |
+| `scatter.points[].size` | number above 0 | no | On every point or none (`missing_size`): the area of the point is proportional to it, with a size legend of three reference circles; adds a column to the table. |
+| `scatter.sizeTitle` | string, up to 60 characters | no | What the sizes are, named in the size legend, tooltips and table; default the word for a size. Needs sizes on the points (`option_not_supported`). |
 | `scatter.lines` | array, up to 8 | no | `[{ "axis": "y", "value": 1.3, "label": "p = 0.05" }]`: lines across the plot. |
 | `scatter.lines[].axis` | `x`, `y` | yes | The axis the value lies on. |
 | `scatter.lines[].value` | number | yes | Where the line stands. |
@@ -572,6 +578,80 @@ Rules: up to 4 parts (`too_many_series`) with unique labels (`duplicate_label`) 
 zero (`invalid_value`); `cells` outside 10–400, or no more cells than parts, is
 `invalid_cells`; `columns` outside 2–40 is `invalid_columns`; a `total` below the sum of the parts
 is `invalid_total`.
+
+## Funnels and pyramids
+
+`"type": "funnel"`: stages that narrow as centered bars, or ranked levels as a pyramid. See
+[Funnels and pyramids](../../guides/chart-types/#funnels-and-pyramids).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `funnel.stages` | array, 2–12 | yes | `[{ "label": "Visits", "value": 12400 }]`, first stage first (at the top). |
+| `funnel.stages[].label` | string, up to 100 characters | yes | The stage; unique. |
+| `funnel.stages[].value` | number above 0 | funnel: yes; pyramid: all or none | Its amount. |
+| `funnel.display` | `"funnel"` or `"pyramid"` | no | Default `funnel`: bars as wide as the values, with the rate between two stages. `pyramid`: levels of a triangle, the widest at the bottom. |
+
+Rules: labels are unique (`duplicate_label`); a value is above zero, on every stage of a funnel and
+on all or none of the levels of a pyramid (`invalid_value`); fewer than 2 stages is `empty_data`,
+more than 12 is `too_many_data_points`. A funnel whose stage is larger than the one before it is
+drawn and reported with the warning `stage_exceeds_previous`.
+
+## Radar charts
+
+`"type": "radar"`: one axis per measure, one closed polygon per series. See
+[Radar charts](../../guides/chart-types/#radar-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `radar.axes` | array, 3–16 | yes | `[{ "label": "Speed", "max": 100 }]` |
+| `radar.axes[].label` | string, up to 100 characters | yes | The axis; unique. |
+| `radar.axes[].min` | number | no | The value at the center; default 0. |
+| `radar.axes[].max` | number | no | The value at the end of the axis; default the next step of four grid rings above the largest value. Must be greater than `min`. |
+| `radar.series` | array, 1–4 | yes | `[{ "name": "Engine A", "values": [92, 58, 74] }]` |
+| `radar.series[].name` | string, up to 100 characters | yes | The series; unique. |
+| `radar.series[].values` | array of numbers | yes | One value for every axis, in the order of `axes`, within the range of its axis. |
+
+Rules: fewer than 3 axes or no series is `empty_data`, more than 16 axes `too_many_data_points`,
+more than 4 series `too_many_series`; labels and names are unique (`duplicate_label`,
+`duplicate_series`); a series has one value per axis (`series_length_mismatch`) inside the range of
+its axis (`value_outside_axis`); `max` above `min` (`invalid_axis_range`). More than 8 axes or more
+than 3 series is drawn and reported with the warning `dense_chart`.
+
+## Polar charts
+
+`"type": "polar"`: one value per category of a cycle, as wedges or lollipops around a center. See
+[Polar charts](../../guides/chart-types/#polar-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `polar.points` | array, 3–60 | yes | `[{ "label": "Jan", "value": 52 }]`, the first at the top, the others clockwise. |
+| `polar.points[].label` | string, up to 100 characters | yes | The category; unique. |
+| `polar.points[].value` | number, 0 or more | yes | Its value; zero is the center. |
+| `polar.display` | `"bars"` or `"lollipops"` | no | Default `bars`. |
+| `polar.max` | number above 0 | no | The value at the outer ring; default the next step of four grid rings above the largest value. |
+| `polar.valueLabel` | string | no | What the values are, named in the table; default the word for a value. |
+
+Rules: fewer than 3 points is `empty_data`, more than 60 `too_many_data_points`; labels are unique
+(`duplicate_label`); a value is not negative (`invalid_value`) and not above `max`
+(`value_outside_axis`); `max` is above zero (`invalid_axis_range`). Category names that do not fit
+around the chart are left out and reported with the warning `labels_omitted`.
+
+## Mosaic charts
+
+`"type": "mosaic"`: columns as wide as their share of the whole, split by the share of their
+segments. See [Mosaic charts](../../guides/chart-types/#mosaic-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `mosaic.columns` | array, 1–12 | yes | `[{ "label": "Europe", "segments": [{ "label": "Hardware", "value": 120 }] }]` |
+| `mosaic.columns[].label` | string, up to 100 characters | yes | The column; unique. |
+| `mosaic.columns[].segments` | array | yes | At least one segment per column. |
+| `mosaic.columns[].segments[].label` | string, up to 100 characters | yes | The segment; unique within its column. Segments of one label share a color across columns. |
+| `mosaic.columns[].segments[].value` | number above 0 | yes | Its amount. |
+
+Rules: no column is `empty_data`, more than 12 `too_many_data_points`; a column without segments is
+`empty_data`; labels are unique within their level (`duplicate_label`); values are above zero
+(`invalid_value`); more than 4 different segment labels in all is `too_many_series`.
 
 ## Heatmaps
 

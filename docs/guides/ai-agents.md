@@ -120,7 +120,7 @@ not been verified. A skill and a server are independent: either works without th
   `write` the files go to `chartlet.theme.json` and `chartlet.theme.dark.json` below
   `CHARTLET_MCP_ROOT`, and are never replaced without `overwrite`. The server fetches nothing.
 - `chartlet_chart_starter` returns a valid starting specification and notes for the charts that
-  are drawn from a block of their own: `waterfall`, `waffle`, `heatmap`, `parliament`, `treemap`, `sankey`,
+  are drawn from a block of their own: `waterfall`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `parliament`, `treemap`, `sankey`,
   `survival`, `scatter`, `timeline`, `forest` (a range bar chart), `violin` (a box plot) and the
   flow presets `prisma` and `instances`.
 

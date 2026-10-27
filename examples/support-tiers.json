@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "type": "funnel",
+  "title": "Levels of support",
+  "source": "Illustrative support organization",
+  "width": 760,
+  "height": 360,
+  "funnel": {
+    "display": "pyramid",
+    "stages": [
+      { "label": "Escalation", "value": 20 },
+      { "label": "Specialists", "value": 140 },
+      { "label": "First line", "value": 900 },
+      { "label": "Self-service", "value": 6400 }
+    ]
+  },
+  "mobile": { "width": 380, "height": 380 }
+}

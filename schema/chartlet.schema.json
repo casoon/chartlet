@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "heatmap", "valuemap", "journey", "storymap", "kanban", "venn", "fishbone", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle"]
+      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "funnel", "radar", "polar", "mosaic", "heatmap", "valuemap", "journey", "storymap", "kanban", "venn", "fishbone", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -198,6 +198,22 @@
     "waffle": {
       "description": "The parts of a type: \"waffle\" chart.",
       "$ref": "#/$defs/waffle"
+    },
+    "funnel": {
+      "description": "The stages of a type: \"funnel\" chart, a funnel or a pyramid.",
+      "$ref": "#/$defs/funnel"
+    },
+    "radar": {
+      "description": "The axes and series of a type: \"radar\" chart.",
+      "$ref": "#/$defs/radar"
+    },
+    "polar": {
+      "description": "The points of a type: \"polar\" chart.",
+      "$ref": "#/$defs/polar"
+    },
+    "mosaic": {
+      "description": "The columns of a type: \"mosaic\" chart.",
+      "$ref": "#/$defs/mosaic"
     },
     "heatmap": {
       "description": "The rows, columns and cells of a type: \"heatmap\" chart.",
@@ -505,6 +521,50 @@
           }
         },
         {
+          "required": ["polar"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["mosaic"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["radar"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
+          "required": ["funnel"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["cycle"],
           "not": {
             "anyOf": [
@@ -753,6 +813,26 @@
       "if": { "properties": { "type": { "const": "network" } } },
       "then": { "required": ["network"] },
       "else": { "not": { "required": ["network"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "polar" } } },
+      "then": { "required": ["polar"] },
+      "else": { "not": { "required": ["polar"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "mosaic" } } },
+      "then": { "required": ["mosaic"] },
+      "else": { "not": { "required": ["mosaic"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "radar" } } },
+      "then": { "required": ["radar"] },
+      "else": { "not": { "required": ["radar"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "funnel" } } },
+      "then": { "required": ["funnel"] },
+      "else": { "not": { "required": ["funnel"] } }
     },
     {
       "if": { "properties": { "type": { "const": "cycle" } } },
@@ -1281,7 +1361,8 @@
               "x": { "type": "number" },
               "y": { "type": "number" },
               "group": { "type": "string", "minLength": 1, "maxLength": 60 },
-              "label": { "type": "string", "minLength": 1, "maxLength": 60 }
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "size": { "type": "number", "exclusiveMinimum": 0, "description": "A third value: the area of the point is proportional to it, with a size legend of three reference circles and the value written into the bubble where it fits. On every point or none." }
             }
           }
         },
@@ -1340,7 +1421,8 @@
         "yTitle": { "type": "string", "minLength": 1, "maxLength": 100 },
         "regression": { "type": "boolean", "default": false, "description": "Draw the least-squares line through the points, one for each group; on a logarithmic axis it is fitted to the logarithms." },
         "xScale": { "enum": ["linear", "log"], "default": "linear" },
-        "yScale": { "enum": ["linear", "log"], "default": "linear" }
+        "yScale": { "enum": ["linear", "log"], "default": "linear" },
+        "sizeTitle": { "type": "string", "minLength": 1, "maxLength": 60, "description": "What `size` stands for, named in the size legend, the tooltips and the table. Only with sizes on the points." }
       }
     },
     "survival": {
@@ -1469,6 +1551,125 @@
         },
         "majority": { "type": "boolean", "default": false },
         "coalition": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "polar": {
+      "description": "A polar chart: one value per category of a cycle (months, hours, directions), the first category at the top and the others clockwise; the angle is the category and the distance from the center the value, zero at the center. Drawn as wedges (default) or lollipops, with four rings; `max` sets the outer ring, by default the next step of the grid above the largest value. 3–60 points with unique labels and values of zero or more.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["points"],
+      "properties": {
+        "points": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 60,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "value"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "value": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "display": { "enum": ["bars", "lollipops"], "default": "bars" },
+        "max": { "type": "number", "exclusiveMinimum": 0 },
+        "valueLabel": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+    "mosaic": {
+      "description": "A mosaic (Marimekko) chart: columns as wide as their share of the whole, each split by the share of its segments. Up to 12 columns with unique labels; segments of one label share a color across columns, at most 4 different segment labels in all; values above zero.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns"],
+      "properties": {
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "segments"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "segments": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["label", "value"],
+                  "properties": {
+                    "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+                    "value": { "type": "number", "exclusiveMinimum": 0 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "radar": {
+      "description": "A radar chart: 3–16 axes drawn from the center like the spokes of a wheel and 1–4 series, each a closed polygon through one value per axis. An axis runs from `min` (default 0) to `max` (default: the next step of four grid rings above the largest value); a value must lie within it. More than 8 axes or 3 series is reported as hard to read.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["axes", "series"],
+      "properties": {
+        "axes": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 16,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "min": { "type": "number", "default": 0 },
+              "max": { "type": "number" }
+            }
+          }
+        },
+        "series": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "values"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "values": { "type": "array", "items": { "type": "number" } }
+            }
+          }
+        }
+      }
+    },
+    "funnel": {
+      "description": "A funnel or a pyramid. A funnel (default) draws centered bars as wide as the values with the rate between two stages and needs a value on every stage; a pyramid draws the levels of a triangle, the widest at the bottom, and takes values on all levels or on none. 2–12 stages with unique labels, values above zero.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stages"],
+      "properties": {
+        "stages": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 12,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "value": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        },
+        "display": { "enum": ["funnel", "pyramid"], "default": "funnel" }
       }
     },
     "waffle": {

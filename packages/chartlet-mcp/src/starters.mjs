@@ -6,6 +6,10 @@
 export const CHART_STARTER_TYPES = /** @type {const} */ ([
   "waterfall",
   "waffle",
+  "funnel",
+  "radar",
+  "polar",
+  "mosaic",
   "heatmap",
   "parliament",
   "treemap",
@@ -50,6 +54,73 @@ const STARTERS = {
         { label: "Coal", value: 17 },
       ],
       total: 100,
+    },
+  },
+  funnel: {
+    schemaVersion: 1,
+    type: "funnel",
+    title: "From visit to order",
+    funnel: {
+      stages: [
+        { label: "Visits", value: 12400 },
+        { label: "Added to cart", value: 2100 },
+        { label: "Orders", value: 840 },
+      ],
+    },
+  },
+  radar: {
+    schemaVersion: 1,
+    type: "radar",
+    title: "Two storage engines compared",
+    radar: {
+      axes: [
+        { label: "Read speed", max: 100 },
+        { label: "Write speed", max: 100 },
+        { label: "Durability", max: 100 },
+        { label: "Tooling", max: 100 },
+      ],
+      series: [
+        { name: "Engine A", values: [92, 58, 74, 85] },
+        { name: "Engine B", values: [64, 88, 90, 55] },
+      ],
+    },
+  },
+  polar: {
+    schemaVersion: 1,
+    type: "polar",
+    title: "Wind by direction",
+    polar: {
+      display: "lollipops",
+      valueLabel: "Percent of hours",
+      points: [
+        { label: "N", value: 6 },
+        { label: "E", value: 8 },
+        { label: "S", value: 11 },
+        { label: "W", value: 21 },
+      ],
+    },
+  },
+  mosaic: {
+    schemaVersion: 1,
+    type: "mosaic",
+    title: "Revenue by region and product",
+    mosaic: {
+      columns: [
+        {
+          label: "Europe",
+          segments: [
+            { label: "Hardware", value: 120 },
+            { label: "Software", value: 180 },
+          ],
+        },
+        {
+          label: "Asia",
+          segments: [
+            { label: "Hardware", value: 140 },
+            { label: "Software", value: 60 },
+          ],
+        },
+      ],
     },
   },
   heatmap: {
@@ -410,6 +481,22 @@ const NOTES = {
     "Up to four parts, each with at least one square; a total above their sum leaves the squares of the rest.",
     "cells (10–400, default 100) and columns (2–40) set the grid.",
   ],
+  funnel: [
+    "2–12 stages with unique labels and a value above zero on each; the first stage is the widest and the rate between two stages is written between the bars (stage_exceeds_previous when a stage is larger than the one before).",
+    '"display": "pyramid" draws ranked levels of a triangle, the first at the top; its values are optional (all levels or none) and do not set the width.',
+  ],
+  radar: [
+    "3–16 axes, each with a label and optional min (default 0) and max; every series gives one value per axis, inside its range (value_outside_axis).",
+    "More than 8 axes or 3 series is drawn with the warning dense_chart; four series at most. Series are told apart by dash pattern as well as color.",
+  ],
+  polar: [
+    "3–60 categories in the order of the cycle (first at the top, then clockwise) with a value of zero or more; zero is the center and the radius is linear in the value.",
+    '"display": "lollipops" draws a line and a dot instead of wedges; max sets the outer ring (value_outside_axis when a value exceeds it). Names that overlap are left out (labels_omitted).',
+  ],
+  mosaic: [
+    "Up to 12 columns; the width of a column is its sum over the sum of all columns, and its segments split it by share. Segments of one label share a color across columns, up to four different labels (too_many_series).",
+    "Values are above zero; leave a segment out of a column to give it none.",
+  ],
   heatmap: [
     "Rows and columns are labels (up to 60 each); a cell names one of each, once, with a value. A cell that is not listed has no value and is drawn as an empty, dashed box.",
     'For categories (a permission matrix) list "categories" (up to four) and give every cell a "category" instead of a value: each has a fill and a symbol.',
@@ -443,6 +530,7 @@ const NOTES = {
     "Above 300 points the dots are small without tooltips; above 100 the table lists only labeled points, or the 20 highest. Label the points that matter.",
     'regression true draws the least-squares line for each group (slope, intercept and r² in the description); xScale and yScale "log" need values above zero and fit the regression to the logarithms.',
     "quadrants {x, y, labels: {topLeft, topRight, bottomLeft, bottomRight}} divides the plot by a line at an x and a y value into four named areas (an impact and effort matrix); the description lists the points of each area.",
+    "size on every point (or none) makes the area of the point proportional to a third value, with a size legend of three reference circles; sizeTitle names it (a bubble chart).",
     "xTicks puts named labels at chosen places on the x axis (chromosomes of a Manhattan plot, two groups alternating); xRange and yRange fix the ends of an axis and everything drawn must lie within.",
   ],
   timeline: [

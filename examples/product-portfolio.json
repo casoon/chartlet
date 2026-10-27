@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "type": "scatter",
+  "title": "Product portfolio: growth, margin and revenue",
+  "source": "Illustrative figures of a product line",
+  "width": 760,
+  "height": 480,
+  "scatter": {
+    "points": [
+      { "x": 4, "y": 38, "size": 420, "group": "Software", "label": "Analytics" },
+      { "x": 12, "y": 31, "size": 180, "group": "Software", "label": "Billing" },
+      { "x": 22, "y": 24, "size": 90, "group": "Software", "label": "Search" },
+      { "x": 2, "y": 12, "size": 650, "group": "Hardware", "label": "Gateways" },
+      { "x": 8, "y": 9, "size": 240, "group": "Hardware", "label": "Sensors" },
+      { "x": 16, "y": 17, "size": 60, "group": "Hardware", "label": "Displays" },
+      { "x": 27, "y": 6, "size": 30, "group": "Hardware", "label": "Wearables" }
+    ],
+    "xTitle": "Market growth, percent per year",
+    "yTitle": "Operating margin, percent",
+    "sizeTitle": "Revenue, million euros"
+  },
+  "mobile": { "width": 380, "height": 480 }
+}

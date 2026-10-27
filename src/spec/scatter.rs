@@ -46,6 +46,10 @@ pub struct ScatterSpec {
     pub x_scale: AxisScale,
     #[serde(default, skip_serializing_if = "AxisScale::is_linear")]
     pub y_scale: AxisScale,
+    /// What `size` stands for, named in the size legend, the tooltips and the table; by default
+    /// the word for a size. Only with sizes on the points.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size_title: Option<String>,
 }
 
 /// A least-squares line through some points.
@@ -73,6 +77,10 @@ pub struct ScatterPointSpec {
     /// Writes a name beside the point, and lists the point in the data table of a big plot.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// Makes the area of the point proportional to a third value, above zero: on every point or
+    /// none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -239,6 +247,21 @@ impl ScatterSpec {
             .collect()
     }
 
+    /// Whether the points carry a size: a bubble chart.
+    pub(crate) fn is_sized(&self) -> bool {
+        self.points.iter().any(|point| point.size.is_some())
+    }
+
+    /// The smallest and the largest size.
+    pub(crate) fn size_range(&self) -> (f64, f64) {
+        self.points
+            .iter()
+            .filter_map(|point| point.size)
+            .fold((f64::MAX, f64::MIN), |(low, high), size| {
+                (low.min(size), high.max(size))
+            })
+    }
+
     /// The palette color, from 1, of a point.
     pub(crate) fn color(&self, point: &ScatterPointSpec) -> usize {
         point.group.as_deref().map_or(1, |group| {
@@ -325,6 +348,17 @@ impl ChartSpec {
 
 fn validate_points(scatter: &ScatterSpec) -> Result<(), ChartError> {
     let grouped = scatter.points.iter().any(|point| point.group.is_some());
+    let sized = scatter.is_sized();
+    if !sized && scatter.size_title.is_some() {
+        return Err(ChartError::new(
+            "option_not_supported",
+            "/scatter/sizeTitle",
+            "a size title names the sizes of the points; give every point a `size`, or remove it",
+        ));
+    }
+    if let Some(title) = &scatter.size_title {
+        validate_text(title, "/scatter/sizeTitle", 60)?;
+    }
     let mut groups = BTreeSet::new();
     for (index, point) in scatter.points.iter().enumerate() {
         let path = format!("/scatter/points/{index}");
@@ -332,6 +366,26 @@ fn validate_points(scatter: &ScatterSpec) -> Result<(), ChartError> {
         validate_number(point.y, &format!("{path}/y"))?;
         if let Some(label) = &point.label {
             validate_text(label, &format!("{path}/label"), 60)?;
+        }
+        match (point.size, sized) {
+            (Some(size), _) => {
+                validate_number(size, &format!("{path}/size"))?;
+                if size <= 0.0 {
+                    return Err(ChartError::new(
+                        "invalid_value",
+                        format!("{path}/size"),
+                        "a size is above zero: it sets the area of the point",
+                    ));
+                }
+            }
+            (None, true) => {
+                return Err(ChartError::new(
+                    "missing_size",
+                    format!("{path}/size"),
+                    "give every point a size, or none",
+                ));
+            }
+            (None, false) => {}
         }
         match (&point.group, grouped) {
             (Some(group), _) => {

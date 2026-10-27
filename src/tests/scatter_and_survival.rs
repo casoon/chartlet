@@ -349,3 +349,80 @@ fn survival_curves_test_whether_the_groups_differ() {
         ("log_rank_needs_groups", "/survival/logRank")
     );
 }
+
+const BUBBLES: &str = r#"{"schemaVersion": 1, "type": "scatter", "title": "Portfolio", "width": 640, "height": 440,
+    "scatter": {"sizeTitle": "Revenue", "points": [
+        {"x": 1, "y": 2, "size": 400, "label": "Big"},
+        {"x": 3, "y": 4, "size": 100, "label": "Quarter"},
+        {"x": 5, "y": 1, "size": 4}
+    ]}}"#;
+
+#[test]
+fn a_bubble_chart_sizes_the_area_of_a_point_by_its_value() {
+    let output = render_ok(BUBBLES);
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    let svg = &output.content;
+    let radius_of = |title: &str| -> f64 {
+        let at = svg.find(title).expect("the bubble is drawn");
+        let circle = &svg[svg[..at].rfind("<circle").unwrap()..at];
+        let from = circle.find(" r=\"").unwrap() + 4;
+        circle[from..from + circle[from..].find('"').unwrap()]
+            .parse()
+            .unwrap()
+    };
+    // A quarter of the size makes half the radius.
+    let (big, quarter) = (
+        radius_of("<title>Big: 1, 2, Revenue: 400"),
+        radius_of("<title>Quarter: 3, 4, Revenue: 100"),
+    );
+    assert!((big / quarter - 2.0).abs() < 0.02, "{big} {quarter}");
+    assert_eq!(
+        svg.matches("class=\"chartlet-sc-dot chartlet-sc-bubble")
+            .count(),
+        3
+    );
+    // The size legend: three reference circles next to the name of the size.
+    assert_eq!(svg.matches("class=\"chartlet-sc-ref\"").count(), 3);
+    assert!(svg.contains(">Revenue</text>"));
+    // The value stands in a bubble that has room for it.
+    assert!(svg.contains("class=\"chartlet-sc-label\">400</text>"));
+}
+
+#[test]
+fn the_size_is_in_the_description_and_the_table() {
+    let html = render_json(BUBBLES, RenderFormat::Html, &RenderOptions::default())
+        .unwrap()
+        .content;
+    assert!(html.contains("The area of a point shows Revenue, from 4 to 400; the largest is Big."));
+    assert!(html.contains("<th scope=\"col\">Revenue</th>"));
+    assert!(html.contains("<th scope=\"row\">Big</th><td>1</td><td>2</td><td>400</td>"));
+}
+
+#[test]
+fn sizes_are_validated_by_name() {
+    for (from, to, code, path) in [
+        (
+            "\"size\": 100",
+            "\"size\": 0",
+            "invalid_value",
+            "/scatter/points/1/size",
+        ),
+        (
+            "\"size\": 4}",
+            "\"label\": \"Small\"}",
+            "missing_size",
+            "/scatter/points/2/size",
+        ),
+    ] {
+        assert_eq!(
+            render_err(&BUBBLES.replace(from, to)),
+            (code, path.to_owned()),
+            "{from}"
+        );
+    }
+    let title_only = r#"{"schemaVersion": 1, "type": "scatter", "title": "T", "scatter": {"sizeTitle": "Revenue", "points": [{"x": 1, "y": 2}]}}"#;
+    assert_eq!(
+        render_err(title_only),
+        ("option_not_supported", "/scatter/sizeTitle".to_owned())
+    );
+}

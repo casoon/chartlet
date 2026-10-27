@@ -14,6 +14,7 @@ mod draw;
 mod error;
 mod fishbone;
 mod flow;
+mod funnel;
 mod heat;
 mod heatmap;
 mod inspect;
@@ -21,13 +22,16 @@ mod journey;
 mod kanban;
 mod layout;
 mod metrics;
+mod mosaic;
 mod network;
 mod ohlc;
 mod parliament;
 mod parts;
 #[cfg(feature = "png")]
 mod png;
+mod polar;
 pub mod qr;
+mod radar;
 mod rangebar;
 mod readability;
 mod reference;
@@ -73,24 +77,25 @@ pub use spec::{
     Curve, CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec, Dash, DataPoint,
     DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec, FishboneBoneSpec,
     FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec,
-    FragmentKind, FragmentSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder, HeatmapScale,
-    HeatmapSpec, InstanceSpec, InterfaceSpec, JourneyDisplay, JourneySpec, JourneyStageSpec,
-    KanbanCardSpec, KanbanColumnSpec, KanbanSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage,
-    MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
+    FragmentKind, FragmentSpec, FunnelDisplay, FunnelSpec, FunnelStageSpec, Gaps, GroupSpec,
+    HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec, InstanceSpec, InterfaceSpec,
+    JourneyDisplay, JourneySpec, JourneyStageSpec, KanbanCardSpec, KanbanColumnSpec, KanbanSpec,
+    LaneSpec, LayerSpec, LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind,
+    MessageSpec, MobileSpec, MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec, NetworkEdgeSpec,
     NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec, OhlcPoint,
     Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
-    PartySpec, PerspectiveSpec, PortSide, RangeDisplay, RangeSort, RangeSpec, ReferenceSpec,
-    RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
-    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
-    ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind,
-    StateNodeSpec, StateSpec, StepKind, StepSpec, StorymapActivitySpec, StorymapSpec,
-    StorymapStorySpec, StorymapTaskSpec, StripesSpec, Stroke, StrokeStyle, SurvivalGroupSpec,
-    SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint,
-    TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
-    TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
-    ValuemapComponentSpec, ValuemapDependencySpec, ValuemapMoveSpec, ValuemapSpec, VennRegionSpec,
-    VennSpec, ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec,
-    ZoomBound, ZoomStep,
+    PartySpec, PerspectiveSpec, PolarDisplay, PolarPointSpec, PolarSpec, PortSide, RadarAxisSpec,
+    RadarSeriesSpec, RadarSpec, RangeDisplay, RangeSort, RangeSpec, ReferenceSpec, RelationKind,
+    RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis,
+    ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec,
+    ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind, StateNodeSpec,
+    StateSpec, StepKind, StepSpec, StorymapActivitySpec, StorymapSpec, StorymapStorySpec,
+    StorymapTaskSpec, StripesSpec, Stroke, StrokeStyle, SurvivalGroupSpec, SurvivalObservationSpec,
+    SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
+    TimelineSpec, Tooltips, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec,
+    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ValuemapComponentSpec,
+    ValuemapDependencySpec, ValuemapMoveSpec, ValuemapSpec, VennRegionSpec, VennSpec, ViewSpec,
+    ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 pub use theme::{apply_theme, bundled_theme};
 pub use typography::{FontMetrics, TypographySpec, embed_font};

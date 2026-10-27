@@ -117,6 +117,11 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Forest plot: squares by weight, a summary diamond, the line of no effect | `"type": "rangebar"` with `weight`, `summary`, `references` | [trial-effects](examples/trial-effects.json) |
 | Timeline: phases, milestones, today's marker and dependencies (Gantt, roadmap) | `"type": "timeline"` with `items`, `markers` | [product-roadmap](examples/product-roadmap.json) |
 | Waterfall: a total made up of rises, falls and subtotals | `"type": "waterfall"` with `waterfall.steps` | [revenue-to-profit](examples/revenue-to-profit.json) |
+| Funnel and pyramid: stages that narrow with the rate between them, or ranked levels | `"type": "funnel"` with `funnel.stages`, `display` | [checkout-funnel](examples/checkout-funnel.json), [support-tiers](examples/support-tiers.json) |
+| Radar chart: a few series on 3 to 8 measures, one polygon each | `"type": "radar"` with `radar.axes`, `radar.series` | [framework-profile](examples/framework-profile.json) |
+| Bubble chart: a third value as the area of the points, with a size legend | `"type": "scatter"` with `scatter.points[].size`, `sizeTitle` | [product-portfolio](examples/product-portfolio.json) |
+| Polar chart: one value per month, hour or direction as wedges or lollipops around a center | `"type": "polar"` with `polar.points`, `display` | [monthly-rainfall](examples/monthly-rainfall.json), [wind-directions](examples/wind-directions.json) |
+| Mosaic chart (Marimekko): column widths and segment shares at once | `"type": "mosaic"` with `mosaic.columns` | [market-by-region](examples/market-by-region.json) |
 | Heatmap: values in a grid of rows and columns, or categories with a symbol each | `"type": "heatmap"` with `heatmap.rows`, `columns` and `cells` | [weekly-response](examples/weekly-response.json), [permission-matrix](examples/permission-matrix.json) |
 | Waffle chart: shares of a whole as squares, with the rest | `"type": "waffle"` with `waffle.parts` and `total` | [energy-sources](examples/energy-sources.json) |
 | Venn diagram: two or three overlapping sets with a label and count per region | `"type": "venn"` with `venn.sets` and `regions` | [team-skills](examples/team-skills.json) |

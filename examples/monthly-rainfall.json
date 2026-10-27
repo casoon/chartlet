@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "type": "polar",
+  "title": "Rainfall by month",
+  "source": "Illustrative monthly totals of one weather station",
+  "width": 640,
+  "height": 480,
+  "polar": {
+    "valueLabel": "Millimeters",
+    "points": [
+      { "label": "Jan", "value": 52 },
+      { "label": "Feb", "value": 41 },
+      { "label": "Mar", "value": 47 },
+      { "label": "Apr", "value": 43 },
+      { "label": "May", "value": 62 },
+      { "label": "Jun", "value": 78 },
+      { "label": "Jul", "value": 85 },
+      { "label": "Aug", "value": 71 },
+      { "label": "Sep", "value": 58 },
+      { "label": "Oct", "value": 55 },
+      { "label": "Nov", "value": 60 },
+      { "label": "Dec", "value": 57 }
+    ]
+  },
+  "mobile": { "width": 380, "height": 420 }
+}

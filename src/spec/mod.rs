@@ -8,11 +8,15 @@ mod dataset;
 mod deployment;
 mod fishbone;
 mod flow;
+mod funnel;
 mod heatmap;
 mod journey;
 mod kanban;
+mod mosaic;
 mod network;
 mod parliament;
+mod polar;
+mod radar;
 mod rangebar;
 mod sankey;
 mod scatter;
@@ -57,12 +61,17 @@ pub use flow::{
     DiagramRole, DiagramSpacing, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec,
     MainPath, NodeKind, NoteSpec, PartSpec, PortSide,
 };
+pub use funnel::{FunnelDisplay, FunnelSpec, FunnelStageSpec};
 pub use heatmap::{HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec};
 pub(crate) use journey::JourneyRow;
 pub use journey::{JourneyDisplay, JourneySpec, JourneyStageSpec};
 pub use kanban::{KanbanCardSpec, KanbanColumnSpec, KanbanSpec};
+pub use mosaic::{MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
+pub use polar::{PolarDisplay, PolarPointSpec, PolarSpec};
+pub(crate) use radar::RINGS;
+pub use radar::{RadarAxisSpec, RadarSeriesSpec, RadarSpec};
 pub use rangebar::{RangeDisplay, RangeSort, RangeSpec};
 pub(crate) use sankey::SankeyGraph;
 pub use sankey::{SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec};
@@ -252,6 +261,18 @@ pub struct ChartSpec {
     /// A waffle: squares that each stand for a share of a whole. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waffle: Option<WaffleSpec>,
+    /// A funnel or pyramid: stages that narrow, or ranked levels. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub funnel: Option<FunnelSpec>,
+    /// A radar chart: one axis per measure, one polygon per series. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub radar: Option<RadarSpec>,
+    /// A polar chart: one value per category of a cycle, as wedges or lollipops around a center. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub polar: Option<PolarSpec>,
+    /// A mosaic chart: columns as wide as their share, split by the share of their segments. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mosaic: Option<MosaicSpec>,
     /// A heatmap: values or categories in a grid of rows and columns. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub heatmap: Option<HeatmapSpec>,
@@ -506,6 +527,14 @@ pub enum ChartType {
     Waterfall,
     /// A waffle: squares that each stand for a share of a whole.
     Waffle,
+    /// A funnel or pyramid: stages that narrow, or ranked levels.
+    Funnel,
+    /// A radar chart: one axis per measure, one polygon per series.
+    Radar,
+    /// A polar chart: one value per category of a cycle, as wedges or lollipops around a center.
+    Polar,
+    /// A mosaic chart: columns as wide as their share, split by the share of their segments.
+    Mosaic,
     /// A heatmap: values or categories in a grid of rows and columns.
     Heatmap,
     /// A Venn diagram of two or three sets.
@@ -540,7 +569,7 @@ pub enum ChartType {
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 31] = [
+    pub const ALL: [Self; 35] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -557,6 +586,10 @@ impl ChartType {
         Self::Timeline,
         Self::Waterfall,
         Self::Waffle,
+        Self::Funnel,
+        Self::Radar,
+        Self::Polar,
+        Self::Mosaic,
         Self::Heatmap,
         Self::Venn,
         Self::Valuemap,
@@ -920,6 +953,10 @@ impl ChartSpec {
             ChartType::Treemap => self.validate_treemap(),
             ChartType::Parliament => self.validate_parliament(),
             ChartType::Waffle => self.validate_waffle(),
+            ChartType::Funnel => self.validate_funnel(),
+            ChartType::Radar => self.validate_radar(),
+            ChartType::Polar => self.validate_polar(),
+            ChartType::Mosaic => self.validate_mosaic(),
             ChartType::Heatmap => self.validate_heatmap(),
             ChartType::Venn => self.validate_venn(),
             ChartType::Valuemap => self.validate_valuemap(),
@@ -962,6 +999,10 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Treemap => "treemap",
         ChartType::Parliament => "parliament",
         ChartType::Waffle => "waffle",
+        ChartType::Funnel => "funnel",
+        ChartType::Radar => "radar",
+        ChartType::Polar => "polar",
+        ChartType::Mosaic => "mosaic",
         ChartType::Heatmap => "heatmap",
         ChartType::Venn => "venn",
         ChartType::Valuemap => "valuemap",

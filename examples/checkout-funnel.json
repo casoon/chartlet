@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "type": "funnel",
+  "title": "From visit to order",
+  "source": "Illustrative shop data, one month",
+  "width": 760,
+  "height": 380,
+  "funnel": {
+    "stages": [
+      { "label": "Visits", "value": 12400 },
+      { "label": "Product views", "value": 7300 },
+      { "label": "Added to cart", "value": 2100 },
+      { "label": "Checkout started", "value": 1250 },
+      { "label": "Orders", "value": 840 }
+    ]
+  },
+  "mobile": { "width": 380, "height": 420 }
+}

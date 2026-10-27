@@ -722,6 +722,157 @@ pub(crate) fn heatmap_categories(
     }
 }
 
+/// What the percentages between the bars of a funnel mean.
+pub(crate) const fn funnel_note(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => "Between the bars: the share kept from the stage before.",
+        Locale::De => "Zwischen den Balken: der Anteil der vorigen Stufe.",
+    }
+}
+
+/// What a funnel shows: its stages, both ends, the share that is left, every stage with its rate,
+/// and the biggest drop.
+pub(crate) fn funnel_summary(
+    locale: Locale,
+    stages: usize,
+    ((first, first_value), (last, last_value)): ((&str, &str), (&str, &str)),
+    overall: &str,
+    stages_list: &str,
+    drop: Option<(&str, &str, &str)>,
+) -> String {
+    let drop = match (locale, drop) {
+        (_, None) => String::new(),
+        (Locale::En, Some((from, to, rate))) => {
+            format!(" The biggest drop is from {from} to {to}: {rate} remain.")
+        }
+        (Locale::De, Some((from, to, rate))) => {
+            format!(" Der größte Verlust liegt zwischen {from} und {to}: {rate} bleiben.")
+        }
+    };
+    match locale {
+        Locale::En => format!(
+            "Funnel of {stages} stages, from {first} ({first_value}) to {last} ({last_value}): {overall} of the first stage remain. Stages, with the share of the stage before: {stages_list}.{drop}"
+        ),
+        Locale::De => format!(
+            "Trichter aus {stages} Stufen, von {first} ({first_value}) bis {last} ({last_value}): {overall} der ersten Stufe bleiben. Stufen, mit dem Anteil der vorigen Stufe: {stages_list}.{drop}"
+        ),
+    }
+}
+
+/// What a pyramid shows: its levels from the top, with their values if it has them.
+pub(crate) fn pyramid_summary(locale: Locale, levels: usize, list: &str) -> String {
+    match locale {
+        Locale::En => format!("Pyramid of {levels} levels, from the top: {list}."),
+        Locale::De => format!("Pyramide aus {levels} Ebenen, von oben: {list}."),
+    }
+}
+
+/// What a radar chart shows: its axes and how many series it draws.
+pub(crate) fn radar_summary(locale: Locale, (axes, series): (usize, usize), list: &str) -> String {
+    match locale {
+        Locale::En => {
+            format!("Radar chart of {axes} axes ({list}) with {series} series.")
+        }
+        Locale::De => format!(
+            "Netzdiagramm aus {axes} Achsen ({list}) mit {series} {}.",
+            plural(series, "Reihe", "Reihen")
+        ),
+    }
+}
+
+/// Where one series of a radar chart stands highest and where lowest.
+pub(crate) fn radar_series(
+    locale: Locale,
+    name: &str,
+    ((strongest, high), (weakest, low)): ((&str, &str), (&str, &str)),
+) -> String {
+    match locale {
+        Locale::En => {
+            format!("{name}: strongest on {strongest} ({high}), weakest on {weakest} ({low}).")
+        }
+        Locale::De => format!(
+            "{name}: am stärksten bei {strongest} ({high}), am schwächsten bei {weakest} ({low})."
+        ),
+    }
+}
+
+/// The words after a rate in the tooltip of a funnel stage.
+pub(crate) const fn of_previous_stage(locale: Locale) -> &'static str {
+    match locale {
+        Locale::En => "of the stage before",
+        Locale::De => "der vorigen Stufe",
+    }
+}
+
+/// What a polar chart shows: its categories, the highest and the lowest, and the outer ring.
+pub(crate) fn polar_summary(
+    locale: Locale,
+    (points, labels): (usize, &str),
+    ((high, highest), (low, lowest)): ((&str, &str), (&str, &str)),
+    (name, ring): (&str, &str),
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "Polar chart of {points} categories, from the top clockwise: {labels}. Highest: {high} ({highest}); lowest: {low} ({lowest}). {name} runs from 0 at the center to {ring} at the outer ring."
+        ),
+        Locale::De => format!(
+            "Polardiagramm aus {points} Kategorien, von oben im Uhrzeigersinn: {labels}. Höchster Wert: {high} ({highest}); niedrigster: {low} ({lowest}). {name} reicht von 0 in der Mitte bis {ring} am äußeren Ring."
+        ),
+    }
+}
+
+/// What a mosaic chart shows: its size and, for every column, its share of the whole and the share
+/// of its segments.
+pub(crate) fn mosaic_summary(
+    locale: Locale,
+    (columns, segments, total): (usize, usize, &str),
+    list: &str,
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "Mosaic chart of {columns} columns and {segments} segments, {total} in all. The width of a column is its share of the whole; its segments are shares of the column. {list}."
+        ),
+        Locale::De => format!(
+            "Mosaikdiagramm aus {columns} Spalten und {segments} Segmenten, insgesamt {total}. Die Breite einer Spalte ist ihr Anteil am Ganzen; ihre Segmente sind Anteile der Spalte. {list}."
+        ),
+    }
+}
+
+/// The tooltip of a segment of a mosaic chart.
+pub(crate) fn mosaic_tooltip(
+    locale: Locale,
+    (column, segment, value): (&str, &str, &str),
+    (of_column, of_whole): (&str, &str),
+) -> String {
+    match locale {
+        Locale::En => {
+            format!(
+                "{column}, {segment}: {value} ({of_column} of the column, {of_whole} of the whole)"
+            )
+        }
+        Locale::De => {
+            format!("{column}, {segment}: {value} ({of_column} der Spalte, {of_whole} des Ganzen)")
+        }
+    }
+}
+
+/// What the size of the points of a scatter plot shows: its name, both ends and the largest point.
+pub(crate) fn scatter_sizes(
+    locale: Locale,
+    name: &str,
+    (low, high): (&str, &str),
+    largest: &str,
+) -> String {
+    match locale {
+        Locale::En => format!(
+            "The area of a point shows {name}, from {low} to {high}; the largest is {largest}."
+        ),
+        Locale::De => format!(
+            "Die Fläche eines Punktes zeigt {name}, von {low} bis {high}; am größten ist {largest}."
+        ),
+    }
+}
+
 /// What a waffle shows: its squares, what one stands for, and every part.
 pub(crate) fn waffle_summary(locale: Locale, (squares, each): (u32, &str), parts: &str) -> String {
     match locale {
