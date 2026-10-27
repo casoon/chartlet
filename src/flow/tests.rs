@@ -528,6 +528,74 @@ fn interleaved_groups_keep_a_plausible_canvas_and_name_the_overlap() {
 }
 
 #[test]
+fn random_groups_never_ask_for_an_absurd_canvas() {
+    let mut state: u64 = 12345;
+    let mut next = move |bound: u64| {
+        state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        (state >> 33) % bound
+    };
+    for case in 0..400 {
+        let count = 5 + next(12) as usize;
+        let nodes: Vec<String> = (0..count)
+            .map(|i| format!(r#"{{"id":"n{i}","label":"Node {i}"}}"#))
+            .collect();
+        let mut edges: Vec<String> = (1..count)
+            .map(|i| format!(r#"{{"from":"n{}","to":"n{i}"}}"#, next(i as u64)))
+            .collect();
+        for _ in 0..next(6) {
+            let (from, to) = (next(count as u64), next(count as u64));
+            if from != to {
+                edges.push(format!(r#"{{"from":"n{from}","to":"n{to}"}}"#));
+            }
+        }
+        let mut members: Vec<Vec<usize>> = vec![vec![]; 1 + next(4) as usize];
+        for node in 0..count {
+            if next(4) != 0 {
+                let group = next(members.len() as u64) as usize;
+                members[group].push(node);
+            }
+        }
+        let groups: Vec<String> = members
+            .iter()
+            .filter(|nodes| !nodes.is_empty())
+            .enumerate()
+            .map(|(group, nodes)| {
+                let ids: Vec<String> = nodes.iter().map(|node| format!("\"n{node}\"")).collect();
+                format!(r#"{{"label":"G{group}","nodes":[{}]}}"#, ids.join(","))
+            })
+            .collect();
+        let (width, height) = [(1000, 700), (470, 800), (800, 500)][next(3) as usize];
+        let json = format!(
+            r#"{{"schemaVersion":1,"type":"flow","title":"F","width":{width},"height":{height},
+"flow":{{"nodes":[{}],"edges":[{}],"groups":[{}]}}}}"#,
+            nodes.join(","),
+            edges.join(","),
+            groups.join(",")
+        );
+        let output = render_json(&json, RenderFormat::Svg, &RenderOptions::default())
+            .unwrap_or_else(|error| {
+                panic!("case {case}: {} {}\n{json}", error.code, error.message)
+            });
+        for warning in output
+            .warnings
+            .iter()
+            .filter(|warning| warning.code == "canvas_too_small")
+        {
+            let needed: u64 = warning
+                .message
+                .split("needs ")
+                .nth(1)
+                .and_then(|rest| rest.split(' ').next())
+                .and_then(|value| value.parse().ok())
+                .expect("a pixel count");
+            assert!(needed < 20_000, "case {case}: {needed}px\n{json}");
+        }
+    }
+}
+
+#[test]
 fn a_long_sublabel_wraps_instead_of_being_cut_off() {
     let json = r#"{
         "schemaVersion": 1, "type": "architecture", "title": "Wrap", "width": 900, "height": 400,
