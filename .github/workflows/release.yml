@@ -1,0 +1,99 @@
+name: Release
+
+# Tag `vX.Y.Z` → build and check both npm packages, then publish them with npm
+# Trusted Publishing (provenance, no stored token) after approval in the `npm`
+# environment. The crate is published by hand (`cargo publish --locked`) before
+# the tag; see "Releasing" in CONTRIBUTING.md.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  # The same wasm-opt as ci.yml and the local builds.
+  BINARYEN: version_133
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag matches the versions
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          test "$version" = "$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          for p in chartlet chartlet-mcp; do
+            test "$version" = "$(node -p "require('./packages/$p/package.json').version")"
+          done
+
+      # The version, components and targets come from rust-toolchain.toml.
+      - name: Rust toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install wasm-opt
+        run: |
+          curl -sSfL "https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN/binaryen-$BINARYEN-x86_64-linux.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-$BINARYEN/bin" >> "$GITHUB_PATH"
+
+      # Packs both packages (the WebAssembly build and the schema copy run in
+      # `prepack`), installs the tarballs into an empty project and uses them.
+      - name: Smoke install
+        run: node scripts/smoke-install.mjs
+
+  publish-npm:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Rust toolchain
+        run: rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+
+      - name: Update npm (Trusted Publishing needs >= 11.5)
+        run: npm install -g npm@latest
+
+      - name: Install wasm-opt
+        run: |
+          curl -sSfL "https://github.com/WebAssembly/binaryen/releases/download/$BINARYEN/binaryen-$BINARYEN-x86_64-linux.tar.gz" | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/binaryen-$BINARYEN/bin" >> "$GITHUB_PATH"
+
+      # `npm pack` runs `prepack`; `npm publish` of the tarball signs the
+      # provenance. The grid first: the MCP server depends on it. A release
+      # interrupted halfway is finished by running the job again.
+      - name: Publish
+        run: |
+          set -euo pipefail
+          for p in chartlet chartlet-mcp; do
+            dir="packages/$p"
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "$name@$version is on npm already — skipped"
+              continue
+            fi
+            tarball=$(cd "$dir" && npm pack --silent --pack-destination "$RUNNER_TEMP" | tail -1)
+            npm publish --access public "$RUNNER_TEMP/$tarball"
+          done

@@ -123,9 +123,19 @@ Before a version is published, from a clean checkout:
       project outside the repository, renders a chart and a diagram through WebAssembly (the diagram
       against its golden SVG), checks that `chartlet.wasm`, `chartlet.css` and the schema resolve from
       `node_modules`, and starts the MCP server to list its tools and resources. It needs the Rust
-      toolchain only to pack, not to install or run. It is a local check and is not run by CI.
+      toolchain only to pack, not to install or run. The release workflow runs it again on the tag, before the publish.
 - [ ] Versions: crate, both packages and the `@casoon/chartlet` range of `@casoon/chartlet-mcp`
       agree; `CHANGELOG.md` moves `[Unreleased]` to the version; README and the site are current.
 - [ ] After publishing: install the published packages in an empty project and repeat the smoke
       checks against them (`npm install @casoon/chartlet-mcp`), and `cargo install chartlet` once.
 - [ ] The compatibility contract in `docs/reference/support.md` still matches what the release does.
+
+Publishing, once the version is committed and merged to `main`:
+
+- [ ] `cargo publish --locked` for the crate.
+- [ ] Tag the merge commit: `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag starts
+      `.github/workflows/release.yml`: it checks that the tag matches the crate and both packages,
+      runs the smoke install, then waits for approval in the `npm` environment (Required Reviewer)
+      and publishes `@casoon/chartlet` and `@casoon/chartlet-mcp` through npm Trusted Publishing —
+      no token, provenance attached. Never run `npm publish` from a machine: a package published
+      there carries no provenance.
