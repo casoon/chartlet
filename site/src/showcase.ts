@@ -931,6 +931,8 @@ const catalogue = [
     useCase: 'Find the causes of a problem',
     blurb:
       'Six categories of causes of late parcels on bones above and below the spine, each with causes and sub-causes on horizontal lines: labels never lean, only the bones do. The description names the effect and then every category with its causes; the table has a row for each. Illustrative review, with a phone variant.',
+  },
+  {
     slug: 'improvement-cycle',
     group: 'Trees and networks',
     chart: 'Cycle with the labels inside boxes',
@@ -993,7 +995,8 @@ const catalogue = [
     useCase: 'Show what sets share',
     blurb:
       'Three skills of a product team of 24 as circles at fixed places, each of the seven regions with a label and a count. Text stays inside where it fits and moves to a leader line where it does not; the circles are named at their edge. The description and the table name every region. Illustrative survey, with a phone variant.',
-
+  },
+  {
     slug: 'platform-layers',
     group: 'Trees and networks',
     chart: 'Layer stack',
