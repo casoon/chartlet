@@ -1,3 +1,4 @@
+mod advice;
 mod architecture;
 mod boxplot;
 mod calendar;
@@ -52,6 +53,7 @@ mod typography;
 mod waffle;
 mod waterfall;
 
+pub use advice::{Help, PatchOperation, Remedy, RemedyKind, advise, advise_json};
 use describe::automatic_description;
 pub use error::{ChartError, ChartWarning};
 pub use inspect::{INSPECTIONS, Inspection, Severity, inspect_json};

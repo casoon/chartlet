@@ -67,6 +67,12 @@ export interface RenderChartOptions {
    * output is unchanged.
    */
   hooks?: boolean;
+  /**
+   * With `renderChartDetailed` and the bundled WebAssembly build: add `help` to a successful
+   * response, the structured help for layout warnings. Off by default, and then the response is
+   * unchanged. The compiler renders the specification again to check every correction it offers.
+   */
+  advice?: boolean;
   /** A `chartlet` executable to render with instead of the bundled WebAssembly build. */
   binary?: string;
 }
@@ -171,6 +177,40 @@ export interface ChartDiagnostic {
   message: string;
 }
 
+/** A change to the specification that a remedy proposes: JSON Patch `add` or `replace`. */
+export interface ChartPatchOperation {
+  op: "add" | "replace";
+  path: string;
+  value: unknown;
+}
+
+/** A candidate correction of a warning. */
+export interface ChartRemedy {
+  id: string;
+  /** `layout` changes the canvas only; `content` needs a decision of the author and has no patch. */
+  kind: "layout" | "content";
+  summary: string;
+  /** Empty for guidance. Apply it only when the user chooses to; the specification passed in is never changed. */
+  patch: ChartPatchOperation[];
+  /** The patched specification was rendered to check the remedy. */
+  validated: boolean;
+  /** That render no longer had the warning and had no new layout warning. */
+  resolves: boolean;
+}
+
+/** Help for one warning, with `options.advice`. */
+export interface ChartHelp {
+  code: string;
+  /** The path of the warning. */
+  path: string;
+  /** The field of the specification to look at first. */
+  field: string;
+  /** The documentation page, relative to the site root. */
+  docs: string;
+  note?: string;
+  remedies: ChartRemedy[];
+}
+
 export interface RenderChartDetailedSuccess {
   ok: true;
   content: string;
@@ -185,6 +225,8 @@ export interface RenderChartDetailedSuccess {
    * every view on the page, in its order (the default view first), each with its `view` key.
    */
   alternatives?: ChartViewTextAlternative[];
+  /** Present when `options.advice` is set and a warning has help. */
+  help?: ChartHelp[];
 }
 
 export interface RenderChartDetailedFailure {

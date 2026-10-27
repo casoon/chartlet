@@ -51,6 +51,17 @@ test("reports warnings of the mobile variant", () => {
   assert.ok(validateSpec(spec).warnings.some(({ message }) => message.startsWith("mobile variant")));
 });
 
+test("advice adds checked help for a narrow canvas and only when asked for", () => {
+  const narrow = { ...example("order-flow"), width: 320 };
+  assert.equal("help" in validateSpec(narrow), false);
+  const { help } = validateSpec(narrow, { advice: true });
+  const width = help.find((entry) => entry.code === "canvas_too_small" && entry.path === "/width");
+  assert.equal(width.field, "/width");
+  assert.equal(width.remedies[0].validated, true);
+  assert.equal(width.remedies[0].patch[0].path, "/width");
+  assert.equal(narrow.width, 320, "the specification passed in is not changed");
+});
+
 test("renders the same bytes as @casoon/chartlet with a manifest", () => {
   const spec = example("monthly-revenue");
   for (const format of ["svg", "html"]) {

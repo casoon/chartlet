@@ -1,3 +1,4 @@
+mod advice;
 mod annotations;
 mod bars_and_lines;
 mod basics;
@@ -5,6 +6,7 @@ mod collapsed_gaps;
 mod diagrams;
 mod distributions;
 mod heatmap;
+mod limits;
 mod locale;
 mod manifest;
 mod multiples;

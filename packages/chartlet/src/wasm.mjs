@@ -41,6 +41,7 @@ export function createRenderer(module) {
         alternative: options.alternative ?? false,
         styles: options.styles ?? "inline",
         hooks: options.hooks ?? false,
+        advice: options.advice ?? false,
       },
     });
   }

@@ -1,6 +1,7 @@
 //! Diagrams generated from fixed seeds: long labels, cycles, nested boundaries and narrow
-//! canvases. Each must render, render the same bytes twice and be well-formed SVG. The checks
-//! stop there; geometry is left to the tests of each layout, which know what it guarantees.
+//! canvases. Each must render, render the same bytes twice, be well-formed SVG and keep every
+//! drawn element on the canvas it declares. What a layout guarantees beyond that, such as that
+//! no two boxes overlap, is left to the tests of each layout.
 
 use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 use serde_json::{Value, json};
@@ -310,6 +311,93 @@ fn check_well_formed(svg: &str) -> Result<(), String> {
     }
 }
 
+/// The value of the attribute `name` of `tag`, as a number.
+fn number_attribute(tag: &str, name: &str) -> Option<f64> {
+    let marker = format!(" {name}=\"");
+    let start = tag.find(&marker)? + marker.len();
+    tag[start..start + tag[start..].find('"')?].parse().ok()
+}
+
+/// Whether every rectangle, line, circle, text anchor and polyline point of `svg` lies on the
+/// canvas of its `viewBox`, to the pixel: a layout that places something outside it draws it
+/// where nobody sees it, whatever the warnings say.
+fn check_on_canvas(svg: &str) -> Result<(), String> {
+    let root = &svg[..svg.find('>').ok_or("no root tag")?];
+    let view_box = root
+        .split("viewBox=\"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .ok_or("no viewBox")?;
+    let sizes: Vec<f64> = view_box
+        .split_whitespace()
+        .filter_map(|part| part.parse().ok())
+        .collect();
+    let (width, height) = (sizes[2], sizes[3]);
+    let inside =
+        |x: f64, y: f64| (-1.0..=width + 1.0).contains(&x) && (-1.0..=height + 1.0).contains(&y);
+    // Symbols are drawn in a viewBox of their own.
+    let drawn = svg.split("<symbol").next().unwrap_or(svg);
+    for tag in drawn.split('<').skip(1) {
+        let name = tag
+            .split(|c: char| c.is_whitespace() || c == '>' || c == '/')
+            .next()
+            .unwrap_or("");
+        let problem = match name {
+            "rect" => match (
+                number_attribute(tag, "x"),
+                number_attribute(tag, "y"),
+                number_attribute(tag, "width"),
+                number_attribute(tag, "height"),
+            ) {
+                (Some(x), Some(y), Some(w), Some(h)) => (!(inside(x, y) && inside(x + w, y + h)))
+                    .then(|| format!("rect {x} {y} {w} {h}")),
+                _ => None,
+            },
+            "line" => match (
+                number_attribute(tag, "x1"),
+                number_attribute(tag, "y1"),
+                number_attribute(tag, "x2"),
+                number_attribute(tag, "y2"),
+            ) {
+                // The stroke of a pattern is drawn in a tile of its own.
+                (Some(x1), Some(y1), Some(x2), Some(y2)) => {
+                    let drawn_in_tile = tag.contains("chartlet-hatch-line");
+                    let on_canvas = inside(x1, y1) && inside(x2, y2);
+                    (!drawn_in_tile && !on_canvas).then(|| format!("line {x1} {y1} {x2} {y2}"))
+                }
+                _ => None,
+            },
+            "circle" => match (number_attribute(tag, "cx"), number_attribute(tag, "cy")) {
+                (Some(x), Some(y)) => (!inside(x, y)).then(|| format!("circle {x} {y}")),
+                _ => None,
+            },
+            "text" => match (number_attribute(tag, "x"), number_attribute(tag, "y")) {
+                (Some(x), Some(y)) => (!inside(x, y)).then(|| format!("text {x} {y}")),
+                _ => None,
+            },
+            "polyline" => {
+                let points = tag
+                    .split(" points=\"")
+                    .nth(1)
+                    .and_then(|rest| rest.split('"').next())
+                    .unwrap_or("");
+                points.split_whitespace().find_map(|pair| {
+                    let (x, y) = pair.split_once(',')?;
+                    let (x, y): (f64, f64) = (x.parse().ok()?, y.parse().ok()?);
+                    (!inside(x, y)).then(|| format!("polyline point {x},{y}"))
+                })
+            }
+            _ => None,
+        };
+        if let Some(problem) = problem {
+            return Err(format!(
+                "{problem} lies outside the {width} x {height} canvas"
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// The index of the `>` that ends a tag, skipping quoted attribute values.
 fn tag_end(tag: &str) -> Option<usize> {
     let mut quote = None;
@@ -324,7 +412,18 @@ fn tag_end(tag: &str) -> Option<usize> {
     None
 }
 
-fn check(kind: &str, generate: fn(u64) -> Value) {
+/// Open findings, as of the first run of the canvas check: flow seeds 4 and 37 draw a 246 pixel
+/// wide label box up to 105 pixels left of the canvas (a long label on a canvas that is grown to
+/// the size `canvas_too_small` asks for), architecture seeds 20 and 28 do the same for a frame or a
+/// box, and cycle seed 33 draws a connector 100 pixels below its canvas. Each is a defect of its
+/// layout, not of this test; fix the layout, then remove the seed from the list.
+///
+/// Renders every seed of `generate` twice and checks the output. `off_canvas` lists the seeds whose
+/// drawing is known to leave its canvas: open findings of this test, each a layout defect that has
+/// to be fixed in its layout. The list is exact in both directions: a seed that starts to fit must
+/// be taken off it, and a new seed that does not fit fails the test.
+fn check(kind: &str, generate: fn(u64) -> Value, off_canvas: &[u64]) {
+    let mut found: Vec<(u64, String)> = Vec::new();
     for seed in 0..SEEDS {
         let specification = generate(seed).to_string();
         assert_eq!(
@@ -355,33 +454,52 @@ fn check(kind: &str, generate: fn(u64) -> Value) {
                     "{kind} seed {seed} ({variant:?}) is not well-formed SVG: {problem}\n{specification}"
                 );
             }
+            if let Err(problem) = check_on_canvas(&first)
+                && !found.iter().any(|(known, _)| *known == seed)
+            {
+                found.push((seed, format!("{variant:?}: {problem}")));
+            }
         }
     }
+    let seeds: Vec<u64> = found.iter().map(|(seed, _)| *seed).collect();
+    assert_eq!(
+        seeds, off_canvas,
+        "{kind}: the seeds that leave their canvas changed; found {found:#?}"
+    );
 }
 
 #[test]
 fn generated_flow_charts_render_deterministically() {
-    check("flow", flow);
+    check("flow", flow, &[4, 37]);
 }
 
 #[test]
 fn generated_architecture_diagrams_render_deterministically() {
-    check("architecture", architecture);
+    check("architecture", architecture, &[20, 28]);
 }
 
 #[test]
 fn generated_trees_render_deterministically() {
-    check("tree", tree);
+    check("tree", tree, &[]);
 }
 
 #[test]
 fn generated_networks_render_deterministically() {
-    check("network", network);
+    check("network", network, &[]);
 }
 
 #[test]
 fn generated_cycles_render_deterministically() {
-    check("cycle", cycle);
+    check("cycle", cycle, &[33]);
+}
+
+#[test]
+fn the_canvas_check_finds_an_element_that_is_drawn_outside() {
+    let svg = |inner: &str| format!("<svg viewBox=\"0 0 100 50\">{inner}</svg>");
+    assert!(check_on_canvas(&svg("<rect x=\"0\" y=\"0\" width=\"100\" height=\"50\"/>")).is_ok());
+    assert!(check_on_canvas(&svg("<rect x=\"90\" y=\"0\" width=\"20\" height=\"10\"/>")).is_err());
+    assert!(check_on_canvas(&svg("<text x=\"10\" y=\"80\">a</text>")).is_err());
+    assert!(check_on_canvas(&svg("<polyline points=\"1,1 2,90\"/>")).is_err());
 }
 
 #[test]

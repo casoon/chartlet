@@ -95,6 +95,10 @@ pub(crate) const MAX_SERIES: usize = 4;
 pub(crate) const MAX_AXIS_TICKS: f64 = 50.0;
 /// Reference lines on a bar chart; beyond this the lines crowd the bars they explain.
 pub(crate) const MAX_REFERENCES: usize = 4;
+/// The largest specification that is read, in bytes. The largest figure at the declared limits
+/// (six time-series layers of 2000 points) is about a tenth of it; the cap keeps a browser tab or
+/// an MCP server from parsing a payload of any size before a count limit can refuse it.
+pub(crate) const MAX_SPEC_BYTES: usize = 4 * 1024 * 1024;
 /// Fixed decimal places; beyond this a value stops being readable as a number.
 pub(crate) const MAX_DECIMALS: u8 = 6;
 
@@ -782,6 +786,16 @@ impl ChartSpec {
     /// the versioned specification. Like every other error, both carry a JSON Pointer path; a
     /// syntax error points at the document root and names line and column in its message.
     pub fn from_json(input: &str) -> Result<Self, ChartError> {
+        if input.len() > MAX_SPEC_BYTES {
+            return Err(ChartError::new(
+                "spec_too_large",
+                "/",
+                format!(
+                    "the specification is {} bytes; at most {MAX_SPEC_BYTES} (4 MiB) are read. The largest figure at the declared limits is far smaller; remove padding, or split the data over several charts",
+                    input.len()
+                ),
+            ));
+        }
         let mut spec: Self = serde_json::from_str(input).map_err(|error: serde_json::Error| {
             let (code, (path, message)) = match error.classify() {
                 serde_json::error::Category::Syntax | serde_json::error::Category::Eof => {

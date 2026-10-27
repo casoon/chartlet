@@ -11,6 +11,9 @@ use chartlet::{
 };
 use serde_json::{Value, json};
 
+/// The help of the last render, when `--advice` asked for it, as JSON for the report.
+static HELP: std::sync::Mutex<Vec<Value>> = std::sync::Mutex::new(Vec::new());
+
 /// The theme file a project sets its look in: found in the working directory and applied like
 /// `--theme` unless another theme is given.
 const PROJECT_THEME: &str = "chartlet.theme.json";
@@ -67,15 +70,61 @@ fn report_result(failure: Option<&Failure>, warnings: &[ChartWarning], json_diag
         let error = failure.map(|failure| {
             json!({ "code": failure.code, "path": failure.path, "message": failure.message })
         });
-        let report = json!({
+        let mut report = json!({
             "ok": failure.is_none(),
             "error": error,
             "warnings": warnings.iter().map(warning_json).collect::<Vec<Value>>(),
         });
+        let help = HELP.lock().expect("the help of one render").clone();
+        if !help.is_empty() {
+            report["help"] = Value::Array(help);
+        }
         eprintln!("{report}");
     } else if let Some(failure) = failure {
         eprintln!("chartlet: {failure}");
     }
+    if !json_diagnostics {
+        for help in HELP.lock().expect("the help of one render").iter() {
+            eprintln!("{}", help_line(help));
+        }
+    }
+}
+
+/// One help entry as text: where to look, and each remedy with what was checked.
+fn help_line(help: &Value) -> String {
+    let mut line = format!(
+        "help[{}] at {}: see {}",
+        help["code"].as_str().unwrap_or_default(),
+        help["field"].as_str().unwrap_or_default(),
+        help["docs"].as_str().unwrap_or_default()
+    );
+    for remedy in help["remedies"].as_array().into_iter().flatten() {
+        let patch = remedy["patch"]
+            .as_array()
+            .filter(|patch| !patch.is_empty())
+            .map(|patch| {
+                let operations: Vec<String> = patch
+                    .iter()
+                    .map(|operation| {
+                        format!(
+                            "{} {} = {}",
+                            operation["op"], operation["path"], operation["value"]
+                        )
+                    })
+                    .collect();
+                let checked = if remedy["resolves"] == true {
+                    "checked: resolves it"
+                } else {
+                    "checked: does not resolve it"
+                };
+                format!(" [{checked}; patch: {}]", operations.join(", "))
+            })
+            .unwrap_or_default();
+        line.push_str("\n  - ");
+        line.push_str(remedy["summary"].as_str().unwrap_or_default());
+        line.push_str(&patch);
+    }
+    line
 }
 
 fn warning_json(warning: &ChartWarning) -> Value {
@@ -101,6 +150,8 @@ struct Job {
     font: Option<PathBuf>,
     /// Carry the font in the SVG as a base64 `@font-face`.
     embed_font: bool,
+    /// Report help for layout warnings: the field, the documentation and checked corrections.
+    advice: bool,
 }
 
 /// The rendered content, its warnings and, if asked for, its manifest.
@@ -163,6 +214,11 @@ fn render_job(job: &Job, input: &str) -> Result<Rendered, Failure> {
                 .map_err(spec_failure)?,
             None => render_json(input, job.format, &job.options).map_err(spec_failure)?,
         };
+        if job.advice {
+            let help = chartlet::advise(input, &job.options, &rendered.warnings);
+            *HELP.lock().expect("the help of one render") =
+                help.iter().map(chartlet::Help::to_json).collect();
+        }
         let manifest = rendered.manifest.map(|manifest| chartlet::Manifest {
             theme: job.theme.clone(),
             ..manifest
@@ -221,6 +277,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut port = None;
     let mut font = None;
     let mut embed_font = false;
+    let mut advice = false;
 
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
@@ -274,6 +331,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             "--all-views" => all_views = true,
             "--font" => font = Some(path_after(&mut arguments, "--font")?),
             "--embed-font" => embed_font = true,
+            "--advice" => advice = true,
             "--styles" => styles = parse_styles(arguments.next().as_deref())?,
             "--hooks" => hooks = true,
             "--manifest" => manifest = Some(path_after(&mut arguments, "--manifest")?),
@@ -319,6 +377,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
         strict: strict.then_some(allowed),
         font,
         embed_font,
+        advice,
     };
     if watch || preview {
         return watch::run(&job, preview.then(|| port.unwrap_or(0)), json_diagnostics);
@@ -553,7 +612,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|theme.json>] [--size <preset>] [--manifest <path>] [--font <file.ttf> [--embed-font]] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
+    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|theme.json>] [--size <preset>] [--manifest <path>] [--font <file.ttf> [--embed-font]] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json [--advice]] [--watch] [--preview [--port <port>]]
        chartlet inspect <spec.json|-> [--disable <code>]... [--strict] [--format text|json] [--diagnostics text|json]
        chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
 }
