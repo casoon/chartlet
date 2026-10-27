@@ -108,7 +108,7 @@ chartlet is before 1.0; screen reader and user testing are still pending. Status
 | --- | --- | --- |
 | WebAssembly build in Node.js | Verified | The npm package renders through it by default; tests compare every example with the CLI output byte for byte on Node.js 22. |
 | WebAssembly build in Cloudflare Workers | Verified | `@casoon/chartlet/wasm` with an imported `chartlet.wasm`; checked locally in workerd, not in a deployed Worker. |
-| WebAssembly build in the browser | Designed, not yet verified | Same entry point; the module is compiled by the page. |
+| WebAssembly build in the browser | Designed, not yet verified | Same entry point; the [playground](../../guides/playground/) compiles the module in a worker. Its first run on the deployed site is the verification; the browser versions it lists are derived from the features it uses, not tested one by one. |
 | MCP server (`@casoon/chartlet-mcp`) | Designed, not yet verified | stdio server with `chartlet_inspect_data`, `chartlet_validate_spec`, `chartlet_render`, `chartlet_explain`, `chartlet_inspect`, `chartlet_diagram_starter`, `chartlet_chart_starter`, the schema as a resource and the MCP App view `ui://chartlet/figure`; covered by unit tests, an end-to-end test with the reference MCP client and a browser test of the view with axe, not yet tried in an MCP host such as Claude Desktop or Claude Code. |
 | Native Node bindings | Not supported | The npm package renders through the WebAssembly build instead; `CHARTLET_BIN` selects the CLI. |
 | Series filtering and stepped zoom | Designed, not yet verified | Available in the HTML profile with native controls and CSS; broader browser and assistive-technology verification is pending. |

@@ -2,9 +2,17 @@
 
 chartlet compiles a small JSON specification into a finished, accessible chart or software
 diagram at build time. You get plain SVG, or an HTML figure with caption, source and data table.
-Nothing runs in the browser: no chart JavaScript, no hydration, no layout shift.
+A chart itself runs no JavaScript in the browser: no chart script, no hydration, no layout shift.
 
 **Website and documentation:** [casoon.github.io/chartlet](https://casoon.github.io/chartlet/)
+
+## Three ways to your first chart
+
+| You want to | Start here |
+| --- | --- |
+| **Try it in the browser**, nothing to install | The [playground](https://casoon.github.io/chartlet/playground/) runs the compiler as WebAssembly in your tab and uploads nothing. |
+| **Use it with an AI agent** | `claude mcp add chartlet -- npx -y @casoon/chartlet-mcp`, or the same server in any MCP client; see [`@casoon/chartlet-mcp`](packages/chartlet-mcp/) and [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/). Needs Node.js 22.12 or newer. |
+| **Integrate it in a project** | `cargo install chartlet` for the CLI, `npm install @casoon/chartlet` for Astro and JavaScript (no Rust needed), or the crate; see the [quick start](#quick-start) below and [Installation](https://casoon.github.io/chartlet/docs/getting-started/installation/). |
 
 ![Grouped bar chart comparing budget and actual costs from January to April](examples/budget-vs-actual.svg)
 
@@ -25,7 +33,14 @@ Nothing runs in the browser: no chart JavaScript, no hydration, no layout shift.
 
 > **Status:** before 1.0. Until 1.0, a minor release may still change the specification; a patch
 > release never does. Flow, state and class diagrams are
-> experimental: their layout may change between minor releases.
+> experimental: their layout may change between minor releases. What is verified and what is only
+> designed is listed in the [support matrix](https://casoon.github.io/chartlet/docs/reference/support/).
+
+**What "no browser JavaScript" covers.** A static chart or diagram, in SVG or in the HTML figure,
+ships without a script. Two things are optional JavaScript: the
+[interactive module](https://casoon.github.io/chartlet/docs/guides/interaction/) that you add
+yourself for focus and highlighting, and the playground, whose compiler runs in your browser. Neither
+is loaded by a chart.
 
 ## Quick start
 
