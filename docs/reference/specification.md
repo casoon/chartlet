@@ -47,6 +47,7 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `fishbone` | [Fishbone diagrams](#fishbone-diagrams) | `fishbone` |
 | `cycle` | [Cycles](#cycles) | `cycle` |
 | `layers` | [Layers](#layers) | `layers` |
+| `plan` | [Plans](#plans) | `plan` |
 
 Fields every type takes are in [Common fields](#common-fields), the value axis of the charts that
 have one in [Value axis](#value-axis), and what the diagrams share in
@@ -86,7 +87,7 @@ Rules:
   Warnings that only the mobile layout raises are reported with the same code and path and a
   message that begins with `mobile variant: `. Asking for the mobile variant of a specification
   without `mobile` is `missing_mobile` at `/mobile`.
-- `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class, network, cycle and layers
+- `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class, network, cycle, layers and plan
   diagrams; any other type refuses it (`option_not_supported` at `/theme`).
 - Texts must contain visible text (`empty_text`), stay within their length (`text_too_long`) and
   hold no control character that XML 1.0 cannot represent (`invalid_xml_character`).
@@ -94,7 +95,7 @@ Rules:
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `waterfall`,
-  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `kanban`, `storymap`, `journey`, `valuemap`, `venn`, `layers`, `columns`),
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `kanban`, `storymap`, `journey`, `valuemap`, `venn`, `layers`, `plan`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
@@ -102,7 +103,7 @@ Rules:
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
   `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_funnel`, `missing_radar`, `missing_polar`, `missing_mosaic`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
-  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle`, `missing_fishbone`, `missing_kanban`, `missing_storymap`, `missing_journey`, `missing_valuemap`, `missing_layers` and `missing_venn`. An empty list
+  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle`, `missing_fishbone`, `missing_kanban`, `missing_storymap`, `missing_journey`, `missing_valuemap`, `missing_layers`, `missing_plan` and `missing_venn`. An empty list
   where a type needs at least one entry is `empty_data`.
 - Stripes, calendars, timelines and every diagram are drawn from their block alone:
   `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
@@ -1227,6 +1228,26 @@ See [Layers](../../guides/chart-types/#layers).
 
 Rules: at least one layer, at most 10 in a stack and 6 nested scopes (`too_many_layers`); at most
 12 items per layer (`too_many_items`); identifiers are unique (`duplicate_id`).
+
+## Plans
+
+`"type": "plan"`: rooms, buildings and open ground on a grid, seen at an angle. See
+[Plans](../../guides/chart-types/#plans).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `plan.areas` | array, 1–30 | yes | `[{ "id": "a", "label": "…", "kind": "room", "x": 0, "y": 0, "w": 6, "h": 4, "phase": "…", "items": [] }]`. |
+| `areas[].id` | identifier | yes | Unique. |
+| `areas[].label` | string, up to 60 characters | yes | The name. |
+| `areas[].kind` | `room`, `building`, `outdoor` | no | `room` (default); `building` has a heavier outline; `outdoor` has no walls and may lie under other areas. |
+| `areas[].x`, `areas[].y` | number, 0–100 | yes | The corner of the area, in grid units. |
+| `areas[].w`, `areas[].h` | number above 0, up to 100 | yes | The width along `x` and the depth along `y`. |
+| `areas[].phase` | string, up to 40 characters | no | When the area exists or is built; up to four phases, each with a pattern. |
+| `areas[].items` | array, up to 12 | no | `[{ "kind": "desk", "x": 0.5, "y": 0.5 }]`; kinds `desk`, `shelf`, `table`, `bed`, `sofa`, `plant`; `x` and `y` in grid units from the corner of the area. |
+
+Rules: 1–30 areas (`too_many_areas`); unique identifiers (`duplicate_id`); `x`, `y`, `w` and `h`
+numbers in range (`invalid_area`); no two rooms or buildings overlap (`area_overlap`); at most four
+phases (`too_many_phases`); an item lies inside its area (`item_outside_area`, `too_many_items`).
 
 ## Diverging scale
 

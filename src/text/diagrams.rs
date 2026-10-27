@@ -3,7 +3,8 @@
 
 use super::{listed, plural};
 use crate::spec::{
-    DiagramRole, FragmentSpec, Linkage, Locale, MessageKind, NodeKind, ParticipantKind,
+    AreaKind, DiagramRole, FragmentSpec, ItemKind, Linkage, Locale, MessageKind, NodeKind,
+    ParticipantKind,
 };
 use std::fmt::Write as _;
 
@@ -754,5 +755,108 @@ pub(crate) fn layers_opening(locale: Locale, nested: bool, entries: &[String]) -
             "{count} ineinander liegende {}, vom äußersten zum innersten: {entries}.",
             plural(count, "Bereich", "Bereiche")
         ),
+    }
+}
+
+/// The name of the kind of an area.
+pub(crate) const fn area_kind(locale: Locale, kind: AreaKind) -> &'static str {
+    match (locale, kind) {
+        (Locale::En, AreaKind::Room) => "room",
+        (Locale::En, AreaKind::Building) => "building",
+        (Locale::En, AreaKind::Outdoor) => "outdoor",
+        (Locale::De, AreaKind::Room) => "Raum",
+        (Locale::De, AreaKind::Building) => "Gebäude",
+        (Locale::De, AreaKind::Outdoor) => "Außenbereich",
+    }
+}
+
+/// The name of a piece of furniture.
+pub(crate) const fn item_kind(locale: Locale, kind: ItemKind) -> &'static str {
+    match (locale, kind) {
+        (Locale::En, ItemKind::Desk) => "desk",
+        (Locale::En, ItemKind::Shelf) => "shelf",
+        (Locale::En, ItemKind::Table) => "table",
+        (Locale::En, ItemKind::Bed) => "bed",
+        (Locale::En, ItemKind::Sofa) => "sofa",
+        (Locale::En, ItemKind::Plant) => "plant",
+        (Locale::De, ItemKind::Desk) => "Schreibtisch",
+        (Locale::De, ItemKind::Shelf) => "Regal",
+        (Locale::De, ItemKind::Table) => "Tisch",
+        (Locale::De, ItemKind::Bed) => "Bett",
+        (Locale::De, ItemKind::Sofa) => "Sofa",
+        (Locale::De, ItemKind::Plant) => "Pflanze",
+    }
+}
+
+/// The line under the label of an area: its kind, its size and its phase.
+pub(crate) fn plan_detail(
+    locale: Locale,
+    kind: AreaKind,
+    (width, depth): (&str, &str),
+    phase: Option<&str>,
+) -> String {
+    let mut line = format!("{}, {width} × {depth}", area_kind(locale, kind));
+    if let Some(phase) = phase {
+        line.push_str(", ");
+        line.push_str(phase);
+    }
+    line
+}
+
+/// One area for the description: label, kind, size, phase and furniture.
+pub(crate) fn plan_area(
+    locale: Locale,
+    label: &str,
+    kind: AreaKind,
+    size: (&str, &str),
+    phase: Option<&str>,
+    items: &[ItemKind],
+) -> String {
+    let mut line = format!("{label} ({}", plan_detail(locale, kind, size, phase));
+    if !items.is_empty() {
+        let names: Vec<String> = items
+            .iter()
+            .map(|item| item_kind(locale, *item).to_owned())
+            .collect();
+        match locale {
+            Locale::En => write!(line, ", with {}", listed(locale, &names)),
+            Locale::De => write!(line, ", mit {}", listed(locale, &names)),
+        }
+        .expect("writing to String cannot fail");
+    }
+    line.push(')');
+    line
+}
+
+/// The opening sentence of a plan: how many areas on how large a grid, and the areas.
+pub(crate) fn plan_opening(
+    locale: Locale,
+    areas: usize,
+    (width, depth): (&str, &str),
+    entries: &[String],
+) -> String {
+    let entries = entries.join("; ");
+    match locale {
+        Locale::En => format!(
+            "Plan with {areas} area{} on a grid of {width} × {depth} units, seen at an angle: {entries}.",
+            plural(areas, "", "s")
+        ),
+        Locale::De => format!(
+            "Grundriss mit {areas} {} auf einem Raster von {width} × {depth} Einheiten, schräg von oben gesehen: {entries}.",
+            plural(areas, "Bereich", "Bereichen")
+        ),
+    }
+}
+
+/// What each phase holds.
+pub(crate) fn plan_phases(locale: Locale, phases: &[(String, Vec<String>)]) -> String {
+    let phases: Vec<String> = phases
+        .iter()
+        .map(|(phase, areas)| format!("{phase}: {}", listed(locale, areas)))
+        .collect();
+    let phases = phases.join("; ");
+    match locale {
+        Locale::En => format!("Phases: {phases}."),
+        Locale::De => format!("Phasen: {phases}."),
     }
 }

@@ -62,6 +62,8 @@ order: 1
 | Stack of abstraction levels with items and notes | `"type": "layers"` with `layers`, `items`, `note` | [Platform layers](../../../showcase/platform-layers/) |
 | Layer stack lifted apart in 2:1 projection | `"projection": "exploded"` | [Platform exploded](../../../showcase/platform-exploded/) |
 | Scopes drawn inside each other | `"display": "nested"` | [Who owns what](../../../showcase/scope-nesting/) |
+| Floor plan at an angle with furniture and phases | `"type": "plan"` with `areas`, `items`, `phase` | [Office floor](../../../showcase/office-floor/) |
+| Site plan with buildings and open ground | `"kind": "building"`, `"kind": "outdoor"` | [School site](../../../showcase/campus-site/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
 | Architecture diagram with its databases on one rank | `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` | [Order platform and its data stores](../../../showcase/data-tier/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
@@ -2124,6 +2126,50 @@ count for each region.
 Limits: up to 10 layers in a stack and 6 nested scopes (`too_many_layers`), up to 12 items per
 layer of at most 40 characters (`too_many_items`), unique ids (`duplicate_id`). A diagram that does
 not fit its canvas is drawn larger and reported as `canvas_too_small`.
+
+## Plans
+
+`"type": "plan"` draws one floor or one site seen at an angle: rooms, buildings and open ground as
+rectangles on a grid, with the walls cut at one low height so that every room shows.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "plan",
+  "title": "A small office",
+  "plan": {
+    "areas": [
+      { "id": "office", "label": "Open office", "x": 0, "y": 0, "w": 6, "h": 4, "phase": "Existing",
+        "items": [{ "kind": "desk", "x": 0.6, "y": 0.6 }] },
+      { "id": "lab", "label": "Lab", "x": 6, "y": 0, "w": 3, "h": 4, "phase": "Phase 1" },
+      { "id": "yard", "label": "Yard", "kind": "outdoor", "x": 0, "y": 4, "w": 9, "h": 2 }
+    ]
+  }
+}
+```
+
+- **Areas** lie on a grid in grid units: `x` and `y` give the corner, `w` the width along `x` and
+  `h` the depth along `y`, all of them numbers of up to 100. Everything is drawn through one
+  projection, 2:1 dimetric: the `x` axis runs right and down, the `y` axis left and down.
+- **Kinds.** A `room` has a floor and low walls; a `building` the same with a heavier outline; an
+  `outdoor` area is a floor with a dashed outline and no walls, and other areas may lie on it. Two
+  rooms or buildings may not overlap (`area_overlap`). Walls are cut at one height for every area:
+  the walls at the back show their inner face, those in front their outer face.
+- **Items** — `desk`, `shelf`, `table`, `bed`, `sofa`, `plant` — stand as low boxes at `x`, `y`
+  from the corner of their area and must lie inside it (`item_outside_area`).
+- **Labels** stand in two columns beside the plan on leader lines from the middle of each area;
+  each has the kind, the size and the phase under it.
+- **Phases.** `phase` names when an area exists or is built; up to four. The first phase is plain,
+  the others each have a pattern — diagonal lines, dots, a grid — named in a legend below, so a
+  phase never rests on color alone (`too_many_phases`). In the HTML profile every area is a focus
+  link.
+- **Text alternative.** The description gives the size of the grid, every area in the order of
+  `areas` with its kind, size, phase and furniture, and what each phase holds; the table has one
+  row per area with its kind, position, size, phase and items.
+
+Limits: up to 30 areas and 12 items per area (`too_many_areas`, `too_many_items`); unique ids
+(`duplicate_id`); sizes above 0 and positions from 0 to 100 (`invalid_area`). A plan that does not
+fit its canvas is drawn larger and reported as `canvas_too_small`.
 
 ## Time series
 

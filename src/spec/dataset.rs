@@ -73,7 +73,8 @@ impl ChartSpec {
             | ChartType::Classes
             | ChartType::Network
             | ChartType::Cycle
-            | ChartType::Layers => {
+            | ChartType::Layers
+            | ChartType::Plan => {
                 unreachable!("a diagram's table holds text, see its data_table")
             }
         }
@@ -402,7 +403,8 @@ impl ChartSpec {
             | ChartType::Classes
             | ChartType::Network
             | ChartType::Cycle
-            | ChartType::Layers => None,
+            | ChartType::Layers
+            | ChartType::Plan => None,
         };
         NumberStyle {
             format: self.value_format(),
@@ -478,7 +480,8 @@ impl ChartSpec {
             | ChartType::Classes
             | ChartType::Network
             | ChartType::Cycle
-            | ChartType::Layers => ValueFormat::Number,
+            | ChartType::Layers
+            | ChartType::Plan => ValueFormat::Number,
             ChartType::Bar
             | ChartType::Line
             | ChartType::Rangebar

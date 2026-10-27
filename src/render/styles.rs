@@ -171,6 +171,10 @@ const CYCLE_STYLE: &str = ".chartlet-cycle-num{font-size:13px;font-weight:700;fi
 /// background so that neighbouring scopes differ.
 const LAYERS_STYLE: &str = ".chartlet-layers-item{fill:var(--chartlet-background);stroke:var(--chartlet-grid);stroke-width:1;rx:5px}.chartlet-layers-item-text{font-size:12px;fill:var(--chartlet-text)}.chartlet-layers-note{font-size:12px;fill:var(--chartlet-muted)}.chartlet-layers-leader{fill:none;stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:1 3;stroke-linecap:round}.chartlet-layers-odd{fill:var(--chartlet-background)}.chartlet-layers-guide{stroke:var(--chartlet-zero);stroke-width:1;stroke-dasharray:2 4}.chartlet-layers-shade-left{fill:var(--chartlet-text);fill-opacity:.1;stroke:none}.chartlet-layers-shade-right{fill:var(--chartlet-text);fill-opacity:.2;stroke:none}";
 
+/// Plans, on top of [`DIAGRAM_STYLE`] and [`FLOW_STYLE`]: floors by kind, low walls with shaded
+/// outer faces, furniture, the leader lines of the labels and the marks of the phase patterns.
+const PLAN_STYLE: &str = ".chartlet-plan-floor{stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-plan-room{fill:var(--chartlet-role-blue-fill)}.chartlet-plan-building{fill:var(--chartlet-role-violet-fill);stroke:var(--chartlet-role-violet);stroke-width:2.5}.chartlet-plan-outdoor{fill:var(--chartlet-role-green-fill);stroke:var(--chartlet-role-green);stroke-dasharray:5 3}.chartlet-plan-wall{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-plan-wall-in{fill:var(--chartlet-background);stroke:var(--chartlet-zero);stroke-width:1;stroke-linejoin:round}.chartlet-plan-rim{fill:none;stroke:var(--chartlet-text);stroke-width:1.5;stroke-linejoin:round}.chartlet-plan-rim-building{stroke-width:3}.chartlet-plan-item{fill:var(--chartlet-role-amber-fill);stroke:var(--chartlet-role-amber);stroke-width:1;stroke-linejoin:round}.chartlet-plan-shade-left{fill:var(--chartlet-text);fill-opacity:.1;stroke:none}.chartlet-plan-shade-right{fill:var(--chartlet-text);fill-opacity:.2;stroke:none}.chartlet-plan-leader{fill:none;stroke:var(--chartlet-zero);stroke-width:1}.chartlet-plan-dot{fill:var(--chartlet-text)}.chartlet-plan-swatch{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-zero);stroke-width:1}.chartlet-plan-phase-1,.chartlet-plan-phase-2,.chartlet-plan-phase-3{stroke:none}.chartlet-plan-mark{stroke:var(--chartlet-text);stroke-opacity:.55;stroke-width:1.2}.chartlet-plan-mark-dot{fill:var(--chartlet-text);fill-opacity:.55}";
+
 const ARCHITECTURE_STYLE: &str = ".chartlet-arch-head{fill:var(--chartlet-role-violet-fill);stroke:var(--chartlet-role-violet);stroke-width:1.5}.chartlet-arch-dot{fill:var(--chartlet-role-blue);stroke:none}";
 
 const FILTER_STYLE: &str = ".chartlet-wrapper{display:inline-block;max-width:100%}.chartlet-filter{border:none;padding:0;margin:0 0 12px 0}.chartlet-filter legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-filter label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-filter input{margin-right:4px}.chartlet-filter input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-wrapper:has(.chartlet-filter input.series-0:not(:checked)) .chartlet-root [data-series=\"0\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-1:not(:checked)) .chartlet-root [data-series=\"1\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-2:not(:checked)) .chartlet-root [data-series=\"2\"]{display:none}.chartlet-wrapper:has(.chartlet-filter input.series-3:not(:checked)) .chartlet-root [data-series=\"3\"]{display:none}";
@@ -190,6 +194,7 @@ fn diagram_style(chart_type: ChartType) -> String {
         ChartType::Network => &[DIAGRAM_STYLE, FLOW_STYLE, NETWORK_STYLE],
         ChartType::Cycle => &[DIAGRAM_STYLE, FLOW_STYLE, CYCLE_STYLE],
         ChartType::Layers => &[DIAGRAM_STYLE, FLOW_STYLE, LAYERS_STYLE],
+        ChartType::Plan => &[DIAGRAM_STYLE, FLOW_STYLE, PLAN_STYLE],
         ChartType::Architecture | ChartType::Tree => {
             &[DIAGRAM_STYLE, FLOW_STYLE, ARCHITECTURE_STYLE]
         }
@@ -348,7 +353,7 @@ const fn when(condition: bool, style: &str) -> &str {
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
         Architecture, Bar, Boxplot, Calendar, Classes, Cycle, Fishbone, Flow, Funnel, Heatmap,
-        Journey, Kanban, Layers, Line, Mosaic, Multiples, Network, Parliament, Polar, Radar,
+        Journey, Kanban, Layers, Line, Mosaic, Multiples, Network, Parliament, Plan, Polar, Radar,
         Rangebar, Sankey, Scatter, Sequence, State, Storymap, Stripes, Survival, Time, Timeline,
         Tree, Treemap, Valuemap, Venn, Waffle, Waterfall,
     };
@@ -413,6 +418,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (NETWORK_STYLE, &[Network]),
         (CYCLE_STYLE, &[Cycle]),
         (LAYERS_STYLE, &[Layers]),
+        (PLAN_STYLE, &[Plan]),
         (crate::heat::STYLE, &[Flow, Tree]),
         (crate::parts::STYLE, &[Flow, Tree, Architecture]),
         (crate::parts::UNSTATED_STYLE, &[Architecture]),

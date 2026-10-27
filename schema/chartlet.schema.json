@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "funnel", "radar", "polar", "mosaic", "heatmap", "valuemap", "journey", "storymap", "kanban", "venn", "fishbone", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle", "layers"]
+      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "funnel", "radar", "polar", "mosaic", "heatmap", "valuemap", "journey", "storymap", "kanban", "venn", "fishbone", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle", "layers", "plan"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -178,6 +178,10 @@
     "layers": {
       "description": "The layers of a type: \"layers\" chart.",
       "$ref": "#/$defs/layers"
+    },
+    "plan": {
+      "description": "The areas of a type: \"plan\" chart.",
+      "$ref": "#/$defs/plan"
     },
     "scatter": {
       "description": "The points of a type: \"scatter\" chart.",
@@ -588,6 +592,16 @@
               { "required": ["panes"] }
             ]
           }
+        },        {
+          "required": ["plan"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
         },
         {
           "required": ["waffle"],
@@ -856,6 +870,10 @@
       "if": { "properties": { "type": { "const": "layers" } } },
       "then": { "required": ["layers"] },
       "else": { "not": { "required": ["layers"] } }
+    },    {
+      "if": { "properties": { "type": { "const": "plan" } } },
+      "then": { "required": ["plan"] },
+      "else": { "not": { "required": ["plan"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waffle" } } },
@@ -1258,6 +1276,48 @@
         "center": { "description": "The node in the middle of the rings; required with layout rings, refused on a circle.", "$ref": "#/$defs/identifier" },
         "directed": { "description": "Whether edges lead from one node to the other: drawn with an arrowhead.", "type": "boolean", "default": false },
         "order": { "description": "The order around a circle: groups together with as few crossings as swaps find (crossings), or as listed.", "enum": ["crossings", "listed"], "default": "crossings" }
+      }
+    },
+    "plan": {
+      "description": "A plan: rooms, buildings and open ground on a grid, seen at an angle in 2:1 dimetric projection with the walls cut at one low height so that every room shows. Areas are rectangles in grid units; rooms and buildings may not overlap, open ground may lie under them. Furniture from a small set stands in an area. Labels stand on leader lines; phases have a pattern each, named in a legend. Up to 30 areas and 4 phases.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["areas"],
+      "properties": {
+        "areas": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label", "x", "y", "w", "h"],
+            "properties": {
+              "id": { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "kind": { "enum": ["room", "building", "outdoor"], "default": "room" },
+              "x": { "description": "Position along x in grid units from 0.", "type": "number", "minimum": 0, "maximum": 100 },
+              "y": { "description": "Position along y in grid units from 0.", "type": "number", "minimum": 0, "maximum": 100 },
+              "w": { "description": "Width along x, above 0.", "type": "number", "exclusiveMinimum": 0, "maximum": 100 },
+              "h": { "description": "Depth along y, above 0.", "type": "number", "exclusiveMinimum": 0, "maximum": 100 },
+              "phase": { "description": "When the area exists or is built: a name shared by areas, each with a pattern in the legend; at most 4.", "type": "string", "minLength": 1, "maxLength": 40 },
+              "items": {
+                "type": "array",
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["kind", "x", "y"],
+                  "properties": {
+                    "kind": { "enum": ["desk", "shelf", "table", "bed", "sofa", "plant"] },
+                    "x": { "description": "Grid units from the corner of the area; the item must lie inside it.", "type": "number", "minimum": 0 },
+                    "y": { "type": "number", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "layers": {

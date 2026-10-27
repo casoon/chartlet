@@ -639,6 +639,16 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/platform-exploded.json"),
         include_str!("../examples/platform-exploded.svg"),
     ),
+    (
+        "office-floor",
+        include_str!("../examples/office-floor.json"),
+        include_str!("../examples/office-floor.svg"),
+    ),
+    (
+        "campus-site",
+        include_str!("../examples/campus-site.json"),
+        include_str!("../examples/campus-site.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -942,6 +952,16 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "platform-exploded",
         include_str!("../examples/platform-exploded.json"),
         include_str!("../examples/platform-exploded.mobile.svg"),
+    ),
+    (
+        "office-floor",
+        include_str!("../examples/office-floor.json"),
+        include_str!("../examples/office-floor.mobile.svg"),
+    ),
+    (
+        "campus-site",
+        include_str!("../examples/campus-site.json"),
+        include_str!("../examples/campus-site.mobile.svg"),
     ),
 ];
 

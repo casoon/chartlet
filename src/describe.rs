@@ -25,6 +25,7 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         ChartType::Network => return crate::network::description(spec),
         ChartType::Cycle => return crate::cycle::description(spec),
         ChartType::Layers => return crate::layers::description(spec),
+        ChartType::Plan => return crate::plan::description(spec),
         ChartType::Scatter => return crate::scatter::description(spec),
         ChartType::Survival => return crate::survival::description(spec),
         ChartType::Sankey => return crate::sankey::description(spec),

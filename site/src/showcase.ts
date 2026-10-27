@@ -1018,6 +1018,22 @@ const catalogue = [
       'The same platform as the flat layer stack, its layers lifted apart as slabs in 2:1 dimetric projection at equal gaps, with dotted guides between their corners and the labels, items and notes at the side on leader lines. The description and table are those of the flat stack; on a phone-width canvas the stack is drawn flat. Illustrative platform.',
   },
   {
+    slug: 'office-floor',
+    group: 'Trees and networks',
+    chart: 'Floor plan in axonometric projection',
+    useCase: 'Show rooms and how they are built in phases',
+    blurb:
+      'Five rooms and a terrace on a grid, seen at an angle with the walls cut low so that every room shows, desks, shelves, tables and a sofa as low boxes, labels on leader lines at both sides and three phases — existing, phase 1, phase 2 — as a plain floor, diagonal lines and dots, named in a legend. The table lists every room with its position, size and phase. With a phone variant. Illustrative office.',
+  },
+  {
+    slug: 'campus-site',
+    group: 'Trees and networks',
+    chart: 'Site plan with buildings',
+    useCase: 'Show what stands on a site and what is planned',
+    blurb:
+      'A school site: open ground with a dashed outline, four buildings with a heavier outline and a garden, the buildings and the garden in phases. The description gives the size of the grid and every area with its kind, size and phase. With a phone variant. Illustrative site.',
+  },
+  {
     slug: 'mobile-revenue',
     group: 'Mobile variant',
     chart: 'Mobile variant',

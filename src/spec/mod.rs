@@ -16,6 +16,7 @@ mod layers;
 mod mosaic;
 mod network;
 mod parliament;
+mod plan;
 mod polar;
 mod radar;
 mod rangebar;
@@ -71,6 +72,7 @@ pub use layers::{LayersDisplay, LayersProjection, LayersSpec, StackLayerSpec};
 pub use mosaic::{MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
+pub use plan::{AreaKind, AreaSpec, ItemKind, ItemSpec, PlanSpec};
 pub use polar::{PolarDisplay, PolarPointSpec, PolarSpec};
 pub(crate) use radar::RINGS;
 pub use radar::{RadarAxisSpec, RadarSeriesSpec, RadarSpec};
@@ -323,6 +325,9 @@ pub struct ChartSpec {
     /// Layers: levels of abstraction stacked on each other, or scopes drawn inside each other. Skipped while absent, like `stripes`.
     #[serde(default, rename = "layers", skip_serializing_if = "Option::is_none")]
     pub layer_stack: Option<LayersSpec>,
+    /// A plan: rooms, buildings and open ground on a grid, seen at an angle. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub plan: Option<PlanSpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -572,11 +577,13 @@ pub enum ChartType {
     Cycle,
     /// Layers: levels of abstraction stacked on each other, or scopes drawn inside each other.
     Layers,
+    /// A plan: rooms, buildings and open ground on a grid, seen at an angle with the walls cut low.
+    Plan,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 36] = [
+    pub const ALL: [Self; 37] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -613,6 +620,7 @@ impl ChartType {
         Self::Network,
         Self::Cycle,
         Self::Layers,
+        Self::Plan,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -976,6 +984,7 @@ impl ChartSpec {
             ChartType::Network => self.validate_network(),
             ChartType::Cycle => self.validate_cycle(),
             ChartType::Layers => self.validate_layers(),
+            ChartType::Plan => self.validate_plan(),
             ChartType::Bar | ChartType::Line => self.validate_bar_and_line(),
         }?;
         warnings.extend(crate::contrast::warnings(self));
@@ -1023,6 +1032,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Network => "network",
         ChartType::Cycle => "cycle",
         ChartType::Layers => "layers",
+        ChartType::Plan => "plan",
     }
 }
 

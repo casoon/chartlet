@@ -292,6 +292,43 @@ fn layers(seed: u64) -> Value {
     })
 }
 
+fn plan(seed: u64) -> Value {
+    let mut random = Random(seed);
+    let count = 1 + random.below(8);
+    let mut x = 0;
+    let areas: Vec<Value> = (0..count)
+        .map(|index| {
+            let width = 2 + random.below(5);
+            let depth = 2 + random.below(5);
+            let mut area = json!({
+                "id": format!("a{index}"),
+                "label": random.label(),
+                "x": x,
+                "y": random.below(3),
+                "w": width,
+                "h": depth,
+            });
+            x += width;
+            match random.below(3) {
+                0 => area["kind"] = json!("building"),
+                1 => area["phase"] = json!(format!("Phase {}", random.below(4))),
+                _ => {}
+            }
+            if random.chance(40) {
+                area["items"] = json!([{ "kind": "table", "x": 0, "y": 0 }]);
+            }
+            area
+        })
+        .collect();
+    json!({
+        "schemaVersion": 1,
+        "type": "plan",
+        "title": random.label(),
+        "width": random.width(),
+        "plan": { "areas": areas },
+    })
+}
+
 /// Whether `svg` is one well-formed element: every tag closed in order, attributes quoted, and
 /// no number that did not resolve.
 fn check_well_formed(svg: &str) -> Result<(), String> {
@@ -537,6 +574,11 @@ fn the_canvas_check_finds_an_element_that_is_drawn_outside() {
 #[test]
 fn generated_layers_render_deterministically() {
     check("layers", layers, &[]);
+}
+
+#[test]
+fn generated_plans_render_deterministically() {
+    check("plan", plan, &[]);
 }
 
 #[test]

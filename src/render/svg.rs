@@ -130,6 +130,7 @@ pub(crate) fn svg(
         emit_data_block(spec, &mut output);
     }
     emit_hatches(spec, id_prefix, &mut output);
+    emit_phase_patterns(spec, id_prefix, &mut output);
     crate::symbols::emit_defs(scene, id_prefix, &mut output);
 
     // A dark chart cannot know the color of the page behind it, so it paints its own surface;
@@ -193,12 +194,51 @@ fn emit_hatches(spec: &ChartSpec, id_prefix: &str, output: &mut String) {
 }
 
 /// Writes a scene element into the SVG with optional `data-series` and `<title>` child.
+/// The patterns of the phases of a plan after the first: diagonal lines, dots and a grid, in
+/// the color of the text, so that a phase reads without color.
+fn emit_phase_patterns(spec: &ChartSpec, id_prefix: &str, output: &mut String) {
+    let phases = spec.plan.as_ref().map_or(0, |plan| plan.phases().len());
+    if phases < 2 {
+        return;
+    }
+    output.push_str("<defs>");
+    for (number, content) in [
+        (1, "<line x1=\"0\" y1=\"0\" x2=\"0\" y2=\"8\" class=\"chartlet-plan-mark\"/>"),
+        (2, "<circle cx=\"4\" cy=\"4\" r=\"1.4\" class=\"chartlet-plan-mark-dot\"/>"),
+        (
+            3,
+            "<line x1=\"0\" y1=\"4\" x2=\"8\" y2=\"4\" class=\"chartlet-plan-mark\"/><line x1=\"4\" y1=\"0\" x2=\"4\" y2=\"8\" class=\"chartlet-plan-mark\"/>",
+        ),
+    ]
+    .into_iter()
+    .take(phases - 1)
+    {
+        let turn = if number == 1 {
+            " patternTransform=\"rotate(45)\""
+        } else {
+            ""
+        };
+        write!(
+            output,
+            "<pattern id=\"{id_prefix}-plan-phase-{number}\" width=\"8\" height=\"8\" patternUnits=\"userSpaceOnUse\"{turn}>{content}</pattern>"
+        )
+        .expect("writing to String cannot fail");
+    }
+    output.push_str("</defs>");
+}
+
 /// A hatched shape refers to its pattern by an attribute rather than by a stylesheet rule: the
 /// pattern id carries the chart's `idPrefix`, and a rule would reach every chart on the page.
 fn hatch_fill(class: &str, style_index: Option<usize>, id_prefix: &str) -> String {
     match (class, style_index) {
         ("chartlet-hatch", Some(index)) => format!(" fill=\"url(#{id_prefix}-hatch-{index})\""),
         ("chartlet-range-hatch", _) => format!(" fill=\"url(#{id_prefix}-hatch-range)\""),
+        (class, _) if class.starts_with("chartlet-plan-phase-") => {
+            format!(
+                " fill=\"url(#{id_prefix}-{})\"",
+                &class["chartlet-".len()..]
+            )
+        }
         _ => String::new(),
     }
 }

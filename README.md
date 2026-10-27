@@ -174,6 +174,7 @@ writes the same accessible output as for a chart.
 | `network` | nodes as dots on a circle or in rings around a center, groups, weighted and directed edges | [co-authors](examples/co-authors.json), [service-dependencies](examples/service-dependencies.json) |
 | `cycle` | three to eight steps on a ring, labels outside or inside, an optional hub with labelled links | [improvement-cycle](examples/improvement-cycle.json), [growth-flywheel](examples/growth-flywheel.json) |
 | `layers` | levels of abstraction as a stack, or scopes drawn inside each other, with items, notes at the side and roles | [platform-layers](examples/platform-layers.json), [scope-nesting](examples/scope-nesting.json) |
+| `plan` | rooms, buildings and open ground on a grid in axonometric projection, low walls, furniture, phases as patterns | [office-floor](examples/office-floor.json), [campus-site](examples/campus-site.json) |
 
 ```json
 {

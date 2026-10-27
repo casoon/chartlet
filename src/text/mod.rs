@@ -25,13 +25,13 @@ pub(crate) use charts::{
     weighted_ranges, years_without_value, zone_times, zone_values,
 };
 pub(crate) use diagrams::{
-    bottlenecks, choices, closest_pair, composite, cycle_hub, cycle_opening, dendrogram_opening,
-    dendrogram_order, distance_axis, edge_weight, flow_group, flow_opening, flow_step, fragment,
-    heaviest_edge, last_join, layers_entry, layers_opening, loops, main_path, message_kind,
-    most_connected, network_node, network_opening, network_rings, node_kind, node_parts,
-    node_values, notes, otherwise, participant, ring_name, role, roles, sequence_message,
-    sequence_opening, sinks, sources, state_opening, transition, tree_collapsed, tree_opening,
-    tree_root, unconnected_parts,
+    area_kind, bottlenecks, choices, closest_pair, composite, cycle_hub, cycle_opening,
+    dendrogram_opening, dendrogram_order, distance_axis, edge_weight, flow_group, flow_opening,
+    flow_step, fragment, heaviest_edge, item_kind, last_join, layers_entry, layers_opening, loops,
+    main_path, message_kind, most_connected, network_node, network_opening, network_rings,
+    node_kind, node_parts, node_values, notes, otherwise, participant, plan_area, plan_detail,
+    plan_opening, plan_phases, ring_name, role, roles, sequence_message, sequence_opening, sinks,
+    sources, state_opening, transition, tree_collapsed, tree_opening, tree_root, unconnected_parts,
 };
 pub(crate) use outlines::*;
 pub(crate) use statistics::{
@@ -200,6 +200,9 @@ pub(crate) struct Words {
     /// The names of the first column of a layer diagram's table.
     pub layer: &'static str,
     pub scope: &'static str,
+    /// The columns of a plan's table.
+    pub area: &'static str,
+    pub kind: &'static str,
     pub months: [&'static str; 12],
     pub weekdays: [&'static str; 7],
 }
@@ -332,6 +335,8 @@ const EN: Words = Words {
     hub_link: "Hub link",
     layer: "Layer",
     scope: "Scope",
+    area: "Area",
+    kind: "Kind",
     months: [
         "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
     ],
@@ -466,6 +471,8 @@ const DE: Words = Words {
     hub_link: "Verbindung zur Mitte",
     layer: "Schicht",
     scope: "Bereich",
+    area: "Fläche",
+    kind: "Art",
     months: [
         "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
     ],

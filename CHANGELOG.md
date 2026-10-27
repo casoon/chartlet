@@ -9,6 +9,14 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Plans:** `"type": "plan"` draws rooms, buildings and open ground on a grid, seen at an angle in
+  2:1 dimetric projection with the walls cut low, so that every room shows. Areas have a kind, a
+  size and an optional `phase`; furniture (`desk`, `shelf`, `table`, `bed`, `sofa`, `plant`) stands
+  in them; labels stand on leader lines and phases have patterns and a legend. The table lists
+  every area with its size and phase. Details:
+  [Plans](https://casoon.github.io/chartlet/docs/guides/chart-types/#plans). Examples
+  `office-floor`, `campus-site`.
+
 - **Layers:** `"projection": "exploded"` on a stack draws the layers as slabs in 2:1 dimetric
   projection, lifted apart at equal gaps, with the labels on leader lines at the side. Every corner
   comes from one projection function; a narrow canvas falls back to the flat stack, and the
