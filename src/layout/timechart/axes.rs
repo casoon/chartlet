@@ -7,7 +7,7 @@ use crate::{
     layout::{LABEL_SIZE, PlotArea, fit_text},
     metrics::TextMetrics,
     scene::{Element, Line, Text, TextAnchor},
-    spec::ChartSpec,
+    spec::{ChartSpec, Stack},
     time,
 };
 
@@ -118,6 +118,48 @@ pub(super) fn push_value_grid(frame: &TimeFrame, unit: Option<&str>, elements: &
     }
 }
 
+/// The value axis of a stream: a bar as tall as one step of the scale, centered on the middle of
+/// the plot and labelled with the value it stands for, since position on a stream means nothing,
+/// only thickness does.
+fn push_scale_bar(
+    frame: &TimeFrame,
+    unit: Option<&str>,
+    elements: &mut Vec<Element>,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
+    let plot = frame.plot;
+    let step = frame.scale.step;
+    let (top, bottom) = (frame.y(step / 2.0), frame.y(-step / 2.0));
+    let x = plot.left - 10.0;
+    for (x1, y1, x2, y2) in [
+        (x, top, x, bottom),
+        (x - 4.0, top, x + 4.0, top),
+        (x - 4.0, bottom, x + 4.0, bottom),
+    ] {
+        elements.push(Element::Line(Line {
+            x1,
+            y1,
+            x2,
+            y2,
+            class: "chartlet-zero",
+        }));
+    }
+    let label = frame.scale.tick_label(step, frame.style);
+    let content = match unit {
+        Some(unit) => format!("{label} {unit}"),
+        None => label,
+    };
+    let room = (x - 8.0 - 4.0).max(0.0);
+    elements.push(Element::Text(Text {
+        x: x - 8.0,
+        y: f64::midpoint(top, bottom) + 4.0,
+        class: "chartlet-tick",
+        anchor: TextAnchor::End,
+        content: fit_text(&content, room, LABEL_SIZE, metrics, warnings, "/panes"),
+    }));
+}
+
 /// The vertical grid lines and time ticks of one plot, the tick labels only with `labels`. A label
 /// that would reach past an edge of the chart moves inward until it fits, since a tick can sit at
 /// either end of the span and the gutter left of the plot may be narrow.
@@ -199,7 +241,11 @@ pub(super) fn push_pane_axes(
         warnings,
         metrics,
     );
-    push_value_grid(frame, unit.as_deref(), elements);
+    if spec.panes[pane_index].stack == Some(Stack::Stream) {
+        push_scale_bar(frame, unit.as_deref(), elements, warnings, metrics);
+    } else {
+        push_value_grid(frame, unit.as_deref(), elements);
+    }
     // The plot's own width, which the measured gutter leaves it, decides how many ticks fit.
     // Plot widths are far below u32::MAX.
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]

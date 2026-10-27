@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "From idea to shipped",
+  "source": "Drawn for a talk",
+  "stroke": "sketch",
+  "width": 960,
+  "height": 300,
+  "flow": {
+    "nodes": [
+      { "id": "idea", "label": "Idea", "kind": "start" },
+      { "id": "draft", "label": "Draft" },
+      { "id": "ok", "label": "Worth it?", "kind": "decision" },
+      { "id": "build", "label": "Build" },
+      { "id": "ship", "label": "Ship", "kind": "end" },
+      { "id": "drop", "label": "Drop", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "idea", "to": "draft" },
+      { "from": "draft", "to": "ok" },
+      { "from": "ok", "to": "build", "label": "yes" },
+      { "from": "ok", "to": "drop", "label": "no" },
+      { "from": "build", "to": "ship" }
+    ]
+  }
+}

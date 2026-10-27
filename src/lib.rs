@@ -4,6 +4,7 @@ mod calendar;
 mod classes;
 mod color;
 mod contrast;
+mod cycle;
 mod dendrogram;
 mod describe;
 mod diagram;
@@ -25,6 +26,7 @@ mod parts;
 mod png;
 pub mod qr;
 mod rangebar;
+mod readability;
 mod reference;
 mod render;
 mod roles;
@@ -60,22 +62,24 @@ pub use spec::{
     ArchitectureSpec, AxisScale, BoundarySpec, BoxDisplay, BoxSpec, BranchSpec, CalendarDay,
     CalendarLayout, CalendarSpec, CategoryAxisSpec, CategorySpec, ChartSpec, ChartType, ClassKind,
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionDirection, ConnectionSpec,
-    Curve, Dash, DataPoint, DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec,
-    FishboneBoneSpec, FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec, FlowEdgeSpec,
-    FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, Gaps, GroupSpec, HeatmapCellSpec,
-    HeatmapOrder, HeatmapScale, HeatmapSpec, InstanceSpec, InterfaceSpec, LaneSpec, LayerSpec,
-    LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec,
-    NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec,
-    OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind,
-    ParticipantSpec, PartySpec, PerspectiveSpec, PortSide, RangeSpec, ReferenceSpec, RelationKind,
-    RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis,
-    ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec,
-    ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind, StateNodeSpec,
-    StateSpec, StepKind, StepSpec, StripesSpec, Stroke, SurvivalGroupSpec, SurvivalObservationSpec,
-    SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec,
-    TimelineSpec, Tooltips, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec,
-    TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat, ViewSpec, ViewStepSpec, ViolinScale,
-    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    Curve, CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec, Dash, DataPoint,
+    DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec, FishboneBoneSpec,
+    FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec,
+    FragmentKind, FragmentSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder, HeatmapScale,
+    HeatmapSpec, InstanceSpec, InterfaceSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage,
+    MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
+    NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec, OhlcPoint,
+    Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
+    PartySpec, PerspectiveSpec, PortSide, RangeDisplay, RangeSort, RangeSpec, ReferenceSpec,
+    RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
+    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
+    ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind,
+    StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke, StrokeStyle,
+    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
+    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
+    TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
+    ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
+    ZoomStep,
 };
 pub use theme::{apply_theme, bundled_theme};
 
@@ -216,6 +220,10 @@ pub struct Manifest {
     /// The `key` of the perspective of an architecture diagram that was shown; `None` without
     /// one.
     pub perspective: Option<String>,
+    /// The theme a host applied to the specification before rendering: the name of a bundled
+    /// theme or the path of a theme file. The compiler renders the themed specification and
+    /// does not know it; the CLI sets it. `None` without one.
+    pub theme: Option<String>,
     pub warnings: Vec<ChartWarning>,
 }
 
@@ -223,7 +231,7 @@ impl Manifest {
     /// The manifest as a pretty-printed JSON object, its keys in a fixed order:
     /// `chartlet`, `schemaVersion`, `specHash`, `outputHash`, `format`, `variant`, `idPrefix`,
     /// `view` (only when a view was rendered), `views` (only when all views were rendered on one
-    /// page), `perspective` (only when one was shown),
+    /// page), `perspective` (only when one was shown), `theme` (only when a host applied one),
     /// `warnings` (each with `code`, `path`, `message`).
     ///
     /// # Panics
@@ -247,6 +255,8 @@ impl Manifest {
             views: &'a [String],
             #[serde(skip_serializing_if = "Option::is_none")]
             perspective: Option<&'a str>,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            theme: Option<&'a str>,
             warnings: Vec<Warning<'a>>,
         }
         #[derive(serde::Serialize)]
@@ -274,6 +284,7 @@ impl Manifest {
             view: self.view.as_deref(),
             views: &self.views,
             perspective: self.perspective.as_deref(),
+            theme: self.theme.as_deref(),
             warnings: self
                 .warnings
                 .iter()
@@ -434,6 +445,7 @@ fn manifest(
         view: None,
         views: Vec::new(),
         perspective: None,
+        theme: None,
         warnings: output.warnings.clone(),
     })
 }

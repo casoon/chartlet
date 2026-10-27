@@ -36,6 +36,7 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `tree` | [Trees](#trees) | `tree` |
 | `network` | [Networks](#networks) | `network` |
 | `fishbone` | [Fishbone diagrams](#fishbone-diagrams) | `fishbone` |
+| `cycle` | [Cycles](#cycles) | `cycle` |
 
 Fields every type takes are in [Common fields](#common-fields), the value axis of the charts that
 have one in [Value axis](#value-axis), and what the diagrams share in
@@ -53,6 +54,7 @@ have one in [Value axis](#value-axis), and what the diagrams share in
 | `source` | string, up to 300 characters | no | Shown below the chart in the HTML output. |
 | `theme` | `light`, `dark`, `blueprint` | no | `light` (default), `dark` or, for diagrams, `blueprint`; the palettes are CSS custom properties on the root. |
 | `tokens` | object | no | Single colors of the palette by the name of the `--chartlet-*` custom property without its prefix, such as `{ "accent": "#c2410c" }`; hex or `rgb()`/`rgba()` values. They win over the theme and carry into the print and social variants and PNG. `invalid_token` at `/tokens/<name>` for another name or value. See [Customize the look](../../guides/customize/). |
+| `stroke` | `clean`, `sketch` | no | `clean` (default) or `sketch`: lines and shapes are displaced by up to about a pixel and a half and bowed slightly, for essays and slides. The displacement is seeded from the specification, so the bytes are the same every time; text, colors and contrast are untouched. The print variant and PNG draw clean strokes. See [Customize the look](../../guides/customize/#hand-drawn-strokes). |
 | `locale` | `en`, `de` | no | `en` (default) or `de`: language of the generated texts (description, legend additions, tooltips, calendar month and weekday names, HTML caption and table) the number format (`1,5`) and dates: ISO 8601 (`2026-08-31`) in English, `31.08.2026` and `08.2026` in German. Available for every chart type. Negative numbers always use the true minus sign `−`. |
 | `size` | `doc`, `doc-wide`, `slide-16x9`, `slide-4x3`, `social-og`, `social-square`, `print-a4-landscape`, `print-a3-landscape`, `print-letter-landscape` | no | A named canvas size that sets `width` and `height`: 800 × 450, 1200 × 500, 1920 × 1080, 1600 × 1200, 1200 × 630, 1080 × 1080, 1123 × 794, 1587 × 1123 and 1056 × 816 CSS pixels (the paper sizes at 96 dpi). A `width` or `height` in the specification overrides that side of the preset; without `size` nothing changes. `chartlet render --size <preset>` sets it from the command line. The preset sets the canvas only: type size, margins and colors are not scaled with it, and the `social` and `print` variants stay as they are. An unknown name is `invalid_spec` at `/size`, and the message lists the valid names. |
 | `width`, `height` | integer | no | Size in pixels: 200–2400 × 160–1600, default 800 × 450. Below 320 pixels a chart is compact, for a panel in a grid of columns: a narrower value-axis gutter and margin keep room for the plot, and the text keeps its size when the chart is shown at the width it was rendered for. Text shrinks with the chart when a page scales it down, so render at the width of its place. |
@@ -73,7 +75,7 @@ Rules:
   Warnings that only the mobile layout raises are reported with the same code and path and a
   message that begins with `mobile variant: `. Asking for the mobile variant of a specification
   without `mobile` is `missing_mobile` at `/mobile`.
-- `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class and network
+- `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class, network and cycle
   diagrams; any other type refuses it (`option_not_supported` at `/theme`).
 - Texts must contain visible text (`empty_text`), stay within their length (`text_too_long`) and
   hold no control character that XML 1.0 cannot represent (`invalid_xml_character`).
@@ -81,7 +83,7 @@ Rules:
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `heatmap`, `waterfall`,
-  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `fishbone`, `columns`),
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
@@ -89,7 +91,7 @@ Rules:
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
   `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
-  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network` and `missing_fishbone`. An empty list
+  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle` and `missing_fishbone`. An empty list
   where a type needs at least one entry is `empty_data`.
 - Stripes, calendars, timelines and every diagram are drawn from their block alone:
   `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
@@ -196,7 +198,7 @@ Rules:
 | `panes` | array, 1–4 | yes | The panes, top to bottom. |
 | `panes[].heightRatio` | integer, 1–10 | no | The pane's share of the plot height against the other panes, default 1. |
 | `panes[].valueAxis` | object | no | `title`, `format`, `decimals`, `min`, `max`, `step`, `exact`, `thousandsSeparator`, `scale`, `reverse` and `unit` of the pane's own value axis. |
-| `panes[].stack` | `normal` | no | Stacks the pane's `area` layers in layer order, each on top of the ones before it, so that the top edge shows their total; line and point layers in the pane stay as they are. Markers and the end labels sit on top of the stack; tooltips and the data table give each layer's own value. |
+| `panes[].stack` | `normal`, `stream` | no | Stacks the pane's `area` layers in layer order, each on top of the ones before it, so that the top edge shows their total; line and point layers in the pane stay as they are. Markers and the end labels sit on top of the stack; tooltips and the data table give each layer's own value. `stream` stacks them around a moving baseline instead of zero, so that the stack is centered (a streamgraph): the value axis becomes a scale bar for thickness, the areas are named at their right ends, and the pane takes area layers and reference lines of time only, with no `min`, `max`, `exact`, `reverse` or logarithmic scale on its axis (`option_not_supported`). |
 | `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane) and six annotation layers. |
 | `sparkline` | boolean | no | `true` draws the lines and areas of one pane across the whole canvas, without axes, title, legend or value labels, with a dot at the end of each line; `width` 60–600 and `height` 16–200. The title and description remain the accessible name and description, and the HTML profile keeps its caption and table. Only line and area layers; no zoom steps or mobile variant. |
 | `tooltips` | `observations`, `markers` | no | `"observations"` (default) gives every observation a tooltip while observations stand at least 4 pixels apart, on an invisible target where no marker is drawn; `"markers"` gives tooltips only to drawn markers, so a line too dense for markers has none and its SVG stays small. |
@@ -357,7 +359,12 @@ least one value that is not `null` (`empty_series`); `min` below and `max` above
 | `ranges[].weight` | number above 0 | no | With `mid`: turns the central mark into a square whose area follows it. |
 | `ranges[].summary` | boolean | no | With `mid`: draws the span as a diamond, widest at `mid` — together with `references` a forest plot. |
 
-Rules: up to 100 ranges (`too_many_data_points`) with unique labels (`duplicate_label`); `low`
+| `display` | `bar`, `dumbbell` | no | Draws each span as a bar (the default) or as a dumbbell: an open dot at `low`, a filled dot at `high` and a line between them, both values written beside their dots. |
+| `sort` | `none`, `change` | no | `change` puts the widest span first, in the picture, the table and the description; `none` (default) keeps the order as listed. |
+
+Rules: a dumbbell takes no `mid`, `weight`, `summary` or `modeled` on a range
+(`option_not_supported`, with the path of the field), and `display` and `sort` belong to range bars
+only (`option_not_supported`); up to 100 ranges (`too_many_data_points`) with unique labels (`duplicate_label`); `low`
 above `high` is `invalid_range`, a `mid` outside them `mid_outside_range`; groups on every range or
 none (`missing_group`), at most 4 (`too_many_series`); a `weight` of zero or less is
 `invalid_weight`, and `weight` or `summary` without `mid` is `invalid_weight` or
@@ -376,15 +383,17 @@ none (`missing_group`), at most 4 (`too_many_series`); a `weight` of zero or les
 | `boxes[].min`, `boxes[].q1`, `boxes[].median`, `boxes[].q3`, `boxes[].max` | number | one of | The five numbers of a box computed elsewhere, in this order. |
 | `boxes[].outliers` | array of numbers | no | Points beyond the whiskers of a box given by its five numbers. |
 | `boxes[].group` | string, up to 60 characters | no | On every box (up to four groups): colors the boxes of a group alike, with a legend. |
-| `boxDisplay` | `box`, `violin`, `strip` | no | Draws the observations as boxes (the default), as violins or as strips; the last two need `values` on every box. |
+| `boxDisplay` | `box`, `violin`, `strip`, `beeswarm`, `ridgeline` | no | Draws the observations as boxes (the default), as violins, as strips, as a beeswarm (dots moved sideways until none overlap) or as a ridgeline (one density curve per box, stacked with a slight overlap); every display but `box` needs `values` on every box. |
+| `showBox` | boolean | no | Beeswarms only: draws the box and its whiskers under the dots. |
 | `violinScale` | `width`, `area`, `count` | no | Violins only: `width` (default) makes every violin as wide as the others at its widest, `area` gives them the same area, `count` an area that follows their number of observations. |
 | `showMean` | boolean | no | Marks the mean of every box with a diamond and adds a Mean column to the table; needs `values`. |
 
 Rules: 1–100 boxes (`too_many_data_points`) with unique labels (`duplicate_label`); `values` and
 the five numbers never both (`conflicting_data_shape`), never part of the five numbers
 (`incomplete_box`), the five numbers in order (`invalid_box`), and 5–1000 `values`
-(`invalid_values`); violins, strips and `showMean` need `values` on every box
-(`values_required`); groups on every box or none (`missing_group`), at most 4
+(`invalid_values`); violins, strips, beeswarms, ridgelines and `showMean` need `values` on every
+box (`values_required`); `showBox` belongs to beeswarms and `violinScale` to violins
+(`option_not_supported`); groups on every box or none (`missing_group`), at most 4
 (`too_many_series`). More than 16 boxes warn with `dense_chart`.
 
 ## Timelines
@@ -634,7 +643,7 @@ digits, hyphens or underscores (`invalid_id`).
 | `notes` | array, up to 12 | flow, classes, architecture | `[{ "on": "a", "text": "…" }, { "text": "…" }]`. |
 | `notes[].on` | identifier | — | The step, class, package, component or boundary the note explains; flow charts take notes on steps only. |
 | `notes[].text` | string, up to 160 characters | — | Required; wraps onto as many lines as it needs. |
-| `role` | `critical`, `planned`, `deprecated` | flow, state, classes, architecture, tree, network | What a node or an edge means beyond its kind, drawn alike in every diagram. |
+| `role` | `critical`, `planned`, `deprecated` | flow, state, classes, architecture, tree, network, cycle | What a node or an edge means beyond its kind, drawn alike in every diagram. |
 
 **Notes.** A note on an element is drawn beside it and joined to it by a dotted line that is no
 edge, relation or connection; a note on a package or boundary stands inside that frame, at the
@@ -998,6 +1007,25 @@ Rules: 1–40 nodes (`too_many_nodes`), up to 120 edges (`too_many_edges`) and 8
 nodes (`unknown_node`, `self_loop`) and carry a `weight` of at least 0 (`invalid_edge_weight`);
 rings need a `center` that exists (`missing_center`, `unknown_node`) and take no `order`, and a
 circle takes no `center` (`option_not_supported`).
+
+## Cycles
+
+`"type": "cycle"`: steps on a ring where the last step feeds the first, optionally around a hub.
+See [Cycles](../../guides/chart-types/#cycles).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `cycle.steps` | array, 3–8 | yes | `[{ "id": "a", "label": "…", "note": "…", "hubLabel": "…", "role": "critical" }]`, clockwise from twelve o'clock. |
+| `steps[].id` | identifier | yes | Unique. |
+| `steps[].label` | string, up to 60 characters | yes | The name. |
+| `steps[].note` | string, up to 80 characters | no | A second, smaller line. |
+| `steps[].hubLabel` | string, up to 24 characters | no | The label of the link to the hub; needs a hub. |
+| `steps[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `cycle.hub` | object | no | `{ "label": "…", "note": "…" }` (label up to 60, note up to 80 characters): what the steps feed, in the middle. |
+| `cycle.labels` | `outside`, `inside` | no | `outside` (default): numbered dots with the labels beside them; `inside`: boxes that hold the labels. |
+
+Rules: 3 to 8 steps (`too_few_steps`, `too_many_steps`); identifiers are unique (`duplicate_id`);
+`hubLabel` needs a `hub` (`option_not_supported`).
 
 ## Diverging scale
 

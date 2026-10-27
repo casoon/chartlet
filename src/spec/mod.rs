@@ -3,6 +3,7 @@ mod boxplot;
 mod calendar;
 mod categorical;
 mod classes;
+mod cycle;
 mod dataset;
 mod deployment;
 mod fishbone;
@@ -45,6 +46,7 @@ pub(crate) use calendar::calendar_date;
 pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use classes::{ClassKind, ClassSpec, ClassesSpec, PackageSpec, RelationKind, RelationSpec};
+pub use cycle::{CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec};
 pub use fishbone::{FishboneBoneSpec, FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec};
 pub use flow::{
     DiagramRole, DiagramSpacing, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec,
@@ -53,7 +55,7 @@ pub use flow::{
 pub use heatmap::{HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
-pub use rangebar::RangeSpec;
+pub use rangebar::{RangeDisplay, RangeSort, RangeSpec};
 pub(crate) use sankey::SankeyGraph;
 pub use sankey::{SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec};
 pub(crate) use scatter::Quadrant;
@@ -113,11 +115,21 @@ pub struct ChartSpec {
     /// How a `type: "boxplot"` chart draws its observations: boxes (the default), violins or strips.
     #[serde(default, skip_serializing_if = "BoxDisplay::is_box")]
     pub box_display: BoxDisplay,
+    /// How a `type: "rangebar"` chart draws its spans: bars (the default) or dumbbells.
+    #[serde(default, skip_serializing_if = "RangeDisplay::is_bar")]
+    pub display: RangeDisplay,
+    /// The order of the spans of a `type: "rangebar"` chart: as listed (the default) or the
+    /// widest first.
+    #[serde(default, skip_serializing_if = "RangeSort::is_none")]
+    pub sort: RangeSort,
     /// With `"boxDisplay": "violin"`: `width` (default) makes every violin as wide as the others at
     /// its widest, `area` gives them the same area, `count` an area that follows their number of
     /// observations.
     #[serde(default, skip_serializing_if = "ViolinScale::is_width")]
     pub violin_scale: ViolinScale,
+    /// With `"boxDisplay": "beeswarm"`: draws the box and its whiskers under the points.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub show_box: bool,
     /// Marks the mean of the observations of every box of a `type: "boxplot"` chart with a
     /// diamond and adds a column to the table. Needs `values` on every box.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -174,6 +186,10 @@ pub struct ChartSpec {
     /// existing specification.
     #[serde(default, skip_serializing_if = "Theme::is_light")]
     pub theme: Theme,
+    /// How strokes and shapes are drawn: `clean` (the default) or `sketch`, slightly wobbly, for
+    /// essays and slides. Text is not affected.
+    #[serde(default, skip_serializing_if = "StrokeStyle::is_clean")]
+    pub stroke: StrokeStyle,
     /// Colors of the palette, by the name of the `--chartlet-*` custom property without its
     /// prefix, as hex values. They win over the theme. Skipped while empty, like `theme`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -244,6 +260,9 @@ pub struct ChartSpec {
     /// A network: nodes joined by edges on a circle or in rings around one node. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub network: Option<NetworkSpec>,
+    /// A cycle: steps on a ring where the last feeds the first, optionally around a hub. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cycle: Option<CycleSpec>,
     /// The items of a `type: "timeline"` chart. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeline: Option<TimelineSpec>,
@@ -356,6 +375,26 @@ impl Theme {
     }
 }
 
+/// How the lines and shapes of a chart are drawn.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum StrokeStyle {
+    #[default]
+    Clean,
+    /// Lines and shapes are displaced by a fraction of a pixel to a few, from a seed derived from
+    /// the specification: the same bytes every time. Text, colors and geometry that carries data
+    /// stay where they are within that distance. Not applied to the print variant or PNG.
+    Sketch,
+}
+
+impl StrokeStyle {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_clean(&self) -> bool {
+        matches!(self, Self::Clean)
+    }
+}
+
 /// The language of generated texts and numbers.
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -451,11 +490,13 @@ pub enum ChartType {
     Classes,
     /// A network: nodes joined by edges, on a circle or in rings around one node.
     Network,
+    /// A cycle: steps on a ring where the last step feeds the first, optionally around a hub.
+    Cycle,
 }
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 26] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -481,6 +522,7 @@ impl ChartType {
         Self::Scatter,
         Self::Classes,
         Self::Network,
+        Self::Cycle,
     ];
 
     /// The chart type that `type` names, such as `"bar"`.
@@ -518,6 +560,9 @@ impl LegendPlacement {
 pub enum Stack {
     Normal,
     Percent,
+    /// The areas of a time pane stacked around a moving baseline instead of zero, so that the
+    /// stack is centered: a streamgraph.
+    Stream,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -820,9 +865,11 @@ impl ChartSpec {
             ChartType::Fishbone => self.validate_fishbone(),
             ChartType::Waterfall => self.validate_waterfall(),
             ChartType::Network => self.validate_network(),
+            ChartType::Cycle => self.validate_cycle(),
             ChartType::Bar | ChartType::Line => self.validate_bar_and_line(),
         }?;
         warnings.extend(crate::contrast::warnings(self));
+        warnings.extend(crate::readability::warnings(self));
         Ok(warnings)
     }
 }
@@ -855,6 +902,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Fishbone => "fishbone",
         ChartType::Waterfall => "waterfall",
         ChartType::Network => "network",
+        ChartType::Cycle => "cycle",
     }
 }
 

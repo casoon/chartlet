@@ -201,9 +201,17 @@ fn push_mark(
             push_violin(elements, spec, entry, orientation, &along, (across, peak));
         }
         BoxDisplay::Strip => push_strip(elements, spec, entry, orientation, &along, across),
+        BoxDisplay::Beeswarm => push_beeswarm(elements, spec, entry, orientation, &along, across),
+        BoxDisplay::Ridgeline => {
+            push_ridgeline(elements, spec, entry, orientation, &along, (across, peak));
+        }
     }
     if let Some(at) = mean {
-        push_mean(elements, orientation, at, lead + thick / 2.0, thick);
+        if spec.box_display == BoxDisplay::Ridgeline {
+            push_mean(elements, orientation, at, lead, thick.abs());
+        } else {
+            push_mean(elements, orientation, at, lead + thick / 2.0, thick);
+        }
     }
 }
 
@@ -395,10 +403,180 @@ fn push_strip(
     }));
 }
 
+/// How far from the middle each point of a swarm stands, in the order of `positions`, along the
+/// value axis in pixels: points are placed from the lowest on, each as near the middle as it can
+/// be without touching a point placed before it, so the same data always gives the same picture.
+pub(crate) fn swarm_offsets(positions: &[f64], radius: f64) -> Vec<f64> {
+    let mut order: Vec<usize> = (0..positions.len()).collect();
+    crate::sort::by(&mut order, |a, b| positions[*a].total_cmp(&positions[*b]));
+    let clearance = 2.0 * radius + 0.5;
+    let mut placed: Vec<(f64, f64)> = Vec::with_capacity(order.len());
+    let mut offsets = vec![0.0; positions.len()];
+    for index in order {
+        let at = positions[index];
+        // The points placed before this one that it could touch.
+        let near: Vec<(f64, f64)> = placed
+            .iter()
+            .rev()
+            .take_while(|(other, _)| at - other < clearance)
+            .copied()
+            .collect();
+        let mut candidates = vec![0.0];
+        for (other, offset) in &near {
+            let reach = (clearance.powi(2) - (at - other).powi(2)).max(0.0).sqrt();
+            candidates.push(offset + reach);
+            candidates.push(offset - reach);
+        }
+        crate::sort::by(&mut candidates, |a, b| {
+            a.abs().total_cmp(&b.abs()).then(b.total_cmp(a))
+        });
+        let offset = candidates
+            .into_iter()
+            .find(|candidate| {
+                near.iter().all(|(other, offset)| {
+                    (candidate - offset).powi(2) + (at - other).powi(2) >= clearance.powi(2) - 1e-6
+                })
+            })
+            .expect("a candidate beside the nearest point is always free");
+        placed.push((at, offset));
+        offsets[index] = offset;
+    }
+    offsets
+}
+
+/// The radii a swarm tries, the largest first, and the sideways room it may use.
+const SWARM_RADII: [f64; 4] = [3.0, 2.5, 2.0, 1.5];
+
+/// Every observation as a point, moved sideways just far enough that no two overlap, with the
+/// median across; a smaller point is tried before the swarm outgrows its band. The box and its
+/// whiskers lie under the points if `showBox` asks for them.
+fn push_beeswarm(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    (index, summary): (usize, &BoxSummary),
+    orientation: Orientation,
+    along: impl Fn(f64) -> f64,
+    (lead, thick): (f64, f64),
+) {
+    if spec.show_box {
+        // The points beyond the whiskers are among the dots already.
+        let inside = BoxSummary {
+            outliers: Vec::new(),
+            ..summary.clone()
+        };
+        push_box(
+            elements,
+            spec,
+            (index, &inside),
+            orientation,
+            &along,
+            (lead + thick * 0.3, thick * 0.4),
+        );
+    }
+    let middle = lead + thick / 2.0;
+    let values = &spec.boxes[index].values;
+    let positions: Vec<f64> = values.iter().map(|value| along(*value)).collect();
+    let room = thick / 2.0;
+    let mut radius = SWARM_RADII[0];
+    let mut offsets = swarm_offsets(&positions, radius);
+    for candidate in SWARM_RADII {
+        radius = candidate;
+        offsets = swarm_offsets(&positions, radius);
+        if offsets.iter().all(|offset| offset.abs() + radius <= room) {
+            break;
+        }
+    }
+    let limit = (room - radius).max(0.0);
+    for ((value, position), offset) in values.iter().zip(&positions).zip(&offsets) {
+        let (cx, cy) = page(orientation, *position, middle + offset.clamp(-limit, limit));
+        elements.push(Element::Circle(Circle {
+            cx,
+            cy,
+            radius,
+            class: POINT[spec.box_tone(index)],
+            series_index: None,
+            style_index: None,
+            tooltip: Some(format!(
+                "{}: {}",
+                spec.boxes[index].label,
+                format_value(*value, spec.number_style())
+            )),
+        }));
+    }
+    // With the box, its own median is already drawn, under the dots.
+    if spec.show_box {
+        return;
+    }
+    let (x1, y1) = page(orientation, along(summary.median), lead);
+    let (x2, y2) = page(orientation, along(summary.median), lead + thick);
+    elements.push(Element::Line(Line {
+        x1,
+        y1,
+        x2,
+        y2,
+        class: "chartlet-box-median",
+    }));
+}
+
+/// The estimated density of the observations as a filled curve on a baseline at `lead`, rising
+/// by `thick` (negative where it rises toward lower page coordinates) where the density is `peak`,
+/// the densest point of any curve of the chart; with the median as a line up to the curve.
+fn push_ridgeline(
+    elements: &mut Vec<Element>,
+    spec: &ChartSpec,
+    (index, summary): (usize, &BoxSummary),
+    orientation: Orientation,
+    along: impl Fn(f64) -> f64,
+    ((lead, thick), peak): ((f64, f64), f64),
+) {
+    let curve = density(&spec.boxes[index].values, summary);
+    let rise = |density: f64| lead + thick * density / peak;
+    let mut points: Vec<(f64, f64)> = curve
+        .iter()
+        .map(|(at, d)| page(orientation, along(*at), rise(*d)))
+        .collect();
+    if let (Some(first), Some(last)) = (curve.first(), curve.last()) {
+        points.push(page(orientation, along(last.0), lead));
+        points.push(page(orientation, along(first.0), lead));
+    }
+    elements.push(Element::Polyline(Polyline {
+        points,
+        class: VIOLIN[spec.box_tone(index)],
+        series_index: None,
+        style_index: None,
+        tooltip: Some(tooltip(spec, index, summary)),
+    }));
+    // The density under the median, between the two points of the curve around it.
+    let height = curve
+        .windows(2)
+        .find(|pair| pair[1].0 >= summary.median)
+        .map_or(0.0, |pair| {
+            let span = pair[1].0 - pair[0].0;
+            let share = if span > 0.0 {
+                (summary.median - pair[0].0) / span
+            } else {
+                0.0
+            };
+            pair[0].1 + (pair[1].1 - pair[0].1) * share
+        });
+    let (x1, y1) = page(orientation, along(summary.median), lead);
+    let (x2, y2) = page(orientation, along(summary.median), rise(height));
+    elements.push(Element::Line(Line {
+        x1,
+        y1,
+        x2,
+        y2,
+        class: "chartlet-box-median",
+    }));
+}
+
 /// The densest point of any violin in the scale of the violins: the widest violin of the chart
 /// is as wide as a box. Zero unless the violins share an area scale.
 fn violin_peak(spec: &ChartSpec, summaries: &[BoxSummary]) -> f64 {
-    if spec.box_display != BoxDisplay::Violin || spec.violin_scale == ViolinScale::Width {
+    let ridges = spec.box_display == BoxDisplay::Ridgeline;
+    if !ridges
+        && (spec.box_display != BoxDisplay::Violin || spec.violin_scale == ViolinScale::Width)
+    {
         return 0.0;
     }
     spec.boxes
@@ -409,7 +587,7 @@ fn violin_peak(spec: &ChartSpec, summaries: &[BoxSummary]) -> f64 {
                 .iter()
                 .map(|point| point.1)
                 .fold(0.0, f64::max);
-            if spec.violin_scale == ViolinScale::Count {
+            if !ridges && spec.violin_scale == ViolinScale::Count {
                 most * count(boxed.values.len())
             } else {
                 most
@@ -501,6 +679,20 @@ fn push_box(
     }
 }
 
+/// How far the ridges of a ridgeline are apart and how high the densest curve rises, as
+/// `(step, rise)`, if the chart is one: the rise is `RIDGE_OVERLAP` times the step, so that every
+/// curve reaches into the one before it, and the last curve ends at the end of `extent`.
+fn ridge_geometry(spec: &ChartSpec, extent: f64) -> Option<(f64, f64)> {
+    if spec.box_display != BoxDisplay::Ridgeline {
+        return None;
+    }
+    let step = extent / (count(spec.boxes.len() - 1) + RIDGE_OVERLAP);
+    Some((step, step * RIDGE_OVERLAP))
+}
+
+/// How many steps between two ridges the densest curve rises.
+const RIDGE_OVERLAP: f64 = 1.6;
+
 /// The furthest values a box reaches, with its outliers; a violin or a strip reaches every
 /// observation.
 fn reach(spec: &ChartSpec, index: usize, summary: &BoxSummary) -> (f64, f64) {
@@ -582,16 +774,24 @@ fn layout_horizontal(
     } else {
         (band * 0.75).clamp(8.0, 56.0)
     };
+    let ridges = ridge_geometry(spec, plot.height);
     let along = |value| scale.map(value, plot.left, plot.left + plot.width);
     for (index, summary) in summaries.iter().enumerate() {
-        let center = plot.top + band * (count(index) + 0.5);
+        // A ridge rises from its baseline, the first one at the top of the plot.
+        let (center, across) = if let Some((step, rise)) = ridges {
+            let baseline = plot.top + rise + step * count(index);
+            (baseline - step * 0.3, (baseline, -rise))
+        } else {
+            let center = plot.top + band * (count(index) + 0.5);
+            (center, (center - thickness / 2.0, thickness))
+        };
         push_mark(
             &mut elements,
             spec,
             (index, summary),
             Orientation::Horizontal,
             along,
-            (center - thickness / 2.0, thickness),
+            across,
             peak,
         );
         if spec.show_values {
@@ -654,17 +854,25 @@ fn layout_vertical(
     } else {
         (band * 0.75).clamp(10.0, 130.0)
     };
+    let ridges = ridge_geometry(spec, plot.width);
     let along = |value| scale.map(value, plot.top + plot.height, plot.top);
     let mut omitted = false;
     for (index, summary) in summaries.iter().enumerate() {
-        let center = plot.left + band * (count(index) + 0.5);
+        // A ridge extends to the right of its baseline, the last one up to the plot's edge.
+        let (center, across) = if let Some((step, rise)) = ridges {
+            let baseline = plot.left + step * count(index);
+            (baseline + step * 0.5, (baseline, rise))
+        } else {
+            let center = plot.left + band * (count(index) + 0.5);
+            (center, (center - thickness / 2.0, thickness))
+        };
         push_mark(
             &mut elements,
             spec,
             (index, summary),
             Orientation::Vertical,
             along,
-            (center - thickness / 2.0, thickness),
+            across,
             peak,
         );
         if spec.show_values {
@@ -718,13 +926,23 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .filter(|index| !summaries[*index].outliers.is_empty())
         .map(|index| spec.boxes[index].label.as_str())
         .collect();
-    text::boxplot_summary(
+    let mut description = text::boxplot_summary(
         spec.locale,
         summaries.len(),
         (&show(summaries[highest].median), &spec.boxes[highest].label),
         (&show(summaries[lowest].median), &spec.boxes[lowest].label),
         &outliers,
-    )
+    );
+    match spec.box_display {
+        BoxDisplay::Beeswarm | BoxDisplay::Ridgeline => {
+            description.push_str(&text::box_display_note(
+                spec.locale,
+                spec.box_display == BoxDisplay::Ridgeline,
+            ));
+        }
+        _ => {}
+    }
+    description
 }
 
 /// The outliers of every box as the table writes them: one cell per box.

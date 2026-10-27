@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     error::{ChartError, ChartWarning},
-    spec::{MAX_SERIES, Stack, validate_number, validate_text},
+    spec::{AxisScale, MAX_SERIES, Stack, validate_number, validate_text},
     time::TimeValue,
 };
 
@@ -169,8 +169,11 @@ pub(super) fn validate_pane_stack(
         return refuse(
             format!("{path}/stack"),
             "option_not_supported",
-            "a time pane stacks its areas by value only; use \"normal\"",
+            "a time pane stacks its areas by value only; use \"normal\" or \"stream\"",
         );
+    }
+    if stack == Stack::Stream {
+        validate_stream(pane, path)?;
     }
     let areas: Vec<(usize, &LayerSpec)> = pane
         .layers
@@ -227,6 +230,48 @@ pub(super) fn validate_pane_stack(
                 format!("{layer_path}/curve"),
                 "option_not_supported",
                 "the stacked areas of a pane share one curve",
+            );
+        }
+    }
+    Ok(())
+}
+
+/// A stream has no position on its value axis, only thickness: the pane holds areas and rules of
+/// time, no lines, bands, markers or rules of value, and its axis takes no range, direction or
+/// logarithm.
+fn validate_stream(pane: &PaneSpec, path: &str) -> Result<(), ChartError> {
+    let refuse = |path: String, message: &str| {
+        Err(ChartError::new(
+            "option_not_supported",
+            path,
+            message.to_owned(),
+        ))
+    };
+    let axis = &pane.value_axis;
+    for (field, present) in [
+        ("min", axis.min.is_some()),
+        ("max", axis.max.is_some()),
+        ("exact", axis.exact),
+        ("reverse", axis.reverse),
+        ("scale", axis.scale == AxisScale::Log),
+    ] {
+        if present {
+            return refuse(
+                format!("{path}/valueAxis/{field}"),
+                "a stream is centered on a moving baseline, so its value axis shows thickness only; remove this field",
+            );
+        }
+    }
+    for (index, layer) in pane.layers.iter().enumerate() {
+        let allowed = match layer.mark {
+            Mark::Area => true,
+            Mark::Annotation => layer.value.is_none(),
+            Mark::Line | Mark::Point | Mark::Ohlc | Mark::Band => false,
+        };
+        if !allowed {
+            return refuse(
+                format!("{path}/layers/{index}/mark"),
+                "a stream holds area layers and reference lines of time only: a position on its value axis means nothing",
             );
         }
     }

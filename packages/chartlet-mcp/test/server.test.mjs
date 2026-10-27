@@ -50,11 +50,13 @@ test("serves the tools and the schema over stdio", async (t) => {
   const { tools } = await client.listTools();
   assert.deepEqual(tools.map(({ name }) => name).sort(), [
     "chartlet_chart_starter",
+    "chartlet_check_coverage",
     "chartlet_diagram_starter",
     "chartlet_explain",
     "chartlet_inspect",
     "chartlet_inspect_data",
     "chartlet_render",
+    "chartlet_theme_from_brand",
     "chartlet_validate_spec",
   ]);
   for (const tool of tools) {

@@ -96,6 +96,8 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Warming stripes on a diverging scale | `"type": "stripes"` with `stripes` | [warming-stripes](examples/warming-stripes.json) |
 | Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
+| Dumbbells: two dots per row joined by a line, the widest change first | `"display": "dumbbell"`, `"sort": "change"` on a `rangebar` | [satisfaction-change](examples/satisfaction-change.json) |
+| Streamgraph: stacked areas centered on a moving baseline, with a scale bar for thickness | `"stack": "stream"` on a pane of `area` layers | [topic-streams](examples/topic-streams.json) |
 | Range bars in groups on a logarithmic axis | `group` per range, `"valueAxis": { "scale": "log" }` | [soil-animals](examples/soil-animals.json) |
 | Forest plot: squares by weight, a summary diamond, the line of no effect | `"type": "rangebar"` with `weight`, `summary`, `references` | [trial-effects](examples/trial-effects.json) |
 | Timeline: phases, milestones, today's marker and dependencies (Gantt, roadmap) | `"type": "timeline"` with `items`, `markers` | [product-roadmap](examples/product-roadmap.json) |
@@ -117,6 +119,8 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Box plot from observations, with a box given by its five numbers | `"type": "boxplot"` with `boxes` | [response-times](examples/response-times.json) |
 | Grouped box plots: boxes colored by group with a legend | `group` on every box | [latency-by-region](examples/latency-by-region.json) |
 | Violins and strips from the same observations | `"boxDisplay": "violin"` on a `boxplot` | [response-distribution](examples/response-distribution.json) |
+| Every observation as a dot, moved sideways until none overlap, with the box under it | `"boxDisplay": "beeswarm"`, `"showBox": true` on a `boxplot` | [response-swarm](examples/response-swarm.json) |
+| One density curve per group, stacked with a slight overlap | `"boxDisplay": "ridgeline"` on a `boxplot` | [response-ridges](examples/response-ridges.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 
 Each example has its rendered `.svg` and `.html` next to it; the SVG files are also the reference
@@ -143,6 +147,7 @@ writes the same accessible output as for a chart.
 | `classes` | classes, interfaces, abstract classes, enums and entities with attribute and method compartments, relations with their marks, cardinalities and navigability, nested packages | [order-model](examples/order-model.json), [shop-schema](examples/shop-schema.json), [shop-modules](examples/shop-modules.json), [invoice-model](examples/invoice-model.json) |
 | `tree` | a root and the nodes below it with optional link labels such as shares; couples for family trees; a radial mind map; a dendrogram from a distance matrix | [ownership-structure](examples/ownership-structure.json), [family-tree](examples/family-tree.json), [product-strategy](examples/product-strategy.json), [climate-similarity](examples/climate-similarity.json) |
 | `network` | nodes as dots on a circle or in rings around a center, groups, weighted and directed edges | [co-authors](examples/co-authors.json), [service-dependencies](examples/service-dependencies.json) |
+| `cycle` | three to eight steps on a ring, labels outside or inside, an optional hub with labelled links | [improvement-cycle](examples/improvement-cycle.json), [growth-flywheel](examples/growth-flywheel.json) |
 
 ```json
 {

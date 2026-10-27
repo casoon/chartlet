@@ -1330,3 +1330,75 @@ fn waterfall_steps_are_validated_by_name() {
         assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
     }
 }
+
+#[test]
+fn a_stream_centers_its_areas_and_shows_thickness() {
+    let spec = include_str!("../../examples/generation-mix.json")
+        .replace("\"stack\": \"normal\"", "\"stack\": \"stream\"")
+        .replace("\"legend\": \"end\",", "");
+    let options = RenderOptions {
+        hooks: true,
+        ..RenderOptions::default()
+    };
+    let output = render_json(&spec, RenderFormat::Html, &options).expect("renders");
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    let html = &output.content;
+    assert!(html.contains("Streamgraph, from the bottom up: Fossil, Nuclear"));
+    assert!(!html.contains("the top edge shows their total"));
+    // The hooks tell the interactive module that the stack is centered; the table keeps each
+    // layer's own value.
+    assert_eq!(html.matches(" data-stream=\"\"").count(), 4);
+    assert!(html.contains("Wind and solar: 760"));
+    // The areas are named at their ends without asking for it, and the value axis is a scale
+    // bar: three strokes and one label instead of a grid of ticks.
+    let svg = render_ok(&spec).content;
+    assert_eq!(svg.matches("class=\"chartlet-legend\"").count(), 4);
+    assert_eq!(svg.matches("class=\"chartlet-zero\"").count(), 3);
+
+    // The stack is centered: at every time its lower edge lies as far below zero as its upper
+    // edge lies above it.
+    let parsed: ChartSpec = serde_json::from_str(&spec).expect("parses");
+    let zone = parsed.time_zone().unwrap_or_default();
+    let entries: Vec<_> = parsed.data_layers().collect();
+    let bottom = parsed.stack_base(entries[0], zone).expect("stacked");
+    let top = parsed.drawn_points(*entries.last().unwrap(), zone);
+    for (low, (_, high)) in bottom.iter().zip(&top) {
+        assert!((low + high).abs() < 1e-9, "{low} and {high}");
+    }
+    assert!((top[4].1 - 2920.0 / 2.0).abs() < 1e-9);
+}
+
+#[test]
+fn a_stream_is_validated_by_name() {
+    let stream = include_str!("../../examples/generation-mix.json")
+        .replace("\"stack\": \"normal\"", "\"stack\": \"stream\"");
+    for (from, to, path) in [
+        (
+            "\"thousandsSeparator\": true",
+            "\"thousandsSeparator\": true, \"min\": -100",
+            "/panes/0/valueAxis/min",
+        ),
+        (
+            "\"thousandsSeparator\": true",
+            "\"thousandsSeparator\": true, \"reverse\": true",
+            "/panes/0/valueAxis/reverse",
+        ),
+        (
+            "\"mark\": \"area\",\n          \"name\": \"Nuclear\"",
+            "\"mark\": \"line\",\n          \"name\": \"Nuclear\"",
+            "/panes/0/layers/1/mark",
+        ),
+    ] {
+        assert_eq!(
+            render_err(&stream.replacen(from, to, 1)),
+            ("option_not_supported", path.to_owned()),
+            "{to}"
+        );
+    }
+    let bar = r#"{"schemaVersion": 1, "type": "bar", "title": "T", "stack": "stream",
+        "categories": ["a", "b"], "series": [{"name": "x", "values": [1, 2]}, {"name": "y", "values": [3, 4]}]}"#;
+    assert_eq!(
+        render_err(bar),
+        ("option_not_supported", "/stack".to_owned())
+    );
+}

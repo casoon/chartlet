@@ -210,6 +210,16 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/service-dependencies.svg"),
     ),
     (
+        "improvement-cycle",
+        include_str!("../examples/improvement-cycle.json"),
+        include_str!("../examples/improvement-cycle.svg"),
+    ),
+    (
+        "growth-flywheel",
+        include_str!("../examples/growth-flywheel.json"),
+        include_str!("../examples/growth-flywheel.svg"),
+    ),
+    (
         "department-budgets",
         include_str!("../examples/department-budgets.json"),
         include_str!("../examples/department-budgets.svg"),
@@ -519,6 +529,31 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/delivery-delays.json"),
         include_str!("../examples/delivery-delays.svg"),
     ),
+    (
+        "satisfaction-change",
+        include_str!("../examples/satisfaction-change.json"),
+        include_str!("../examples/satisfaction-change.svg"),
+    ),
+    (
+        "sketch-pipeline",
+        include_str!("../examples/sketch-pipeline.json"),
+        include_str!("../examples/sketch-pipeline.svg"),
+    ),
+    (
+        "response-swarm",
+        include_str!("../examples/response-swarm.json"),
+        include_str!("../examples/response-swarm.svg"),
+    ),
+    (
+        "response-ridges",
+        include_str!("../examples/response-ridges.json"),
+        include_str!("../examples/response-ridges.svg"),
+    ),
+    (
+        "topic-streams",
+        include_str!("../examples/topic-streams.json"),
+        include_str!("../examples/topic-streams.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -527,6 +562,16 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "co-authors",
         include_str!("../examples/co-authors.json"),
         include_str!("../examples/co-authors.mobile.svg"),
+    ),
+    (
+        "improvement-cycle",
+        include_str!("../examples/improvement-cycle.json"),
+        include_str!("../examples/improvement-cycle.mobile.svg"),
+    ),
+    (
+        "growth-flywheel",
+        include_str!("../examples/growth-flywheel.json"),
+        include_str!("../examples/growth-flywheel.mobile.svg"),
     ),
     (
         "mobile-revenue",
@@ -712,6 +757,26 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "delivery-delays",
         include_str!("../examples/delivery-delays.json"),
         include_str!("../examples/delivery-delays.mobile.svg"),
+    ),
+    (
+        "satisfaction-change",
+        include_str!("../examples/satisfaction-change.json"),
+        include_str!("../examples/satisfaction-change.mobile.svg"),
+    ),
+    (
+        "response-swarm",
+        include_str!("../examples/response-swarm.json"),
+        include_str!("../examples/response-swarm.mobile.svg"),
+    ),
+    (
+        "response-ridges",
+        include_str!("../examples/response-ridges.json"),
+        include_str!("../examples/response-ridges.mobile.svg"),
+    ),
+    (
+        "topic-streams",
+        include_str!("../examples/topic-streams.json"),
+        include_str!("../examples/topic-streams.mobile.svg"),
     ),
 ];
 

@@ -29,6 +29,7 @@ order: 1
 | Time series with area, gaps and zoom | `"mark": "area"`, `null` values, `dash`, `zoomSteps` by time | [Data hall power draw](../../../showcase/sensor-readings/) |
 | Readings around a trend (scatter) | `"mark": "point"` next to a `line` layer | [Resting heart rate](../../../showcase/resting-heart-rate/) |
 | Stacked areas | `"stack": "normal"` on a pane of `area` layers, `"legend": "end"` | [Generation by source](../../../showcase/generation-mix/) |
+| Streamgraph: stacked areas centered on a moving baseline | `"stack": "stream"` on a pane of `area` layers | [Tickets by topic](../../../showcase/topic-streams/) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [Checkout API error rate](../../../showcase/release-incidents/) |
 | Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio`; `"gaps": "collapse"` | [Daily share price](../../../showcase/share-price/) |
 | Profile or deep time on a numeric axis, reversed | `"timeAxis": { "kind": "number", "reverse": true }` | [Deep-sea oxygen isotopes](../../../showcase/deep-sea-isotopes/) |
@@ -56,6 +57,8 @@ order: 1
 | Dendrogram built from a distance matrix | `"type": "tree"` with `distances` and `linkage` | [How alike the climates are](../../../showcase/climate-similarity/) |
 | Network on a circle, groups together, edges by weight | `"type": "network"` with `nodes`, `edges`, `group`, `weight` | [Joint papers](../../../showcase/co-authors/) |
 | Network in rings around one node, with arrowheads | `"layout": "rings"`, `center`, `"directed": true` | [What the checkout service depends on](../../../showcase/service-dependencies/) |
+| Cycle of steps on a ring with the labels inside boxes | `"type": "cycle"` with `steps`, `"labels": "inside"` | [Improvement cycle](../../../showcase/improvement-cycle/) |
+| Cycle around a hub, with a label on every link | `cycle.hub`, `steps[].hubLabel` | [Growth flywheel](../../../showcase/growth-flywheel/) |
 | Architecture diagram with weighted connections | `connections[].weight`, `"mainPath": { "from", "to" }` | [Requests per second](../../../showcase/request-volume/) |
 | Architecture diagram with its databases on one rank | `"sameRank": [["catalogDb", "ordersDb", "billingDb"]]` | [Order platform and its data stores](../../../showcase/data-tier/) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [Monthly revenue by sales channel](../../../showcase/mobile-revenue/) |
@@ -238,8 +241,8 @@ extreme values within reach and a point for every value beyond.
   outliers; the data table has the five numbers of every box and its outliers; a tooltip adds the
   number of observations. 1–100 boxes with unique labels.
 - **Groups.** `group` on every box (or none) gives the boxes of one group a palette color and a
-  legend entry, up to four (`too_many_series`, `missing_group`); it colors boxes, violins and strips
-  alike and adds a Group column to the table.
+  legend entry, up to four (`too_many_series`, `missing_group`); it colors boxes, violins, strips,
+  beeswarms and ridgelines alike and adds a Group column to the table.
 - **Mean.** `"showMean": true` marks the mean of each box's observations with a diamond (on boxes,
   violins and strips alike), adds it to the tooltip and a Mean column to the table. It needs
   `values` on every box (`values_required`).
@@ -252,6 +255,50 @@ extreme values within reach and a point for every value beyond.
   point, spread across the width by a fixed sequence so the same data always gives the same
   picture, with the median across. Both need `values` on every box (`values_required`); the
   value axis reaches every observation.
+- **Beeswarms.** `"boxDisplay": "beeswarm"` draws every observation as a dot like a strip does,
+  but moves each dot sideways only as far as it must so that no two dots overlap: dots are placed
+  from the lowest value on, each as near the middle as it can be, so the same data always gives
+  the same picture and the width of the swarm shows how many observations lie close together. The
+  dots shrink from 3 pixels down to 1.5 before a swarm outgrows its band. `"showBox": true` lays
+  the box and its whiskers under the dots (`option_not_supported` on any other display); the
+  median is drawn across. It needs `values` on every box (`values_required`); a tooltip on a dot
+  gives its value.
+- **Ridgelines.** `"boxDisplay": "ridgeline"` draws one density curve per box, each on its own
+  baseline, stacked with a slight overlap along a shared value axis: the first box on top when the
+  chart is horizontal, left to right when it is vertical, where each curve extends to the right
+  of its baseline. The density is estimated as for violins, and all curves share one scale, so
+  their heights compare; a line up to the curve marks the median. `showMean` puts the diamond
+  on the baseline, `group` colors the curves. It needs `values` on every box (`values_required`)
+  and takes no `violinScale`.
+
+## Dumbbells
+
+`"display": "dumbbell"` on a `rangebar` chart draws each span as two dots joined by a line: an
+**open** dot at `low` and a **filled** dot at `high`, so the two ends differ in form as well as in
+position. It suits before and after, or two groups, one row per category.
+
+```json
+{
+  "type": "rangebar",
+  "display": "dumbbell",
+  "sort": "change",
+  "orientation": "horizontal",
+  "ranges": [
+    { "label": "Onboarding", "low": 58, "high": 81 },
+    { "label": "Billing", "low": 49, "high": 64 }
+  ]
+}
+```
+
+- `showValues` writes the value beside each dot, on the side away from the other dot. Where the
+  low values would run into the labels of the categories, or into the labels of the axis on a
+  vertical chart, each span writes its combined label after the high end instead.
+- `"sort": "change"` puts the widest span first, in the picture, the data table and the
+  description; without it the spans keep the order they are listed in. `sort` applies to bars too.
+- `group` colors the line and the dots of a group and adds the legend. A dumbbell has no `mid`,
+  `weight`, `summary` or `modeled`: `option_not_supported` names the field.
+- The description names the widest change and says which dot is which; the table is the one of
+  range bars, with a Low and a High column.
 
 ## Forest plots
 
@@ -1589,6 +1636,47 @@ drawn larger and reported as `canvas_too_small`. With `layout: "rings"` a `cente
 `"type": "fishbone"` draws the causes of one effect: the effect at the head of a spine, and on
 bones that alternate above and below it the categories of its causes, each with causes and
 sub-causes. It is the diagram for a root cause review.
+## Streamgraphs
+
+`"stack": "stream"` on a pane of a `time` chart stacks its `area` layers like `"normal"` does —
+in layer order, each on top of the ones before it — but around a moving baseline instead of zero:
+at every time the stack starts half its total below the middle, so that it is centered.
+
+```json
+{
+  "type": "time",
+  "panes": [
+    {
+      "valueAxis": { "title": "Tickets per week" },
+      "stack": "stream",
+      "layers": [
+        { "mark": "area", "name": "Billing", "points": [{ "time": "2026-01-05", "value": 48 }, { "time": "2026-01-19", "value": 51 }] },
+        { "mark": "area", "name": "Login", "points": [{ "time": "2026-01-05", "value": 30 }, { "time": "2026-01-19", "value": 28 }] }
+      ]
+    }
+  ]
+}
+```
+
+- **Thickness, not position.** The distance from zero means nothing on a stream, so the value axis
+  is a scale bar: one step of the scale, centered in the plot and labelled with its value (and the
+  axis `unit`), instead of a grid of ticks. The description says so.
+- **Names at the ends.** Each stream is named at its right end, in the middle of its band; a
+  stream chart needs no `"legend": "end"`.
+- **What a stream holds.** At least two `area` layers with the same times and curve and a value
+  of zero or more at every time (`unaligned_stack`, `negative_in_stack`), up to eight; the pane may
+  also hold reference lines of time. Lines, points, candles, bands and reference lines or markers
+  at a value, and a `valueAxis` with `min`, `max`, `exact`, `reverse` or a logarithmic scale, have
+  no meaning on a moving baseline and are `option_not_supported`, naming the field. `"stream"` on
+  a bar chart is `option_not_supported` at `/stack`.
+- **Text alternative.** The table and the tooltips give each layer's own value, as for a normal
+  stack; the interactive module marks the top edge of the stream under the pointer.
+
+## Cycles
+
+`"type": "cycle"` draws three to eight steps on a ring, clockwise from twelve o'clock, where each
+step feeds the next and the last feeds the first — an improvement loop, a release rhythm, a
+flywheel. An optional hub in the middle is what the steps feed.
 
 ```json
 {
@@ -1607,6 +1695,15 @@ sub-causes. It is the diagram for a root cause review.
       },
       { "label": "Process", "causes": [{ "label": "Late dispatch" }] }
     ]
+  "type": "cycle",
+  "title": "Why a good product brings the next customers",
+  "cycle": {
+    "steps": [
+      { "id": "product", "label": "Better product", "hubLabel": "makes them happy" },
+      { "id": "happy", "label": "Happy customers" },
+      { "id": "word", "label": "Word of mouth" }
+    ],
+    "hub": { "label": "Customers" }
   }
 }
 ```
@@ -1623,6 +1720,23 @@ sub-causes. It is the diagram for a root cause review.
   and then every category with its causes and their sub-causes in the order listed; the table
   has one row for the effect, each category, each cause and each sub-cause, with what it belongs
   to.
+- **Steps** have an `id`, a `label` (up to 60 characters), an optional `note` as a second, smaller
+  line and an optional `role`; the first stands at twelve o'clock. Arrows along the ring lead from
+  every step to the next and from the last back to the first.
+- **Labels** stand outside the ring beside numbered dots (`"labels": "outside"`, the default) or
+  inside boxes on the ring (`"labels": "inside"`, numbered by a badge). The ring is as large as the
+  canvas lets it be; where the labels do not fit, the canvas grows and `canvas_too_small` says so.
+- **Hub.** `hub` (a `label` and an optional `note`) puts a circle in the middle with a dotted
+  arrow from every step to it; `hubLabel` on a step writes a label on its link and needs a hub
+  (`option_not_supported` otherwise).
+- **Roles** (`critical`, `planned`, `deprecated`) draw a step as in other diagrams, with a badge on
+  its corner and a legend below. In the HTML profile every step is a focus link that keeps the
+  steps next to it and dims the rest.
+- **Text alternative.** The description reads the steps in order, names the way back from the last
+  to the first, the hub and its link labels, and the roles. The table has one row per step with its
+  number, label, note, hub link and role where the cycle has them.
+
+Limits: 3–8 steps (`too_few_steps`, `too_many_steps`), unique ids (`duplicate_id`).
 
 ## Time series
 

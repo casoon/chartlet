@@ -671,3 +671,37 @@ pub(crate) fn notes(locale: Locale, notes: &[(Option<&str>, &str)]) -> String {
         .collect();
     sentences.join(" ")
 }
+
+/// The opening sentence of a cycle: its steps in order, each as `number label`, and the way back
+/// from the last to the first.
+pub(crate) fn cycle_opening(locale: Locale, steps: &[String], first: &str) -> String {
+    let count = steps.len();
+    let noted = steps.iter().any(|step| step.contains('('));
+    let steps = if noted {
+        steps.join("; ")
+    } else {
+        steps.join(", ")
+    };
+    match locale {
+        Locale::En => format!("Cycle of {count} steps: {steps}; the last leads back to {first}."),
+        Locale::De => {
+            format!("Kreislauf aus {count} Schritten: {steps}; der letzte führt zurück zu {first}.")
+        }
+    }
+}
+
+/// The hub of a cycle and the links of the steps to it, each as `label` or `label (hub label)`.
+pub(crate) fn cycle_hub(locale: Locale, hub: &str, links: &[String]) -> String {
+    let links = if links.is_empty() {
+        String::new()
+    } else {
+        match locale {
+            Locale::En => format!(" Links: {}.", links.join("; ")),
+            Locale::De => format!(" Verbindungen: {}.", links.join("; ")),
+        }
+    };
+    match locale {
+        Locale::En => format!("Every step feeds the hub {hub}.{links}"),
+        Locale::De => format!("Jeder Schritt speist die Mitte {hub}.{links}"),
+    }
+}
