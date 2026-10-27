@@ -814,6 +814,7 @@ impl ChartSpec {
             ChartType::Bar | ChartType::Line => self.validate_bar_and_line(),
         }?;
         warnings.extend(crate::contrast::warnings(self));
+        warnings.extend(crate::readability::warnings(self));
         Ok(warnings)
     }
 }

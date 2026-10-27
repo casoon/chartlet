@@ -48,6 +48,24 @@ claude mcp add --env CHARTLET_MCP_ROOT="$PWD" chartlet -- npx -y @casoon/chartle
 For Claude Desktop and project configuration, see the
 [package README](https://github.com/casoon/chartlet/blob/main/packages/chartlet-mcp/README.md).
 
+## Agent skill
+
+[`skills/chartlet/`](https://github.com/casoon/chartlet/tree/main/skills/chartlet) is a portable
+skill: a `SKILL.md` that leads an assistant from "make a chart" to a delivered file, and
+references for the CLI route and for installation. Four parts work together:
+
+| Part | What it is |
+| --- | --- |
+| The skill | Instructions: inspect the data, choose a type, start from a starter, validate, render, deliver, correct. It assumes routine choices, asks only for missing data, and never aggregates, invents data or removes relationships to make a figure fit |
+| The MCP server | The tools the skill calls, when the host has them |
+| The MCP App view | Optional: shows the rendered figure in the conversation |
+| The compiler (`chartlet` CLI, `@casoon/chartlet`) | The renderer behind both; the skill's fallback when there is no server |
+
+Copy the folder to `~/.claude/skills/` (Claude Code) or `~/.agents/skills/` (Codex), or into
+`.claude/skills/` or `.agents/skills/` of a repository; the references list the commands for
+installing, updating and removing the skill and the server in both hosts, and what has and has
+not been verified. A skill and a server are independent: either works without the other.
+
 ## Tools
 
 - `chartlet_inspect_data` reads CSV or row objects and returns the row count, per column the inferred
@@ -65,7 +83,10 @@ For Claude Desktop and project configuration, see the
   field the path points to and try again.
 - `chartlet_render` returns the SVG or HTML with warnings, CSP `styleHashes` and the provenance
   [manifest](../warnings-and-errors/#provenance). With `outputPath` it writes the file below the
-  directory named by `CHARTLET_MCP_ROOT` instead and returns the path and size.
+  directory named by `CHARTLET_MCP_ROOT` instead and returns the path and size. Without a `theme`,
+  a `chartlet.theme.json` in that directory applies; the result and the manifest name the theme
+  that was applied, and without such a file a note says that the default look is used and how to
+  set one.
 - `chartlet_explain` returns the description chartlet generates for the chart and, per series or
   layer, count, missing values, minimum, maximum, first and last value with their labels or
   times. The result says that it is computed, not interpreted; conclusions about causes or
@@ -79,6 +100,22 @@ For Claude Desktop and project configuration, see the
   `deployment` — and the result adds the `question` it answers and its `level`; see
   [Context, containers and deployment](../../guides/chart-types/#context-containers-and-deployment)
   for what each level shows and where it stops short of a complete architecture model.
+- `chartlet_check_coverage` compares a redrawn diagram with the inventory of its source: the
+  assistant passes the nodes, edges (with `from` and `to`) and groups (with `members`) it read,
+  with ids where the source has them, and `mappings` that settle identity and declare merges.
+  The report lists what was `kept`, `changed` (a reversed edge, another label, other members, an
+  endpoint that was merged), `merged`, `ambiguous` (a repeated label is never an identity by
+  itself), `missing` and `added`, with counts that add up to the source. The optional `detail`
+  (`faithful`, `balanced`, `simplified`) only marks which omissions are expected; it never hides
+  one. The inventory is the assistant's own extraction and is labelled so; chartlet reads no
+  foreign formats.
+- `chartlet_theme_from_brand` turns brand values the assistant read from a site or a style guide
+  (`paper`, `ink`, `muted`, `accent`, `link`) into a light and a dark [theme file](../customize/),
+  and a receipt: each role with the value given and the value written, every adjustment with its
+  contrast pair and ratios (text 4.5:1, marks 3:1), and the derived dark values marked as such.
+  Fonts are recorded in the receipt and not written: chartlet has no font setting yet. With
+  `write` the files go to `chartlet.theme.json` and `chartlet.theme.dark.json` below
+  `CHARTLET_MCP_ROOT`, and are never replaced without `overwrite`. The server fetches nothing.
 - `chartlet_chart_starter` returns a valid starting specification and notes for the charts that
   are drawn from a block of their own: `waterfall`, `waffle`, `heatmap`, `parliament`, `treemap`, `sankey`,
   `survival`, `scatter`, `timeline`, `forest` (a range bar chart), `violin` (a box plot) and the
@@ -101,7 +138,7 @@ looping on the same error, and say when a table or a sentence serves better.
 - `chart` makes a chart from data, starting with `chartlet_inspect_data`; the optional `data`
   argument takes CSV text.
 - `redraw` redraws an existing diagram from text, an image or a file as a specification and ends
-  with a report of what was covered and what was left out.
+  with the report of `chartlet_check_coverage`: what was covered and what was left out.
 
 ## In the chat
 
