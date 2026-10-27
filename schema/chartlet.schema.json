@@ -16,6 +16,29 @@
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
     "theme": { "enum": ["light", "dark", "blueprint"], "default": "light" },
     "tokens": { "$ref": "#/$defs/tokens" },
+    "typography": {
+      "description": "Font families and the width the layout reserves for text. A family is only named in the output, not embedded; render with the CLI option --font to measure and rasterize with a font file you supply.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "description": "The family of every text, put before Inter and the system fonts.",
+          "type": "string",
+          "pattern": "^[\\p{L}\\p{N} ._-]{1,64}$"
+        },
+        "technicalFamily": {
+          "description": "The family of technical sublabels such as the technology of a node; defaults to family.",
+          "type": "string",
+          "pattern": "^[\\p{L}\\p{N} ._-]{1,64}$"
+        },
+        "widthScale": {
+          "description": "Measured width of the family relative to the built-in metrics: 1.1 reserves 10 percent more room for every text.",
+          "type": "number",
+          "minimum": 0.7,
+          "maximum": 1.5
+        }
+      }
+    },
     "stroke": {
       "description": "How lines and shapes are drawn: clean (the default) or sketch, slightly wobbly, deterministic from the specification. Text is not affected; the print variant and PNG draw clean strokes.",
       "enum": ["clean", "sketch"],

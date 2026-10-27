@@ -9,6 +9,14 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Brand typography:** `typography` names the font `family`, the `technicalFamily` for sublabels and a
+  `widthScale` the layout reserves for them, so a brand font no longer needs a color-only theme to
+  fit. `chartlet render --font brand.ttf` measures text with a font file you supply, `--embed-font`
+  carries it in the SVG and `--format png` rasterizes with it; nothing is fetched, and a family that
+  is only named is disclosed with `font_not_embedded`. Missing glyphs are listed as
+  `font_glyphs_missing`. Details:
+  [Typography](https://casoon.github.io/chartlet/docs/guides/customize/#typography).
+
 - **Hand-drawn strokes:** `"stroke": "sketch"` draws lines and shapes slightly wobbly, for essays and
   slides. The displacement is seeded from the specification (same bytes every time), text stays
   crisp, the print variant and PNG stay clean. Details:

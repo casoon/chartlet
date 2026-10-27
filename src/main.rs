@@ -93,6 +93,10 @@ struct Job {
     size: Option<String>,
     /// The allowed warning codes in strict mode, `None` outside it.
     strict: Option<Vec<String>>,
+    /// A TrueType or OpenType file the text is measured with and, for PNG, rasterized with.
+    font: Option<PathBuf>,
+    /// Carry the font in the SVG as a base64 `@font-face`.
+    embed_font: bool,
 }
 
 /// The rendered content, its warnings and, if asked for, its manifest.
@@ -121,6 +125,18 @@ fn render_job(job: &Job, input: &str) -> Result<Rendered, Failure> {
         }
         None => input,
     };
+    let font = match &job.font {
+        Some(path) => Some(
+            fs::read(path)
+                .map_err(|error| format!("could not read {}: {error}", path.display()))?,
+        ),
+        None => None,
+    };
+    if job.embed_font && (font.is_none() || job.png || job.format != RenderFormat::Svg) {
+        return Err("--embed-font needs --font and --format svg"
+            .to_owned()
+            .into());
+    }
     if job.png && job.options.all_views {
         Err("--all-views requires --format html".to_owned().into())
     } else if job.png {
@@ -131,17 +147,29 @@ fn render_job(job: &Job, input: &str) -> Result<Rendered, Failure> {
             job.options.variant,
             job.scale,
             job.manifest.is_some(),
+            font.as_deref(),
         )?;
         Ok((Content::Png(png), warnings, None))
     } else if job.scale.is_some() {
         Err("--scale requires --format png".to_owned().into())
     } else {
-        let rendered = render_json(input, job.format, &job.options).map_err(spec_failure)?;
-        Ok((
-            Content::Text(rendered.content),
-            rendered.warnings,
-            rendered.manifest,
-        ))
+        let rendered = match &font {
+            Some(font) => chartlet::ChartSpec::from_json(input)
+                .and_then(|spec| chartlet::render_with_font(&spec, job.format, &job.options, font))
+                .map_err(spec_failure)?,
+            None => render_json(input, job.format, &job.options).map_err(spec_failure)?,
+        };
+        let content = match (&font, job.embed_font) {
+            (Some(font), true) => {
+                let family = chartlet::ChartSpec::from_json(input)
+                    .ok()
+                    .and_then(|spec| spec.typography.and_then(|typography| typography.family))
+                    .unwrap_or_default();
+                chartlet::embed_font(&rendered.content, &family, font)
+            }
+            _ => rendered.content,
+        };
+        Ok((Content::Text(content), rendered.warnings, rendered.manifest))
     }
 }
 
@@ -183,6 +211,8 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut watch = false;
     let mut preview = false;
     let mut port = None;
+    let mut font = None;
+    let mut embed_font = false;
 
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
@@ -234,6 +264,8 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
                 })?);
             }
             "--all-views" => all_views = true,
+            "--font" => font = Some(path_after(&mut arguments, "--font")?),
+            "--embed-font" => embed_font = true,
             "--styles" => styles = parse_styles(arguments.next().as_deref())?,
             "--hooks" => hooks = true,
             "--manifest" => manifest = Some(path_after(&mut arguments, "--manifest")?),
@@ -271,6 +303,8 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
         size,
         manifest,
         strict: strict.then_some(allowed),
+        font,
+        embed_font,
     };
     if watch || preview {
         return watch::run(&job, preview.then(|| port.unwrap_or(0)), json_diagnostics);
@@ -357,6 +391,7 @@ fn render_png(
     variant: Variant,
     scale: Option<f32>,
     manifest: bool,
+    font: Option<&[u8]>,
 ) -> Result<(Vec<u8>, Vec<ChartWarning>), Failure> {
     if manifest {
         return Err("--manifest is not available with --format png"
@@ -371,8 +406,12 @@ fn render_png(
         })
         .and_then(|spec| spec.view(view))
         .map_err(spec_failure)?;
-    let output = chartlet::render_png(&spec, &chartlet::PngOptions { variant, scale })
-        .map_err(spec_failure)?;
+    let options = chartlet::PngOptions { variant, scale };
+    let output = match font {
+        Some(font) => chartlet::render_png_with_font(&spec, &options, font),
+        None => chartlet::render_png(&spec, &options),
+    }
+    .map_err(spec_failure)?;
     Ok((output.png, output.warnings))
 }
 
@@ -384,6 +423,7 @@ fn render_png(
     _variant: Variant,
     _scale: Option<f32>,
     _manifest: bool,
+    _font: Option<&[u8]>,
 ) -> Result<(Vec<u8>, Vec<ChartWarning>), Failure> {
     Err(
         "--format png needs chartlet built with the png feature: cargo install chartlet --features png"
@@ -499,7 +539,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|theme.json>] [--size <preset>] [--manifest <path>] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
+    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|theme.json>] [--size <preset>] [--manifest <path>] [--font <file.ttf> [--embed-font]] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json] [--watch] [--preview [--port <port>]]
        chartlet inspect <spec.json|-> [--disable <code>]... [--strict] [--format text|json] [--diagnostics text|json]
        chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
 }

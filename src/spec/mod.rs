@@ -176,6 +176,9 @@ pub struct ChartSpec {
     /// essays and slides. Text is not affected.
     #[serde(default, skip_serializing_if = "StrokeStyle::is_clean")]
     pub stroke: StrokeStyle,
+    /// Font families and the width scale the layout reserves for them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub typography: Option<crate::typography::TypographySpec>,
     /// Colors of the palette, by the name of the `--chartlet-*` custom property without its
     /// prefix, as hex values. They win over the theme. Skipped while empty, like `theme`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]

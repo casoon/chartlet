@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Von der Bestellung zur Rechnungsstellung",
+  "source": "Beispiel mit Markenschrift: Source Sans 3 und Fira Code, Breitenfaktor 1,06",
+  "locale": "de",
+  "typography": { "family": "Source Sans 3", "technicalFamily": "Fira Code", "widthScale": 1.06 },
+  "width": 1100,
+  "height": 300,
+  "flow": {
+    "nodes": [
+      { "id": "order", "label": "Bestellung eingegangen", "kind": "start" },
+      { "id": "check", "label": "Zahlungsfähigkeit geprüft?", "kind": "decision" },
+      { "id": "pack", "label": "Kommissionierung", "sublabel": "wms-service" },
+      { "id": "bill", "label": "Rechnungsstellung", "sublabel": "billing-api" },
+      { "id": "done", "label": "Abgeschlossen", "kind": "end" },
+      { "id": "stop", "label": "Abgelehnt", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "order", "to": "check" },
+      { "from": "check", "to": "pack", "label": "ja" },
+      { "from": "check", "to": "stop", "label": "nein" },
+      { "from": "pack", "to": "bill" },
+      { "from": "bill", "to": "done" }
+    ]
+  }
+}

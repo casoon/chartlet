@@ -9,6 +9,9 @@ impl ChartSpec {
     /// The blueprint look is made for diagrams; a chart with axes and series keeps light or dark.
     pub(super) fn validate_theme(&self) -> Result<(), ChartError> {
         crate::theme::validate(&self.tokens)?;
+        if let Some(typography) = &self.typography {
+            typography.validate()?;
+        }
         let diagram = matches!(
             self.chart_type,
             ChartType::Sequence
