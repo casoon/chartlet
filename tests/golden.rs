@@ -315,6 +315,16 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/permission-matrix.svg"),
     ),
     (
+        "regional-slope",
+        include_str!("../examples/regional-slope.json"),
+        include_str!("../examples/regional-slope.svg"),
+    ),
+    (
+        "support-rank",
+        include_str!("../examples/support-rank.json"),
+        include_str!("../examples/support-rank.svg"),
+    ),
+    (
         "election-result",
         include_str!("../examples/election-result.json"),
         include_str!("../examples/election-result.svg"),
@@ -577,6 +587,16 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "permission-matrix",
         include_str!("../examples/permission-matrix.json"),
         include_str!("../examples/permission-matrix.mobile.svg"),
+    ),
+    (
+        "regional-slope",
+        include_str!("../examples/regional-slope.json"),
+        include_str!("../examples/regional-slope.mobile.svg"),
+    ),
+    (
+        "support-rank",
+        include_str!("../examples/support-rank.json"),
+        include_str!("../examples/support-rank.mobile.svg"),
     ),
     (
         "election-result",

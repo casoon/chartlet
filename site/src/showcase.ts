@@ -427,6 +427,22 @@ const catalogue = [
       'A hundred squares for one year of electricity: wind, solar, gas and coal each take as many squares as percent, and the 12 squares that are left stand for the rest. Every square has a tooltip, the legend names value and share, and the table counts the squares. Illustrative shares, with a phone variant.',
   },
   {
+    slug: 'regional-slope',
+    group: 'Line charts',
+    chart: 'Slope chart',
+    useCase: 'Compare two moments, series by series',
+    blurb:
+      'Four regions between 2024 and 2025: one line each with its name and value at both ends, so that no legend is needed. Lines differ in pattern and weight as well as color, and the description names the biggest rise and the biggest fall. Illustrative figures, with a phone variant.',
+  },
+  {
+    slug: 'support-rank',
+    group: 'Line charts',
+    chart: 'Rank chart',
+    useCase: 'Show who overtakes whom',
+    blurb:
+      'The rank of four support channels across four quarters, 1 at the top: lines cross where the order changes, and the names and ranks stand at both ends. The description lists every rank and names the largest rise and fall in rank. Illustrative counts, with a phone variant.',
+  },
+  {
     slug: 'weekly-response',
     group: 'Ranges and distributions',
     chart: 'Heatmap',

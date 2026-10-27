@@ -124,6 +124,14 @@ pub struct ChartSpec {
     /// in form as well as in color.
     #[serde(default, skip_serializing_if = "is_false")]
     pub patterns: bool,
+    /// Draws a `type: "line"` chart of two categories as a slope chart: one line per series from
+    /// the first value to the second, with the names at both ends instead of a legend.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub slope: bool,
+    /// Draws a `type: "line"` chart as a rank chart: the rank of each series, 1 at the top, in
+    /// every category, with the names at both ends instead of a legend.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub rank: bool,
     /// Stacks the series of a `type: "bar"` chart instead of setting them side by side.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stack: Option<Stack>,

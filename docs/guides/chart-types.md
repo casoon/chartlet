@@ -108,6 +108,40 @@ description names the highest and lowest total; the data table lists the values 
 }
 ```
 
+## Slope and rank charts
+
+A line chart with two categories reads best as a slope chart: `"slope": true` draws one line per
+series from its first value to its second, with the name and value at both ends, so that the chart
+needs no legend. For more categories, `"rank": true` plots the rank of each series in every
+category, 1 for the largest value at the top, so that lines cross where the order changes.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "line",
+  "slope": true,
+  "title": "Revenue by region, 2024 and 2025",
+  "categories": ["2024", "2025"],
+  "series": [
+    { "name": "North", "values": [42, 55] },
+    { "name": "South", "values": [38, 36] }
+  ]
+}
+```
+
+- **Names at both ends.** Each end carries the name and, in a slope chart, the value; in a rank
+  chart the rank (`#1`). Names that would overlap are moved apart, in order, so that every name
+  stays readable; the line still ends on its true position.
+- **Lines stay apart.** Each series keeps its color, and its pattern or weight, so that crossing
+  lines can be told apart without color. Up to four series, as in every line chart.
+- **Needs a value everywhere.** Every series has a value in every category (`missing_value`);
+  a slope chart has exactly two categories, a rank chart at least two categories and two series
+  (`invalid_categories`). Error bars, zoom steps and, for ranks, a value axis are refused; a slope
+  chart's `valueAxis` sets the scale and the number format.
+- **Text alternative.** The description gives every series from its first value to its second with
+  the change, or its rank in every category, and names the biggest rise and fall. The table is the
+  one of the line chart, with the values.
+
 ## Bars colored by group
 
 A single-series bar chart can color its bars by group: give every `data` point a `group`. Each

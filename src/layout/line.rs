@@ -19,14 +19,14 @@ use crate::{
 
 /// The lines of a categorical line chart with several series: each its own color and, so that
 /// color is not the only difference, its own pattern or weight.
-const SERIES_LINE_CLASSES: [&str; MAX_SERIES] = [
+pub(crate) const SERIES_LINE_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-line chartlet-line-series-1",
     "chartlet-line chartlet-line-series-2 chartlet-line-dashed",
     "chartlet-line chartlet-line-series-3 chartlet-line-dotted",
     "chartlet-line chartlet-line-series-4 chartlet-line-thin",
 ];
 /// The markers of those lines, in the colors of their lines.
-const SERIES_POINT_CLASSES: [&str; MAX_SERIES] = [
+pub(crate) const SERIES_POINT_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-point chartlet-point-series-1",
     "chartlet-point chartlet-point-series-2",
     "chartlet-point chartlet-point-series-3",

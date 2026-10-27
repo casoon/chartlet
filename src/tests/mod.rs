@@ -12,6 +12,7 @@ mod panes;
 mod part_of_whole;
 mod ranges;
 mod scatter_and_survival;
+mod slope;
 mod stripes_and_calendar;
 mod time;
 mod timeline;

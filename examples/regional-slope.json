@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "type": "line",
+  "slope": true,
+  "title": "Revenue by region, 2024 and 2025",
+  "source": "Illustrative figures, millions of euros",
+  "width": 640,
+  "height": 400,
+  "categories": ["2024", "2025"],
+  "series": [
+    { "name": "North", "values": [42, 55] },
+    { "name": "South", "values": [38, 36] },
+    { "name": "East", "values": [51, 49] },
+    { "name": "West", "values": [29, 41] }
+  ],
+  "valueAxis": { "format": "number", "decimals": 0 },
+  "mobile": { "width": 380, "height": 440 }
+}

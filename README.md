@@ -80,6 +80,8 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Small multiples of bars: one panel per measure over shared categories, each with its own value axis | `"type": "multiples"` with `categories` and a `values` array per pane | [framework-benchmarks](examples/framework-benchmarks.json) |
 | Small multiples with a finding under each panel, one column on phones | `note` and `noteEmphasis` per pane, `"mobile": { "columns": 1 }` | [warming-causes](examples/warming-causes.json) |
 | Line with gaps for missing values | `"type": "line"`, `null` values | [monthly-trend](examples/monthly-trend.json) |
+| Slope chart: each series between two categories, names at both ends | `"slope": true` on a `line` chart with two categories | [regional-slope](examples/regional-slope.json) |
+| Rank chart: the rank of each series over several categories | `"rank": true` on a `line` chart | [support-rank](examples/support-rank.json) |
 | Line chart with error bars | `lower` and `upper` on every `data` point of a `line` chart | [monthly-satisfaction](examples/monthly-satisfaction.json) |
 | Time series on a calendar axis | `"type": "time"` with `panes` and `layers` | [daily-orders](examples/daily-orders.json) |
 | Time series, dark theme, declared colors | `"theme": "dark"`, `color` per layer | [revenue-vs-forecast](examples/revenue-vs-forecast.json) |

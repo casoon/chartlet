@@ -31,6 +31,7 @@ mod scatter;
 mod scene;
 mod sequence;
 mod sha256;
+mod slope;
 mod social;
 mod sort;
 mod spec;

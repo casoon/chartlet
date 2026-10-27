@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "type": "line",
+  "rank": true,
+  "title": "Ticket volume by channel, ranked per quarter",
+  "source": "Illustrative counts; rank 1 is the busiest channel",
+  "width": 720,
+  "height": 400,
+  "categories": ["Q1", "Q2", "Q3", "Q4"],
+  "series": [
+    { "name": "Email", "values": [820, 780, 700, 650] },
+    { "name": "Chat", "values": [610, 700, 790, 860] },
+    { "name": "Phone", "values": [540, 520, 560, 530] },
+    { "name": "Forum", "values": [300, 340, 410, 590] }
+  ],
+  "mobile": { "width": 380, "height": 460 }
+}

@@ -9,6 +9,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Slope and rank charts:** `"slope": true` on a `line` chart of two categories draws one line per
+  series from its first value to its second, and `"rank": true` plots the rank of each series
+  across several categories, 1 at the top. The names stand at both ends instead of a legend,
+  overlapping names are spread apart, and the description names the biggest rise and fall.
+  Details: [Slope and rank charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#slope-and-rank-charts).
+
 - **Heatmaps:** `"type": "heatmap"` shows values in a grid of rows and columns on a sequential or
   a diverging scale, with the value written into the cell where it fits and a key below; or
   categories, each with a fill and a symbol. Cells that are not listed are drawn as missing, rows

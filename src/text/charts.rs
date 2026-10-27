@@ -598,6 +598,62 @@ pub(crate) fn waterfall_summary(
     text
 }
 
+/// What a slope chart shows: the series compared between two categories, each from its first
+/// value to its second, and the biggest rise and fall.
+pub(crate) fn slope_summary(
+    locale: Locale,
+    (series, from, to): (usize, &str, &str),
+    changes: &str,
+    (rise, fall): (Option<&str>, Option<&str>),
+) -> String {
+    let (rise_word, fall_word) = match locale {
+        Locale::En => ("Largest rise", "Largest fall"),
+        Locale::De => ("Größter Anstieg", "Größter Rückgang"),
+    };
+    let mut ends = String::new();
+    for (word, name) in [(rise_word, rise), (fall_word, fall)] {
+        if let Some(name) = name {
+            write!(ends, " {word}: {name}.").expect("writing to String cannot fail");
+        }
+    }
+    match locale {
+        Locale::En => {
+            format!("Slope chart of {series} series from {from} to {to}: {changes}.{ends}")
+        }
+        Locale::De => {
+            format!("Steigungsdiagramm von {series} Reihen von {from} nach {to}: {changes}.{ends}")
+        }
+    }
+}
+
+/// What a rank chart shows: the rank of every series in every category, 1 for the largest value,
+/// and the biggest rise and fall in rank between the first category and the last.
+pub(crate) fn rank_summary(
+    locale: Locale,
+    (series, categories, from, to): (usize, usize, &str, &str),
+    ranks: &str,
+    (rise, fall): (Option<&str>, Option<&str>),
+) -> String {
+    let (rise_word, fall_word) = match locale {
+        Locale::En => ("Largest rise in rank", "Largest fall in rank"),
+        Locale::De => ("Größter Aufstieg im Rang", "Größter Abstieg im Rang"),
+    };
+    let mut ends = String::new();
+    for (word, name) in [(rise_word, rise), (fall_word, fall)] {
+        if let Some(name) = name {
+            write!(ends, " {word}: {name}.").expect("writing to String cannot fail");
+        }
+    }
+    match locale {
+        Locale::En => format!(
+            "Rank chart of {series} series in {categories} categories from {from} to {to}; rank 1 is the largest value. Ranks per category: {ranks}.{ends}"
+        ),
+        Locale::De => format!(
+            "Rangdiagramm von {series} Reihen in {categories} Kategorien von {from} bis {to}; Rang 1 ist der größte Wert. Ränge je Kategorie: {ranks}.{ends}"
+        ),
+    }
+}
+
 /// What a heatmap of values shows: its size, what the colors stand for, both ends of the scale
 /// with the cell that holds them, and the cells without a value.
 pub(crate) fn heatmap_values(

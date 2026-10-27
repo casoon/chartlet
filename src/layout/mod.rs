@@ -22,6 +22,7 @@ pub(crate) use axis::{
 use bar::{layout_horizontal, layout_vertical};
 pub(crate) use labels::WithReserve;
 use line::layout_line;
+pub(crate) use line::{SERIES_LINE_CLASSES, SERIES_POINT_CLASSES};
 use panelbars::layout_panel_bars;
 pub(crate) use timechart::{TimeFrame, tooltip_name};
 use timechart::{layout_multiples, layout_time};
@@ -254,6 +255,9 @@ pub(crate) fn layout(
         }
         (ChartType::Bar, Orientation::Horizontal) => {
             layout_horizontal(spec, &dataset, warnings, metrics)
+        }
+        (ChartType::Line, _) if crate::slope::applies(spec) => {
+            crate::slope::layout(spec, warnings, metrics)
         }
         (ChartType::Line, _) => layout_line(spec, warnings, metrics),
         (ChartType::Time, _) => layout_time(spec, warnings, metrics),

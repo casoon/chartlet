@@ -16,10 +16,10 @@ pub(crate) use charts::{
     categories_opening, diverging_scale, equal_values, error_bars, gaps_collapsed,
     heatmap_categories, heatmap_values, missing_values, modeled_ranges, multiples_opening,
     panel_bars_opening, panel_notes, panes, parliament_coalition, parliament_summary, percent_done,
-    range_groups, rangebar_opening, sankey_summary, series_at, stacked_areas, stacked_shares,
-    stacked_totals, stripes_opening, summary_ranges, time_opening, timeline_item, timeline_markers,
-    timeline_opening, treemap_summary, waffle_summary, waterfall_summary, weighted_ranges,
-    years_without_value, zone_times, zone_values,
+    range_groups, rangebar_opening, rank_summary, sankey_summary, series_at, slope_summary,
+    stacked_areas, stacked_shares, stacked_totals, stripes_opening, summary_ranges, time_opening,
+    timeline_item, timeline_markers, timeline_opening, treemap_summary, waffle_summary,
+    waterfall_summary, weighted_ranges, years_without_value, zone_times, zone_values,
 };
 pub(crate) use diagrams::{
     bottlenecks, choices, closest_pair, composite, dendrogram_opening, dendrogram_order,
@@ -152,6 +152,8 @@ pub(crate) struct Words {
     pub part: &'static str,
     pub squares: &'static str,
     pub rest: &'static str,
+    /// The word for a rank in a rank chart.
+    pub rank: &'static str,
     /// The columns of a heatmap's table.
     pub row: &'static str,
     pub column: &'static str,
@@ -273,6 +275,7 @@ const EN: Words = Words {
     part: "Part",
     squares: "Squares",
     rest: "Rest",
+    rank: "Rank",
     row: "Row",
     column: "Column",
     party: "Party",
@@ -395,6 +398,7 @@ const DE: Words = Words {
     part: "Teil",
     squares: "Felder",
     rest: "Rest",
+    rank: "Rang",
     row: "Zeile",
     column: "Spalte",
     party: "Partei",

@@ -80,6 +80,16 @@
       "type": "boolean",
       "default": false
     },
+    "slope": {
+      "description": "type: \"line\" with exactly two categories and series: draw a slope chart, one line per series from its first value to its second, with the names and values at both ends instead of a legend.",
+      "type": "boolean",
+      "default": false
+    },
+    "rank": {
+      "description": "type: \"line\" with series: draw a rank chart, the rank of each series in every category (1 for the largest value, at the top), with the names at both ends instead of a legend. At least two categories and two series, no value axis.",
+      "type": "boolean",
+      "default": false
+    },
     "patterns": {
       "description": "type: \"bar\" with series: draw every other series as an outline, so that series differ in form as well as in color.",
       "type": "boolean",

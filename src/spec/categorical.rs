@@ -274,6 +274,7 @@ impl ChartSpec {
     pub(super) fn validate_bar_and_line(&self) -> Result<Vec<ChartWarning>, ChartError> {
         let warnings = self.validate_data()?;
         self.validate_references()?;
+        self.validate_slope_and_rank()?;
         if self.chart_type == ChartType::Line
             && self.series.is_empty()
             && self.data.iter().all(|point| point.value.is_none())
@@ -285,6 +286,76 @@ impl ChartSpec {
             ));
         }
         Ok(warnings)
+    }
+
+    /// A slope chart compares exactly two categories, a rank chart at least two series over at
+    /// least two categories; both need a value in every category and take no error bars, zoom
+    /// steps or, for ranks, value axis.
+    fn validate_slope_and_rank(&self) -> Result<(), ChartError> {
+        if !(self.slope || self.rank) || self.chart_type != ChartType::Line {
+            return Ok(());
+        }
+        let field = if self.slope { "/slope" } else { "/rank" };
+        let refuse = |code, path: &str, message: &str| Err(ChartError::new(code, path, message));
+        if self.slope && self.rank {
+            return refuse(
+                "option_not_supported",
+                "/rank",
+                "a line chart is a slope chart or a rank chart, not both; remove one",
+            );
+        }
+        if self.series.is_empty() {
+            return refuse(
+                "option_not_supported",
+                field,
+                "needs `categories` with `series`: every series is one line",
+            );
+        }
+        if self.slope && self.categories.len() != 2 {
+            return refuse(
+                "invalid_categories",
+                "/categories",
+                "a slope chart compares exactly two categories; use `rank` or a plain line chart for more",
+            );
+        }
+        if self.rank && (self.categories.len() < 2 || self.series.len() < 2) {
+            return refuse(
+                "invalid_categories",
+                "/categories",
+                "a rank chart needs at least two categories and two series",
+            );
+        }
+        for (index, series) in self.series.iter().enumerate() {
+            if let Some(gap) = series.values.iter().position(Option::is_none) {
+                return refuse(
+                    "missing_value",
+                    &format!("/series/{index}/values/{gap}"),
+                    "a slope or rank chart needs a value in every category",
+                );
+            }
+            if !series.lower.is_empty() || !series.upper.is_empty() {
+                return refuse(
+                    "option_not_supported",
+                    &format!("/series/{index}/lower"),
+                    "a slope or rank chart has no error bars; remove them",
+                );
+            }
+        }
+        if !self.zoom_steps.is_empty() {
+            return refuse(
+                "option_not_supported",
+                "/zoomSteps",
+                "a slope or rank chart has no zoom steps; remove them",
+            );
+        }
+        if self.rank && self.value_axis != super::ValueAxisSpec::default() {
+            return refuse(
+                "option_not_supported",
+                "/valueAxis",
+                "a rank chart plots ranks, not values; remove the value axis",
+            );
+        }
+        Ok(())
     }
 
     /// Every reference line has a usable value and a label; a chart takes at most four.

@@ -528,6 +528,8 @@ impl ChartSpec {
                 ChartType::Time,
             ),
             ("/patterns", self.patterns, ChartType::Bar),
+            ("/slope", self.slope, ChartType::Line),
+            ("/rank", self.rank, ChartType::Line),
             (
                 "/independentAxes",
                 self.independent_axes,

@@ -82,7 +82,7 @@ Rules:
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `heatmap`, `waterfall`,
   `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
-  `stack`, `patterns`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
+  `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
 - A type whose block is absent is refused with the block's own code: `missing_stripes`,
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
@@ -145,6 +145,8 @@ Rules:
 | `series[].lower`, `series[].upper` | array of numbers or `null` | no | A series of a bar or line chart without a stack: error bars, one entry per category, `null` where the value is `null`. |
 | `orientation` | `vertical`, `horizontal` | no | `vertical` (default) or `horizontal`; bar charts only. |
 | `stack` | `normal`, `percent` | no | `bar` with `series` only: `"normal"` stacks the series of a category by value, positive ones up and negative ones down, with the total beyond each stack; `"percent"` stacks shares of each category's total (values of zero or more, axis in percent). A stack has no series filter. |
+| `slope` | boolean | no | `line` with `categories` and `series` only: `true` draws a slope chart, one line per series from its first value to its second, with the name and value at both ends instead of a legend. Exactly two categories (`invalid_categories`), a value in every category (`missing_value`), no error bars or zoom steps; names that would overlap are spread apart. |
+| `rank` | boolean | no | `line` with `categories` and `series` only: `true` plots the rank of each series in every category, 1 for the largest value at the top, with the names and ranks at both ends instead of a legend. At least two categories and two series (`invalid_categories`), a value in every category (`missing_value`), no value axis; equal values keep the order of the series. Not together with `slope`. |
 | `patterns` | boolean | no | `bar` with `series` only: `true` draws every other series as an outline — the background inside, the series color around it — in the bars, the legend and stacks, so that series differ in form as well as in color. |
 | `references` | array, up to 4 | no | `bar` and `rangebar`: reference lines across the bars, `[{ "value": 48, "label": "EU average" }]`. A line widens the value axis to reach its value; the description names it. |
 | `references[].value` | number | yes | Where the line stands. |
