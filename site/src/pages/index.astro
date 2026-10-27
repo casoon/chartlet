@@ -1,6 +1,7 @@
 ---
 import { readFile } from 'node:fs/promises';
 import {
+  AnchorGrid,
   Badge,
   Badges,
   Button,
@@ -11,6 +12,7 @@ import {
   Features,
   Hero,
   Install,
+  Integrations,
   Quickstart,
   ReleaseHighlights,
 } from '@casoon/pages-theme/components';
@@ -85,20 +87,28 @@ const specJson = `{
 
   <section class="paths" aria-labelledby="paths-heading">
     <h2 id="paths-heading" class="cp-label">Three ways to a first result</h2>
-    <div class="path-grid">
-      <article>
-        <h3>In the browser</h3>
-        <p>Open an example in the <a href={url('playground/')}>playground</a>, change a value or a step, fix an error where the compiler points to it, and download the specification and the SVG. The compiler runs in your tab as WebAssembly; nothing is uploaded.</p>
-      </article>
-      <article>
-        <h3>With an AI agent</h3>
-        <p>The MCP server <a href="https://www.npmjs.com/package/@casoon/chartlet-mcp"><code>@casoon/chartlet-mcp</code></a> lets an assistant draft a specification while chartlet validates and compiles it. <a href={url('docs/guides/ai-agents/#in-practice')}>Watch five real requests</a>, then run <code>claude mcp add chartlet -- npx -y @casoon/chartlet-mcp</code>. Node.js 22.12 or newer.</p>
-      </article>
-      <article>
-        <h3>In a project</h3>
-        <p><code>cargo install chartlet</code> for the CLI, or <code>npm install @casoon/chartlet</code> for Astro and JavaScript, which needs no Rust. Every example on this site has its specification next to the output it produces: <a href={url('showcase/')}>the showcase</a>.</p>
-      </article>
-    </div>
+    <AnchorGrid
+      items={[
+        {
+          label: 'Browser',
+          title: 'Try it in the playground',
+          body: 'Open an example, change a value or a step, and fix an error where the compiler points to it. The compiler runs as WebAssembly in your tab and uploads nothing.',
+          href: url('playground/'),
+        },
+        {
+          label: 'AI agent',
+          title: 'Let an assistant draft it',
+          body: 'The MCP server inspects your data, drafts a specification and has chartlet validate and render it, with the warnings left visible.',
+          href: url('docs/guides/ai-agents/'),
+        },
+        {
+          label: 'Project',
+          title: 'Add it to a build',
+          body: 'cargo install chartlet for the CLI, or npm install @casoon/chartlet for Astro and JavaScript, which needs no Rust.',
+          href: url('docs/getting-started/installation/'),
+        },
+      ]}
+    />
     <p class="status-note">
       <strong>Status:</strong> before 1.0, so a minor release may change the specification; flow, state and class diagrams are experimental. The <a href={url('docs/reference/support/')}>support matrix</a> says what is verified and what is only designed.
       <strong>"No browser JavaScript"</strong> means a chart: static SVG and HTML figures carry no script. The interactive module and the playground are optional JavaScript that a chart never loads.
@@ -157,7 +167,7 @@ const specJson = `{
       { value: '0', label: 'bytes of chart JavaScript in the browser' },
       { value: String(exampleCount), label: 'examples, also the golden-file test inputs' },
       { value: '4.5:1', label: 'minimum contrast of every series colour on white' },
-      { value: '7', label: 'kinds of diagram, laid out by chartlet' },
+      { value: '37', label: 'types of chart and diagram, from one JSON schema' },
     ]}
   />
 
@@ -173,8 +183,18 @@ const specJson = `{
       },
       {
         title: 'Diagrams laid out for you',
-        body: 'Sequence, flow, state, architecture, class, tree and network diagrams come from what is connected. chartlet places the boxes, routes the edges and keeps the main path straight.',
+        body: 'Sequence, flow, state, architecture, class, tree, network, cycle, layer, plan, Venn, fishbone, kanban, story map, journey and value map diagrams come from what is connected or listed. chartlet places the boxes, routes the edges and keeps the main path straight.',
       },
+    ]}
+  />
+
+  <Integrations
+    heading="Where it runs"
+    items={[
+      { name: 'Astro', category: '<Chart> component, build time', icon: 'Ast', href: url('docs/guides/astro/') },
+      { name: 'JavaScript', category: '@casoon/chartlet, WebAssembly', icon: 'JS', href: url('docs/getting-started/installation/') },
+      { name: 'Rust and CLI', category: 'crate and chartlet command', icon: 'Rs', href: url('docs/reference/cli/') },
+      { name: 'AI agents', category: 'MCP server and skill', icon: 'MCP', href: url('docs/guides/ai-agents/') },
     ]}
   />
 
@@ -210,7 +230,7 @@ const specJson = `{
       },
       {
         q: 'What chart and diagram types does it support?',
-        a: 'Dozens of chart types — bar, line, time series, scatter, box plot, Sankey, treemap, heatmap and more — plus seven kinds of software diagram (sequence, flow, state, architecture, class, tree, network) that chartlet lays out itself from what is connected.',
+        a: 'Dozens of chart types — bar, line, time series, scatter, box plot, Sankey, treemap, heatmap and more — plus diagrams (sequence, flow, state, architecture, class, tree, network, cycle, layers, floor plan, Venn, fishbone, kanban, story map, journey, value map) that chartlet lays out itself from what is connected.',
       },
       {
         q: 'Can an AI agent generate charts with chartlet?',
@@ -237,21 +257,6 @@ const specJson = `{
     margin: 0 auto;
     padding: 0 24px 72px;
   }
-  .path-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 24px;
-  }
-  @media (max-width: 860px) {
-    .path-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-  .path-grid h3 {
-    margin: 0 0 8px;
-    color: var(--heading);
-  }
-  .path-grid p,
   .status-note {
     margin: 0;
     font-size: 15px;
@@ -260,7 +265,8 @@ const specJson = `{
     margin-top: 24px;
     color: var(--muted);
   }
-  .paths a {
+  .status-note a,
+  :global(.release-highlights li a) {
     text-decoration: underline;
     text-underline-offset: 2px;
   }

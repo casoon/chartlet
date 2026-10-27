@@ -144,11 +144,12 @@ chartlet render chartlet.json -o chart.svg</code></pre>
       PNG is not offered in the browser; the CLI renders PNG.
     </p>
 
-    <script type="application/json" id="pg-examples" data-base={url()} set:html={JSON.stringify(examples).replaceAll('<', '\\u003c')} />
+    <template id="pg-examples" data-base={url()} set:html={JSON.stringify(examples).replaceAll('<', '\\u003c')} />
   </div>
 </Base>
 
 <script>
+  // The page's own script: the site check allows it with `--allow-script playground/`.
   import '../playground/playground';
 </script>
 
@@ -161,6 +162,10 @@ chartlet render chartlet.json -o chart.svg</code></pre>
   .lead {
     font-size: 1.05rem;
     max-width: 70ch;
+  }
+  .lead a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
   .failure {
     border: 1px solid var(--brand);

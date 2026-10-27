@@ -7,6 +7,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-10-28
+
 ### Added
 
 - **Architecture delta:** `architecture.delta` names two views of a model, `before` and `after`, and

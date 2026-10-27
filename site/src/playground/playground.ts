@@ -35,8 +35,9 @@ interface Help {
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-const base = $('pg-examples').dataset.base ?? '/';
-const examples: Example[] = JSON.parse($('pg-examples').textContent ?? '[]');
+const dataElement = $('pg-examples') as HTMLTemplateElement;
+const base = dataElement.dataset.base ?? '/';
+const examples: Example[] = JSON.parse(dataElement.content.textContent ?? '[]');
 
 const el = {
   example: $<HTMLSelectElement>('pg-example'),
