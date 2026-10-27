@@ -46,6 +46,8 @@ export const SHOWING = /** @type {Record<string, string>} */ ({
   storymap: "a backlog as activities, tasks and stories in release slices",
   kanban: "work by state, with cards per column and work-in-progress limits",
   fishbone: "the causes of one problem, in categories, for a root cause review",
+  layers: "a stack of abstraction levels with items and notes, drawn as a stack or nested",
+  plan: "a floor plan or site plan at an angle, with areas, items and phases",
   cycle: "steps that feed each other in a loop, such as an improvement loop or a flywheel around a hub",
 });
 
