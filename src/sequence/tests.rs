@@ -105,7 +105,15 @@ fn auto_orientation_turns_landscape_when_only_that_fits() {
         messages.join(",")
     );
     let output = svg(&json);
-    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    // Thirty messages are over the readability budget on purpose; nothing else is reported.
+    assert!(
+        output
+            .warnings
+            .iter()
+            .all(|warning| warning.code == "diagram_over_budget"),
+        "{:?}",
+        output.warnings
+    );
     assert!(
         output
             .content
@@ -130,8 +138,12 @@ fn auto_orientation_turns_landscape_when_only_that_fits() {
 
     let portrait = json.replace(r#""messages""#, r#""orientation": "portrait", "messages""#);
     let output = svg(&portrait);
-    assert_eq!(output.warnings[0].code, "canvas_too_small");
-    assert_eq!(output.warnings[0].path, "/height");
+    let too_small = output
+        .warnings
+        .iter()
+        .find(|warning| warning.code == "canvas_too_small")
+        .expect("the portrait canvas is too small");
+    assert_eq!(too_small.path, "/height");
 }
 
 #[test]

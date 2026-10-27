@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "From tag to published release",
+  "source": "Illustrative process for this recipe",
+  "width": 1000,
+  "height": 700,
+  "flow": {
+    "lanes": [
+      { "id": "dev", "label": "Maintainer" },
+      { "id": "ci", "label": "Pipeline" }
+    ],
+    "nodes": [
+      { "id": "tag", "label": "Push version tag", "kind": "start", "lane": "dev" },
+      { "id": "build", "label": "Build artifacts", "lane": "ci" },
+      { "id": "sums", "label": "Write checksums", "lane": "ci" },
+      { "id": "ok", "label": "Checks pass?", "kind": "decision", "lane": "ci" },
+      { "id": "fix", "label": "Fix and retag", "lane": "dev" },
+      { "id": "publish", "label": "Publish release", "kind": "end", "lane": "ci" }
+    ],
+    "edges": [
+      { "from": "tag", "to": "build" },
+      { "from": "build", "to": "sums" },
+      { "from": "sums", "to": "ok" },
+      { "from": "ok", "to": "publish", "label": "yes" },
+      { "from": "ok", "to": "fix", "label": "no" },
+      { "from": "fix", "to": "tag" }
+    ]
+  },
+  "mobile": { "width": 360, "height": 760 }
+}

@@ -17,6 +17,7 @@ export const CHART_STARTER_TYPES = /** @type {const} */ ([
   "survival",
   "scatter",
   "timeline",
+  "cycle",
   "forest",
   "violin",
   "prisma",
@@ -137,6 +138,20 @@ const STARTERS = {
         { row: "Tuesday", column: "Morning", value: 30 },
         { row: "Tuesday", column: "Afternoon", value: 38 },
       ],
+    },
+  },
+  cycle: {
+    schemaVersion: 1,
+    type: "cycle",
+    title: "How a release improves the next one",
+    cycle: {
+      steps: [
+        { id: "plan", label: "Plan", hubLabel: "sets the scope" },
+        { id: "build", label: "Build", note: "in small batches" },
+        { id: "ship", label: "Ship" },
+        { id: "learn", label: "Learn" },
+      ],
+      hub: { label: "Customers" },
     },
   },
   parliament: {
@@ -486,6 +501,10 @@ const NOTES = {
     "Rows and columns are labels (up to 60 each); a cell names one of each, once, with a value. A cell that is not listed has no value and is drawn as an empty, dashed box.",
     'For categories (a permission matrix) list "categories" (up to four) and give every cell a "category" instead of a value: each has a fill and a symbol.',
     '"scale": "diverging" with a "midpoint" parts two hues; rowOrder and columnOrder sort by "label" or "value" (the mean).',
+  ],
+  cycle: [
+    "3 to 8 steps with unique ids, clockwise from twelve o'clock; the last step feeds the first. A step may have a note, a role and, with a hub, a hubLabel (up to 24 characters) on its link to the hub.",
+    '"labels": "inside" puts the labels in boxes on the ring instead of beside numbered dots. A longer label wraps onto two lines; where they do not fit, the canvas grows (canvas_too_small).',
   ],
   parliament: [
     "Up to 8 parties and 800 seats, in blocks from left to right in the order of the list.",

@@ -1,4 +1,4 @@
-// The MCP server: seven tools, three prompts, the specification schema and the type guide as
+// The MCP server: eight tools, three prompts, the specification schema and the type guide as
 // resources, and the MCP App view of chartlet_render. The tools only read data, call the chartlet compiler and compute; there is no
 // model and no interpretation here.
 
@@ -10,9 +10,11 @@ import { z } from "zod";
 
 import { inspectChart } from "@casoon/chartlet";
 
-import { explainSpec, renderSpec, validateSpec } from "./charts.mjs";
+import { explainSpec, renderSpec, resolveOutputPath, validateSpec } from "./charts.mjs";
+import { checkCoverage, DETAILS } from "./coverage.mjs";
 import { ARCHITECTURE_TEMPLATES, DIAGRAM_TYPES, diagramStarter } from "./diagrams.mjs";
 import { promptText, typeGuide } from "./guide.mjs";
+import { themeFromBrand, writeThemeFiles } from "./theme.mjs";
 import { CHART_STARTER_TYPES, chartStarter } from "./starters.mjs";
 import { DISTINCT_CAP, inspectData } from "./inspect.mjs";
 import { supportsView, VIEW_META_KEY, VIEW_RESOURCE_META, VIEW_URI, viewHtml, viewPayload } from "./view.mjs";
@@ -44,6 +46,7 @@ const manifest = z
     view: z.string().optional().describe("The key of the view of an architecture model that was rendered."),
     views: z.array(z.string()).optional().describe("The keys of the views shown on one page with allViews, in page order."),
     perspective: z.string().optional().describe("The key of the perspective an architecture diagram showed."),
+    theme: z.string().optional().describe("The theme that was applied: a bundled name, inline, or chartlet.theme.json from the project root."),
     warnings: z.array(diagnostic),
   })
   .describe("Provenance of the render: compiler version and SHA-256 of specification and output.");
@@ -172,6 +175,8 @@ Returns content (or, with outputPath, the written path and byte size instead), w
 
 outputPath writes the file relative to the directory the server was given in CHARTLET_MCP_ROOT and is refused when that variable is not set. Absolute paths, ".." segments and symbolic links leading outside it are refused; missing directories are created and an existing file is overwritten. An invalid spec returns a tool error with code, path and message; run chartlet_validate_spec first.
 
+When no theme is given and CHARTLET_MCP_ROOT holds a chartlet.theme.json, that theme is applied like the theme option; the result and the manifest name the theme that was applied. Without such a file, notes says that the default look is used and how to set one (chartlet_theme_from_brand).
+
 In a client that shows MCP Apps, the chart also appears in the conversation as a static figure with its data table, following the client's light or dark theme when the spec sets none.`,
       inputSchema: z.object({
         spec,
@@ -226,6 +231,8 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
         warnings: z.array(diagnostic),
         styleHashes: z.array(z.string()),
         manifest,
+        theme: z.string().optional().describe("The theme that was applied; absent when the default look was used."),
+        notes: z.array(z.string()).optional().describe("Hints for the assistant, e.g. that no project theme was found and how to set one."),
       }),
       annotations: {
         readOnlyHint: false,
@@ -309,7 +316,7 @@ For ohlc layers min is the lowest low, max the highest high, first the first ope
     "chartlet_inspect",
     {
       title: "Inspect a model for gaps",
-      description: `Run chartlet's inspections of a model for gaps in its documentation, without rendering it — the same findings as \`chartlet inspect\`. Available for architecture diagrams (connections without a label or technology, components without a sublabel, isolated components, components no view shows, views that add nothing), flow charts (unlabelled branches of a decision, steps no start leads to, a start without an end) and class diagrams (classes without members, isolated classes).
+      description: `Run chartlet's inspections of a model for gaps in its documentation, without rendering it — the same findings as \`chartlet inspect\`. Available for architecture diagrams (connections without a label or technology, components without a sublabel, isolated components, components no view shows, views that add nothing), flow charts (unlabelled branches of a decision, steps no start leads to, a start without an end) and class diagrams (classes without members, isolated classes); for all three, a diagram_over_budget hint when it has more nodes or edges than read well at its size (split it into views or two diagrams).
 
 Each finding has a stable code, a severity, the JSON Pointer of the part it is about, what was found and how to improve it. A gap is missing documentation the specification has a field for; a hint is something to look at, which may well be intended — never treat a hint as an error. Findings never stop a render. Pass the codes of inspections that do not apply in disable.
 
@@ -338,6 +345,135 @@ An invalid specification, or a type without inspections (inspections_unavailable
     async ({ spec, disable }) => {
       const result = inspectChart(spec, { disable });
       return result.ok ? success(result) : specFailure({ error: result.error, warnings: [] });
+    },
+  );
+
+  const color = z.string().describe("A hex color such as #1a2b3c (or rgb(26, 43, 60)).");
+  const scheme = {
+    paper: color.describe("The page or card background."),
+    ink: color.describe("The body text color."),
+    muted: color.optional().describe("Secondary text, such as axis labels; derived from paper and ink when omitted."),
+    accent: color.describe("The brand's main color: bars, lines, highlights; also the first series color."),
+    link: color.optional().describe("The link color; becomes the blue role of diagrams, the accent when omitted."),
+  };
+  server.registerTool(
+    "chartlet_theme_from_brand",
+    {
+      title: "Make a theme from brand colors",
+      description: `Turn brand values you read from a site or a style guide into a chartlet theme file. The server reads no site and has no network access: fetching the colors is your job, and you pass them in as sampled. Fonts are accepted and recorded, but chartlet has no font setting yet, so they are listed as not applied and nothing about them is written to the theme.
+
+Returns a light theme file and a dark one, and a receipt: every role with the value you gave (input), the value written (output), whether it was adjusted and why (the pair, the measured ratio and the one reached; text needs 4.5:1, marks 3:1, in light and dark), and whether it was sampled, derived or a bundled default. Your values are never changed unless a pair fails. When you give only light values, the dark ones are derived and marked derived; pass dark to use the brand's own. A theme file holds one palette: use the light file as chartlet.theme.json and apply the dark one with chartlet_render theme.
+
+With write: true the files are written below CHARTLET_MCP_ROOT (chartlet.theme.json and chartlet.theme.dark.json, or path and its .dark.json twin), which chartlet_render then applies to every chart without a theme of its own. Existing files are not overwritten unless overwrite is true; one project's theme never replaces another's. Render a chart afterwards and check the result.`,
+      inputSchema: z.object({
+        ...scheme,
+        fonts: z
+          .object({ names: z.string().optional(), technical: z.string().optional() })
+          .optional()
+          .describe("Font families for names and for technical text, as the brand names them. Recorded in the receipt only."),
+        dark: z
+          .object({
+            paper: scheme.paper,
+            ink: scheme.ink,
+            muted: scheme.muted,
+            accent: scheme.accent,
+            link: scheme.link,
+          })
+          .optional()
+          .describe("The brand's own dark values; derived from the light ones when omitted."),
+        write: z.boolean().default(false).describe("Write the files below CHARTLET_MCP_ROOT."),
+        path: z.string().default("chartlet.theme.json").describe("Where to write the light file, relative to CHARTLET_MCP_ROOT; must end in .json."),
+        overwrite: z.boolean().default(false).describe("Replace files that exist."),
+      }),
+      outputSchema: z.object({
+        ok: z.literal(true),
+        files: z.object({
+          light: z.record(z.string(), z.unknown()),
+          dark: z.record(z.string(), z.unknown()),
+        }),
+        darkDerived: z.boolean(),
+        receipt: z.object({
+          roles: z.array(z.record(z.string(), z.unknown())),
+          adjusted: z.array(z.record(z.string(), z.unknown())),
+          fonts: z.array(z.record(z.string(), z.unknown())),
+          notes: z.array(z.string()),
+        }),
+        written: z.array(z.object({ path: z.string(), bytes: z.number().int() })).optional(),
+      }),
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async ({ write, path, overwrite, ...brand }) => {
+      try {
+        const result = themeFromBrand(brand);
+        if (!write) {
+          return success(result);
+        }
+        return success({ ...result, written: writeThemeFiles(result.files, path, overwrite, root, resolveOutputPath) });
+      } catch (error) {
+        return failure(/** @type {Error} */ (error).message);
+      }
+    },
+  );
+
+  server.registerTool(
+    "chartlet_check_coverage",
+    {
+      title: "Check what a redrawn diagram kept",
+      description: `Compare a redrawn diagram with the inventory of its source: what survived, what is missing and what was added. chartlet reads no foreign formats; pass the elements you read from the source, labelled as your own extraction. Available for flow, state, architecture, classes, tree, network and sequence diagrams. Nothing is rendered and nothing is fetched.
+
+Source elements are { kind: "node" | "edge" | "group", label, id?, from?, to?, directed?, members? }. Give ids when you have them: a label alone is not an identity, so a repeated label is reported as ambiguous, not kept. An edge is matched by its endpoints (from and to are source ids or labels) and direction, a group by label and members. mappings ({ source: id or label, to: id or JSON Pointer of the specification's element }) settle ambiguity and declare merges. An element of the specification may carry sourceLabel or sourceId as the source's name for it; remove them before rendering.
+
+The report has kept, changed (a reversed direction, another label, other members, an endpoint that was merged), merged, ambiguous, missing and added, with counts: every source element is in exactly one of kept, changed, merged, ambiguous and missing. detail (faithful, balanced, simplified) only marks which missing elements are expected omissions; it never removes one from the report. Show the report to the user.`,
+      inputSchema: z.object({
+        spec,
+        source: z
+          .array(
+            z.object({
+              kind: z.enum(["node", "edge", "group"]),
+              label: z.string().optional().describe("Required for a node or group; optional for an edge."),
+              id: z.string().optional().describe("The source's own id, if it has one."),
+              from: z.string().optional().describe("Edge: source id or label of the start."),
+              to: z.string().optional().describe("Edge: source id or label of the end."),
+              directed: z.boolean().optional().describe("Edge: false when direction carries no meaning; default true."),
+              members: z.array(z.string()).optional().describe("Group: source ids or labels of its nodes."),
+            }),
+          )
+          .describe("The elements read from the source."),
+        mappings: z
+          .array(
+            z.object({
+              source: z.string().describe("Source id, or label when it has no id."),
+              to: z.string().describe("Id or JSON Pointer of the specification's element."),
+              kind: z.enum(["node", "edge", "group"]).optional(),
+            }),
+          )
+          .optional(),
+        detail: z.enum(DETAILS).default("balanced").describe("How faithful the redraw should be; only marks missing elements as expected."),
+        inventory: z.string().default("agent-extracted").describe('How the inventory was made, e.g. "agent-extracted" or "parsed".'),
+      }),
+      outputSchema: z.object({
+        ok: z.literal(true),
+        type: z.string(),
+        inventory: z.string(),
+        detail: z.string(),
+        counts: z.record(z.string(), z.unknown()),
+        kept: z.array(z.record(z.string(), z.unknown())),
+        changed: z.array(z.record(z.string(), z.unknown())),
+        merged: z.array(z.record(z.string(), z.unknown())),
+        ambiguous: z.array(z.record(z.string(), z.unknown())),
+        missing: z.array(z.record(z.string(), z.unknown())),
+        added: z.array(z.record(z.string(), z.unknown())),
+        unusedMappings: z.array(z.record(z.string(), z.unknown())),
+        report: z.string(),
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    async (input) => {
+      try {
+        return success(checkCoverage(input));
+      } catch (error) {
+        return failure(/** @type {Error} */ (error).message);
+      }
     },
   );
 
@@ -379,7 +515,7 @@ chartlet lays a diagram out itself; the specification only says what is connecte
     "chartlet_chart_starter",
     {
       title: "Start a chart from a block",
-      description: `Return a valid starting specification and notes for a chartlet chart that is drawn from a block of its own rather than from table rows: waterfall (a running total of deltas, starts and totals), waffle (shares as squares), funnel (stages that narrow, or a pyramid of ranked levels), radar (series compared on several axes), polar (one value per category of a cycle around a center), mosaic (column widths and segment shares at once), heatmap (values or categories in a grid of rows and columns), parliament (seats by party with majority and coalition), treemap (rectangles by value, in groups), sankey (flows between nodes), survival (Kaplan-Meier curves from times with censoring), scatter (points with groups, threshold lines and names: volcano and Manhattan plots), timeline (phases, milestones and dependencies), forest (a range bar chart as a forest plot) violin (a box plot drawn as violins), prisma (a PRISMA/CONSORT study-selection flow) and instances (a chain of courts or authorities); the last two are presets on the flow chart.
+      description: `Return a valid starting specification and notes for a chartlet chart that is drawn from a block of its own rather than from table rows: waterfall (a running total of deltas, starts and totals), waffle (shares as squares), funnel (stages that narrow, or a pyramid of ranked levels), radar (series compared on several axes), polar (one value per category of a cycle around a center), mosaic (column widths and segment shares at once), heatmap (values or categories in a grid of rows and columns), parliament (seats by party with majority and coalition), treemap (rectangles by value, in groups), sankey (flows between nodes), survival (Kaplan-Meier curves from times with censoring), scatter (points with groups, threshold lines and names: volcano and Manhattan plots), timeline (phases, milestones and dependencies), cycle (steps on a ring that feed each other, optionally around a hub), forest (a range bar chart as a forest plot) violin (a box plot drawn as violins), prisma (a PRISMA/CONSORT study-selection flow) and instances (a chain of courts or authorities); the last two are presets on the flow chart.
 
 Adapt the starter, then check it with chartlet_validate_spec and render it with chartlet_render.`,
       inputSchema: z.object({

@@ -7,6 +7,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { renderChartDetailed } from "@casoon/chartlet";
 
 import { diagramCounts } from "./diagrams.mjs";
+import { NO_THEME_NOTE, readProjectTheme } from "./theme.mjs";
 
 /**
  * @typedef {import("@casoon/chartlet").ChartDiagnostic} ChartDiagnostic
@@ -53,12 +54,20 @@ export function validateSpec(spec) {
  */
 export function renderSpec(input, root) {
   const target = input.outputPath === undefined ? undefined : resolveOutputPath(input.outputPath, root);
+  // The project's look applies unless another theme is given: `chartlet.theme.json` in the root.
+  const project = input.theme === undefined ? readProjectTheme(root) : undefined;
+  const theme = input.theme ?? project?.theme;
+  const themeName = project?.source ?? (typeof input.theme === "string" ? input.theme : input.theme && "inline");
+  const notes =
+    input.theme === undefined && project === undefined && root !== undefined && root !== ""
+      ? [NO_THEME_NOTE]
+      : [];
   const result = renderChartDetailed(input.spec, {
     format: input.format ?? "html",
     variant: input.variant,
     view: input.view,
     perspective: input.perspective,
-    theme: input.theme,
+    theme,
     allViews: input.allViews,
     idPrefix: input.idPrefix,
     table: input.table,
@@ -67,9 +76,15 @@ export function renderSpec(input, root) {
   if (!result.ok) {
     return result;
   }
-  const { content, warnings, styleHashes, manifest } = result;
+  const { content, warnings, styleHashes } = result;
+  // The result and the manifest name the theme that was applied.
+  const manifest = themeName === undefined ? result.manifest : { ...result.manifest, theme: themeName };
+  const extra = {
+    ...(themeName === undefined ? {} : { theme: themeName }),
+    ...(notes.length > 0 ? { notes } : {}),
+  };
   if (target === undefined) {
-    return { ok: true, content, warnings, styleHashes, manifest };
+    return { ok: true, content, warnings, styleHashes, manifest, ...extra };
   }
   mkdirSync(dirname(target.path), { recursive: true });
   writeFileSync(target.path, content);
@@ -80,6 +95,7 @@ export function renderSpec(input, root) {
     warnings,
     styleHashes,
     manifest,
+    ...extra,
   };
 }
 

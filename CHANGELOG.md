@@ -36,6 +36,71 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   widest at the bottom, with optional values. The description names every stage, rate and the
   biggest drop. Details:
   [Funnels and pyramids](https://casoon.github.io/chartlet/docs/guides/chart-types/#funnels-and-pyramids).
+- **Readability budget:** a diagram with more than 9 steps, states, components or classes or more
+  than 12 edges, transitions, connections or relations (a sequence diagram: more than 6
+  participants or 16 messages, a tree: more than 24 nodes) is reported as `diagram_over_budget`
+  with the advice to split it into an overview and details. The budget grows with the canvas, the
+  counts are guidance and not a limit, `--allow-warning diagram_over_budget` lets it through, and
+  `chartlet inspect` reports it as a hint. Details:
+  [Warnings and errors](https://casoon.github.io/chartlet/docs/guides/warnings-and-errors/).
+
+- **Project theme:** a `chartlet.theme.json` in the working directory (the MCP server: in
+  `CHARTLET_MCP_ROOT`) is applied like `--theme` unless another theme is given. The provenance
+  manifest and the `chartlet_render` result name the theme that was applied, and without a theme
+  file `chartlet_render` notes that the default look is used. Details:
+  [Customize the look](https://casoon.github.io/chartlet/docs/guides/customize/).
+
+- **MCP server:** `chartlet_theme_from_brand` turns brand colors an assistant read from a site into
+  a light and a dark theme file with a receipt of every adjustment for contrast; fonts are
+  recorded and not applied. `chartlet_check_coverage` compares a redrawn diagram with the
+  inventory of its source: kept, changed, merged, ambiguous, missing and added, by ids, endpoints
+  and members rather than labels alone. Details:
+  [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/).
+
+- **Agent skill:** `skills/chartlet/` is a portable skill (a `SKILL.md` with references) that leads
+  an assistant from a request through data inspection, a starter, validation and rendering to the
+  delivered file, with the MCP tools when they exist and the CLI otherwise. It never aggregates,
+  invents data or drops relationships to make a figure fit. Install, update, uninstall and
+  troubleshooting for Claude Code and Codex are in the skill's references; the part that has been
+  run is listed there. Details:
+  [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/#agent-skill).
+
+- **Recipes:** five task-oriented examples (a report from CSV, a blog explanation, architecture in
+  views, a release flow, a slide and print figure) with a shared brand theme, sample data marked as
+  such, the exact commands and a Node, Astro and Markdown route, in `examples/recipes/` and in the
+  showcase. Details:
+  [Recipes](https://casoon.github.io/chartlet/docs/guides/recipes/).
+
+- **Time charts:** `"stack": "stream"` on a pane of area layers centers the stack around a moving
+  baseline instead of zero (a streamgraph); the value axis becomes a scale bar for thickness and
+  each stream is named at its right end. Details:
+  [Streamgraphs](https://casoon.github.io/chartlet/docs/guides/chart-types/#streamgraphs).
+
+- **Box plots:** `"boxDisplay": "beeswarm"` draws every observation as a dot moved sideways just
+  far enough that no two overlap, optionally over the box (`"showBox": true`). Details:
+  [Box plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#box-plots).
+
+- **Box plots:** `"boxDisplay": "ridgeline"` draws one density curve per group, stacked with a
+  slight overlap along a shared value axis, on one scale so that heights compare. Details:
+  [Box plots](https://casoon.github.io/chartlet/docs/guides/chart-types/#box-plots).
+
+- **Range bars:** `"display": "dumbbell"` draws each span as an open dot at the low value and a
+  filled dot at the high value joined by a line, with both values written beside their dots, and
+  `"sort": "change"` puts the widest span first. Details:
+  [Dumbbells](https://casoon.github.io/chartlet/docs/guides/chart-types/#dumbbells).
+
+- **Hand-drawn strokes:** `"stroke": "sketch"` draws lines and shapes slightly wobbly, for essays and
+  slides. The displacement is seeded from the specification (same bytes every time), text stays
+  crisp, the print variant and PNG stay clean. Details:
+  [Customize the look](https://casoon.github.io/chartlet/docs/guides/customize/#hand-drawn-strokes).
+
+- **Cycles:** `"type": "cycle"` draws three to eight steps on a ring, clockwise from twelve
+  o'clock, with arrows along the ring from each step to the next and from the last back to the
+  first. The labels stand outside the ring beside numbered dots or inside boxes on it; an optional
+  `hub` in the middle is fed by every step through a link that can carry a `hubLabel`. Roles, focus
+  links and the blueprint theme work as in other diagrams, and the description reads the cycle in
+  order. Details: [Cycles](https://casoon.github.io/chartlet/docs/guides/chart-types/#cycles).
+  Examples `improvement-cycle`, `growth-flywheel`.
 
 - **Slope and rank charts:** `"slope": true` on a `line` chart of two categories draws one line per
   series from its first value to its second, and `"rank": true` plots the rank of each series

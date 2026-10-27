@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Revenue by region and quarter",
+  "source": "Sample data for this recipe, not real measurements",
+  "width": 800,
+  "height": 450,
+  "categoryAxis": { "title": "Quarter" },
+  "valueAxis": { "title": "Revenue in thousands", "thousandsSeparator": true },
+  "categories": ["Q1", "Q2", "Q3", "Q4"],
+  "series": [
+    { "name": "North", "values": [120, 135, 142, 150] },
+    { "name": "South", "values": [98, 104, null, 121] },
+    { "name": "West", "values": [76, 81, 90, 97] }
+  ],
+  "showValues": false,
+  "mobile": { "width": 360 }
+}

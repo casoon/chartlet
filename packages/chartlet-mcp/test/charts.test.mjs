@@ -234,3 +234,31 @@ test("explains every data layer of time charts, ohlc, stripes, calendar and rang
 
   assert.equal(explainSpec({ ...bar, type: "pie" }).error.path, "/type");
 });
+
+test("a project theme in the root applies unless a theme is given, and the result names it", () => {
+  const root = mkdtempSync(join(tmpdir(), "chartlet-mcp-theme-"));
+  try {
+    const plain = renderSpec({ spec: bar, format: "svg" }, root);
+    assert.equal(plain.theme, undefined);
+    assert.equal(plain.manifest.theme, undefined);
+    assert.equal(plain.notes.length, 1);
+    assert.match(plain.notes[0], /default look is used/);
+    assert.match(plain.notes[0], /chartlet_theme_from_brand/);
+    assert.equal(renderSpec({ spec: bar, format: "svg" }).notes, undefined, "no root, no note");
+
+    writeFileSync(join(root, "chartlet.theme.json"), JSON.stringify({ tokens: { accent: "#123456" } }));
+    const themed = renderSpec({ spec: bar, format: "svg" }, root);
+    assert.match(themed.content, /#123456/);
+    assert.equal(themed.theme, "chartlet.theme.json");
+    assert.equal(themed.manifest.theme, "chartlet.theme.json");
+    assert.equal(themed.notes, undefined);
+
+    const dark = renderSpec({ spec: bar, format: "svg", theme: "dark" }, root);
+    assert.doesNotMatch(dark.content, /#123456/);
+    assert.equal(dark.theme, "dark");
+    assert.equal(dark.manifest.theme, "dark");
+    assert.equal(renderSpec({ spec: bar, format: "svg", theme: { tokens: { accent: "#654321" } } }, root).theme, "inline");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

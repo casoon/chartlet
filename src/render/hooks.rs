@@ -85,11 +85,14 @@ pub(super) fn emit_hook(hook: &Hook, spec: &ChartSpec, output: &mut String) {
 /// The hooks of the data table: per value column its series, pane, part and whether it is a
 /// stacked area, drawn on top of the stacked areas before it; per row its position and values.
 pub(super) struct TableHooks {
+    /// The panes whose stacked areas are centered on a moving baseline, a stream.
+    pub(super) streams: Vec<usize>,
     pub(super) columns: Vec<(usize, usize, &'static str, bool)>,
     pub(super) x: Vec<f64>,
     pub(super) values: Vec<Vec<Option<f64>>>,
 }
 
+#[allow(clippy::too_many_lines)]
 pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
     // A diagram's table holds text only: its columns belong to no series and its rows carry no
     // values.
@@ -100,6 +103,7 @@ pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::State
             | ChartType::Classes
             | ChartType::Network
+            | ChartType::Cycle
             | ChartType::Architecture
             | ChartType::Tree
             | ChartType::Timeline
@@ -118,6 +122,7 @@ pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
     ) {
         let table = data_table(spec);
         return TableHooks {
+            streams: Vec::new(),
             columns: (1..table.columns.len())
                 .map(|index| (index - 1, 0, "text", false))
                 .collect(),
@@ -144,6 +149,7 @@ pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
     if !matches!(spec.chart_type, ChartType::Time | ChartType::Multiples) || spec.is_bar_multiples()
     {
         return TableHooks {
+            streams: Vec::new(),
             columns: (0..dataset.series.len())
                 .map(|index| (index, 0, "value", false))
                 .chain((0..extras).map(|extra| (dataset.series.len() + extra, 0, "text", false)))
@@ -180,7 +186,19 @@ pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
     // The specification allows 1700 to 2200, well within the integers an f64 holds exactly.
     #[allow(clippy::cast_precision_loss)]
     let x = epochs.iter().map(|epoch| *epoch as f64).collect();
-    TableHooks { columns, x, values }
+    let streams = spec
+        .panes
+        .iter()
+        .enumerate()
+        .filter(|(_, pane)| pane.stack == Some(crate::spec::Stack::Stream))
+        .map(|(index, _)| index)
+        .collect();
+    TableHooks {
+        streams,
+        columns,
+        x,
+        values,
+    }
 }
 
 /// The data table as a JSON data block for the SVG profile, which has no table to read: the
@@ -199,6 +217,9 @@ pub(super) fn emit_data_block(spec: &ChartSpec, output: &mut String) {
                 serde_json::json!({ "name": name, "series": series, "pane": pane, "part": part });
             if *stacked {
                 column["stacked"] = serde_json::Value::Bool(true);
+                if hooks.streams.contains(pane) {
+                    column["stream"] = serde_json::Value::Bool(true);
+                }
             }
             column
         })

@@ -264,14 +264,21 @@ pub(crate) fn panel_notes(locale: Locale, notes: &str) -> String {
     }
 }
 
-/// Stacked areas, named from the bottom up.
-pub(crate) fn stacked_areas(locale: Locale, names: &str) -> String {
-    match locale {
-        Locale::En => {
+/// Stacked areas, named from the bottom up; a stream is centered on a moving baseline, so its
+/// thickness shows the value.
+pub(crate) fn stacked_areas(locale: Locale, names: &str, stream: bool) -> String {
+    match (locale, stream) {
+        (Locale::En, false) => {
             format!(" Stacked areas, from the bottom up: {names}; the top edge shows their total.")
         }
-        Locale::De => format!(
+        (Locale::De, false) => format!(
             " Gestapelte Flächen, von unten nach oben: {names}; die Oberkante zeigt ihre Summe."
+        ),
+        (Locale::En, true) => format!(
+            " Streamgraph, from the bottom up: {names}; the areas are centered on a moving baseline, so thickness shows the value and position does not; the scale bar marks one step."
+        ),
+        (Locale::De, true) => format!(
+            " Streamgraph, von unten nach oben: {names}; die Flächen sind um eine wandernde Grundlinie zentriert, die Dicke zeigt den Wert, nicht die Lage; der Maßstabsbalken markiert einen Schritt."
         ),
     }
 }
@@ -520,6 +527,20 @@ pub(crate) fn summary_ranges(locale: Locale, summaries: &str) -> String {
     match locale {
         Locale::En => format!(" Overall result, drawn as a diamond: {summaries}."),
         Locale::De => format!(" Gesamtergebnis, als Raute gezeichnet: {summaries}."),
+    }
+}
+
+/// What the dots of a dumbbell chart mean, and the span with the biggest change between them.
+pub(crate) fn dumbbell_note(locale: Locale, widest: (&str, &str)) -> String {
+    match locale {
+        Locale::En => format!(
+            " Each row connects an open dot at the low value with a filled dot at the high value. Widest change: {} ({}).",
+            widest.0, widest.1
+        ),
+        Locale::De => format!(
+            " Jede Zeile verbindet einen offenen Punkt beim unteren mit einem gefüllten Punkt beim oberen Wert. Größte Veränderung: {} ({}).",
+            widest.0, widest.1
+        ),
     }
 }
 

@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "title": "Booking service",
+  "source": "Illustrative model for this recipe",
+  "width": 1200,
+  "height": 480,
+  "architecture": {
+    "boundaries": [{ "id": "system", "label": "Booking system" }],
+    "components": [
+      { "id": "guest", "label": "Guest", "kind": "person" },
+      { "id": "web", "label": "Booking site", "sublabel": "browser", "kind": "frontend", "in": "system" },
+      { "id": "api", "label": "Booking API", "sublabel": "Node.js", "in": "system" },
+      { "id": "db", "label": "Reservations", "sublabel": "Postgres", "kind": "database", "in": "system" },
+      { "id": "mail", "label": "Mail service", "sublabel": "SMTP provider", "kind": "external" }
+    ],
+    "connections": [
+      { "id": "visit", "from": "guest", "to": "web", "label": "books a room" },
+      { "id": "call", "from": "web", "to": "api", "label": "calls", "technology": "HTTPS/JSON" },
+      { "id": "save", "from": "api", "to": "db", "label": "stores", "technology": "SQL/TLS" },
+      { "id": "confirm", "from": "api", "to": "mail", "label": "sends confirmation", "technology": "SMTP" }
+    ],
+    "views": [
+      { "key": "context", "title": "Booking service: context", "components": ["guest", "api", "mail"] },
+      {
+        "key": "booking",
+        "title": "Booking service: one booking",
+        "steps": [
+          { "connection": "visit", "label": "chooses dates" },
+          { "connection": "call", "label": "submits" },
+          { "connection": "save", "label": "reserves" },
+          { "connection": "confirm" }
+        ]
+      }
+    ]
+  }
+}

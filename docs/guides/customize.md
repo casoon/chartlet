@@ -88,6 +88,27 @@ renderChart(spec, { theme: 'dark' });     // a bundled theme by its name
 `<Chart theme={brand} … />` takes the same, and so does the `theme` input of the `chartlet_render`
 tool. `--watch` reads the file again whenever the chart is rendered.
 
+### A theme for the whole project
+
+A file named `chartlet.theme.json` in the working directory is applied by `chartlet render` as if
+`--theme chartlet.theme.json` were given, unless another theme is named. The MCP server looks for
+it in `CHARTLET_MCP_ROOT`. The manifest names the theme that was applied (`"theme":
+"chartlet.theme.json"`, or the name given), so a rendered figure shows where its look came from.
+Without such a file nothing changes, and `chartlet_render` adds a note that the default look is
+used. Projects keep their own file; nothing writes a theme outside the directory it is given, and
+`chartlet_theme_from_brand` does not replace an existing one without `overwrite`.
+
+### From brand colors
+
+`chartlet_theme_from_brand` (MCP) builds a light and a dark theme file from `paper`, `ink`, `muted`,
+`accent` and optionally `link`, which an assistant read from a site or a style guide; the server
+does not fetch anything. Values stay as given unless a pair fails the contrast rules below, and
+the receipt lists each role with the value given, the value written and the pair and ratios of
+every change. When only light values are given, the dark ones are derived and marked so. Fonts
+are recorded in the receipt and not written: a theme file has colors only. Tokens it does not set
+keep the bundled palette, and only the pairs listed under [Contrast](#contrast) are measured. A
+recipe from a site to a rendered chart is in [AI agents](../ai-agents/).
+
 A theme file only fills in what a specification leaves open: a `theme` or a token the
 specification names itself wins. A token that equals what the chart's theme already gives is left
 out of the output, so `--theme dark` adds nothing to a dark chart.
@@ -132,6 +153,22 @@ A token a chart does not use has no effect. The JSON Schemas list the names:
 for `tokens` in a specification, and
 [`chartlet-theme.schema.json`](https://github.com/casoon/chartlet/blob/main/schema/chartlet-theme.schema.json)
 for a theme file.
+
+## Hand-drawn strokes
+
+`"stroke": "sketch"` draws lines and shapes slightly wobbly, for essays and slides. Each corner of a
+rectangle is displaced by up to about a pixel, sides and straight lines bow a little, and the
+points of a polyline move by under a pixel. Text, circles, colors and contrast stay as they are.
+
+The displacement is seeded from the SHA-256 of the specification and drawn in scene order, so the
+same specification gives the same bytes; changing any field changes the wobble. The print variant
+and PNG draw clean strokes. A theme file carries colors only, so `stroke` is set in the
+specification. Data positions move by less than 1 px, so do not use it where exact geometry is
+read off the figure.
+
+```json
+{ "schemaVersion": 1, "type": "flow", "title": "From idea to shipped", "stroke": "sketch", "flow": { "nodes": [] } }
+```
 
 ## Print, social images and PNG
 
