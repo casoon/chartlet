@@ -35,6 +35,7 @@ fn frame_range(
 /// the side they stand on: a frame drawn around a group's steps would otherwise enclose a step of
 /// a neighbouring layer that lies between them. Inner frames first; the frames around them then
 /// take in what moved.
+#[allow(clippy::cast_precision_loss)]
 pub(super) fn clear_frames(
     model: &Model,
     cross: &mut [f64],
@@ -43,6 +44,7 @@ pub(super) fn clear_frames(
 ) {
     const MARGIN: f64 = 12.0;
     let (graph, diagram) = (&model.graph, model.diagram);
+    let before = cross.to_vec();
     let mut order: Vec<usize> = (0..diagram.groups.len()).collect();
     crate::sort::by_key(&mut order, |group| {
         (std::cmp::Reverse(diagram.chain(Some(*group)).len()), *group)
@@ -98,6 +100,23 @@ pub(super) fn clear_frames(
         }
     }
     separate_frames(model, cross, cross_size, landscape);
+    // Groups that interleave in the layers cannot all be cleared: every step moved out of one frame
+    // lands in the next and the steps drift apart without end. Where the content outgrows what the
+    // steps could need side by side, the order before stays and `group_overlap` names the rest.
+    let budget: f64 = (0..graph.items.len()).map(cross_size).sum::<f64>()
+        + diagram.groups.len() as f64 * 2.0 * (GROUP_PAD + GROUP_HEAD + MARGIN);
+    let reach = |cross: &[f64]| {
+        let (low, high) = frames_reach(model, cross, cross_size, landscape);
+        (0..graph.items.len())
+            .map(|item| cross[item] + cross_size(item) / 2.0)
+            .fold(high, f64::max)
+            - (0..graph.items.len())
+                .map(|item| cross[item] - cross_size(item) / 2.0)
+                .fold(low, f64::min)
+    };
+    if reach(cross) > budget {
+        cross.copy_from_slice(&before);
+    }
     let low = (0..graph.items.len())
         .map(|item| cross[item] - cross_size(item) / 2.0)
         .fold(f64::INFINITY, f64::min)

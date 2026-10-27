@@ -33,6 +33,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   and checks rendering, assets and the MCP server; it is part of the release checklist in
   `CONTRIBUTING.md`, which no longer says the crate has no `rust-version`.
 
+### Fixed
+
+- **Flow groups:** groups whose steps interleave in the layers no longer blow the canvas up (a
+  grouped crate diagram asked for about 514 million pixels). Where the frames cannot all be cleared,
+  the layout stays compact and `group_overlap` names the groups.
+
 ## [0.21.0] - 2026-10-24
 
 ### Breaking

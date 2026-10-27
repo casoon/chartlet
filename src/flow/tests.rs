@@ -487,6 +487,47 @@ fn frames_of_unrelated_groups_do_not_overlap() {
 }
 
 #[test]
+fn interleaved_groups_keep_a_plausible_canvas_and_name_the_overlap() {
+    let json = r#"{
+        "schemaVersion": 1, "type": "flow", "title": "Layers", "width": 600, "height": 400,
+        "flow": {
+            "orientation": "landscape",
+            "nodes": [
+                {"id": "mq", "label": "media-query-parse"}, {"id": "xp", "label": "xpath-eval"},
+                {"id": "se", "label": "schematron-engine"}, {"id": "sp", "label": "stylesheet-parse"},
+                {"id": "hc", "label": "html-conform"}, {"id": "ar", "label": "a11y-rules"},
+                {"id": "wc", "label": "web-checks"}
+            ],
+            "edges": [
+                {"from": "sp", "to": "ar"}, {"from": "xp", "to": "se"}, {"from": "mq", "to": "sp"}
+            ],
+            "groups": [
+                {"label": "L0", "nodes": ["mq", "xp", "se"]},
+                {"label": "L1", "nodes": ["sp", "hc"]},
+                {"label": "L2", "nodes": ["ar", "wc"]}
+            ]
+        }
+    }"#;
+    for orientation in ["landscape", "portrait"] {
+        let json = json.replace("landscape", orientation);
+        let output = svg(&json);
+        let height: u64 = output
+            .content
+            .split(" height=\"")
+            .nth(1)
+            .and_then(|rest| rest.split('"').next())
+            .and_then(|value| value.parse().ok())
+            .expect("a height");
+        assert!(height < 5000, "{orientation}: {height}px");
+        assert!(
+            output.warnings.iter().any(|w| w.code == "group_overlap"),
+            "{orientation}: {:?}",
+            output.warnings
+        );
+    }
+}
+
+#[test]
 fn a_long_sublabel_wraps_instead_of_being_cut_off() {
     let json = r#"{
         "schemaVersion": 1, "type": "architecture", "title": "Wrap", "width": 900, "height": 400,
