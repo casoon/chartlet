@@ -9,6 +9,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Hand-drawn strokes:** `"stroke": "sketch"` draws lines and shapes slightly wobbly, for essays and
+  slides. The displacement is seeded from the specification (same bytes every time), text stays
+  crisp, the print variant and PNG stay clean. Details:
+  [Customize the look](https://casoon.github.io/chartlet/docs/guides/customize/#hand-drawn-strokes).
+
 - **Slope and rank charts:** `"slope": true` on a `line` chart of two categories draws one line per
   series from its first value to its second, and `"rank": true` plots the rank of each series
   across several categories, 1 at the top. The names stand at both ends instead of a legend,

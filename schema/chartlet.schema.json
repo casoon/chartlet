@@ -16,6 +16,11 @@
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
     "theme": { "enum": ["light", "dark", "blueprint"], "default": "light" },
     "tokens": { "$ref": "#/$defs/tokens" },
+    "stroke": {
+      "description": "How lines and shapes are drawn: clean (the default) or sketch, slightly wobbly, deterministic from the specification. Text is not affected; the print variant and PNG draw clean strokes.",
+      "enum": ["clean", "sketch"],
+      "default": "clean"
+    },
     "locale": {
       "description": "Language of the texts chartlet generates (description, legend additions, tooltips, HTML figure and table) and of the number format.",
       "enum": ["en", "de"],

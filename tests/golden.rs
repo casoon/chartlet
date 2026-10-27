@@ -514,6 +514,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/payment-notes.json"),
         include_str!("../examples/payment-notes.svg"),
     ),
+    (
+        "sketch-pipeline",
+        include_str!("../examples/sketch-pipeline.json"),
+        include_str!("../examples/sketch-pipeline.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
