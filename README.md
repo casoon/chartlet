@@ -117,6 +117,8 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Box plot from observations, with a box given by its five numbers | `"type": "boxplot"` with `boxes` | [response-times](examples/response-times.json) |
 | Grouped box plots: boxes colored by group with a legend | `group` on every box | [latency-by-region](examples/latency-by-region.json) |
 | Violins and strips from the same observations | `"boxDisplay": "violin"` on a `boxplot` | [response-distribution](examples/response-distribution.json) |
+| Every observation as a dot, moved sideways until none overlap, with the box under it | `"boxDisplay": "beeswarm"`, `"showBox": true` on a `boxplot` | [response-swarm](examples/response-swarm.json) |
+| One density curve per group, stacked with a slight overlap | `"boxDisplay": "ridgeline"` on a `boxplot` | [response-ridges](examples/response-ridges.json) |
 | Mobile variant for narrow containers, any type | `"mobile": { "width": 360 }` | [mobile-revenue](examples/mobile-revenue.json) |
 
 Each example has its rendered `.svg` and `.html` next to it; the SVG files are also the reference

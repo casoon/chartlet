@@ -123,6 +123,9 @@ pub struct ChartSpec {
     /// observations.
     #[serde(default, skip_serializing_if = "ViolinScale::is_width")]
     pub violin_scale: ViolinScale,
+    /// With `"boxDisplay": "beeswarm"`: draws the box and its whiskers under the points.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub show_box: bool,
     /// Marks the mean of the observations of every box of a `type: "boxplot"` chart with a
     /// diamond and adds a column to the table. Needs `values` on every box.
     #[serde(default, skip_serializing_if = "is_false")]

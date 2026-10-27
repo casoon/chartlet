@@ -379,6 +379,22 @@ const catalogue = [
       'The same kind of data as the box plot, drawn as violins: three endpoints with sixty response times each, where the outline shows what a box hides — a long tail for search, two peaks for checkout — with the quartile box and the median inside. A strip shows every observation instead. Illustrative measurements, with a phone variant.',
   },
   {
+    slug: 'response-swarm',
+    group: 'Ranges and distributions',
+    chart: 'Beeswarm plot',
+    useCase: 'Show every observation without hiding any behind another',
+    blurb:
+      'The same three endpoints as the violins, now every one of the sixty requests as a dot, moved sideways only as far as it must so that no dot overlaps another, with the box and the median under them. The width of the swarm shows where the requests pile up. Illustrative measurements, with a phone variant.',
+  },
+  {
+    slug: 'response-ridges',
+    group: 'Ranges and distributions',
+    chart: 'Ridgeline plot',
+    useCase: 'Compare the shapes of many distributions on one axis',
+    blurb:
+      'Five services, one density curve each on a shared millisecond axis, stacked with a slight overlap: a single peak for search, two for checkout, a long tail for uploads. All curves share one scale, so their heights compare, and a line up to each curve marks its median. Illustrative measurements, with a phone variant.',
+  },
+  {
     slug: 'gene-expression',
     group: 'Scatter plots and survival',
     chart: 'Volcano plot',

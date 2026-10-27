@@ -481,6 +481,7 @@ impl ChartSpec {
                 !self.violin_scale.is_width(),
                 ChartType::Boxplot,
             ),
+            ("/showBox", self.show_box, ChartType::Boxplot),
             (
                 "/boxDisplay",
                 self.box_display != BoxDisplay::Box,

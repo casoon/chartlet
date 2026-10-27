@@ -21,6 +21,12 @@ pub enum BoxDisplay {
     Violin,
     /// Every observation as a point, spread across the width, with the median.
     Strip,
+    /// Every observation as a point, moved sideways just far enough that no two points overlap,
+    /// with the median; the box can lie under the points.
+    Beeswarm,
+    /// One estimated density per group as a filled curve on its own baseline, the curves stacked
+    /// with a slight overlap along a shared value axis, with the median.
+    Ridgeline,
 }
 
 /// How the widths of violins relate to each other.
@@ -239,7 +245,14 @@ impl ChartSpec {
                 return Err(ChartError::new(
                     "values_required",
                     format!("{path}/values"),
-                    "a violin or a strip is drawn from observations; give values instead of the five numbers",
+                    "a violin, strip, beeswarm or ridgeline is drawn from observations; give values instead of the five numbers",
+                ));
+            }
+            if self.show_box && self.box_display != BoxDisplay::Beeswarm {
+                return Err(ChartError::new(
+                    "option_not_supported",
+                    "/showBox",
+                    "showBox applies to \"boxDisplay\": \"beeswarm\"",
                 ));
             }
             validate_text(&boxed.label, &format!("{path}/label"), 200)?;

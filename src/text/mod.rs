@@ -30,9 +30,10 @@ pub(crate) use diagrams::{
     tree_collapsed, tree_opening, tree_root, unconnected_parts,
 };
 pub(crate) use statistics::{
-    boxplot_summary, on_dividing_line, points_above_line, quadrant_points, quadrant_position,
-    quadrants_opening, scatter_caption, scatter_fit, scatter_summary, survival_group,
-    survival_hazard, survival_summary, survival_test, survival_test_short, value_span,
+    box_display_note, boxplot_summary, on_dividing_line, points_above_line, quadrant_points,
+    quadrant_position, quadrants_opening, scatter_caption, scatter_fit, scatter_summary,
+    survival_group, survival_hazard, survival_summary, survival_test, survival_test_short,
+    value_span,
 };
 
 use crate::spec::Locale;

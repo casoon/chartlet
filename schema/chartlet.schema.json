@@ -81,9 +81,14 @@
       "default": "none"
     },
     "boxDisplay": {
-      "description": "type: \"boxplot\": how the observations are drawn: boxes with whiskers (the default), violins (the estimated density with the box inside) or strips (every observation as a point). Violins and strips need `values` on every box.",
-      "enum": ["box", "violin", "strip"],
+      "description": "type: \"boxplot\": how the observations are drawn: boxes with whiskers (the default), violins (the estimated density with the box inside), strips (every observation as a point), beeswarms (every observation as a point, moved sideways until none overlap) or ridgelines (one density curve per box on its own baseline, stacked with a slight overlap along a shared value axis). Every display but box needs `values` on every box.",
+      "enum": ["box", "violin", "strip", "beeswarm", "ridgeline"],
       "default": "box"
+    },
+    "showBox": {
+      "description": "type: \"boxplot\" with boxDisplay beeswarm: draw the box and its whiskers under the points.",
+      "type": "boolean",
+      "default": false
     },
     "violinScale": {
       "description": "type: \"boxplot\" with boxDisplay violin: width (default) makes every violin as wide as the others at its widest, area gives them the same area, count an area that follows their number of observations.",

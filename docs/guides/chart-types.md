@@ -238,8 +238,8 @@ extreme values within reach and a point for every value beyond.
   outliers; the data table has the five numbers of every box and its outliers; a tooltip adds the
   number of observations. 1–100 boxes with unique labels.
 - **Groups.** `group` on every box (or none) gives the boxes of one group a palette color and a
-  legend entry, up to four (`too_many_series`, `missing_group`); it colors boxes, violins and strips
-  alike and adds a Group column to the table.
+  legend entry, up to four (`too_many_series`, `missing_group`); it colors boxes, violins, strips,
+  beeswarms and ridgelines alike and adds a Group column to the table.
 - **Mean.** `"showMean": true` marks the mean of each box's observations with a diamond (on boxes,
   violins and strips alike), adds it to the tooltip and a Mean column to the table. It needs
   `values` on every box (`values_required`).
@@ -252,6 +252,21 @@ extreme values within reach and a point for every value beyond.
   point, spread across the width by a fixed sequence so the same data always gives the same
   picture, with the median across. Both need `values` on every box (`values_required`); the
   value axis reaches every observation.
+- **Beeswarms.** `"boxDisplay": "beeswarm"` draws every observation as a dot like a strip does,
+  but moves each dot sideways only as far as it must so that no two dots overlap: dots are placed
+  from the lowest value on, each as near the middle as it can be, so the same data always gives
+  the same picture and the width of the swarm shows how many observations lie close together. The
+  dots shrink from 3 pixels down to 1.5 before a swarm outgrows its band. `"showBox": true` lays
+  the box and its whiskers under the dots (`option_not_supported` on any other display); the
+  median is drawn across. It needs `values` on every box (`values_required`); a tooltip on a dot
+  gives its value.
+- **Ridgelines.** `"boxDisplay": "ridgeline"` draws one density curve per box, each on its own
+  baseline, stacked with a slight overlap along a shared value axis: the first box on top when the
+  chart is horizontal, left to right when it is vertical, where each curve extends to the right
+  of its baseline. The density is estimated as for violins, and all curves share one scale, so
+  their heights compare; a line up to the curve marks the median. `showMean` puts the diamond
+  on the baseline, `group` colors the curves. It needs `values` on every box (`values_required`)
+  and takes no `violinScale`.
 
 ## Dumbbells
 
