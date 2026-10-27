@@ -1,11 +1,14 @@
+mod advice;
 mod annotations;
 mod bars_and_lines;
 mod basics;
 mod collapsed_gaps;
 mod diagrams;
 mod distributions;
+mod fishbone;
 mod funnel;
 mod heatmap;
+mod limits;
 mod locale;
 mod manifest;
 mod mosaic;

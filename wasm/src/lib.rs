@@ -6,7 +6,7 @@
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
 //! "variant", "view", "allViews", "perspective", "theme", "strict", "allowWarnings", "manifest",
-//! "alternative", "styles", "hooks" } }`, or
+//! "alternative", "styles", "hooks", "advice" } }`, or
 //! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
 //! `"styles": "external"`, for every chart type when `types` is absent, or
 //! `{ "inspect": true, "spec", "disable": ["code", …] }` for the inspections of a model, answered
@@ -15,7 +15,9 @@
 //! `{ "ok": false, "error": { "code", "path", "message" }, "warnings" }`, the same diagnostics
 //! the CLI reports with `--diagnostics json`. `styleHashes` are the CSP source expressions of the
 //! inline styles in `content`, see [`csp::style_hashes`]; `manifest` is the object the CLI writes
-//! with `--manifest`; `alternative`, when asked for, is the chart's text alternative,
+//! with `--manifest`; `help`, with `"advice": true`, is the structured help for layout warnings
+//! (`chartlet::Help`: field, documentation and corrections checked with the compiler);
+//! `alternative`, when asked for, is the chart's text alternative,
 //! `{ "description", "table": { "caption", "columns", "rows" } }`; with `allViews` that of the
 //! default view, and `alternatives` lists that of every view on the page, in its order, each with
 //! its `view` key.
@@ -92,6 +94,7 @@ fn respond(request: &[u8]) -> Value {
             manifest,
             alternative,
             alternatives,
+            help,
         }) => {
             let mut response = json!({
                 "ok": true,
@@ -99,6 +102,9 @@ fn respond(request: &[u8]) -> Value {
                 "content": content,
                 "warnings": warnings,
             });
+            if !help.is_empty() {
+                response["help"] = Value::Array(help);
+            }
             if let Some(manifest) = manifest {
                 response["manifest"] =
                     serde_json::from_str(&manifest.to_json()).expect("a manifest is valid JSON");
@@ -145,8 +151,10 @@ struct Rendered {
     manifest: Option<Manifest>,
     alternative: Option<TextAlternative>,
     alternatives: Vec<(String, TextAlternative)>,
+    help: Vec<Value>,
 }
 
+#[allow(clippy::too_many_lines)]
 fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Value> {
     let request: Value = serde_json::from_slice(request)
         .map_err(|error| failure(&format!("invalid render request: {error}")))?;
@@ -189,22 +197,29 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
         Some("external") => Styles::External,
         _ => return Err(failure("styles must be inline or external")),
     };
-    let rendered = render_json(
-        &spec,
-        format,
-        &RenderOptions {
-            id_prefix: options["idPrefix"].as_str().map(str::to_owned),
-            table_mode,
-            variant,
-            manifest: options["manifest"].as_bool() == Some(true),
-            styles,
-            hooks: options["hooks"].as_bool() == Some(true),
-            view: options["view"].as_str().map(str::to_owned),
-            perspective: options["perspective"].as_str().map(str::to_owned),
-            all_views: options["allViews"].as_bool() == Some(true),
-        },
-    )
-    .map_err(|error| error_json(&error))?;
+    let render_options = RenderOptions {
+        id_prefix: options["idPrefix"].as_str().map(str::to_owned),
+        table_mode,
+        variant,
+        manifest: options["manifest"].as_bool() == Some(true),
+        styles,
+        hooks: options["hooks"].as_bool() == Some(true),
+        view: options["view"].as_str().map(str::to_owned),
+        perspective: options["perspective"].as_str().map(str::to_owned),
+        all_views: options["allViews"].as_bool() == Some(true),
+    };
+    let rendered =
+        render_json(&spec, format, &render_options).map_err(|error| error_json(&error))?;
+    // Help is computed on request: it renders the specification again for every correction it
+    // offers, and it is not part of a response that did not ask for it.
+    let help = if options["advice"].as_bool() == Some(true) {
+        chartlet::advise(&spec, &render_options, &rendered.warnings)
+            .iter()
+            .map(chartlet::Help::to_json)
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     // Strict mode rejects every warning except those whose code is listed in `allowWarnings`.
     let allowed = options["allowWarnings"].as_array();
@@ -246,6 +261,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
         manifest: rendered.manifest,
         alternative,
         alternatives,
+        help,
     })
 }
 

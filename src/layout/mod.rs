@@ -289,6 +289,7 @@ pub(crate) fn layout(
         (ChartType::Polar, _) => crate::polar::layout(spec, warnings, metrics),
         (ChartType::Mosaic, _) => crate::mosaic::layout(spec, warnings, metrics),
         (ChartType::Heatmap, _) => crate::heatmap::layout(spec, warnings, metrics),
+        (ChartType::Fishbone, _) => crate::fishbone::layout(spec, warnings, metrics),
         (ChartType::Waterfall, _) => crate::waterfall::layout(spec, warnings, metrics),
     }
 }

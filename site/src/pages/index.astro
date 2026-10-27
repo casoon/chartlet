@@ -45,7 +45,7 @@ const specJson = `{
 <Base>
   <Hero
     title="Charts and diagrams, finished at build time."
-    lead="Describe a chart in a small JSON file, and chartlet compiles it into plain SVG or an HTML figure with caption, source and data table. Nothing runs in the browser, and the same specification gives the same bytes on every build."
+    lead="Describe a chart in a small JSON file, and chartlet compiles it into plain SVG or an HTML figure with caption, source and data table. A chart ships no JavaScript, and the same specification gives the same bytes on every build."
   >
     <Install
       commands={[
@@ -53,6 +53,11 @@ const specJson = `{
         { label: 'cargo', command: 'cargo install chartlet' },
       ]}
     />
+    <div class="start-links">
+      <Button href={url('playground/')}>Try it in the browser</Button>
+      <Button href={url('docs/guides/ai-agents/')} variant="secondary">Use it with an AI agent</Button>
+      <Button href={url('docs/getting-started/installation/')} variant="quiet">Add it to a project →</Button>
+    </div>
     <Badges>
       <Badge>MIT</Badge>
       <Badge>v{config.version}</Badge>
@@ -66,6 +71,28 @@ const specJson = `{
       </figcaption>
     </figure>
   </Hero>
+
+  <section class="paths" aria-labelledby="paths-heading">
+    <h2 id="paths-heading" class="cp-label">Three ways to a first result</h2>
+    <div class="path-grid">
+      <article>
+        <h3>In the browser</h3>
+        <p>Open an example in the <a href={url('playground/')}>playground</a>, change a value or a step, fix an error where the compiler points to it, and download the specification and the SVG. The compiler runs in your tab as WebAssembly; nothing is uploaded.</p>
+      </article>
+      <article>
+        <h3>With an AI agent</h3>
+        <p>The MCP server <a href="https://www.npmjs.com/package/@casoon/chartlet-mcp"><code>@casoon/chartlet-mcp</code></a> lets an assistant draft a specification while chartlet validates and compiles it. <a href={url('docs/guides/ai-agents/#in-practice')}>Watch five real requests</a>, then run <code>claude mcp add chartlet -- npx -y @casoon/chartlet-mcp</code>. Node.js 22.12 or newer.</p>
+      </article>
+      <article>
+        <h3>In a project</h3>
+        <p><code>cargo install chartlet</code> for the CLI, or <code>npm install @casoon/chartlet</code> for Astro and JavaScript, which needs no Rust. Every example on this site has its specification next to the output it produces: <a href={url('showcase/')}>the showcase</a>.</p>
+      </article>
+    </div>
+    <p class="status-note">
+      <strong>Status:</strong> before 1.0, so a minor release may change the specification; flow, state and class diagrams are experimental. The <a href={url('docs/reference/support/')}>support matrix</a> says what is verified and what is only designed.
+      <strong>"No browser JavaScript"</strong> means a chart: static SVG and HTML figures carry no script. The interactive module and the playground are optional JavaScript that a chart never loads.
+    </p>
+  </section>
 
   <section class="cli" aria-labelledby="cli-heading">
     <div class="cli-text">
@@ -160,6 +187,45 @@ const specJson = `{
 </Base>
 
 <style>
+  .start-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .paths {
+    max-width: var(--max);
+    margin: 0 auto;
+    padding: 0 24px 72px;
+  }
+  .path-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+  }
+  @media (max-width: 860px) {
+    .path-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .path-grid h3 {
+    margin: 0 0 8px;
+    color: var(--heading);
+  }
+  .path-grid p,
+  .status-note {
+    margin: 0;
+    font-size: 15px;
+  }
+  .status-note {
+    margin-top: 24px;
+    color: var(--muted);
+  }
+  .paths a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
   .hero-chart {
     margin: 0;
   }

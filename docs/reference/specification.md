@@ -39,6 +39,7 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `architecture` | [Architecture diagrams](#architecture-diagrams) | `architecture` |
 | `tree` | [Trees](#trees) | `tree` |
 | `network` | [Networks](#networks) | `network` |
+| `fishbone` | [Fishbone diagrams](#fishbone-diagrams) | `fishbone` |
 | `cycle` | [Cycles](#cycles) | `cycle` |
 
 Fields every type takes are in [Common fields](#common-fields), the value axis of the charts that
@@ -58,6 +59,7 @@ have one in [Value axis](#value-axis), and what the diagrams share in
 | `theme` | `light`, `dark`, `blueprint` | no | `light` (default), `dark` or, for diagrams, `blueprint`; the palettes are CSS custom properties on the root. |
 | `tokens` | object | no | Single colors of the palette by the name of the `--chartlet-*` custom property without its prefix, such as `{ "accent": "#c2410c" }`; hex or `rgb()`/`rgba()` values. They win over the theme and carry into the print and social variants and PNG. `invalid_token` at `/tokens/<name>` for another name or value. See [Customize the look](../../guides/customize/). |
 | `stroke` | `clean`, `sketch` | no | `clean` (default) or `sketch`: lines and shapes are displaced by up to about a pixel and a half and bowed slightly, for essays and slides. The displacement is seeded from the specification, so the bytes are the same every time; text, colors and contrast are untouched. The print variant and PNG draw clean strokes. See [Customize the look](../../guides/customize/#hand-drawn-strokes). |
+| `typography` | object | no | `family` (titles and labels), `technicalFamily` (technical sublabels such as the technology of a node) and `widthScale` (0.7 to 1.5, the measured width of the family relative to the built-in metrics). The families come first in the font stack, before Inter; the output names them but does not carry them (`font_not_embedded`). `invalid_typography` at `/typography/<field>` for a value that is not a plain family name or scale. See [Typography](../../guides/customize/#typography). |
 | `locale` | `en`, `de` | no | `en` (default) or `de`: language of the generated texts (description, legend additions, tooltips, calendar month and weekday names, HTML caption and table) the number format (`1,5`) and dates: ISO 8601 (`2026-08-31`) in English, `31.08.2026` and `08.2026` in German. Available for every chart type. Negative numbers always use the true minus sign `−`. |
 | `size` | `doc`, `doc-wide`, `slide-16x9`, `slide-4x3`, `social-og`, `social-square`, `print-a4-landscape`, `print-a3-landscape`, `print-letter-landscape` | no | A named canvas size that sets `width` and `height`: 800 × 450, 1200 × 500, 1920 × 1080, 1600 × 1200, 1200 × 630, 1080 × 1080, 1123 × 794, 1587 × 1123 and 1056 × 816 CSS pixels (the paper sizes at 96 dpi). A `width` or `height` in the specification overrides that side of the preset; without `size` nothing changes. `chartlet render --size <preset>` sets it from the command line. The preset sets the canvas only: type size, margins and colors are not scaled with it, and the `social` and `print` variants stay as they are. An unknown name is `invalid_spec` at `/size`, and the message lists the valid names. |
 | `width`, `height` | integer | no | Size in pixels: 200–2400 × 160–1600, default 800 × 450. Below 320 pixels a chart is compact, for a panel in a grid of columns: a narrower value-axis gutter and margin keep room for the plot, and the text keeps its size when the chart is shown at the width it was rendered for. Text shrinks with the chart when a page scales it down, so render at the width of its place. |
@@ -86,7 +88,7 @@ Rules:
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `waterfall`,
-  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `columns`),
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
@@ -94,7 +96,7 @@ Rules:
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
   `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_funnel`, `missing_radar`, `missing_polar`, `missing_mosaic`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
-  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network` and `missing_cycle`. An empty list
+  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle` and `missing_fishbone`. An empty list
   where a type needs at least one entry is `empty_data`.
 - Stripes, calendars, timelines and every diagram are drawn from their block alone:
   `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
@@ -684,6 +686,25 @@ diverging scale.
 Rules: 2–40 steps (`too_many_data_points`) with unique labels (`duplicate_label`); a `delta` or
 `start` without value is `missing_value`; a `total` with a value other than the running total is
 `total_mismatch`.
+
+## Fishbone diagrams
+
+`"type": "fishbone"`: the causes of one effect on bones. See
+[Fishbone diagrams](../../guides/chart-types/#fishbone-diagrams).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `fishbone.effect` | string, up to 100 characters | yes | The effect at the head of the spine. |
+| `fishbone.bones` | array, 1–6 | yes | The categories of causes; they alternate above and below the spine. |
+| `fishbone.bones[].label` | string, up to 100 characters | yes | The category; unique. |
+| `fishbone.bones[].causes` | array, up to 8 | no | The causes on the bone. |
+| `fishbone.bones[].causes[].label` | string, up to 100 characters | yes | The cause. |
+| `fishbone.bones[].causes[].causes` | array, up to 4 | no | Sub-causes, `[{ "label": "No route training" }]`; the last level. |
+
+Rules: 1–6 bones, up to 8 causes per bone and 4 sub-causes per cause (`too_many_nodes`); bone
+labels are unique (`duplicate_label`); a cause below a sub-cause is not part of the specification
+and is refused as an unknown field. The canvas grows for the bones with a `canvas_too_small`
+warning.
 
 ## Diagram fields
 

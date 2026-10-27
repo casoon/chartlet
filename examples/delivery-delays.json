@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "type": "fishbone",
+  "title": "Why parcels arrive late",
+  "source": "Illustrative review of a regional delivery service",
+  "width": 900,
+  "height": 480,
+  "mobile": { "width": 380, "height": 560 },
+  "fishbone": {
+    "effect": "Late deliveries",
+    "bones": [
+      {
+        "label": "People",
+        "causes": [
+          { "label": "New drivers", "causes": [{ "label": "No route training" }, { "label": "High turnover" }] },
+          { "label": "Uneven shifts" }
+        ]
+      },
+      {
+        "label": "Process",
+        "causes": [
+          { "label": "Manual sorting", "causes": [{ "label": "Peaks at noon" }] },
+          { "label": "Late dispatch" }
+        ]
+      },
+      {
+        "label": "Vehicles",
+        "causes": [
+          { "label": "Breakdowns", "causes": [{ "label": "Deferred service" }] },
+          { "label": "Small load space" }
+        ]
+      },
+      {
+        "label": "Information",
+        "causes": [
+          { "label": "Wrong addresses" },
+          { "label": "No live tracking", "causes": [{ "label": "Old scanners" }] }
+        ]
+      },
+      {
+        "label": "Environment",
+        "causes": [{ "label": "Road works" }, { "label": "Winter weather" }]
+      },
+      {
+        "label": "Customers",
+        "causes": [{ "label": "Nobody at home", "causes": [{ "label": "No time windows" }] }]
+      }
+    ]
+  }
+}

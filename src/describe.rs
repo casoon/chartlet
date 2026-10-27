@@ -35,6 +35,7 @@ pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
         ChartType::Polar => return crate::polar::description(spec),
         ChartType::Mosaic => return crate::mosaic::description(spec),
         ChartType::Heatmap => return crate::heatmap::description(spec),
+        ChartType::Fishbone => return crate::fishbone::description(spec),
         ChartType::Waterfall => return crate::waterfall::description(spec),
         ChartType::Line if crate::slope::applies(spec) => return crate::slope::description(spec),
         ChartType::Bar | ChartType::Line => {}

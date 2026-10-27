@@ -925,6 +925,12 @@ const catalogue = [
       'The checkout service in the middle, the services it calls on the first ring, theirs on the second, and so on; arrowheads say which way a dependency runs. The description lists the rings with their services. Illustrative values.',
   },
   {
+    slug: 'delivery-delays',
+    group: 'Outlines and boards',
+    chart: 'Fishbone diagram',
+    useCase: 'Find the causes of a problem',
+    blurb:
+      'Six categories of causes of late parcels on bones above and below the spine, each with causes and sub-causes on horizontal lines: labels never lean, only the bones do. The description names the effect and then every category with its causes; the table has a row for each. Illustrative review, with a phone variant.',
     slug: 'improvement-cycle',
     group: 'Trees and networks',
     chart: 'Cycle with the labels inside boxes',

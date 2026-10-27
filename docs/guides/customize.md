@@ -154,6 +154,49 @@ for `tokens` in a specification, and
 [`chartlet-theme.schema.json`](https://github.com/casoon/chartlet/blob/main/schema/chartlet-theme.schema.json)
 for a theme file.
 
+## Typography
+
+Themes and tokens change colors only. `typography` names the fonts of a chart and tells the layout
+how much room they need:
+
+```json
+"typography": { "family": "Source Sans 3", "technicalFamily": "Fira Code", "widthScale": 1.06 }
+```
+
+- `family` is the font of every text, `technicalFamily` the font of technical sublabels (the
+  technology of a node, the sublabel of a participant); it defaults to `family`.
+- `widthScale` multiplies the width the layout assumes for text. Chartlet's built-in metrics are an
+  approximation for Latin text; measure your family against it (or pass the file with `--font`, below)
+  and enter the ratio. It is the same on every platform, so the layout is deterministic.
+
+**What is guaranteed.** The layout, the generated description and the table are the same in SVG, HTML
+and PNG. What is drawn depends on whether the font is available where the SVG is shown. chartlet
+never fetches a font and does not look at the fonts of the machine: the family is named in the
+stack in front of Inter and the system fonts, and every render with a named family says so with the
+warning `font_not_embedded`.
+
+**Supplying a font file.** With the CLI, `--font brand.ttf` (a plain TrueType or OpenType file) makes
+chartlet measure text with the advance widths of that file, under the name in `typography.family`:
+
+| Command | Result |
+| --- | --- |
+| `chartlet render chart.json --font brand.ttf` | layout measured with the font; SVG names the family; `font_not_embedded` is dropped, `font_glyphs_missing` lists characters the file lacks |
+| `... --font brand.ttf --embed-font` | the SVG carries the file as a base64 `@font-face`, so it looks the same everywhere |
+| `... --font brand.ttf --format png` | the PNG is rasterized with the file (single face: semibold text uses it too) |
+
+The same is available in Rust as `render_with_font` and `render_png_with_font`. The file is yours to
+license: embedding it in an SVG redistributes it. Without `--font`, PNG uses the bundled Inter.
+
+**Boundaries.** Kerning and ligatures are not applied to the measurement; only the basic multilingual
+plane is mapped; scripts that need shaping (Arabic, Indic scripts) and right-to-left text are not
+laid out correctly, and WOFF or font collections are refused with `invalid_font`. Characters without
+a glyph are reported, and a viewer draws them in a fallback font that was not measured.
+
+**Byte-for-byte.** For a pinned chartlet version, a specification and, with `--font`, a given font file
+(its SHA-256 is the identity), the SVG, HTML and PNG bytes are the same on every machine, except
+PNG edge pixels across CPU architectures (see the PNG guide). The font file is not part of the
+manifest; record its hash next to it.
+
 ## Hand-drawn strokes
 
 `"stroke": "sketch"` draws lines and shapes slightly wobbly, for essays and slides. Each corner of a

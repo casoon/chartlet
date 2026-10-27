@@ -6,6 +6,7 @@ mod classes;
 mod cycle;
 mod dataset;
 mod deployment;
+mod fishbone;
 mod flow;
 mod funnel;
 mod heatmap;
@@ -50,6 +51,7 @@ pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use classes::{ClassKind, ClassSpec, ClassesSpec, PackageSpec, RelationKind, RelationSpec};
 pub use cycle::{CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec};
+pub use fishbone::{FishboneBoneSpec, FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec};
 pub use flow::{
     DiagramRole, DiagramSpacing, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec,
     MainPath, NodeKind, NoteSpec, PartSpec, PortSide,
@@ -104,6 +106,10 @@ pub(crate) const MAX_SERIES: usize = 4;
 pub(crate) const MAX_AXIS_TICKS: f64 = 50.0;
 /// Reference lines on a bar chart; beyond this the lines crowd the bars they explain.
 pub(crate) const MAX_REFERENCES: usize = 4;
+/// The largest specification that is read, in bytes. The largest figure at the declared limits
+/// (six time-series layers of 2000 points) is about a tenth of it; the cap keeps a browser tab or
+/// an MCP server from parsing a payload of any size before a count limit can refuse it.
+pub(crate) const MAX_SPEC_BYTES: usize = 4 * 1024 * 1024;
 /// Fixed decimal places; beyond this a value stops being readable as a number.
 pub(crate) const MAX_DECIMALS: u8 = 6;
 
@@ -197,6 +203,9 @@ pub struct ChartSpec {
     /// essays and slides. Text is not affected.
     #[serde(default, skip_serializing_if = "StrokeStyle::is_clean")]
     pub stroke: StrokeStyle,
+    /// Font families and the width scale the layout reserves for them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub typography: Option<crate::typography::TypographySpec>,
     /// Colors of the palette, by the name of the `--chartlet-*` custom property without its
     /// prefix, as hex values. They win over the theme. Skipped while empty, like `theme`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -255,6 +264,9 @@ pub struct ChartSpec {
     /// A heatmap: values or categories in a grid of rows and columns. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub heatmap: Option<HeatmapSpec>,
+    /// A fishbone diagram: one effect and the categories of its causes on bones. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fishbone: Option<FishboneSpec>,
     /// A parliament: seats as dots in a semicircle, in blocks by party. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub parliament: Option<ParliamentSpec>,
@@ -498,6 +510,8 @@ pub enum ChartType {
     Mosaic,
     /// A heatmap: values or categories in a grid of rows and columns.
     Heatmap,
+    /// A fishbone diagram: one effect and the categories of its causes on bones.
+    Fishbone,
     /// A parliament: seats as dots in a semicircle, in blocks by party.
     Parliament,
     /// A treemap: rectangles whose areas follow the values.
@@ -518,7 +532,7 @@ pub enum ChartType {
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 29] = [
+    pub const ALL: [Self; 30] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -540,6 +554,7 @@ impl ChartType {
         Self::Polar,
         Self::Mosaic,
         Self::Heatmap,
+        Self::Fishbone,
         Self::Parliament,
         Self::Treemap,
         Self::Sankey,
@@ -812,6 +827,16 @@ impl ChartSpec {
     /// the versioned specification. Like every other error, both carry a JSON Pointer path; a
     /// syntax error points at the document root and names line and column in its message.
     pub fn from_json(input: &str) -> Result<Self, ChartError> {
+        if input.len() > MAX_SPEC_BYTES {
+            return Err(ChartError::new(
+                "spec_too_large",
+                "/",
+                format!(
+                    "the specification is {} bytes; at most {MAX_SPEC_BYTES} (4 MiB) are read. The largest figure at the declared limits is far smaller; remove padding, or split the data over several charts",
+                    input.len()
+                ),
+            ));
+        }
         let mut spec: Self = serde_json::from_str(input).map_err(|error: serde_json::Error| {
             let (code, (path, message)) = match error.classify() {
                 serde_json::error::Category::Syntax | serde_json::error::Category::Eof => {
@@ -891,6 +916,7 @@ impl ChartSpec {
             ChartType::Polar => self.validate_polar(),
             ChartType::Mosaic => self.validate_mosaic(),
             ChartType::Heatmap => self.validate_heatmap(),
+            ChartType::Fishbone => self.validate_fishbone(),
             ChartType::Waterfall => self.validate_waterfall(),
             ChartType::Network => self.validate_network(),
             ChartType::Cycle => self.validate_cycle(),
@@ -931,6 +957,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Polar => "polar",
         ChartType::Mosaic => "mosaic",
         ChartType::Heatmap => "heatmap",
+        ChartType::Fishbone => "fishbone",
         ChartType::Waterfall => "waterfall",
         ChartType::Network => "network",
         ChartType::Cycle => "cycle",

@@ -118,6 +118,7 @@ pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Polar
             | ChartType::Mosaic
             | ChartType::Heatmap
+            | ChartType::Fishbone
             | ChartType::Waterfall
     ) {
         let table = data_table(spec);

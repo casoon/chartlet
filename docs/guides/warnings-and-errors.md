@@ -13,12 +13,67 @@ the whole document) and a way to fix it:
 chartlet: series_length_mismatch at /series/0/values: expected 2 values, one per category; use null for a missing value
 ```
 
-`invalid_json` at `/`: the specification is not JSON, or not an object. `invalid_spec`: a field has
+`invalid_json` at `/`: the specification is not JSON, or not an object. `spec_too_large` at `/`: the
+text is more than 4 MiB; see [Limits and performance](../../reference/limits/). `invalid_spec`: a field has
 the wrong type or an unknown name; the path points at it. `invalid_id_prefix` at `/render/idPrefix`:
 an ID prefix that is not 1–64 ASCII letters, digits, hyphens or underscores starting with a letter.
 `png_failed` at `/render/format`: the PNG could not be read from the SVG or encoded, with the
 cause in the message. `serialization_failed`: the specification could not be written in its
 canonical form for the generated IDs.
+
+## Actionable diagnostics
+
+A warning has a code, a path and a message. With **advice** it also comes with structured help, so
+that a person or an agent need not parse the message: where to look, the documentation, and a few
+remedies. Advice is off by default, and a response that did not ask for it is unchanged.
+
+| Where | How |
+| --- | --- |
+| CLI | `chartlet render spec.json --diagnostics json --advice` adds `help` to the JSON report; `--advice` alone prints `help[...]` lines after the warnings |
+| JavaScript (WebAssembly) | `renderChartDetailed(spec, { advice: true })` adds `help` to a successful response |
+| MCP | `chartlet_validate_spec` with `advice: true` |
+| Rust | `chartlet::advise_json(spec, &options)` |
+
+```json
+{
+  "code": "canvas_too_small",
+  "path": "/width",
+  "field": "/width",
+  "docs": "docs/guides/warnings-and-errors/",
+  "note": "Changing the canvas is a layout change: no label, value or connection is touched. …",
+  "remedies": [
+    {
+      "id": "raise-canvas",
+      "kind": "layout",
+      "summary": "Set width to 499 pixels, the size the diagram needs.",
+      "validated": true,
+      "resolves": true,
+      "patch": [{ "op": "replace", "path": "/width", "value": 499 }]
+    }
+  ]
+}
+```
+
+- **Which warnings:** `canvas_too_small` (raise `width` or `height` to what the render asked for) and
+  `text_truncated` (widen the canvas to the first of 1.25, 1.5 and 2 times the width, up to 2400,
+  at which the text fits). `label_overlap` and `dense_chart` come with guidance only, because
+  chartlet cannot move labels or thin data without changing what they say. Other warnings have no
+  help.
+- **Checked, not guessed:** a `patch` is only offered after the compiler rendered the patched
+  specification. `validated` says that happened; `resolves` says the render no longer had the
+  warning and no layout warning that the original did not have. A remedy that does not resolve is
+  shown as such.
+- **Layout is not content:** a remedy of `kind` `layout` changes the canvas. A remedy of kind
+  `content` needs a decision only the author can make, such as shortening a label; it carries no
+  patch. chartlet never deletes, aggregates, renames or reorders data, labels or the relationships of a
+  model to silence a warning.
+- **Nothing is applied:** the patch is a proposal in JSON Patch form (`add` or `replace` with a JSON
+  Pointer). The specification you passed in is not changed; the [playground](../playground/) applies a
+  patch only when you press the button and offers *Undo*. The path of the patch is the field the
+  warning is about, so a UI can link them.
+- **Limits:** a warning in the mobile layout gets guidance, not a patch; there is no correction for
+  overlaps. Computing help renders the specification once per candidate, so it costs a few extra
+  renders and is only done when asked.
 
 ## Warnings
 

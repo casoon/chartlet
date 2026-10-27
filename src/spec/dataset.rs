@@ -59,6 +59,7 @@ impl ChartSpec {
             | ChartType::Polar
             | ChartType::Mosaic
             | ChartType::Heatmap
+            | ChartType::Fishbone
             | ChartType::Parliament
             | ChartType::Treemap
             | ChartType::Sankey
@@ -381,6 +382,7 @@ impl ChartSpec {
             | ChartType::Polar
             | ChartType::Mosaic
             | ChartType::Heatmap
+            | ChartType::Fishbone
             | ChartType::Parliament
             | ChartType::Treemap
             | ChartType::Sankey
@@ -450,6 +452,7 @@ impl ChartSpec {
             | ChartType::Polar
             | ChartType::Mosaic
             | ChartType::Heatmap
+            | ChartType::Fishbone
             | ChartType::Parliament
             | ChartType::Treemap
             | ChartType::Sankey

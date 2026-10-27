@@ -80,7 +80,10 @@ not been verified. A skill and a server are independent: either works without th
 - `chartlet_validate_spec` renders the specification and discards the output. It returns `ok`, the error
   with `code`, JSON Pointer `path` and `message`, and every warning, for the desktop and the
   `mobile` layout. An invalid specification is a regular result, so the assistant can fix the
-  field the path points to and try again.
+  field the path points to and try again. With `advice: true` it adds `help` for layout
+  warnings: the field and, where the compiler checked it, a JSON Patch for a layout correction such as
+  a larger canvas. The assistant shows it to the user; it does not shorten or drop content to silence
+  a warning.
 - `chartlet_render` returns the SVG or HTML with warnings, CSP `styleHashes` and the provenance
   [manifest](../warnings-and-errors/#provenance). With `outputPath` it writes the file below the
   directory named by `CHARTLET_MCP_ROOT` instead and returns the path and size. Without a `theme`,

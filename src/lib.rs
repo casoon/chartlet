@@ -1,3 +1,4 @@
+mod advice;
 mod architecture;
 mod boxplot;
 mod calendar;
@@ -9,7 +10,9 @@ mod dendrogram;
 mod describe;
 mod diagram;
 mod diverging;
+mod draw;
 mod error;
+mod fishbone;
 mod flow;
 mod funnel;
 mod heat;
@@ -52,9 +55,11 @@ mod time;
 mod timeline;
 mod tree;
 mod treemap;
+mod typography;
 mod waffle;
 mod waterfall;
 
+pub use advice::{Help, PatchOperation, Remedy, RemedyKind, advise, advise_json};
 use describe::automatic_description;
 pub use error::{ChartError, ChartWarning};
 pub use inspect::{INSPECTIONS, Inspection, Severity, inspect_json};
@@ -65,26 +70,28 @@ pub use spec::{
     CalendarLayout, CalendarSpec, CategoryAxisSpec, CategorySpec, ChartSpec, ChartType, ClassKind,
     ClassSpec, ClassesSpec, ComponentKind, ComponentSpec, ConnectionDirection, ConnectionSpec,
     Curve, CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec, Dash, DataPoint,
-    DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec, FlowEdgeSpec, FlowNodeSpec,
-    FlowSpec, FragmentKind, FragmentSpec, FunnelDisplay, FunnelSpec, FunnelStageSpec, Gaps,
-    GroupSpec, HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec, InstanceSpec,
-    InterfaceSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage, MainPath, Mark, MarkerSpec,
-    MessageKind, MessageSpec, MobileSpec, MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec,
-    NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec,
-    OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind,
-    ParticipantSpec, PartySpec, PerspectiveSpec, PolarDisplay, PolarPointSpec, PolarSpec, PortSide,
-    RadarAxisSpec, RadarSeriesSpec, RadarSpec, RangeDisplay, RangeSort, RangeSpec, ReferenceSpec,
-    RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
-    ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
-    ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind,
-    StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke, StrokeStyle,
-    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
-    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
+    DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec, FishboneBoneSpec,
+    FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec,
+    FragmentKind, FragmentSpec, FunnelDisplay, FunnelSpec, FunnelStageSpec, Gaps, GroupSpec,
+    HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec, InstanceSpec, InterfaceSpec,
+    LaneSpec, LayerSpec, LegendPlacement, Linkage, MainPath, Mark, MarkerSpec, MessageKind,
+    MessageSpec, MobileSpec, MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec, NetworkEdgeSpec,
+    NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec, OhlcPoint,
+    Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
+    PartySpec, PerspectiveSpec, PolarDisplay, PolarPointSpec, PolarSpec, PortSide, RadarAxisSpec,
+    RadarSeriesSpec, RadarSpec, RangeDisplay, RangeSort, RangeSpec, ReferenceSpec, RelationKind,
+    RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis,
+    ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec,
+    ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind, StateNodeSpec,
+    StateSpec, StepKind, StepSpec, StripesSpec, Stroke, StrokeStyle, SurvivalGroupSpec,
+    SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint,
+    TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
     TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
     ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
     ZoomStep,
 };
 pub use theme::{apply_theme, bundled_theme};
+pub use typography::{FontMetrics, TypographySpec, embed_font};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RenderFormat {
@@ -354,6 +361,47 @@ pub fn render_json(
     render(&spec, format, options)
 }
 
+/// The family a font file is used under: `typography.family`.
+fn family_of(spec: &ChartSpec) -> Result<&str, ChartError> {
+    spec.typography
+        .as_ref()
+        .and_then(|typography| typography.family.as_deref())
+        .ok_or_else(|| {
+            ChartError::new(
+                "invalid_font",
+                "/typography/family",
+                "a font file needs the name it is used under: add \"typography\": { \"family\": \"Your Font\" }",
+            )
+        })
+}
+
+/// Renders with the advance widths of `font`, a TrueType or OpenType file the caller supplies:
+/// the layout measures with it instead of the built-in metrics, and `font_glyphs_missing` names
+/// the characters it has no glyph for. The output still only names the family; see [`embed_font`]
+/// to carry the file in an SVG. Nothing is fetched or looked up on the machine.
+///
+/// # Errors
+///
+/// As [`render_with_metrics`], and `invalid_font` for a file that is not a plain font or a
+/// specification without `typography.family`.
+pub fn render_with_font(
+    spec: &ChartSpec,
+    format: RenderFormat,
+    options: &RenderOptions,
+    font: &[u8],
+) -> Result<RenderOutput, ChartError> {
+    family_of(spec)?;
+    let metrics = FontMetrics::from_ttf(font)?;
+    let mut output = render_with_metrics(spec, format, options, &metrics)?;
+    output
+        .warnings
+        .retain(|warning| warning.code != "font_not_embedded");
+    output
+        .warnings
+        .extend(metrics.missing_glyphs(&output.content));
+    Ok(output)
+}
+
 /// Validates and renders an already parsed chart specification.
 ///
 /// # Errors
@@ -364,7 +412,16 @@ pub fn render(
     format: RenderFormat,
     options: &RenderOptions,
 ) -> Result<RenderOutput, ChartError> {
-    render_with_metrics(spec, format, options, &BuiltinMetrics)
+    match spec
+        .typography
+        .as_ref()
+        .map(typography::TypographySpec::scale)
+    {
+        Some(scale) if (scale - 1.0).abs() > f64::EPSILON => {
+            render_with_metrics(spec, format, options, &typography::ScaledMetrics(scale))
+        }
+        _ => render_with_metrics(spec, format, options, &BuiltinMetrics),
+    }
 }
 
 /// Renders with caller-provided deterministic text metrics.
@@ -544,6 +601,7 @@ fn render_content(
 }
 
 /// Renders `spec` with its IDs under `id_prefix`.
+#[allow(clippy::too_many_lines)]
 fn render_content_as(
     spec: &ChartSpec,
     format: RenderFormat,
@@ -552,6 +610,11 @@ fn render_content_as(
     metrics: &impl TextMetrics,
 ) -> Result<RenderOutput, ChartError> {
     let mut warnings = spec.validate()?;
+    warnings.extend(
+        spec.typography
+            .as_ref()
+            .and_then(typography::TypographySpec::disclosure),
+    );
     let id_prefix = id_prefix.to_owned();
 
     let mobile = spec.mobile_variant();
@@ -856,6 +919,33 @@ pub struct PngOutput {
 /// the mobile variant is asked for and the specification has none.
 #[cfg(feature = "png")]
 pub fn render_png(spec: &ChartSpec, options: &PngOptions) -> Result<PngOutput, ChartError> {
+    render_png_as(spec, *options, None)
+}
+
+/// [`render_png`] with a font file of the caller's: the text is measured with it and rasterized
+/// with it, under the family the specification names in `typography.family`. The font is the
+/// caller's to license; chartlet embeds nothing it was not given.
+///
+/// # Errors
+///
+/// As [`render_png`], and `invalid_font` when the file is not a plain TrueType or OpenType font
+/// or the specification names no `typography.family`.
+#[cfg(feature = "png")]
+pub fn render_png_with_font(
+    spec: &ChartSpec,
+    options: &PngOptions,
+    font: &[u8],
+) -> Result<PngOutput, ChartError> {
+    render_png_as(spec, *options, Some(font))
+}
+
+#[cfg(feature = "png")]
+#[allow(clippy::too_many_lines)]
+fn render_png_as(
+    spec: &ChartSpec,
+    options: PngOptions,
+    font: Option<&[u8]>,
+) -> Result<PngOutput, ChartError> {
     if !(0.25..=png::MAX_SCALE).contains(&options.scale) {
         return Err(ChartError::new(
             "invalid_scale",
@@ -881,20 +971,23 @@ pub fn render_png(spec: &ChartSpec, options: &PngOptions) -> Result<PngOutput, C
             (&mobile, Variant::Print)
         }
     };
-    let output = render(
-        spec,
-        RenderFormat::Svg,
-        &RenderOptions {
-            variant,
-            ..RenderOptions::default()
-        },
-    )?;
+    let render_options = RenderOptions {
+        variant,
+        ..RenderOptions::default()
+    };
+    let (output, face) = match font {
+        Some(font) => (
+            render_with_font(spec, RenderFormat::Svg, &render_options, font)?,
+            Some((family_of(spec)?, font)),
+        ),
+        None => (render(spec, RenderFormat::Svg, &render_options)?, None),
+    };
     let mut warnings = output.warnings;
     if let Some(warning) = png::missing_glyphs(&output.content) {
         warnings.push(warning);
     }
     Ok(PngOutput {
-        png: png::rasterize(&output.content, options.scale)?,
+        png: png::rasterize(&output.content, options.scale, face)?,
         warnings,
     })
 }

@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "funnel", "radar", "polar", "mosaic", "heatmap", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle"]
+      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "funnel", "radar", "polar", "mosaic", "heatmap", "fishbone", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -16,6 +16,29 @@
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
     "theme": { "enum": ["light", "dark", "blueprint"], "default": "light" },
     "tokens": { "$ref": "#/$defs/tokens" },
+    "typography": {
+      "description": "Font families and the width the layout reserves for text. A family is only named in the output, not embedded; render with the CLI option --font to measure and rasterize with a font file you supply.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "family": {
+          "description": "The family of every text, put before Inter and the system fonts.",
+          "type": "string",
+          "pattern": "^[\\p{L}\\p{N} ._-]{1,64}$"
+        },
+        "technicalFamily": {
+          "description": "The family of technical sublabels such as the technology of a node; defaults to family.",
+          "type": "string",
+          "pattern": "^[\\p{L}\\p{N} ._-]{1,64}$"
+        },
+        "widthScale": {
+          "description": "Measured width of the family relative to the built-in metrics: 1.1 reserves 10 percent more room for every text.",
+          "type": "number",
+          "minimum": 0.7,
+          "maximum": 1.5
+        }
+      }
+    },
     "stroke": {
       "description": "How lines and shapes are drawn: clean (the default) or sketch, slightly wobbly, deterministic from the specification. Text is not affected; the print variant and PNG draw clean strokes.",
       "enum": ["clean", "sketch"],
@@ -195,6 +218,10 @@
     "heatmap": {
       "description": "The rows, columns and cells of a type: \"heatmap\" chart.",
       "$ref": "#/$defs/heatmap"
+    },
+    "fishbone": {
+      "description": "The effect and bones of a type: \"fishbone\" diagram.",
+      "$ref": "#/$defs/fishbone"
     },
     "waterfall": {
       "description": "The steps of a type: \"waterfall\" chart.",
@@ -551,6 +578,17 @@
           }
         },
         {
+          "required": ["fishbone"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["waterfall"],
           "not": {
             "anyOf": [
@@ -735,6 +773,11 @@
       "if": { "properties": { "type": { "const": "heatmap" } } },
       "then": { "required": ["heatmap"] },
       "else": { "not": { "required": ["heatmap"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "fishbone" } } },
+      "then": { "required": ["fishbone"] },
+      "else": { "not": { "required": ["fishbone"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waterfall" } } },
@@ -1552,6 +1595,52 @@
         "cells": { "type": "integer", "minimum": 10, "maximum": 400, "default": 100 },
         "columns": { "type": "integer", "minimum": 2, "maximum": 40 },
         "total": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "fishbone": {
+      "description": "A fishbone (cause and effect) diagram: one effect at the head and up to 6 bones, alternating above and below the spine, each a category with up to 8 causes, each with up to 4 sub-causes. Labels are never drawn on a diagonal.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["effect", "bones"],
+      "properties": {
+        "effect": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "bones": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "causes": {
+                "type": "array",
+                "maxItems": 8,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["label"],
+                  "properties": {
+                    "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+                    "causes": {
+                      "type": "array",
+                      "maxItems": 4,
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["label"],
+                        "properties": {
+                          "label": { "type": "string", "minLength": 1, "maxLength": 100 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "heatmap": {
