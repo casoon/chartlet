@@ -179,6 +179,10 @@ pub struct ChartSpec {
     /// existing specification.
     #[serde(default, skip_serializing_if = "Theme::is_light")]
     pub theme: Theme,
+    /// How strokes and shapes are drawn: `clean` (the default) or `sketch`, slightly wobbly, for
+    /// essays and slides. Text is not affected.
+    #[serde(default, skip_serializing_if = "StrokeStyle::is_clean")]
+    pub stroke: StrokeStyle,
     /// Colors of the palette, by the name of the `--chartlet-*` custom property without its
     /// prefix, as hex values. They win over the theme. Skipped while empty, like `theme`.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -355,6 +359,26 @@ impl Theme {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     const fn is_light(&self) -> bool {
         matches!(self, Self::Light)
+    }
+}
+
+/// How the lines and shapes of a chart are drawn.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum StrokeStyle {
+    #[default]
+    Clean,
+    /// Lines and shapes are displaced by a fraction of a pixel to a few, from a seed derived from
+    /// the specification: the same bytes every time. Text, colors and geometry that carries data
+    /// stay where they are within that distance. Not applied to the print variant or PNG.
+    Sketch,
+}
+
+impl StrokeStyle {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_clean(&self) -> bool {
+        matches!(self, Self::Clean)
     }
 }
 
