@@ -132,16 +132,23 @@ most common mistakes; it is built from the schema, so a new type appears in it.
 ## Prompts
 
 Clients that support MCP prompts list them as slash commands. Each leads from a request through
-the tools above: read the type guide, state the plan (type, size, what is left out), draft from a
-starter, `chartlet_validate_spec` until `ok`, `chartlet_render`. They keep the data and the
-relationships as given, propose any aggregation explicitly, stop with a diagnosis instead of
-looping on the same error, and say when a table or a sentence serves better.
+the tools above: read the type guide, state the plan (type, size preset, what is left out), draft
+from a starter, `chartlet_validate_spec` until `ok`, `chartlet_render`. They infer routine defaults
+and say which, and ask only when data are missing or two readings change the meaning. They keep the
+data and the relationships as given, propose any aggregation explicitly, stop after three rounds on
+the same error with a diagnosis and the partial specification instead of looping, and say when a
+table or a sentence serves better. The result is the editable specification, the rendered output
+and the warnings that remain. Prompts are one entry point: not every client shows them.
 
 - `diagram` draws a software diagram from a description.
 - `chart` makes a chart from data, starting with `chartlet_inspect_data`; the optional `data`
   argument takes CSV text.
 - `redraw` redraws an existing diagram from text, an image or a file as a specification and ends
   with the report of `chartlet_check_coverage`: what was covered and what was left out.
+- `revise` changes an existing specification: new values or labels, a brand
+  (`chartlet_theme_from_brand`), "make it fit" (a [size preset](../size-presets/), `mobile`,
+  orientation), or added and removed elements, and keeps every field the change does not name; the
+  optional `spec` argument takes the current specification as JSON text.
 
 ## In the chat
 

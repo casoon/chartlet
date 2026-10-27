@@ -37,6 +37,7 @@ export function validateSpec(spec, { advice = false } = {}) {
  *   spec: SpecInput,
  *   format?: "svg" | "html",
  *   variant?: "desktop" | "mobile" | "print" | "social",
+ *   size?: string,
  *   view?: string,
  *   perspective?: string,
  *   theme?: "light" | "dark" | "blueprint" | { theme?: string, tokens?: Record<string, string> },
@@ -65,7 +66,13 @@ export function renderSpec(input, root) {
     input.theme === undefined && project === undefined && root !== undefined && root !== ""
       ? [NO_THEME_NOTE]
       : [];
-  const result = renderChartDetailed(input.spec, {
+  // `size` sets the size preset of the specification, as `--size` does on the command line.
+  let source = input.spec;
+  if (input.size !== undefined) {
+    const parsed = typeof source === "string" ? JSON.parse(source) : source;
+    source = { ...parsed, size: input.size };
+  }
+  const result = renderChartDetailed(source, {
     format: input.format ?? "html",
     variant: input.variant,
     view: input.view,

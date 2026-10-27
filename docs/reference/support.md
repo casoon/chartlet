@@ -141,6 +141,25 @@ caret range, which before 1.0 means the same minor (`^0.21.0` accepts `0.21.x`).
 and the renderer are therefore always from the same minor, and a patch of the renderer never
 changes the specification.
 
+**Checked from the artifacts.** Before a release, `scripts/smoke-install.mjs` packs both npm
+packages, installs the tarballs into an empty project outside the repository (no Rust toolchain,
+no CLI), and checks that a chart and a diagram render through WebAssembly, that the diagram equals
+its committed golden SVG, that `chartlet.wasm`, `chartlet.css` and the schema resolve from
+`node_modules`, that the manifest of a render names the installed compiler version and
+`schemaVersion` 1, that the schema bundled with `chartlet-mcp` is byte for byte the schema of the
+release, that the installed renderer satisfies the range `chartlet-mcp` declares, and that the MCP
+server lists its tools, renders a chart and a diagram and reports an invalid specification with code
+and path. After publishing, `--published` repeats this against the registry; `--cli` checks the
+`cargo install --locked` path. Experimental features are not part of the byte-stability promise
+between minors.
+
+**Compatibility of schema and renderer.** `chartlet-mcp` validates nothing itself; the compiler
+does. Its bundled schema is a copy made at pack time and belongs to the release; the renderer it
+depends on is the same minor (caret range before 1.0), so every field the schema offers is one that
+renderer accepts, and a patch of the renderer does not change either. A different minor of the
+renderer under a newer `chartlet-mcp` is refused by npm's range; forcing it is unsupported, because
+the schema may then offer or lack fields.
+
 **Reproducibility.** A chart is a function of the compiler, the specification and the options that
 reach the renderer (`format`, `variant`, `table`, `theme`, `view`, `perspective`, `idPrefix`), plus
 the shipped stylesheet (`chartlet.css`, for `styles: "external"`).

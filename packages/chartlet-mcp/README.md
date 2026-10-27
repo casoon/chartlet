@@ -78,8 +78,14 @@ maps what you want to show to the type and its fields, with when not to draw and
 
 Prompts, shown as slash commands by clients that support them: `diagram` (a description to a
 rendered diagram), `chart` (data to a rendered chart, starting with `chartlet_inspect_data`) and
-`redraw` (an existing diagram from text, an image or a file, ending with a coverage report). Each
-states its plan, validates until `ok`, renders, and says when a table or a sentence serves better.
+`redraw` (an existing diagram from text, an image or a file, ending with a coverage report) and
+`revise` (a change to an existing specification: new values, a brand, a size preset, added or
+removed elements). Each infers routine defaults and states them, asks only when data are missing or
+two readings change the meaning, keeps the data and relationships as given, validates until `ok`
+(at most three rounds on the same error, then a diagnosis and the partial specification), renders,
+and says when a table or a sentence serves better. The result is the editable JSON, the rendered
+output and the warnings that remain. `eval/tasks.json` is a small evaluation set (charts, diagrams,
+repairs, changes) whose reference solutions the tests validate and render.
 
 A typical session: `chartlet_inspect_data` on the user's table, draft a specification from a suggestion,
 `chartlet_validate_spec` until `ok` and the warnings are acceptable, `chartlet_render` with an `outputPath`,

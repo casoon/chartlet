@@ -401,6 +401,33 @@ impl SizePreset {
             Self::PrintLetterLandscape => (1_056, 816),
         }
     }
+
+    /// How much larger than the document ramp the preset draws everything. The chart is laid out
+    /// at the canvas divided by this factor and drawn that much larger, so type, strokes,
+    /// margins, label wrapping and legend rows all follow the destination. A body label of 12
+    /// pixels becomes about 19 pixels on a slide.
+    #[must_use]
+    pub const fn scale(self) -> f64 {
+        match self {
+            Self::Doc
+            | Self::DocWide
+            | Self::PrintA4Landscape
+            | Self::PrintA3Landscape
+            | Self::PrintLetterLandscape => 1.0,
+            Self::Slide16x9 | Self::Slide4x3 => 1.6,
+            Self::SocialOg => 1.25,
+            Self::SocialSquare => 1.2,
+        }
+    }
+
+    /// Whether the SVG is drawn with literal colors, as the print variant draws it.
+    #[must_use]
+    pub const fn is_print(self) -> bool {
+        matches!(
+            self,
+            Self::PrintA4Landscape | Self::PrintA3Landscape | Self::PrintLetterLandscape
+        )
+    }
 }
 
 /// The size of the mobile variant, and the container width below which the HTML profile shows it
@@ -934,6 +961,7 @@ impl ChartSpec {
             spec.columns = mobile.columns;
         }
         spec.mobile = None;
+        spec.size = None;
         Some(spec)
     }
 

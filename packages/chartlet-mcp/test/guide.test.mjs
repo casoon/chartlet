@@ -23,6 +23,16 @@ test("the guide covers exactly the types of the schema", () => {
   assert.doesNotMatch(guide, /not described/);
 });
 
+test("the guide says when not to draw, gives budgets, sizes and common mistakes", () => {
+  const guide = typeGuide();
+  for (const heading of ["## When not to draw", "## Readability budgets", "## Size", "## Common mistakes"]) {
+    assert.ok(guide.includes(heading), heading);
+  }
+  assert.match(guide, /`slide-16x9`/);
+  assert.match(guide, /`size_exceeded`/);
+  assert.match(guide, /`diagram_over_budget`/);
+});
+
 test("the guide names the block of every type that has one", () => {
   const guide = typeGuide();
   const { blocks } = readSchemaTypes();
@@ -40,14 +50,14 @@ test("lists prompts and the guide, and a prompt leads through validate and rende
   t.after(() => client.close());
 
   const { prompts } = await client.listPrompts();
-  assert.deepEqual(prompts.map(({ name }) => name).sort(), ["chart", "diagram", "redraw"]);
+  assert.deepEqual(prompts.map(({ name }) => name).sort(), ["chart", "diagram", "redraw", "revise"]);
 
   const { resources } = await client.listResources();
   assert.ok(resources.some(({ uri }) => uri === "chartlet://guide/types"));
 
   const { tools } = await client.listTools();
   const toolNames = new Set(tools.map(({ name }) => name));
-  for (const name of ["diagram", "chart", "redraw"]) {
+  for (const name of ["diagram", "chart", "redraw", "revise"]) {
     const { messages } = await client.getPrompt({ name, arguments: { request: "checkout flow" } });
     const text = messages[0].content.text;
     assert.match(text, /checkout flow/);

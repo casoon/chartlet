@@ -1045,7 +1045,8 @@ fn size_preset_sets_the_canvas_and_explicit_dimensions_win() {
     let out = run_with_stdin(&["render", "-", "--size", "slide-16x9"], spec);
     let svg = String::from_utf8_lossy(&out.stdout);
     assert!(
-        out.status.success() && svg.contains("viewBox=\"0 0 1920 1080\""),
+        out.status.success()
+            && svg.contains("width=\"1920\" height=\"1080\" viewBox=\"0 0 1200 675\""),
         "{svg}"
     );
 
@@ -1053,7 +1054,8 @@ fn size_preset_sets_the_canvas_and_explicit_dimensions_win() {
     let out = run_with_stdin(&["render", "-"], wide);
     let svg = String::from_utf8_lossy(&out.stdout);
     assert!(
-        out.status.success() && svg.contains("viewBox=\"0 0 1000 1080\""),
+        out.status.success()
+            && svg.contains("width=\"1000\" height=\"1080\" viewBox=\"0 0 625 675\""),
         "{svg}"
     );
 
@@ -1064,4 +1066,176 @@ fn size_preset_sets_the_canvas_and_explicit_dimensions_win() {
         "{stderr}"
     );
     assert!(stderr.contains("slide-16x9"), "{stderr}");
+}
+
+/// The root of an SVG: `(width, height, viewBox x, y, width, height)`.
+fn root_box(svg: &str) -> (u32, u32, f64, f64, f64, f64) {
+    let after = |key: &str| -> &str {
+        let start = svg.find(key).expect("root attribute") + key.len();
+        let end = svg[start..].find('"').expect("closing quote");
+        &svg[start..start + end]
+    };
+    let view: Vec<f64> = after("viewBox=\"")
+        .split(' ')
+        .map(|part| part.parse().expect("a number"))
+        .collect();
+    (
+        after("width=\"").parse().expect("width"),
+        after("height=\"").parse().expect("height"),
+        view[0],
+        view[1],
+        view[2],
+        view[3],
+    )
+}
+
+/// An example without its own `width` and `height`, so that a size preset decides.
+fn unsized_example(name: &str) -> String {
+    let text = std::fs::read_to_string(format!("examples/{name}.json")).expect("example");
+    let mut spec: serde_json::Value = serde_json::from_str(&text).expect("example JSON");
+    let object = spec.as_object_mut().expect("an object");
+    object.remove("width");
+    object.remove("height");
+    spec.to_string()
+}
+
+#[test]
+fn size_presets_export_at_exact_dimensions_and_scale_the_layout() {
+    // A chart, a flow, a sequence and two architecture diagrams, at slide, social and print sizes.
+    let examples = [
+        "monthly-revenue",
+        "order-flow",
+        "cache-lookup",
+        "booking-containers",
+        "checkout-calls",
+    ];
+    for example in examples {
+        let spec = unsized_example(example);
+        for (preset, width, height, layout) in [
+            ("slide-16x9", 1920, 1080, 1200.0),
+            ("slide-4x3", 1600, 1200, 1000.0),
+            ("social-square", 1080, 1080, 900.0),
+            ("print-a4-landscape", 1123, 794, 1123.0),
+        ] {
+            let out = run_with_stdin(&["render", "-", "--size", preset], &spec);
+            let svg = String::from_utf8_lossy(&out.stdout);
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            assert!(out.status.success(), "{example} {preset}: {stderr}");
+            let (w, h, x, _, view_width, _) = root_box(&svg);
+            if stderr.contains("size_exceeded") {
+                // Reported, never clipped: the image is larger than the preset, not smaller.
+                assert!(w >= width && h >= height, "{example} {preset}: {w}x{h}");
+                assert!(w > width || h > height, "{example} {preset}: {w}x{h}");
+            } else {
+                assert_eq!((w, h), (width, height), "{example} {preset}");
+                assert!(
+                    (view_width - layout).abs() < 0.01 || x < 0.0,
+                    "{example} {preset}: viewBox {view_width}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_chart_at_a_slide_size_is_drawn_larger_not_just_stretched() {
+    let spec = unsized_example("monthly-revenue");
+    let out = run_with_stdin(&["render", "-", "--size", "slide-16x9"], &spec);
+    let svg = String::from_utf8_lossy(&out.stdout);
+    let (w, _, _, _, view_width, _) = root_box(&svg);
+    // 12 px labels at 1.6 times: about 19 px on the 1920 px canvas.
+    let scale = f64::from(w) / view_width;
+    assert!((scale - 1.6).abs() < 0.01, "{scale}");
+    assert!(12.0 * scale >= 16.0);
+}
+
+#[test]
+fn size_presets_without_a_scale_leave_the_output_unchanged() {
+    let spec = std::fs::read_to_string("examples/monthly-revenue.json").expect("example");
+    let plain = run_with_stdin(&["render", "-", "--id-prefix", "same"], &spec);
+    // `doc` is the default canvas: the same bytes as no preset at all.
+    let sized = run_with_stdin(
+        &["render", "-", "--size", "doc", "--id-prefix", "same"],
+        &spec,
+    );
+    assert_eq!(plain.stdout, sized.stdout);
+    // `doc-wide` changes the canvas, not the type: the layout size is the canvas.
+    let wide = run_with_stdin(&["render", "-", "--size", "doc-wide"], &spec);
+    let (w, h, _, _, view_width, view_height) = root_box(&String::from_utf8_lossy(&wide.stdout));
+    assert_eq!((w, h), (1200, 500));
+    assert_eq!((view_width, view_height), (1200.0, 500.0));
+}
+
+#[test]
+fn print_size_presets_draw_literal_colors_and_slides_do_not() {
+    let spec = unsized_example("monthly-revenue");
+    let print = run_with_stdin(&["render", "-", "--size", "print-a4-landscape"], &spec);
+    let svg = String::from_utf8_lossy(&print.stdout);
+    assert!(!svg.contains("var(--"), "{svg}");
+    let slide = run_with_stdin(&["render", "-", "--size", "slide-16x9"], &spec);
+    assert!(String::from_utf8_lossy(&slide.stdout).contains("var(--"));
+}
+
+#[test]
+fn size_presets_yield_to_the_mobile_and_social_variants() {
+    let spec = std::fs::read_to_string("examples/mobile-revenue.json").expect("example");
+    for variant in ["mobile", "social"] {
+        let sized = run_with_stdin(
+            &[
+                "render",
+                "-",
+                "--size",
+                "slide-16x9",
+                "--variant",
+                variant,
+                "--id-prefix",
+                "same",
+            ],
+            &spec,
+        );
+        let plain = run_with_stdin(
+            &["render", "-", "--variant", variant, "--id-prefix", "same"],
+            &spec,
+        );
+        assert!(
+            sized.status.success() && plain.status.success(),
+            "{variant}"
+        );
+        assert_eq!(sized.stdout, plain.stdout, "{variant}");
+    }
+}
+
+#[test]
+fn explicit_dimensions_win_over_the_preset_and_the_scale_still_applies() {
+    let spec = r#"{"schemaVersion":1,"type":"bar","title":"T","size":"slide-16x9","width":800,"data":[{"label":"a","value":1}]}"#;
+    let out = run_with_stdin(&["render", "-"], spec);
+    let svg = String::from_utf8_lossy(&out.stdout);
+    let (w, h, _, _, view_width, view_height) = root_box(&svg);
+    assert_eq!((w, h), (800, 1080), "{svg}");
+    assert_eq!((view_width, view_height), (500.0, 675.0));
+}
+
+#[test]
+fn a_diagram_that_outgrows_its_size_is_reported_not_clipped() {
+    // A wide diagram may need more room than a square canvas gives it.
+    let spec = unsized_example("booking-containers");
+    let out = run_with_stdin(
+        &[
+            "render",
+            "-",
+            "--size",
+            "social-square",
+            "--diagnostics",
+            "json",
+        ],
+        &spec,
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let svg = String::from_utf8_lossy(&out.stdout);
+    assert!(out.status.success(), "{stderr}");
+    let (w, h, ..) = root_box(&svg);
+    assert!(
+        (w, h) == (1080, 1080) || stderr.contains("size_exceeded"),
+        "{w}x{h}: {stderr}"
+    );
 }

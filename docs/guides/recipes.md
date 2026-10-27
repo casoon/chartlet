@@ -126,7 +126,7 @@ chartlet render examples/recipes/release-flow/spec.json --variant mobile -o rele
 
 ## Slide and print figure
 
-`slide-figure/spec.json` sets `"size": "slide-16x9"`. The print variant has literal colors for
+`slide-figure/spec.json` sets `"size": "slide-16x9"`, which lays the chart out for a slide and draws type and margins larger (see [Size presets](../size-presets/)). The print variant has literal colors for
 PDF pipelines; PNG needs the `png` feature of the CLI.
 
 ```sh

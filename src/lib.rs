@@ -652,6 +652,11 @@ fn render_content_as(
     };
 
     match options.variant {
+        Variant::Desktop
+            if format == RenderFormat::Svg && spec.size.is_some_and(SizePreset::is_print) =>
+        {
+            return render_print(spec, format, &id_prefix, warnings, metrics);
+        }
         Variant::Desktop => {}
         Variant::Mobile => {
             return render_mobile_alone(
@@ -856,6 +861,7 @@ fn render_social(
         height: frame.chart_height,
         show_title: false,
         mobile: None,
+        size: None,
         ..spec.clone()
     };
     let mut warnings = chart.validate_mobile_variant()?;
@@ -1023,6 +1029,68 @@ fn render_panel(
     render_panel_parts(spec, format, id_prefix, styles, hooks, metrics, warnings).svg
 }
 
+/// A layout length for a canvas length drawn at `scale`.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn scaled_pixels(length: u32, scale: f64) -> u32 {
+    (f64::from(length) / scale).round() as u32
+}
+
+/// Draws the SVG root at the preset's canvas: `scale` times the size the chart was laid out at,
+/// so that its marks, text and strokes grow with the canvas. A diagram smaller than the canvas is
+/// centered on it; one that needs more room than the canvas keeps it and is reported with
+/// `size_exceeded`. Nothing is clipped or dropped.
+#[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+fn fit_root(
+    svg: &str,
+    scene: &scene::Scene,
+    scale: f64,
+    layout: (u32, u32),
+    warnings: &mut Vec<ChartWarning>,
+) -> String {
+    // The layout names its own, scaled-down size; the preset's canvas is the size that matters.
+    warnings.retain(|warning| warning.code != "canvas_too_small");
+    let (view_width, view_height) = (scene.width.max(layout.0), scene.height.max(layout.1));
+    let drawn = |length: u32| (f64::from(length) * scale).round() as u32;
+    let (width, height) = (drawn(view_width), drawn(view_height));
+    if scene.width > layout.0 || scene.height > layout.1 {
+        warnings.push(ChartWarning::new(
+            "size_exceeded",
+            "/size",
+            format!(
+                "the content needs {width} × {height} pixels, more than the {} × {} of the size preset; the image is that large and nothing is cut. Shorten labels, remove elements, or choose a larger size",
+                drawn(layout.0),
+                drawn(layout.1)
+            ),
+        ));
+    }
+    let offset = |view: u32, content: u32| {
+        // Twice the offset is a whole number; an odd gap leaves a half pixel.
+        let gap = view - content;
+        match (gap % 2, gap / 2) {
+            (0, 0) => "0".to_owned(),
+            (0, half) => format!("-{half}"),
+            (_, half) => format!("-{half}.5"),
+        }
+    };
+    let origin = format!(
+        "{} {}",
+        offset(view_width, scene.width),
+        offset(view_height, scene.height)
+    );
+    // The root names the content's own size; the viewBox starts where the content is centered.
+    svg.replacen(
+        &format!(
+            "width=\"{w}\" height=\"{h}\" viewBox=\"0 0 {w} {h}\"",
+            w = scene.width,
+            h = scene.height
+        ),
+        &format!(
+            "width=\"{width}\" height=\"{height}\" viewBox=\"{origin} {view_width} {view_height}\""
+        ),
+        1,
+    )
+}
+
 /// The stages of a diagram whose nodes can be focused, desktop first; none for any other chart.
 fn stages(desktop: &PanelParts, mobile: Option<&PanelParts>) -> Vec<render::Stage> {
     if desktop.stage.hotspots.is_empty() {
@@ -1054,6 +1122,23 @@ fn render_panel_parts(
         .description
         .clone()
         .unwrap_or_else(|| automatic_description(spec));
+    // A size preset with a scale lays the chart out at the canvas divided by it and draws the
+    // result that much larger.
+    let scale = spec.size.map_or(1.0, SizePreset::scale);
+    let exact = spec
+        .size
+        .is_some_and(|size| size.scale() > 1.0 || size.is_print());
+    let scaled;
+    let spec = if exact {
+        scaled = ChartSpec {
+            width: scaled_pixels(spec.width, scale),
+            height: scaled_pixels(spec.height, scale),
+            ..spec.clone()
+        };
+        &scaled
+    } else {
+        spec
+    };
     let scene = if format == RenderFormat::Html && spec.show_title {
         let untitled = ChartSpec {
             show_title: false,
@@ -1071,7 +1156,11 @@ fn render_panel_parts(
             _ => None,
         })
         .collect();
-    let svg = render::svg(&scene, spec, &description, id_prefix, styles, hooks);
+    let mut svg = render::svg(&scene, spec, &description, id_prefix, styles, hooks);
+    if exact {
+        let layout = (spec.width, spec.height);
+        svg = fit_root(&svg, &scene, scale, layout, warnings);
+    }
     // The roles a diagram draws are known only once it is drawn.
     warnings.extend(contrast::role_warnings(spec, &svg));
     PanelParts {

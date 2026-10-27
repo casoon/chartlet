@@ -302,7 +302,7 @@
       "$ref": "#/$defs/tree"
     },
     "size": {
-      "description": "A named canvas size: sets width and height unless the specification gives them.",
+      "description": "A named canvas size for a destination: sets width and height unless the specification gives them, and draws the chart larger on slides and social images (the layout is made at the canvas divided by the preset's scale). The print presets use literal colors in SVG output. Mobile and social variants ignore it.",
       "enum": ["doc", "doc-wide", "slide-16x9", "slide-4x3", "social-og", "social-square", "print-a4-landscape", "print-a3-landscape", "print-letter-landscape"]
     },
     "width": { "type": "integer", "minimum": 200, "maximum": 2400, "default": 800 },

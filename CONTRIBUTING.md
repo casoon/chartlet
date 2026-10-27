@@ -116,23 +116,32 @@ where else it has to be carried.
 
 Before a version is published, from a clean checkout:
 
-- [ ] `cargo fmt --check`, the three `cargo clippy` calls and `cargo test` from
-      `.github/workflows/ci.yml`; the golden and schema tests are part of `cargo test`.
+- [ ] `cargo fmt --check`, the three `cargo clippy` calls and the two `cargo test` calls (the second
+      with `--features png`) from `.github/workflows/ci.yml`; the golden and schema tests are part
+      of `cargo test`. CI runs on the version tag; run them locally before it.
 - [ ] `npm test` in `packages/chartlet` and `packages/chartlet-mcp`.
 - [ ] `node scripts/smoke-install.mjs`: packs both npm packages, installs the tarballs into an empty
       project outside the repository, renders a chart and a diagram through WebAssembly (the diagram
       against its golden SVG), checks that `chartlet.wasm`, `chartlet.css` and the schema resolve from
       `node_modules`, and starts the MCP server to list its tools and resources. It needs the Rust
-      toolchain only to pack, not to install or run. The release workflow runs it again on the tag, before the publish.
+      toolchain only to pack, not to install or run. It also checks the tarball contents, that the
+      manifest names the installed version, that the bundled schema is the schema of the release,
+      that the installed renderer satisfies the range of `chartlet-mcp`, and renders through the MCP
+      tools. `--cli` adds `cargo install --locked --path .` into a temporary root and compares the
+      CLI output with the WebAssembly output. The release workflow runs the default checks again on
+      the tag, before the publish.
 - [ ] Versions: crate, both packages and the `@casoon/chartlet` range of `@casoon/chartlet-mcp`
       agree; `CHANGELOG.md` moves `[Unreleased]` to the version; README and the site are current.
       `node scripts/check-versions.mjs` compares the crate, both packages, the Rust version and
       the statements in README and docs that repeat them, and the install paths of the README. The
       site takes its version from the same manifests; open the deployed page and the playground
       after the Pages build.
-- [ ] After publishing: install the published packages in an empty project and repeat the smoke
-      checks against them (`npm install @casoon/chartlet-mcp`), and `cargo install chartlet` once.
-- [ ] The compatibility contract in `docs/reference/support.md` still matches what the release does.
+- [ ] After publishing: `node scripts/smoke-install.mjs --published` installs the published versions
+      of both packages from the registry into an empty project and repeats the checks; run
+      `cargo install chartlet` once in a clean environment as well.
+- [ ] The compatibility contract in `docs/reference/support.md` still matches what the release does:
+      the `@casoon/chartlet` range of `chartlet-mcp`, `engines`, `rust-version`, the migration
+      example (use the removal or rename of the release before it).
 
 Publishing, once the version is committed and merged to `main`:
 

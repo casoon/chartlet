@@ -1,0 +1,173 @@
+{
+  "description": "A small evaluation set for the prompts of chartlet-mcp: chart, diagram, repair and change tasks. Each task names the prompt that starts it, the type a good run ends with, the tools a good run calls in order, and a reference solution that test/eval.test.mjs validates and renders with the real compiler on every run (so the references cannot rot). A task is passed by a host run when the final specification validates, has the expected type, keeps the data and relationships of the request, and the reply lists the remaining warnings. Results of runs with a real assistant are recorded in `runs`; none exist yet (see the open issue on real-client validation).",
+  "tasks": [
+    {
+      "id": "chart-monthly-revenue",
+      "kind": "chart",
+      "prompt": "chart",
+      "request": "Show our monthly revenue; it should fit a blog post.",
+      "expectedType": "bar",
+      "tools": ["chartlet_inspect_data", "chartlet_validate_spec", "chartlet_render"],
+      "reference": { "example": "monthly-revenue" },
+      "mustKeep": "every month and value of the data"
+    },
+    {
+      "id": "chart-trend-slide",
+      "kind": "chart",
+      "prompt": "chart",
+      "request": "Active users per month as a trend, for a 16:9 slide.",
+      "expectedType": "line",
+      "tools": ["chartlet_inspect_data", "chartlet_validate_spec", "chartlet_render"],
+      "reference": { "example": "monthly-trend", "patch": { "size": "slide-16x9" } },
+      "expectInSvg": "width=\"1920\" height=\"1080\"",
+      "mustKeep": "the size preset slide-16x9 is stated in the plan, not asked about"
+    },
+    {
+      "id": "chart-spread-by-region",
+      "kind": "chart",
+      "prompt": "chart",
+      "request": "Response times of many requests per region: how spread out are they?",
+      "expectedType": "boxplot",
+      "tools": ["chartlet_inspect_data", "chartlet_validate_spec", "chartlet_render"],
+      "reference": { "example": "latency-by-region" }
+    },
+    {
+      "id": "diagram-order-handling",
+      "kind": "diagram",
+      "prompt": "diagram",
+      "request": "Draw how we handle an order, with the decisions.",
+      "expectedType": "flow",
+      "tools": ["chartlet_diagram_starter", "chartlet_validate_spec", "chartlet_render"],
+      "reference": { "example": "order-flow" }
+    },
+    {
+      "id": "diagram-cache-lookup",
+      "kind": "diagram",
+      "prompt": "diagram",
+      "request": "Show the messages between the app, the cache and the database on a lookup.",
+      "expectedType": "sequence",
+      "tools": ["chartlet_diagram_starter", "chartlet_validate_spec", "chartlet_render"],
+      "reference": { "example": "cache-lookup" }
+    },
+    {
+      "id": "diagram-booking-containers",
+      "kind": "diagram",
+      "prompt": "diagram",
+      "request": "The containers of the course booking system and how they call each other.",
+      "expectedType": "architecture",
+      "tools": ["chartlet_diagram_starter", "chartlet_validate_spec", "chartlet_render"],
+      "reference": { "example": "booking-containers" }
+    },
+    {
+      "id": "repair-series-length",
+      "kind": "repair",
+      "prompt": "chart",
+      "request": "Repair this specification.",
+      "broken": {
+        "schemaVersion": 1,
+        "type": "bar",
+        "title": "Tickets",
+        "categories": ["Jan", "Feb", "Mar"],
+        "series": [{ "name": "Tickets", "values": [310, 290] }]
+      },
+      "expectedError": { "code": "series_length_mismatch" },
+      "reference": {
+        "spec": {
+          "schemaVersion": 1,
+          "type": "bar",
+          "title": "Tickets",
+          "categories": ["Jan", "Feb", "Mar"],
+          "series": [{ "name": "Tickets", "values": [310, 290, null] }]
+        }
+      },
+      "tools": ["chartlet_validate_spec", "chartlet_validate_spec", "chartlet_render"],
+      "mustKeep": "the two given values; the missing third becomes null and the reply says so rather than inventing a number"
+    },
+    {
+      "id": "repair-unknown-step",
+      "kind": "repair",
+      "prompt": "diagram",
+      "request": "Repair this flow chart.",
+      "broken": {
+        "schemaVersion": 1,
+        "type": "flow",
+        "title": "Approval",
+        "flow": {
+          "nodes": [
+            { "id": "start", "label": "Request", "kind": "start" },
+            { "id": "check", "label": "Check" }
+          ],
+          "edges": [
+            { "from": "start", "to": "check" },
+            { "from": "check", "to": "approve" }
+          ]
+        }
+      },
+      "expectedError": { "code": "unknown_node" },
+      "reference": {
+        "spec": {
+          "schemaVersion": 1,
+          "type": "flow",
+          "title": "Approval",
+          "flow": {
+            "nodes": [
+              { "id": "start", "label": "Request", "kind": "start" },
+              { "id": "check", "label": "Check" },
+              { "id": "approve", "label": "Approve" }
+            ],
+            "edges": [
+              { "from": "start", "to": "check" },
+              { "from": "check", "to": "approve" }
+            ]
+          }
+        }
+      },
+      "tools": ["chartlet_validate_spec", "chartlet_validate_spec", "chartlet_render"],
+      "mustKeep": "the edge to approve is kept: the missing step is added, the edge is not deleted"
+    },
+    {
+      "id": "change-fit-slide",
+      "kind": "change",
+      "prompt": "revise",
+      "request": "Make it fit a 16:9 slide.",
+      "expectedType": "flow",
+      "tools": ["chartlet_validate_spec", "chartlet_render"],
+      "reference": { "example": "order-fulfilment", "patch": { "size": "slide-16x9", "width": null, "height": null } },
+      "expectInSvg": "width=\"1920\" height=\"1080\"",
+      "mustKeep": "every step and edge; only the size preset changes"
+    },
+    {
+      "id": "change-update-values",
+      "kind": "change",
+      "prompt": "revise",
+      "request": "Update the title: monthly revenue, corrected.",
+      "expectedType": "bar",
+      "tools": ["chartlet_validate_spec", "chartlet_render"],
+      "reference": {
+        "example": "monthly-revenue",
+        "patch": { "title": "Monthly revenue, corrected" }
+      },
+      "expectInSvg": "Monthly revenue, corrected",
+      "mustKeep": "the order of the categories and every field the change does not name"
+    },
+    {
+      "id": "change-brand",
+      "kind": "change",
+      "prompt": "revise",
+      "request": "Use my brand: accent #0b5fff.",
+      "expectedType": "bar",
+      "tools": ["chartlet_theme_from_brand", "chartlet_render"],
+      "reference": {
+        "example": "monthly-revenue",
+        "patch": { "tokens": { "accent": "#0b5fff" } }
+      },
+      "expectInSvg": "0b5fff",
+      "mustKeep": "the data; contrast pairs are checked by chartlet_theme_from_brand and reported"
+    }
+  ],
+  "knownFailures": [
+    "No run with a real assistant has been recorded: whether a host follows the plan-state-then-draft procedure, or loops past three rounds, is not measured here (open issue on real-client validation).",
+    "Prompts are one entry point among others: some hosts do not show MCP prompts, which is why the same procedure is available as a portable skill."
+  ],
+  "runs": []
+}

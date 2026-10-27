@@ -205,14 +205,29 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   [Heatmaps](https://casoon.github.io/chartlet/docs/guides/chart-types/#heatmaps).
 
 - **MCP server:** the resource `chartlet://guide/types` maps what to show to the type and its fields
-  for every type of the schema, and the prompts `diagram`, `chart` and `redraw` lead from a request
-  through validation to the rendered result. Details:
+  for every type of the schema, with when not to draw, readability budgets, sizes and common mistakes,
+  and the prompts `diagram`, `chart`, `redraw` and `revise` lead from a request through validation to
+  the rendered result: they infer defaults and state them, keep data and relationships, stop after
+  three rounds on the same error with a diagnosis, and cover changes to an existing specification.
+  `chartlet_render` takes a `size` preset. `eval/tasks.json` is a small evaluation set whose reference
+  solutions the tests render. Details:
   [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/).
 
-- **Size presets:** `size` in the specification and `chartlet render --size` pick a canvas by name
-  (`doc`, `doc-wide`, `slide-16x9`, `slide-4x3`, `social-og`, `social-square`, `print-a4-landscape`,
-  `print-a3-landscape`, `print-letter-landscape`); an explicit `width` or `height` still wins. See the
-  [specification](https://casoon.github.io/chartlet/docs/reference/specification/).
+- **Install check:** `scripts/smoke-install.mjs` also checks the tarball contents, that a render's
+  manifest names the installed compiler, that the schema bundled with `chartlet-mcp` is the schema
+  of the release, that the installed renderer satisfies the range of `chartlet-mcp`, and renders
+  through the MCP tools; `--published` repeats it against the registry and `--cli` checks
+  `cargo install --locked`. The compatibility of schema and renderer is stated in the
+  [support matrix](https://casoon.github.io/chartlet/docs/reference/support/#versioning-and-compatibility).
+
+- **Size presets:** `size` in the specification, `chartlet render --size` and the `size` option of
+  `chartlet_render` pick a canvas by name (`doc`, `doc-wide`, `slide-16x9`, `slide-4x3`, `social-og`,
+  `social-square`, `print-a4-landscape`, `print-a3-landscape`, `print-letter-landscape`). Slides and
+  social sizes draw type, strokes and margins larger (the chart is laid out at the canvas divided by
+  a scale and drawn that much larger, so label wrapping and legends follow); print sizes use literal
+  colors in SVG; PNG has the preset's pixel size; a diagram that needs more room is reported as
+  `size_exceeded`. An explicit `width` or `height` still wins; `mobile` and `social` variants ignore
+  `size`. See the [guide](https://casoon.github.io/chartlet/docs/guides/size-presets/).
 
 ### Changed
 

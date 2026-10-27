@@ -1,4 +1,4 @@
-// The MCP server: eight tools, three prompts, the specification schema and the type guide as
+// The MCP server: eight tools, four prompts, the specification schema and the type guide as
 // resources, and the MCP App view of chartlet_render. The tools only read data, call the chartlet compiler and compute; there is no
 // model and no interpretation here.
 
@@ -217,6 +217,10 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
           .enum(["desktop", "mobile", "print", "social"])
           .optional()
           .describe("SVG only: mobile renders the spec's mobile layout; needs a mobile field in the spec. print renders the chart with literal colors for PDF and print renderers (resvg, Typst, librsvg). social renders a 1200×630 image for Open Graph previews, with literal colors."),
+        size: z
+          .enum(["doc", "doc-wide", "slide-16x9", "slide-4x3", "social-og", "social-square", "print-a4-landscape", "print-a3-landscape", "print-letter-landscape"])
+          .optional()
+          .describe("A named canvas for the destination, set as the spec's size: slide-16x9 (1920×1080) and slide-4x3 (1600×1200) draw everything 1.6 times larger, social-og (1200×630) and social-square (1080×1080) 1.25 and 1.2 times, print-a4-landscape, print-a3-landscape and print-letter-landscape keep the document type size on the paper size and (as SVG) use literal colors; doc and doc-wide are the document sizes. The SVG root has exactly the preset's pixels, or is larger with the warning size_exceeded when a diagram needs more room (nothing is cut). The mobile and social variants ignore it; an explicit width or height in the spec overrides that side of the canvas."),
         view: z
           .string()
           .optional()
@@ -600,6 +604,12 @@ Adapt the starter, then check it with chartlet_validate_spec and render it with 
       { request, data: z.string().optional().describe("The data as CSV text, if it is not already in the conversation.") },
     ],
     ["redraw", "Redraw an existing diagram", "Redraw a diagram from text, an image or a file as a chartlet specification, with a coverage report.", { request }],
+    [
+      "revise",
+      "Change a chart or diagram",
+      "Change an existing chartlet specification: update values, apply a brand, make it fit a size, add or remove elements, and keep everything else.",
+      { request, spec: z.string().optional().describe("The current specification as JSON text, if it is not already in the conversation.") },
+    ],
   ])) {
     server.registerPrompt(name, { title, description, argsSchema: z.object(argsSchema) }, async (args) => ({
       messages: [
@@ -607,7 +617,14 @@ Adapt the starter, then check it with chartlet_validate_spec and render it with 
           role: "user",
           content: {
             type: "text",
-            text: promptText(name, "data" in args && args.data ? `${args.request}\n\nData (CSV):\n${args.data}` : args.request),
+            text: promptText(
+              name,
+              "data" in args && args.data
+                ? `${args.request}\n\nData (CSV):\n${args.data}`
+                : "spec" in args && args.spec
+                  ? `${args.request}\n\nCurrent specification:\n${args.spec}`
+                  : args.request,
+            ),
           },
         },
       ],

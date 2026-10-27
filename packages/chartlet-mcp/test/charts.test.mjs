@@ -27,6 +27,18 @@ const bar = {
   ],
 };
 
+test("size sets the preset of a spec, as a string spec too, and the canvas is exact", () => {
+  for (const spec of [bar, JSON.stringify(bar)]) {
+    const result = renderSpec({ spec, format: "svg", size: "slide-16x9" });
+    assert.ok(result.ok);
+    assert.match(result.content, /width="1920" height="1080" viewBox="0 0 1200 675"/);
+  }
+  const print = renderSpec({ spec: bar, format: "svg", size: "print-a4-landscape" });
+  assert.match(print.content, /width="1123" height="794"/);
+  assert.ok(!print.content.includes("var(--"));
+  assert.ok(renderSpec({ spec: bar, format: "svg" }).content.includes('width="800" height="450"'));
+});
+
 test("validates with structured errors and warnings", () => {
   assert.deepEqual(validateSpec(bar), { ok: true, warnings: [] });
   assert.deepEqual(validateSpec({ ...bar, type: "pie" }).error.path, "/type");

@@ -119,6 +119,7 @@ ${rows.join("\n")}
 - One number, one comparison, one shape of a trend: a sentence ("Revenue rose from 12 to 15").
 - More than about 12 categories on one bar chart, or more than 4 lines: group, aggregate or filter first, and say what you left out.
 - Data that is mostly missing, or a diagram of more than about 15 elements: split it into views or levels, or give a table.
+- When no type fits, say so, and give the closest type with what it leaves out, or a table; never bend a type to something it does not show.
 
 ## Readability budgets
 
@@ -126,7 +127,13 @@ ${rows.join("\n")}
 - One chart answers one question; the title states the message.
 - Pass a \`mobile\` block when the figure is read on narrow screens.
 - \`diagram_over_budget\` (more than about 9 nodes or 12 edges, a sequence more than 6 participants or 16 messages) asks for an overview and details: views, two diagrams or a larger size, never a silent cut.
+- Per type: \`waffle\` takes at most four parts (more: \`treemap\` or \`bar\`); grouped bars and lines, and the groups of a \`scatter\`, take up to four series or groups; \`multiples\` at most 20 categories; \`radar\` 3 to 8 measures; \`venn\` two or three sets; a \`tree\` of more than about 24 nodes is split.
 - Warnings such as \`text_truncated\`, \`label_overlap\` and \`dense_chart\` mean the reader loses something; treat them as findings.
+
+## Size
+
+- Name the destination with the \`size\` field (\`slide-16x9\`, \`slide-4x3\`, \`social-og\`, \`social-square\`, \`print-a4-landscape\`, \`print-a3-landscape\`, \`print-letter-landscape\`; \`doc\` is the default) instead of guessing \`width\` and \`height\`: type, margins and wrapping scale with it.
+- Slides and print take fewer elements than a document: shorten labels or split the figure. \`size_exceeded\` means a diagram needed more room than the preset gives; nothing was cut, the image is larger.
 
 ## Common mistakes
 
@@ -142,31 +149,35 @@ ${rows.join("\n")}
 /**
  * The text of a prompt: a numbered procedure over the existing tools.
  *
- * @param {"diagram" | "chart" | "redraw"} kind
+ * @param {"diagram" | "chart" | "redraw" | "revise"} kind
  * @param {string} request
  */
 export function promptText(kind, request) {
   const rules = `Rules:
-- Infer routine defaults (size, type, labels) from the request and state them in one short message; ask only when data are missing or two readings change the meaning.
+- Infer routine defaults (type, size preset, labels) from the request and state them in one short message; ask only when data are missing or two readings change the meaning. Size presets: doc (default), doc-wide, slide-16x9, slide-4x3, social-og, social-square, print-a4-landscape, print-a3-landscape, print-letter-landscape (option size of chartlet_render).
 - Keep the exact data and relationships. Propose any aggregation or cut explicitly; never fix a validation error by silently changing values or deleting edges.
 - Stop after three rounds with the same error, or when no type fits: report a diagnosis and the partial specification instead of looping.
 - If a table or a sentence serves better than a drawing (see the guide), say so instead of drawing.
 - Deliver the editable specification (JSON), the rendered result (use outputPath when the server has a root) and the warnings that remain.`;
   const steps = {
     diagram: `1. Read the resource chartlet://guide/types and pick the type for what the request describes.
-2. State your plan in one message: type, size, and what you will leave out.
+2. State your plan in one message: type, size preset, and what you will leave out.
 3. Call chartlet_diagram_starter (chartlet_chart_starter for the block chart types) and adapt the specification to the request.`,
     chart: `1. Read the resource chartlet://guide/types.
 2. Call chartlet_inspect_data with the data (csv or rows) and choose among its suggestions.
-3. State your plan in one message: type, columns, and what you will aggregate or leave out. Draft the specification from the real values (chartlet_chart_starter for the block chart types).`,
+3. State your plan in one message: type, columns, size preset, and what you will aggregate or leave out. Draft the specification from the real values (chartlet_chart_starter for the block chart types).`,
     redraw: `1. Read the resource chartlet://guide/types and pick the chartlet type that carries the source's structure.
 2. Read the source (text, image or a file the user names) and list its elements and relations before drafting; state what chartlet cannot show.
 3. Call chartlet_diagram_starter or chartlet_chart_starter and rebuild the specification element by element.`,
+    revise: `1. Take the current specification from the request or the conversation; if there is none, say so and ask for it. Keep every field the change does not touch.
+2. Classify the change and state it in one message: values or labels (edit \`data\` only, keep the order), brand or look (chartlet_theme_from_brand for a brand's colors, then its theme through the render option theme), fit ("make it fit": the size preset, \`mobile\`, \`orientation\`, shorter labels or views, in that order), or structure (add or remove elements: confirm removals first).
+3. Apply the change (the fields of a type are in chartlet://guide/types) and list the fields you changed.`,
   }[kind];
   const subject = {
     diagram: "Draw this as a chartlet diagram",
     chart: "Make a chartlet chart from this data",
     redraw: "Redraw this as a chartlet specification",
+    revise: "Change this chartlet specification",
   }[kind];
   const coverage =
     kind === "redraw"
