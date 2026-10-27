@@ -1,4 +1,5 @@
 ---
+import { readFile } from 'node:fs/promises';
 import {
   Badge,
   Badges,
@@ -6,13 +7,16 @@ import {
   BuildOutput,
   CodeBlock,
   Facts,
+  Faq,
   Features,
   Hero,
   Install,
   Quickstart,
+  ReleaseHighlights,
 } from '@casoon/pages-theme/components';
 import Base from '@casoon/pages-theme/layouts/Base.astro';
 import config from 'virtual:casoon-pages/config';
+import { parseChangelog } from '@casoon/pages-theme/lib/changelog';
 import { url } from '@casoon/pages-theme/url';
 // Animated SVGs built with castwright from site/captures/render*.terminal.yaml: real chartlet
 // runs captured by site/captures/capture.sh. The narrow scene has 50 columns for phones.
@@ -29,6 +33,13 @@ const gallery = [
   { slug: 'service-dependencies', label: 'Network' },
 ].map((item) => ({ ...item, html: render(spec(item.slug), `gallery-${item.slug}`, 'svg').html }));
 const diagram = render(spec('release-flow'), 'build-output-diagram');
+
+// Skip "Unreleased": it has no version to show as "New in v…" yet.
+const latestRelease = config.changelog
+  ? parseChangelog(await readFile(config.changelog, 'utf8')).find(
+      (r) => r.version.toLowerCase() !== 'unreleased'
+    )
+  : undefined;
 
 const specJson = `{
   "schemaVersion": 1,
@@ -184,6 +195,33 @@ const specJson = `{
   >
     <CodeBlock code={specJson} lang="json" title="spec.json" label="Specification" />
   </Quickstart>
+
+  {latestRelease && <ReleaseHighlights release={latestRelease} />}
+
+  <Faq
+    items={[
+      {
+        q: 'What does chartlet take as input?',
+        a: 'A small, declarative JSON specification — the type of chart or diagram, the data, and optional styling. chartlet validates it against a public schema and compiles it to SVG or an HTML figure; it never runs in the browser.',
+      },
+      {
+        q: 'How is this different from a JavaScript charting library?',
+        a: 'There is no chart script to ship or hydrate. chartlet renders at build time to plain SVG or an HTML figure with a caption, a generated description and a data table, and the same specification always produces the same bytes.',
+      },
+      {
+        q: 'What chart and diagram types does it support?',
+        a: 'Dozens of chart types — bar, line, time series, scatter, box plot, Sankey, treemap, heatmap and more — plus seven kinds of software diagram (sequence, flow, state, architecture, class, tree, network) that chartlet lays out itself from what is connected.',
+      },
+      {
+        q: 'Can an AI agent generate charts with chartlet?',
+        a: 'Yes. The MCP server @casoon/chartlet-mcp lets an assistant inspect data or a request, draft a specification, and have chartlet validate and compile it — no model runs inside the server and your data is never altered.',
+      },
+      {
+        q: 'Is chartlet stable enough to build on?',
+        a: 'chartlet is before 1.0: a minor release may still change the specification, and flow, state and class diagrams are marked experimental. The support matrix in the documentation lists what is verified and what is only designed.',
+      },
+    ]}
+  />
 </Base>
 
 <style>

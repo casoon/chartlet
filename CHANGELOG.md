@@ -243,6 +243,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 - **Contributors:** `scripts/smoke-install.mjs` installs the packed npm packages into an empty project
   and checks rendering, assets and the MCP server; it is part of the release checklist in
   `CONTRIBUTING.md`, which no longer says the crate has no `rust-version`.
+- **Site:** the footer follows the page language instead of always showing German text, and the
+  start page now carries a release teaser and an FAQ (theme 0.11.1).
 
 ### Fixed
 
