@@ -36,6 +36,7 @@ export const SHOWING = /** @type {Record<string, string>} */ ({
   tree: "a hierarchy: organization, ownership, family, a dendrogram, a mind map",
   classes: "classes with attributes and relations, or a database schema",
   network: "who is connected to whom, without a direction of flow or a hierarchy",
+  cycle: "steps that feed each other in a loop, such as an improvement loop or a flywheel around a hub",
 });
 
 /** Fields of the types that have no block of their own in the schema. */
@@ -112,6 +113,7 @@ ${rows.join("\n")}
 - Long labels are truncated or overlap: shorten them, use \`"orientation": "horizontal"\`, or move detail into \`description\`.
 - One chart answers one question; the title states the message.
 - Pass a \`mobile\` block when the figure is read on narrow screens.
+- \`diagram_over_budget\` (more than about 9 nodes or 12 edges, a sequence more than 6 participants or 16 messages) asks for an overview and details: views, two diagrams or a larger size, never a silent cut.
 - Warnings such as \`text_truncated\`, \`label_overlap\` and \`dense_chart\` mean the reader loses something; treat them as findings.
 
 ## Common mistakes
@@ -156,7 +158,7 @@ export function promptText(kind, request) {
   }[kind];
   const coverage =
     kind === "redraw"
-      ? "\n6. Finish with a coverage report: which elements of the source are in the specification, which were left out and why."
+      ? "\n6. Call chartlet_check_coverage with the specification and the inventory you read in step 2 (source ids, from/to of edges, members of groups; say it is your extraction) and show its report to the user: what was kept, changed, merged, ambiguous, missing and added. Ask about every omission you did not propose."
       : "";
   return `${subject}:
 

@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "heatmap", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network"]
+      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "heatmap", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -170,6 +170,10 @@
     "network": {
       "description": "The nodes and edges of a type: \"network\" chart.",
       "$ref": "#/$defs/network"
+    },
+    "cycle": {
+      "description": "The steps of a type: \"cycle\" chart.",
+      "$ref": "#/$defs/cycle"
     },
     "scatter": {
       "description": "The points of a type: \"scatter\" chart.",
@@ -477,6 +481,17 @@
           }
         },
         {
+          "required": ["cycle"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["waffle"],
           "not": {
             "anyOf": [
@@ -648,6 +663,11 @@
       "if": { "properties": { "type": { "const": "network" } } },
       "then": { "required": ["network"] },
       "else": { "not": { "required": ["network"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "cycle" } } },
+      "then": { "required": ["cycle"] },
+      "else": { "not": { "required": ["cycle"] } }
     },
     {
       "if": { "properties": { "type": { "const": "waffle" } } },
@@ -1020,6 +1040,42 @@
         "center": { "description": "The node in the middle of the rings; required with layout rings, refused on a circle.", "$ref": "#/$defs/identifier" },
         "directed": { "description": "Whether edges lead from one node to the other: drawn with an arrowhead.", "type": "boolean", "default": false },
         "order": { "description": "The order around a circle: groups together with as few crossings as swaps find (crossings), or as listed.", "enum": ["crossings", "listed"], "default": "crossings" }
+      }
+    },
+    "cycle": {
+      "description": "A cycle: 3 to 8 steps on a ring, clockwise from twelve o'clock, each feeding the next and the last feeding the first, with arrows along the ring. The labels stand outside the ring beside numbered dots, or inside boxes on it. An optional hub in the middle is fed by every step, each link with an optional label.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps"],
+      "properties": {
+        "steps": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "note": { "description": "A second, smaller line.", "type": "string", "minLength": 1, "maxLength": 80 },
+              "hubLabel": { "description": "The label of the link from this step to the hub; needs a hub.", "type": "string", "minLength": 1, "maxLength": 24 },
+              "role": { "$ref": "#/$defs/diagramRole" }
+            }
+          }
+        },
+        "hub": {
+          "description": "What the steps feed, drawn in the middle with a link from every step.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["label"],
+          "properties": {
+            "label": { "type": "string", "minLength": 1, "maxLength": 60 },
+            "note": { "type": "string", "minLength": 1, "maxLength": 80 }
+          }
+        },
+        "labels": { "description": "Where the labels stand: outside the ring beside numbered dots (default), or inside boxes on the ring.", "enum": ["outside", "inside"], "default": "outside" }
       }
     },
     "classes": {

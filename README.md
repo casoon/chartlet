@@ -146,6 +146,7 @@ writes the same accessible output as for a chart.
 | `classes` | classes, interfaces, abstract classes, enums and entities with attribute and method compartments, relations with their marks, cardinalities and navigability, nested packages | [order-model](examples/order-model.json), [shop-schema](examples/shop-schema.json), [shop-modules](examples/shop-modules.json), [invoice-model](examples/invoice-model.json) |
 | `tree` | a root and the nodes below it with optional link labels such as shares; couples for family trees; a radial mind map; a dendrogram from a distance matrix | [ownership-structure](examples/ownership-structure.json), [family-tree](examples/family-tree.json), [product-strategy](examples/product-strategy.json), [climate-similarity](examples/climate-similarity.json) |
 | `network` | nodes as dots on a circle or in rings around a center, groups, weighted and directed edges | [co-authors](examples/co-authors.json), [service-dependencies](examples/service-dependencies.json) |
+| `cycle` | three to eight steps on a ring, labels outside or inside, an optional hub with labelled links | [improvement-cycle](examples/improvement-cycle.json), [growth-flywheel](examples/growth-flywheel.json) |
 
 ```json
 {

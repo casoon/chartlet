@@ -9,13 +9,14 @@
 
 use crate::{
     ChartError, ChartSpec, ChartType, ComponentKind, NodeKind,
+    readability::{self, DIAGRAM_OVER_BUDGET},
     spec::{ArchitectureSpec, ClassesSpec, FlowSpec, ViewSpec},
     structure,
 };
 
 /// The codes of every inspection, in the order findings are reported: those of architecture
 /// models, of flow charts, then of class diagrams.
-pub const INSPECTIONS: [&str; 11] = [
+pub const INSPECTIONS: [&str; 12] = [
     UNLABELLED_CONNECTION,
     CONNECTION_WITHOUT_TECHNOLOGY,
     COMPONENT_WITHOUT_SUBLABEL,
@@ -27,6 +28,7 @@ pub const INSPECTIONS: [&str; 11] = [
     FLOW_WITHOUT_END,
     CLASS_WITHOUT_MEMBERS,
     ISOLATED_CLASS,
+    DIAGRAM_OVER_BUDGET,
 ];
 
 const UNLABELLED_CONNECTION: &str = "unlabelled_connection";
@@ -136,6 +138,17 @@ pub fn inspect_json(input: &str, disabled: &[&str]) -> Result<Vec<Inspection>, C
                 classes_without_members(diagram, found);
             }
             (ISOLATED_CLASS, Model::Classes(diagram)) => isolated_classes(diagram, found),
+            (DIAGRAM_OVER_BUDGET, _) => {
+                if let Some(finding) = readability::finding(&spec) {
+                    found.push(Inspection {
+                        code: DIAGRAM_OVER_BUDGET,
+                        severity: Severity::Hint,
+                        path: finding.path.to_owned(),
+                        message: finding.message,
+                        hint: finding.hint,
+                    });
+                }
+            }
             // An inspection of another type of model.
             _ => {}
         }

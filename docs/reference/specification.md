@@ -35,6 +35,7 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `architecture` | [Architecture diagrams](#architecture-diagrams) | `architecture` |
 | `tree` | [Trees](#trees) | `tree` |
 | `network` | [Networks](#networks) | `network` |
+| `cycle` | [Cycles](#cycles) | `cycle` |
 
 Fields every type takes are in [Common fields](#common-fields), the value axis of the charts that
 have one in [Value axis](#value-axis), and what the diagrams share in
@@ -74,7 +75,7 @@ Rules:
   Warnings that only the mobile layout raises are reported with the same code and path and a
   message that begins with `mobile variant: `. Asking for the mobile variant of a specification
   without `mobile` is `missing_mobile` at `/mobile`.
-- `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class and network
+- `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class, network and cycle
   diagrams; any other type refuses it (`option_not_supported` at `/theme`).
 - Texts must contain visible text (`empty_text`), stay within their length (`text_too_long`) and
   hold no control character that XML 1.0 cannot represent (`invalid_xml_character`).
@@ -82,7 +83,7 @@ Rules:
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `heatmap`, `waterfall`,
-  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `columns`),
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
@@ -90,7 +91,7 @@ Rules:
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
   `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
-  `missing_classes`, `missing_architecture`, `missing_tree` and `missing_network`. An empty list
+  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network` and `missing_cycle`. An empty list
   where a type needs at least one entry is `empty_data`.
 - Stripes, calendars, timelines and every diagram are drawn from their block alone:
   `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
@@ -623,7 +624,7 @@ digits, hyphens or underscores (`invalid_id`).
 | `notes` | array, up to 12 | flow, classes, architecture | `[{ "on": "a", "text": "…" }, { "text": "…" }]`. |
 | `notes[].on` | identifier | — | The step, class, package, component or boundary the note explains; flow charts take notes on steps only. |
 | `notes[].text` | string, up to 160 characters | — | Required; wraps onto as many lines as it needs. |
-| `role` | `critical`, `planned`, `deprecated` | flow, state, classes, architecture, tree, network | What a node or an edge means beyond its kind, drawn alike in every diagram. |
+| `role` | `critical`, `planned`, `deprecated` | flow, state, classes, architecture, tree, network, cycle | What a node or an edge means beyond its kind, drawn alike in every diagram. |
 
 **Notes.** A note on an element is drawn beside it and joined to it by a dotted line that is no
 edge, relation or connection; a note on a package or boundary stands inside that frame, at the
@@ -987,6 +988,25 @@ Rules: 1–40 nodes (`too_many_nodes`), up to 120 edges (`too_many_edges`) and 8
 nodes (`unknown_node`, `self_loop`) and carry a `weight` of at least 0 (`invalid_edge_weight`);
 rings need a `center` that exists (`missing_center`, `unknown_node`) and take no `order`, and a
 circle takes no `center` (`option_not_supported`).
+
+## Cycles
+
+`"type": "cycle"`: steps on a ring where the last step feeds the first, optionally around a hub.
+See [Cycles](../../guides/chart-types/#cycles).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `cycle.steps` | array, 3–8 | yes | `[{ "id": "a", "label": "…", "note": "…", "hubLabel": "…", "role": "critical" }]`, clockwise from twelve o'clock. |
+| `steps[].id` | identifier | yes | Unique. |
+| `steps[].label` | string, up to 60 characters | yes | The name. |
+| `steps[].note` | string, up to 80 characters | no | A second, smaller line. |
+| `steps[].hubLabel` | string, up to 24 characters | no | The label of the link to the hub; needs a hub. |
+| `steps[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `cycle.hub` | object | no | `{ "label": "…", "note": "…" }` (label up to 60, note up to 80 characters): what the steps feed, in the middle. |
+| `cycle.labels` | `outside`, `inside` | no | `outside` (default): numbered dots with the labels beside them; `inside`: boxes that hold the labels. |
+
+Rules: 3 to 8 steps (`too_few_steps`, `too_many_steps`); identifiers are unique (`duplicate_id`);
+`hubLabel` needs a `hub` (`option_not_supported`).
 
 ## Diverging scale
 

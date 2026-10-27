@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "title": "Support tickets per month",
+  "source": "Sample data for this recipe, not real measurements",
+  "size": "slide-16x9",
+  "categoryAxis": { "title": "Month" },
+  "valueAxis": { "title": "Tickets" },
+  "categories": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+  "series": [{ "name": "Tickets", "values": [310, 290, 340, 275, 250, 238] }]
+}
