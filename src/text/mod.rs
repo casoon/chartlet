@@ -13,7 +13,7 @@ pub(crate) use architecture::{
 };
 pub(crate) use charts::{
     CandleSummary, areas, axis_noun, bands, calendar_opening, candle_values, candles,
-    categories_opening, diverging_scale, equal_values, error_bars, gaps_collapsed,
+    categories_opening, diverging_scale, dumbbell_note, equal_values, error_bars, gaps_collapsed,
     heatmap_categories, heatmap_values, missing_values, modeled_ranges, multiples_opening,
     panel_bars_opening, panel_notes, panes, parliament_coalition, parliament_summary, percent_done,
     range_groups, rangebar_opening, rank_summary, sankey_summary, series_at, slope_summary,
@@ -30,9 +30,10 @@ pub(crate) use diagrams::{
     state_opening, transition, tree_collapsed, tree_opening, tree_root, unconnected_parts,
 };
 pub(crate) use statistics::{
-    boxplot_summary, on_dividing_line, points_above_line, quadrant_points, quadrant_position,
-    quadrants_opening, scatter_caption, scatter_fit, scatter_summary, survival_group,
-    survival_hazard, survival_summary, survival_test, survival_test_short, value_span,
+    box_display_note, boxplot_summary, on_dividing_line, points_above_line, quadrant_points,
+    quadrant_position, quadrants_opening, scatter_caption, scatter_fit, scatter_summary,
+    survival_group, survival_hazard, survival_summary, survival_test, survival_test_short,
+    value_span,
 };
 
 use crate::spec::Locale;

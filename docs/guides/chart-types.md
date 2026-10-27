@@ -29,6 +29,7 @@ order: 1
 | Time series with area, gaps and zoom | `"mark": "area"`, `null` values, `dash`, `zoomSteps` by time | [Data hall power draw](../../../showcase/sensor-readings/) |
 | Readings around a trend (scatter) | `"mark": "point"` next to a `line` layer | [Resting heart rate](../../../showcase/resting-heart-rate/) |
 | Stacked areas | `"stack": "normal"` on a pane of `area` layers, `"legend": "end"` | [Generation by source](../../../showcase/generation-mix/) |
+| Streamgraph: stacked areas centered on a moving baseline | `"stack": "stream"` on a pane of `area` layers | [Tickets by topic](../../../showcase/topic-streams/) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [Checkout API error rate](../../../showcase/release-incidents/) |
 | Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio`; `"gaps": "collapse"` | [Daily share price](../../../showcase/share-price/) |
 | Profile or deep time on a numeric axis, reversed | `"timeAxis": { "kind": "number", "reverse": true }` | [Deep-sea oxygen isotopes](../../../showcase/deep-sea-isotopes/) |
@@ -240,8 +241,8 @@ extreme values within reach and a point for every value beyond.
   outliers; the data table has the five numbers of every box and its outliers; a tooltip adds the
   number of observations. 1–100 boxes with unique labels.
 - **Groups.** `group` on every box (or none) gives the boxes of one group a palette color and a
-  legend entry, up to four (`too_many_series`, `missing_group`); it colors boxes, violins and strips
-  alike and adds a Group column to the table.
+  legend entry, up to four (`too_many_series`, `missing_group`); it colors boxes, violins, strips,
+  beeswarms and ridgelines alike and adds a Group column to the table.
 - **Mean.** `"showMean": true` marks the mean of each box's observations with a diamond (on boxes,
   violins and strips alike), adds it to the tooltip and a Mean column to the table. It needs
   `values` on every box (`values_required`).
@@ -254,6 +255,50 @@ extreme values within reach and a point for every value beyond.
   point, spread across the width by a fixed sequence so the same data always gives the same
   picture, with the median across. Both need `values` on every box (`values_required`); the
   value axis reaches every observation.
+- **Beeswarms.** `"boxDisplay": "beeswarm"` draws every observation as a dot like a strip does,
+  but moves each dot sideways only as far as it must so that no two dots overlap: dots are placed
+  from the lowest value on, each as near the middle as it can be, so the same data always gives
+  the same picture and the width of the swarm shows how many observations lie close together. The
+  dots shrink from 3 pixels down to 1.5 before a swarm outgrows its band. `"showBox": true` lays
+  the box and its whiskers under the dots (`option_not_supported` on any other display); the
+  median is drawn across. It needs `values` on every box (`values_required`); a tooltip on a dot
+  gives its value.
+- **Ridgelines.** `"boxDisplay": "ridgeline"` draws one density curve per box, each on its own
+  baseline, stacked with a slight overlap along a shared value axis: the first box on top when the
+  chart is horizontal, left to right when it is vertical, where each curve extends to the right
+  of its baseline. The density is estimated as for violins, and all curves share one scale, so
+  their heights compare; a line up to the curve marks the median. `showMean` puts the diamond
+  on the baseline, `group` colors the curves. It needs `values` on every box (`values_required`)
+  and takes no `violinScale`.
+
+## Dumbbells
+
+`"display": "dumbbell"` on a `rangebar` chart draws each span as two dots joined by a line: an
+**open** dot at `low` and a **filled** dot at `high`, so the two ends differ in form as well as in
+position. It suits before and after, or two groups, one row per category.
+
+```json
+{
+  "type": "rangebar",
+  "display": "dumbbell",
+  "sort": "change",
+  "orientation": "horizontal",
+  "ranges": [
+    { "label": "Onboarding", "low": 58, "high": 81 },
+    { "label": "Billing", "low": 49, "high": 64 }
+  ]
+}
+```
+
+- `showValues` writes the value beside each dot, on the side away from the other dot. Where the
+  low values would run into the labels of the categories, or into the labels of the axis on a
+  vertical chart, each span writes its combined label after the high end instead.
+- `"sort": "change"` puts the widest span first, in the picture, the data table and the
+  description; without it the spans keep the order they are listed in. `sort` applies to bars too.
+- `group` colors the line and the dots of a group and adds the legend. A dumbbell has no `mid`,
+  `weight`, `summary` or `modeled`: `option_not_supported` names the field.
+- The description names the widest change and says which dot is which; the table is the one of
+  range bars, with a Low and a High column.
 
 ## Forest plots
 
@@ -1585,6 +1630,42 @@ Limits: 1–40 nodes, up to 120 edges and 8 groups. A network that does not fit 
 drawn larger and reported as `canvas_too_small`. With `layout: "rings"` a `center` is required
 (`missing_center`) and `order` is refused; on a circle `center` is refused
 (`option_not_supported`).
+
+## Streamgraphs
+
+`"stack": "stream"` on a pane of a `time` chart stacks its `area` layers like `"normal"` does —
+in layer order, each on top of the ones before it — but around a moving baseline instead of zero:
+at every time the stack starts half its total below the middle, so that it is centered.
+
+```json
+{
+  "type": "time",
+  "panes": [
+    {
+      "valueAxis": { "title": "Tickets per week" },
+      "stack": "stream",
+      "layers": [
+        { "mark": "area", "name": "Billing", "points": [{ "time": "2026-01-05", "value": 48 }, { "time": "2026-01-19", "value": 51 }] },
+        { "mark": "area", "name": "Login", "points": [{ "time": "2026-01-05", "value": 30 }, { "time": "2026-01-19", "value": 28 }] }
+      ]
+    }
+  ]
+}
+```
+
+- **Thickness, not position.** The distance from zero means nothing on a stream, so the value axis
+  is a scale bar: one step of the scale, centered in the plot and labelled with its value (and the
+  axis `unit`), instead of a grid of ticks. The description says so.
+- **Names at the ends.** Each stream is named at its right end, in the middle of its band; a
+  stream chart needs no `"legend": "end"`.
+- **What a stream holds.** At least two `area` layers with the same times and curve and a value
+  of zero or more at every time (`unaligned_stack`, `negative_in_stack`), up to eight; the pane may
+  also hold reference lines of time. Lines, points, candles, bands and reference lines or markers
+  at a value, and a `valueAxis` with `min`, `max`, `exact`, `reverse` or a logarithmic scale, have
+  no meaning on a moving baseline and are `option_not_supported`, naming the field. `"stream"` on
+  a bar chart is `option_not_supported` at `/stack`.
+- **Text alternative.** The table and the tooltips give each layer's own value, as for a normal
+  stack; the interactive module marks the top edge of the stream under the pointer.
 
 ## Cycles
 

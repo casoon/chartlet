@@ -4,6 +4,17 @@ use super::plural;
 use crate::spec::{Locale, Quadrant};
 use std::fmt::Write as _;
 
+/// What a beeswarm or a ridgeline of observations shows, in a sentence after the summary of the
+/// boxes.
+pub(crate) fn box_display_note(locale: Locale, ridgeline: bool) -> String {
+    match (locale, ridgeline) {
+        (Locale::En, false) => " Every observation is drawn as a dot, moved sideways so that no two dots overlap.".to_owned(),
+        (Locale::De, false) => " Jede Beobachtung ist ein Punkt, seitlich verschoben, sodass sich keine zwei Punkte überdecken.".to_owned(),
+        (Locale::En, true) => " Each category is a density curve of its observations on a shared value axis, the curves stacked with a slight overlap.".to_owned(),
+        (Locale::De, true) => " Jede Kategorie ist eine Dichtekurve ihrer Beobachtungen auf einer gemeinsamen Wertachse, die Kurven leicht überlappend gestapelt.".to_owned(),
+    }
+}
+
 /// What a boxplot shows: how many boxes, which median is highest and lowest, and where there are
 /// outliers.
 pub(crate) fn boxplot_summary(

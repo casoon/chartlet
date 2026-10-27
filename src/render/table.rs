@@ -42,7 +42,11 @@ pub(super) fn render_data_table(
         let column_hooks = match (&table_hooks, index.checked_sub(1)) {
             (Some(table_hooks), Some(index)) => {
                 let (series, pane, part, stacked) = table_hooks.columns[index];
-                let stacked = if stacked { " data-stacked=\"\"" } else { "" };
+                let stacked = match (stacked, table_hooks.streams.contains(&pane)) {
+                    (true, true) => " data-stacked=\"\" data-stream=\"\"",
+                    (true, false) => " data-stacked=\"\"",
+                    (false, _) => "",
+                };
                 format!(
                     " data-series=\"{series}\" data-pane=\"{pane}\" data-part=\"{part}\"{stacked}"
                 )

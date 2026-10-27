@@ -3,7 +3,7 @@
 
 use std::{collections::BTreeMap, fmt::Write};
 
-use crate::spec::{ChartSpec, ChartType, Dash, Mark, Stroke, Theme};
+use crate::spec::{ChartSpec, ChartType, Dash, Mark, RangeDisplay, Stroke, Theme};
 
 /// The light palette. Every color is a CSS custom property so a host page can override a single
 /// color, and so the dark palette below only has to restate the values.
@@ -98,6 +98,9 @@ const ERROR_STYLE: &str =
 /// Box plots: the box, its median, whiskers and the points beyond them.
 const BOXPLOT_STYLE: &str = ".chartlet-box{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-box-median{stroke:var(--chartlet-text);stroke-width:3}.chartlet-box-whisker{stroke:var(--chartlet-accent);stroke-width:1.5;fill:none}.chartlet-box-outlier{fill:none;stroke:var(--chartlet-accent);stroke-width:1.5}.chartlet-violin{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1.5;stroke-linejoin:round}.chartlet-violin-box{fill:var(--chartlet-text);stroke:none}.chartlet-violin-median{fill:var(--chartlet-background);stroke:none}.chartlet-box-mean{fill:var(--chartlet-background);stroke:var(--chartlet-text);stroke-width:1.5}.chartlet-box-g1.chartlet-box,.chartlet-box-g1.chartlet-violin{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-box-g1.chartlet-box-whisker,.chartlet-box-g1.chartlet-box-outlier{stroke:var(--chartlet-color-1)}.chartlet-box-g1.chartlet-box-point{fill:var(--chartlet-color-1)}.chartlet-box-g2.chartlet-box,.chartlet-box-g2.chartlet-violin{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-box-g2.chartlet-box-whisker,.chartlet-box-g2.chartlet-box-outlier{stroke:var(--chartlet-color-2)}.chartlet-box-g2.chartlet-box-point{fill:var(--chartlet-color-2)}.chartlet-box-g3.chartlet-box,.chartlet-box-g3.chartlet-violin{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-box-g3.chartlet-box-whisker,.chartlet-box-g3.chartlet-box-outlier{stroke:var(--chartlet-color-3)}.chartlet-box-g3.chartlet-box-point{fill:var(--chartlet-color-3)}.chartlet-box-g4.chartlet-box,.chartlet-box-g4.chartlet-violin{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}.chartlet-box-g4.chartlet-box-whisker,.chartlet-box-g4.chartlet-box-outlier{stroke:var(--chartlet-color-4)}.chartlet-box-g4.chartlet-box-point{fill:var(--chartlet-color-4)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}.chartlet-box-point{fill:var(--chartlet-accent);fill-opacity:.55;stroke:none}";
 const RANGEBAR_STYLE: &str = ".chartlet-range{fill:var(--chartlet-accent);fill-opacity:.3;stroke:var(--chartlet-accent);stroke-width:1}.chartlet-range-hatch{stroke:none}.chartlet-hatch-line{stroke:var(--chartlet-accent);stroke-width:1.2;opacity:.75}.chartlet-range-mid{stroke:var(--chartlet-text);stroke-width:3}.chartlet-range-weight{fill:var(--chartlet-text);stroke:none}.chartlet-range-summary{fill:var(--chartlet-text);fill-opacity:.85;stroke:var(--chartlet-text);stroke-width:1}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Dumbbells of range bars: a line between an open dot at the low value and a filled one at the
+/// high value, in the accent color or in the color of the span's group.
+const DUMBBELL_STYLE: &str = ".chartlet-dumbbell-line{fill:none;stroke:var(--chartlet-accent);stroke-width:3;stroke-linecap:round;stroke-opacity:.6}.chartlet-dumbbell-low{fill:var(--chartlet-background);stroke:var(--chartlet-accent);stroke-width:2.5}.chartlet-dumbbell-high{fill:var(--chartlet-accent);stroke:var(--chartlet-accent);stroke-width:2.5}.chartlet-dumbbell-low.chartlet-range-series-1,.chartlet-dumbbell-low.chartlet-range-series-2,.chartlet-dumbbell-low.chartlet-range-series-3,.chartlet-dumbbell-low.chartlet-range-series-4{fill:var(--chartlet-background)}.chartlet-dumbbell-line.chartlet-range-series-1,.chartlet-dumbbell-line.chartlet-range-series-2,.chartlet-dumbbell-line.chartlet-range-series-3,.chartlet-dumbbell-line.chartlet-range-series-4{fill:none}";
 /// Range bars in groups: each group's spans in its palette color.
 const RANGE_GROUP_STYLE: &str = ".chartlet-range-series-1{fill:var(--chartlet-color-1);stroke:var(--chartlet-color-1)}.chartlet-range-series-2{fill:var(--chartlet-color-2);stroke:var(--chartlet-color-2)}.chartlet-range-series-3{fill:var(--chartlet-color-3);stroke:var(--chartlet-color-3)}.chartlet-range-series-4{fill:var(--chartlet-color-4);stroke:var(--chartlet-color-4)}";
 
@@ -236,6 +239,10 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
         when(is_diverging, crate::diverging::STYLE),
         when(is_calendar, CALENDAR_STYLE),
         when(is_rangebar, RANGEBAR_STYLE),
+        when(
+            is_rangebar && spec.display == RangeDisplay::Dumbbell,
+            DUMBBELL_STYLE,
+        ),
         type_style(spec.chart_type),
         when(spec.has_error_bars(), ERROR_STYLE),
         when(
@@ -309,6 +316,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (crate::diverging::STYLE, &[Stripes, Calendar]),
         (CALENDAR_STYLE, &[Calendar]),
         (RANGEBAR_STYLE, &[Rangebar]),
+        (DUMBBELL_STYLE, &[Rangebar]),
         (BOXPLOT_STYLE, &[Boxplot]),
         (TIMELINE_STYLE, &[Timeline]),
         (ERROR_STYLE, &[Bar]),

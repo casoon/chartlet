@@ -408,7 +408,36 @@ impl ChartSpec {
                 *sum += value;
             }
         }
+        // A stream starts below zero by half the total, so that the whole stack is centered.
+        if pane.stack == Some(Stack::Stream) {
+            for (sum, total) in base.iter_mut().zip(self.stream_totals(entry.pane, zone)) {
+                *sum -= total / 2.0;
+            }
+        }
         Some(base)
+    }
+
+    /// The total of the area layers of a pane at every time of its first area.
+    fn stream_totals(&self, pane: usize, zone: crate::time::TimeZone) -> Vec<f64> {
+        let mut totals: Vec<f64> = Vec::new();
+        for layer in self.panes[pane]
+            .layers
+            .iter()
+            .filter(|layer| layer.mark == Mark::Area)
+        {
+            totals.resize(layer.points.len(), 0.0);
+            for (sum, (_, value)) in totals.iter_mut().zip(layer.resolved_points(zone)) {
+                *sum += value;
+            }
+        }
+        totals
+    }
+
+    /// Whether any pane is a stream: its areas stacked around a moving baseline.
+    pub(crate) fn has_stream(&self) -> bool {
+        self.panes
+            .iter()
+            .any(|pane| pane.stack == Some(Stack::Stream))
     }
 
     /// A layer's observations where they are drawn: a stacked area on top of the ones below.

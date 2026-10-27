@@ -450,3 +450,116 @@ fn a_line_chart_draws_error_bars_through_its_points() {
     let area = spec.replace(r#""type": "line""#, r#""type": "rangebar""#);
     assert!(render_json(&area, RenderFormat::Svg, &RenderOptions::default()).is_err());
 }
+
+#[test]
+fn beeswarms_move_points_sideways_until_none_overlap() {
+    for orientation in ["vertical", "horizontal"] {
+        let spec = |display: &str, extra: &str| {
+            format!(
+                r#"{{"schemaVersion": 1, "type": "boxplot", "boxDisplay": "{display}", {extra} "orientation": "{orientation}", "title": "T", "width": 700, "height": 360,
+                "boxes": [
+                    {{"label": "Search", "values": [10, 10, 10, 10, 10, 11, 11, 11, 12, 12, 13, 14, 15, 16, 30]}},
+                    {{"label": "Export", "values": [20, 30, 40, 50, 60, 70]}}
+                ]}}"#
+            )
+        };
+        let output = render_ok(&spec("beeswarm", ""));
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(
+            svg.matches("class=\"chartlet-box-point\"").count(),
+            15 + 6,
+            "{orientation}"
+        );
+        assert_eq!(svg.matches("class=\"chartlet-box-median\"").count(), 2);
+        assert!(!svg.contains("class=\"chartlet-box\""));
+        assert!(svg.contains("<title>Search: 30</title>"));
+        // Same data, same picture.
+        assert_eq!(svg, &render_ok(&spec("beeswarm", "")).content);
+        // The box lies under the points on request.
+        let boxed = render_ok(&spec("beeswarm", "\"showBox\": true,")).content;
+        assert_eq!(boxed.matches("class=\"chartlet-box\"").count(), 2);
+        assert!(boxed.find("class=\"chartlet-box\"") < boxed.find("class=\"chartlet-box-point\""));
+        assert!(svg.contains(
+            "Every observation is drawn as a dot, moved sideways so that no two dots overlap."
+        ));
+    }
+}
+
+#[test]
+fn a_swarm_keeps_its_points_apart() {
+    let points: Vec<f64> = (0..40).map(|index| f64::from(index % 5) * 0.4).collect();
+    let offsets = crate::boxplot::swarm_offsets(&points, 3.0);
+    for first in 0..points.len() {
+        for second in first + 1..points.len() {
+            let apart = ((points[first] - points[second]).powi(2)
+                + (offsets[first] - offsets[second]).powi(2))
+            .sqrt();
+            assert!(
+                apart >= 6.0 - 1e-6,
+                "{first} and {second} are {apart} apart"
+            );
+        }
+    }
+}
+
+#[test]
+fn ridgelines_stack_one_density_curve_per_category() {
+    for orientation in ["vertical", "horizontal"] {
+        let spec = format!(
+            r#"{{"schemaVersion": 1, "type": "boxplot", "boxDisplay": "ridgeline", "showMean": true, "orientation": "{orientation}", "title": "T", "width": 700, "height": 360,
+            "boxes": [
+                {{"label": "A", "values": [1, 2, 2, 3, 3, 3, 4, 4, 5, 9]}},
+                {{"label": "B", "values": [4, 5, 5, 6, 6, 6, 7, 7, 8, 12]}},
+                {{"label": "C", "values": [2, 3, 3, 4, 4, 4, 5, 5, 6, 7]}}
+            ]}}"#
+        );
+        let output = render_ok(&spec);
+        assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+        let svg = &output.content;
+        assert_eq!(
+            svg.matches("class=\"chartlet-violin\"").count(),
+            3,
+            "{orientation}"
+        );
+        assert_eq!(svg.matches("class=\"chartlet-box-median\"").count(), 3);
+        assert_eq!(svg.matches("class=\"chartlet-box-mean\"").count(), 3);
+        assert!(svg.contains(
+            "Each category is a density curve of its observations on a shared value axis, the curves stacked with a slight overlap."
+        ));
+    }
+}
+
+#[test]
+fn beeswarms_and_ridgelines_are_validated_by_name() {
+    let spec = |display: &str, extra: &str, box_json: &str| {
+        format!(
+            r#"{{"schemaVersion": 1, "type": "boxplot", "boxDisplay": "{display}", {extra} "title": "T", "boxes": [{box_json}]}}"#
+        )
+    };
+    let five = r#"{"label": "A", "min": 1, "q1": 2, "median": 3, "q3": 4, "max": 5}"#;
+    for display in ["beeswarm", "ridgeline"] {
+        assert_eq!(
+            render_err(&spec(display, "", five)),
+            ("values_required", "/boxes/0/values".to_owned()),
+            "{display}"
+        );
+    }
+    let observed = r#"{"label": "A", "values": [1, 2, 3, 4, 5]}"#;
+    for display in ["box", "violin", "strip", "ridgeline"] {
+        assert_eq!(
+            render_err(&spec(display, "\"showBox\": true,", observed)),
+            ("option_not_supported", "/showBox".to_owned()),
+            "{display}"
+        );
+    }
+    assert_eq!(
+        render_err(&spec("ridgeline", "\"violinScale\": \"area\",", observed)),
+        ("option_not_supported", "/violinScale".to_owned())
+    );
+    let bar = r#"{"schemaVersion": 1, "type": "bar", "showBox": true, "title": "T", "data": [{"label": "a", "value": 1}]}"#;
+    assert_eq!(
+        render_err(bar),
+        ("option_not_supported", "/showBox".to_owned())
+    );
+}

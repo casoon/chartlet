@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "type": "rangebar",
+  "display": "dumbbell",
+  "sort": "change",
+  "orientation": "horizontal",
+  "title": "Customer satisfaction before and after the support redesign",
+  "source": "Illustrative survey scores, 0 to 100",
+  "width": 760,
+  "height": 380,
+  "valueAxis": {
+    "title": "Satisfaction score",
+    "min": 40,
+    "max": 100
+  },
+  "ranges": [
+    { "label": "Onboarding", "low": 58, "high": 81 },
+    { "label": "Billing", "low": 49, "high": 64 },
+    { "label": "Mobile app", "low": 66, "high": 86 },
+    { "label": "Documentation", "low": 61, "high": 70 },
+    { "label": "Live chat", "low": 72, "high": 79 },
+    { "label": "Phone support", "low": 69, "high": 74 }
+  ],
+  "mobile": {
+    "width": 380,
+    "height": 440
+  }
+}

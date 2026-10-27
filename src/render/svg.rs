@@ -7,12 +7,13 @@ use super::{
     escape,
     hooks::{Hooks, emit_data_block, emit_hook},
     number,
+    sketch::Sketch,
     styles::{base_style, layer_style, print_stylesheet, scope_stylesheet, type_class},
 };
 use crate::{
     Styles,
     scene::{Element, Scene, TextAnchor},
-    spec::{ChartSpec, ChartType, Theme},
+    spec::{ChartSpec, ChartType, StrokeStyle, Theme},
 };
 
 /// Where a chart's stylesheet goes: all of it inline, only its own declared colors inline with the
@@ -138,8 +139,10 @@ pub(crate) fn svg(
         .expect("writing to String cannot fail");
     }
     let hook_spec = (hooks != Hooks::Off).then_some(spec);
+    // The print variant and PNG draw clean strokes.
+    let mut sketch = (spec.stroke == StrokeStyle::Sketch && !print).then(|| Sketch::new(spec));
     for element in &scene.elements {
-        emit_element(element, id_prefix, hook_spec, &mut output);
+        emit_element(element, id_prefix, hook_spec, sketch.as_mut(), &mut output);
     }
     output.push_str("</svg>");
     output
@@ -196,10 +199,12 @@ fn hatch_fill(class: &str, style_index: Option<usize>, id_prefix: &str) -> Strin
     }
 }
 
+#[allow(clippy::too_many_lines)]
 fn emit_element(
     element: &Element,
     id_prefix: &str,
     hooks: Option<&ChartSpec>,
+    mut sketch: Option<&mut Sketch>,
     output: &mut String,
 ) {
     match element {
@@ -217,7 +222,15 @@ fn emit_element(
             .expect("write");
             close("circle", circle.tooltip.as_deref(), output);
         }
-        Element::Line(line) => write!(
+        Element::Line(line) => {
+            if let Some(path) = sketch
+                .as_deref_mut()
+                .and_then(|sketch| sketch.line(line.x1, line.y1, line.x2, line.y2))
+            {
+                write!(output, "<path d=\"{path}\" class=\"{}\"/>", line.class).expect("write");
+                return;
+            }
+            write!(
             output,
             "<line x1=\"{}\" y1=\"{}\" x2=\"{}\" y2=\"{}\" class=\"{}\"/>",
             number(line.x1),
@@ -226,8 +239,29 @@ fn emit_element(
             number(line.y2),
             line.class
         )
-        .expect("write"),
+        .expect("write");
+        }
         Element::Rect(rect) => {
+            let path = if rect.class.contains("hit") || rect.class.contains("background") {
+                None
+            } else {
+                sketch
+                    .as_deref_mut()
+                    .and_then(|sketch| sketch.rect(rect.x, rect.y, rect.width, rect.height))
+            };
+            if let Some(path) = path {
+                open("path", rect.series_index, output);
+                write!(
+                    output,
+                    " d=\"{path}\"{} class=\"{}{}\"",
+                    hatch_fill(rect.class, rect.style_index, id_prefix),
+                    rect.class,
+                    swatch_class(rect.style_index),
+                )
+                .expect("write");
+                close("path", rect.tooltip.as_deref(), output);
+                return;
+            }
             open("rect", rect.series_index, output);
             write!(
                 output,
@@ -246,7 +280,7 @@ fn emit_element(
         Element::SeriesText(text, series_index) => {
             emit_text(text, Some(*series_index), output);
         }
-        Element::Polyline(polyline) => emit_polyline(polyline, id_prefix, output),
+        Element::Polyline(polyline) => emit_polyline(polyline, id_prefix, sketch, output),
         Element::Text(text) => emit_text(text, None, output),
         Element::Hook(hook) => {
             if let Some(spec) = hooks {
@@ -285,10 +319,22 @@ fn emit_element(
 }
 
 /// Writes a polyline.
-fn emit_polyline(polyline: &crate::scene::Polyline, id_prefix: &str, output: &mut String) {
+fn emit_polyline(
+    polyline: &crate::scene::Polyline,
+    id_prefix: &str,
+    sketch: Option<&mut Sketch>,
+    output: &mut String,
+) {
     open("polyline", polyline.series_index, output);
-    let points = polyline
-        .points
+    let displaced;
+    let source = match sketch {
+        Some(sketch) if !polyline.class.contains("hit") => {
+            displaced = sketch.points(&polyline.points);
+            &displaced
+        }
+        _ => &polyline.points,
+    };
+    let points = source
         .iter()
         .map(|(x, y)| format!("{},{}", number(*x), number(*y)))
         .collect::<Vec<_>>()

@@ -491,6 +491,13 @@ impl ChartSpec {
                 "stacking needs categories with at least two series",
             ));
         }
+        if self.stack == Some(Stack::Stream) {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/stack",
+                "stream stacks the area layers of a time pane; bars use \"normal\" or \"percent\"",
+            ));
+        }
         if self.stack == Some(Stack::Percent) {
             for (series_index, series) in self.series.iter().enumerate() {
                 if let Some(value_index) = series
