@@ -1,7 +1,7 @@
 //! Small constructors for the marks the outline diagrams (fishbone, Venn, kanban, story map,
 //! journey and value map) are made of, so that their layouts read as geometry.
 
-use crate::scene::{Element, Line, Rect, Text, TextAnchor};
+use crate::scene::{Circle, Element, Line, Rect, Text, TextAnchor};
 
 /// A rectangle with a class and an optional tooltip.
 pub(crate) fn rect(
@@ -45,5 +45,22 @@ pub(crate) fn text(
         class,
         anchor,
         content: content.into(),
+    })
+}
+
+/// A circle with a class and an optional tooltip.
+pub(crate) fn circle(
+    (cx, cy, radius): (f64, f64, f64),
+    class: &'static str,
+    tooltip: Option<String>,
+) -> Element {
+    Element::Circle(Circle {
+        cx,
+        cy,
+        radius,
+        class,
+        series_index: None,
+        style_index: None,
+        tooltip,
     })
 }

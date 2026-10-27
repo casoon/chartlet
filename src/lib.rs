@@ -16,6 +16,8 @@ mod flow;
 mod heat;
 mod heatmap;
 mod inspect;
+mod journey;
+mod kanban;
 mod layout;
 mod metrics;
 mod network;
@@ -40,6 +42,7 @@ mod social;
 mod sort;
 mod spec;
 mod state;
+mod storymap;
 mod stripes;
 mod structure;
 mod survival;
@@ -50,6 +53,8 @@ mod time;
 mod timeline;
 mod tree;
 mod treemap;
+mod valuemap;
+mod venn;
 mod waffle;
 mod waterfall;
 
@@ -66,7 +71,8 @@ pub use spec::{
     DiagramOrientation, DiagramRole, DiagramSpacing, DistancesSpec, FishboneBoneSpec,
     FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec,
     FragmentKind, FragmentSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder, HeatmapScale,
-    HeatmapSpec, InstanceSpec, InterfaceSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage,
+    HeatmapSpec, InstanceSpec, InterfaceSpec, JourneyDisplay, JourneySpec, JourneyStageSpec,
+    KanbanCardSpec, KanbanColumnSpec, KanbanSpec, LaneSpec, LayerSpec, LegendPlacement, Linkage,
     MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, NetworkEdgeSpec,
     NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec, OhlcPoint,
     Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind, ParticipantSpec,
@@ -74,12 +80,14 @@ pub use spec::{
     RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder, SankeySpec,
     ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels, ScatterQuadrantsSpec,
     ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape, SizePreset, Stack, StateKind,
-    StateNodeSpec, StateSpec, StepKind, StepSpec, StripesSpec, Stroke, StrokeStyle,
-    SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec,
-    TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
+    StateNodeSpec, StateSpec, StepKind, StepSpec, StorymapActivitySpec, StorymapSpec,
+    StorymapStorySpec, StorymapTaskSpec, StripesSpec, Stroke, StrokeStyle, SurvivalGroupSpec,
+    SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind, TimeAxisSpec, TimePoint,
+    TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips, TransitionSpec, TreeLayout,
     TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec, ValueAxisSpec, ValueFormat,
-    ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound,
-    ZoomStep,
+    ValuemapComponentSpec, ValuemapDependencySpec, ValuemapMoveSpec, ValuemapSpec, VennRegionSpec,
+    VennSpec, ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec, WaffleSpec, WaterfallSpec,
+    ZoomBound, ZoomStep,
 };
 pub use theme::{apply_theme, bundled_theme};
 

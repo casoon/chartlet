@@ -9,6 +9,8 @@ mod deployment;
 mod fishbone;
 mod flow;
 mod heatmap;
+mod journey;
+mod kanban;
 mod network;
 mod parliament;
 mod rangebar;
@@ -16,6 +18,7 @@ mod sankey;
 mod scatter;
 mod sequence;
 mod state;
+mod storymap;
 mod stripes;
 mod survival;
 mod timechart;
@@ -24,6 +27,8 @@ mod tree;
 mod treemap;
 pub(crate) mod untagged;
 mod validate;
+mod valuemap;
+mod venn;
 mod view;
 mod waffle;
 mod waterfall;
@@ -53,6 +58,9 @@ pub use flow::{
     MainPath, NodeKind, NoteSpec, PartSpec, PortSide,
 };
 pub use heatmap::{HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec};
+pub(crate) use journey::JourneyRow;
+pub use journey::{JourneyDisplay, JourneySpec, JourneyStageSpec};
+pub use kanban::{KanbanCardSpec, KanbanColumnSpec, KanbanSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
 pub use rangebar::{RangeDisplay, RangeSort, RangeSpec};
@@ -68,6 +76,7 @@ pub use sequence::{
     ParticipantKind, ParticipantSpec, SequenceSpec,
 };
 pub use state::{StateKind, StateNodeSpec, StateSpec, TransitionSpec};
+pub use storymap::{StorymapActivitySpec, StorymapSpec, StorymapStorySpec, StorymapTaskSpec};
 pub(crate) use stripes::Diverging;
 pub use stripes::StripesSpec;
 pub(crate) use survival::{KmCurve, KmStep};
@@ -84,6 +93,9 @@ pub(crate) use treemap::{TmNode, TmTree};
 pub use treemap::{TreemapItemSpec, TreemapSpec};
 pub(crate) use validate::validate_number;
 use validate::{json_pointer, validate_optional_text, validate_text};
+pub(crate) use valuemap::{VALUEMAP_STAGES, ValuemapStage};
+pub use valuemap::{ValuemapComponentSpec, ValuemapDependencySpec, ValuemapMoveSpec, ValuemapSpec};
+pub use venn::{VennRegionSpec, VennSpec};
 pub use view::{InstanceSpec, ViewSpec, ViewStepSpec};
 pub use waffle::{WafflePartSpec, WaffleSpec};
 pub(crate) use waterfall::WaterfallBar;
@@ -236,6 +248,21 @@ pub struct ChartSpec {
     /// A heatmap: values or categories in a grid of rows and columns. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub heatmap: Option<HeatmapSpec>,
+    /// A Venn diagram of two or three sets. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub venn: Option<VennSpec>,
+    /// A value chain map: components by visibility and evolution. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub valuemap: Option<ValuemapSpec>,
+    /// A user journey or service blueprint: stages with rows of actions, touchpoints, thoughts and sentiment. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub journey: Option<JourneySpec>,
+    /// A user story map: activities, tasks and stories in release slices. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub storymap: Option<StorymapSpec>,
+    /// A kanban board: columns for states with cards. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kanban: Option<KanbanSpec>,
     /// A fishbone diagram: one effect and the categories of its causes on bones. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fishbone: Option<FishboneSpec>,
@@ -474,6 +501,16 @@ pub enum ChartType {
     Waffle,
     /// A heatmap: values or categories in a grid of rows and columns.
     Heatmap,
+    /// A Venn diagram of two or three sets.
+    Venn,
+    /// A value chain map: components by visibility and evolution.
+    Valuemap,
+    /// A user journey or service blueprint: stages with rows of actions, touchpoints, thoughts and sentiment.
+    Journey,
+    /// A user story map: activities, tasks and stories in release slices.
+    Storymap,
+    /// A kanban board: columns for states with cards.
+    Kanban,
     /// A fishbone diagram: one effect and the categories of its causes on bones.
     Fishbone,
     /// A parliament: seats as dots in a semicircle, in blocks by party.
@@ -496,7 +533,7 @@ pub enum ChartType {
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 26] = [
+    pub const ALL: [Self; 31] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -514,6 +551,11 @@ impl ChartType {
         Self::Waterfall,
         Self::Waffle,
         Self::Heatmap,
+        Self::Venn,
+        Self::Valuemap,
+        Self::Journey,
+        Self::Storymap,
+        Self::Kanban,
         Self::Fishbone,
         Self::Parliament,
         Self::Treemap,
@@ -862,6 +904,11 @@ impl ChartSpec {
             ChartType::Parliament => self.validate_parliament(),
             ChartType::Waffle => self.validate_waffle(),
             ChartType::Heatmap => self.validate_heatmap(),
+            ChartType::Venn => self.validate_venn(),
+            ChartType::Valuemap => self.validate_valuemap(),
+            ChartType::Journey => self.validate_journey(),
+            ChartType::Storymap => self.validate_storymap(),
+            ChartType::Kanban => self.validate_kanban(),
             ChartType::Fishbone => self.validate_fishbone(),
             ChartType::Waterfall => self.validate_waterfall(),
             ChartType::Network => self.validate_network(),
@@ -899,6 +946,11 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Parliament => "parliament",
         ChartType::Waffle => "waffle",
         ChartType::Heatmap => "heatmap",
+        ChartType::Venn => "venn",
+        ChartType::Valuemap => "valuemap",
+        ChartType::Journey => "journey",
+        ChartType::Storymap => "storymap",
+        ChartType::Kanban => "kanban",
         ChartType::Fishbone => "fishbone",
         ChartType::Waterfall => "waterfall",
         ChartType::Network => "network",

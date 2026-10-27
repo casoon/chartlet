@@ -554,6 +554,36 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/topic-streams.json"),
         include_str!("../examples/topic-streams.svg"),
     ),
+    (
+        "team-skills",
+        include_str!("../examples/team-skills.json"),
+        include_str!("../examples/team-skills.svg"),
+    ),
+    (
+        "sprint-board",
+        include_str!("../examples/sprint-board.json"),
+        include_str!("../examples/sprint-board.svg"),
+    ),
+    (
+        "shop-story-map",
+        include_str!("../examples/shop-story-map.json"),
+        include_str!("../examples/shop-story-map.svg"),
+    ),
+    (
+        "customer-support-journey",
+        include_str!("../examples/customer-support-journey.json"),
+        include_str!("../examples/customer-support-journey.svg"),
+    ),
+    (
+        "support-blueprint",
+        include_str!("../examples/support-blueprint.json"),
+        include_str!("../examples/support-blueprint.svg"),
+    ),
+    (
+        "coffee-shop-chain",
+        include_str!("../examples/coffee-shop-chain.json"),
+        include_str!("../examples/coffee-shop-chain.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -777,6 +807,36 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "topic-streams",
         include_str!("../examples/topic-streams.json"),
         include_str!("../examples/topic-streams.mobile.svg"),
+    ),
+    (
+        "team-skills",
+        include_str!("../examples/team-skills.json"),
+        include_str!("../examples/team-skills.mobile.svg"),
+    ),
+    (
+        "sprint-board",
+        include_str!("../examples/sprint-board.json"),
+        include_str!("../examples/sprint-board.mobile.svg"),
+    ),
+    (
+        "shop-story-map",
+        include_str!("../examples/shop-story-map.json"),
+        include_str!("../examples/shop-story-map.mobile.svg"),
+    ),
+    (
+        "customer-support-journey",
+        include_str!("../examples/customer-support-journey.json"),
+        include_str!("../examples/customer-support-journey.mobile.svg"),
+    ),
+    (
+        "support-blueprint",
+        include_str!("../examples/support-blueprint.json"),
+        include_str!("../examples/support-blueprint.mobile.svg"),
+    ),
+    (
+        "coffee-shop-chain",
+        include_str!("../examples/coffee-shop-chain.json"),
+        include_str!("../examples/coffee-shop-chain.mobile.svg"),
     ),
 ];
 

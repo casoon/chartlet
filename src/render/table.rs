@@ -113,6 +113,11 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         ChartType::Parliament => return crate::parliament::data_table(spec),
         ChartType::Waffle => return crate::waffle::data_table(spec),
         ChartType::Heatmap => return crate::heatmap::data_table(spec),
+        ChartType::Venn => return crate::venn::data_table(spec),
+        ChartType::Valuemap => return crate::valuemap::data_table(spec),
+        ChartType::Journey => return crate::journey::data_table(spec),
+        ChartType::Storymap => return crate::storymap::data_table(spec),
+        ChartType::Kanban => return crate::kanban::data_table(spec),
         ChartType::Fishbone => return crate::fishbone::data_table(spec),
         ChartType::Waterfall => return crate::waterfall::data_table(spec),
         _ => {}
@@ -144,6 +149,11 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Waterfall
         | ChartType::Waffle
         | ChartType::Heatmap
+        | ChartType::Venn
+        | ChartType::Valuemap
+        | ChartType::Journey
+        | ChartType::Storymap
+        | ChartType::Kanban
         | ChartType::Fishbone
         | ChartType::Parliament
         | ChartType::Treemap

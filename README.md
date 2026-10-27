@@ -104,6 +104,11 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Waterfall: a total made up of rises, falls and subtotals | `"type": "waterfall"` with `waterfall.steps` | [revenue-to-profit](examples/revenue-to-profit.json) |
 | Heatmap: values in a grid of rows and columns, or categories with a symbol each | `"type": "heatmap"` with `heatmap.rows`, `columns` and `cells` | [weekly-response](examples/weekly-response.json), [permission-matrix](examples/permission-matrix.json) |
 | Waffle chart: shares of a whole as squares, with the rest | `"type": "waffle"` with `waffle.parts` and `total` | [energy-sources](examples/energy-sources.json) |
+| Venn diagram: two or three overlapping sets with a label and count per region | `"type": "venn"` with `venn.sets` and `regions` | [team-skills](examples/team-skills.json) |
+| Value chain map: components by visibility and evolution, dependencies, planned movement | `"type": "valuemap"` with `valuemap.components` and `dependencies` | [coffee-shop-chain](examples/coffee-shop-chain.json) |
+| User journey and service blueprint: stages with actions, touchpoints, thoughts and a sentiment line | `"type": "journey"` with `journey.stages`, optionally `"display": "blueprint"` | [customer-support-journey](examples/customer-support-journey.json), [support-blueprint](examples/support-blueprint.json) |
+| Story map: activities, tasks and stories in release slices | `"type": "storymap"` with `storymap.releases` and `activities` | [shop-story-map](examples/shop-story-map.json) |
+| Kanban board: states as columns with cards, work-in-progress limits, blocked cards | `"type": "kanban"` with `kanban.columns` | [sprint-board](examples/sprint-board.json) |
 | Fishbone diagram: the causes of one effect, in categories on bones | `"type": "fishbone"` with `fishbone.effect` and `bones` | [delivery-delays](examples/delivery-delays.json) |
 | Parliament chart: seats by party, the majority line, a coalition ringed | `"type": "parliament"` with `parliament.parties`, `majority`, `coalition` | [election-result](examples/election-result.json) |
 | Nested treemap: sectors and departments | `children` on `treemap.items` | [budget-by-sector](examples/budget-by-sector.json) |

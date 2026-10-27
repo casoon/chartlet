@@ -35,6 +35,11 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `architecture` | [Architecture diagrams](#architecture-diagrams) | `architecture` |
 | `tree` | [Trees](#trees) | `tree` |
 | `network` | [Networks](#networks) | `network` |
+| `venn` | [Venn diagrams](#venn-diagrams) | `venn` |
+| `valuemap` | [Value chain maps](#value-chain-maps) | `valuemap` |
+| `journey` | [User journeys](#user-journeys-and-service-blueprints) | `journey` |
+| `storymap` | [Story maps](#story-maps) | `storymap` |
+| `kanban` | [Kanban boards](#kanban-boards) | `kanban` |
 | `fishbone` | [Fishbone diagrams](#fishbone-diagrams) | `fishbone` |
 | `cycle` | [Cycles](#cycles) | `cycle` |
 
@@ -83,7 +88,7 @@ Rules:
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `heatmap`, `waterfall`,
-  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `columns`),
+  `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `kanban`, `storymap`, `journey`, `valuemap`, `venn`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
@@ -91,7 +96,7 @@ Rules:
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
   `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_heatmap`, `missing_waterfall`,
   `missing_sequence`, `missing_flow`, `missing_state`,
-  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle` and `missing_fishbone`. An empty list
+  `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle`, `missing_fishbone`, `missing_kanban`, `missing_storymap`, `missing_journey`, `missing_valuemap` and `missing_venn`. An empty list
   where a type needs at least one entry is `empty_data`.
 - Stripes, calendars, timelines and every diagram are drawn from their block alone:
   `data`, `categories`, `series`, `zoomSteps`, `panes`, `orientation`, `categoryAxis`,
@@ -624,6 +629,101 @@ Rules: 1–6 bones, up to 8 causes per bone and 4 sub-causes per cause (`too_man
 labels are unique (`duplicate_label`); a cause below a sub-cause is not part of the specification
 and is refused as an unknown field. The canvas grows for the bones with a `canvas_too_small`
 warning.
+
+## Kanban boards
+
+`"type": "kanban"`: columns of cards. See [Kanban boards](../../guides/chart-types/#kanban-boards).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `kanban.columns` | array, 1–6 | yes | The states, left to right. |
+| `kanban.columns[].label` | string, up to 60 characters | yes | The state; unique. |
+| `kanban.columns[].limit` | integer, 1 or more | no | The most cards the column should hold; written as `3/4`, marked when exceeded. |
+| `kanban.columns[].cards` | array, up to 20 | no | The cards, top to bottom. |
+| `kanban.columns[].cards[].title` | string, up to 100 characters | yes | The card. |
+| `kanban.columns[].cards[].owner` | string, up to 40 characters | no | Who holds it. |
+| `kanban.columns[].cards[].tag` | string, up to 30 characters | no | A kind of work, drawn as a chip. |
+| `kanban.columns[].cards[].blocked` | boolean | no | Default `false`; drawn with a sign and the word. |
+
+Rules: 1–6 columns and up to 20 cards per column (`too_many_nodes`); column labels are unique
+(`duplicate_label`); a `limit` of 0 is `invalid_limit`. A column over its limit is drawn, not
+refused. The canvas grows for long boards with a `canvas_too_small` warning.
+
+## Story maps
+
+`"type": "storymap"`: activities, tasks and stories in release slices. See
+[Story maps](../../guides/chart-types/#story-maps).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `storymap.releases` | array of strings, 1–5 | yes | The slices from the top down, such as `["MVP", "Release 2"]`; unique. |
+| `storymap.activities` | array, 1–8 | yes | The backbone, left to right; unique labels. |
+| `storymap.activities[].label` | string, up to 100 characters | yes | The activity. |
+| `storymap.activities[].tasks` | array, at least 1 | yes | The user tasks under it; 16 in all. |
+| `storymap.activities[].tasks[].label` | string, up to 100 characters | yes | The task. |
+| `storymap.activities[].tasks[].stories` | array, up to 12 | no | `[{ "title": "Search by name", "release": "MVP" }]`. |
+
+Rules: up to 5 releases, 8 activities and 16 tasks (`too_many_nodes`); an activity needs a task
+(`empty_data`); release names and activity labels are unique (`duplicate_label`); a story names a
+release of the map (`unknown_release`).
+
+## User journeys and service blueprints
+
+`"type": "journey"`: stages with rows of actions, touchpoints, thoughts and sentiment. See
+[User journeys and service blueprints](../../guides/chart-types/#user-journeys-and-service-blueprints).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `journey.stages` | array, 2–8 | yes | The stages, left to right. |
+| `journey.stages[].label` | string, up to 60 characters | yes | The stage; unique. |
+| `journey.stages[].action`, `touchpoint`, `thought` | string, up to 160 characters | no | What the customer does, where, and thinks. |
+| `journey.stages[].sentiment` | integer, -2 to 2 | no | How the customer feels, drawn as a line with the value written. |
+| `journey.display` | `"journey"` or `"blueprint"` | no | Default `journey`; `blueprint` allows the three rows below and draws the lines of interaction and visibility. |
+| `journey.stages[].frontstage`, `backstage`, `support` | string, up to 160 characters | no | What the service does where the customer sees it, out of sight, and the systems under it. Blueprint only. |
+
+Rules: 2–8 stages (`empty_data`, `too_many_nodes`) with unique labels (`duplicate_label`); a
+sentiment outside -2…2 is `invalid_value`; `frontstage`, `backstage` and `support` without
+`"display": "blueprint"` are `option_not_supported`. The canvas grows for long texts with a
+`canvas_too_small` warning.
+
+## Value chain maps
+
+`"type": "valuemap"`: components by visibility and evolution. See
+[Value chain maps](../../guides/chart-types/#value-chain-maps).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `valuemap.components` | array, 1–40 | yes | The components of the map. |
+| `valuemap.components[].id` | string, up to 60 characters | yes | Identifies it in `dependencies`; unique. |
+| `valuemap.components[].label` | string, up to 100 characters | yes | The name drawn beside the dot; unique. |
+| `valuemap.components[].visibility` | number, 0–1 | yes | 1 is the user's need itself, 0 is hidden; drawn up. |
+| `valuemap.components[].evolution` | number, 0–1 | yes | 0 is genesis, 1 commodity; drawn right. Stages begin at 0, 0.17, 0.4 and 0.7. |
+| `valuemap.components[].movesTo` | object | no | `{ "evolution": 0.6, "visibility": 0.5 }`; a dashed arrow to the place; `visibility` defaults to the component's own. |
+| `valuemap.components[].inertia` | boolean | no | Default `false`; a bar beside the dot. |
+| `valuemap.dependencies` | array, up to 80 | no | `[{ "from": "shop", "to": "hosting" }]`: `from` needs `to`. |
+
+Rules: 1–40 components (`too_many_nodes`) with unique ids (`duplicate_id`) and labels
+(`duplicate_label`); positions between 0 and 1 and a movement to more evolution
+(`invalid_position`); dependencies name components (`unknown_node`), none to itself
+(`self_loop`) and each once (`duplicate_edge`).
+
+## Venn diagrams
+
+`"type": "venn"`: two or three sets and the regions where they overlap. See
+[Venn diagrams](../../guides/chart-types/#venn-diagrams).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `venn.sets` | array of strings, 2–3 | yes | The names of the sets; unique, up to 60 characters. |
+| `venn.regions` | array, up to 7 | no | `[{ "sets": ["Design", "Code"], "label": "Prototyping", "count": 4 }]`; the region that lies in exactly the sets it names. |
+| `venn.regions[].sets` | array of set names | yes | One to three of `venn.sets`, each once. |
+| `venn.regions[].label` | string, up to 100 characters | no | Written in the region, or beside the diagram on a leader line. |
+| `venn.regions[].count` | number, 0 or more | no | Written under the label; formatted like other numbers (`locale`). |
+
+Rules: fewer than two sets is `not_enough_sets`, more than three `too_many_sets`; set names are
+unique (`duplicate_label`); a region names sets that exist (`unknown_set`) and is given once
+(`duplicate_region`); a negative `count` is `invalid_value`. The table lists every region, also
+those that are not given.
 
 ## Diagram fields
 

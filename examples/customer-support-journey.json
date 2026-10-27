@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "type": "journey",
+  "title": "A customer asks for help",
+  "source": "Illustrative journey of a software subscriber",
+  "width": 900,
+  "height": 520,
+  "mobile": { "width": 380, "height": 1260 },
+  "journey": {
+    "stages": [
+      {
+        "label": "Notice the problem",
+        "action": "Cannot export a report, tries twice",
+        "touchpoint": "Product",
+        "thought": "Did I do something wrong?",
+        "sentiment": -1
+      },
+      {
+        "label": "Look for an answer",
+        "action": "Searches the help center and the community forum",
+        "touchpoint": "Help center, forum",
+        "thought": "These articles are about the old version",
+        "sentiment": -2
+      },
+      {
+        "label": "Contact support",
+        "action": "Opens a chat and describes the export error",
+        "touchpoint": "Chat widget",
+        "thought": "At least someone answers quickly",
+        "sentiment": 0
+      },
+      {
+        "label": "Get it solved",
+        "action": "Follows the steps the agent sends",
+        "touchpoint": "Chat, email",
+        "thought": "That was simple once I knew it",
+        "sentiment": 1
+      },
+      {
+        "label": "Follow up",
+        "action": "Answers the satisfaction survey",
+        "touchpoint": "Email",
+        "thought": "I will recommend the support at least",
+        "sentiment": 2
+      }
+    ]
+  }
+}

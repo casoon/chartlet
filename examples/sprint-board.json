@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "type": "kanban",
+  "title": "Sprint board",
+  "source": "Illustrative board of a small product team",
+  "width": 860,
+  "height": 480,
+  "mobile": { "width": 380, "height": 900 },
+  "kanban": {
+    "columns": [
+      {
+        "label": "Backlog",
+        "cards": [
+          { "title": "Export the invoice list as CSV", "tag": "Feature" },
+          { "title": "Dark mode for the dashboard", "tag": "Design" },
+          { "title": "Upgrade the database driver", "owner": "Noor", "tag": "Chore" }
+        ]
+      },
+      {
+        "label": "In progress",
+        "limit": 2,
+        "cards": [
+          { "title": "Single sign-on for teams", "owner": "Mara", "tag": "Feature" },
+          { "title": "Fix the duplicate email on signup", "owner": "Jonas", "tag": "Bug", "blocked": true },
+          { "title": "Rework the onboarding checklist", "owner": "Ines", "tag": "Design" }
+        ]
+      },
+      {
+        "label": "Review",
+        "limit": 3,
+        "cards": [
+          { "title": "Rate limits for the public API", "owner": "Noor", "tag": "Feature" },
+          { "title": "Correct the VAT rounding", "owner": "Mara", "tag": "Bug" }
+        ]
+      },
+      {
+        "label": "Done",
+        "cards": [
+          { "title": "Billing page copy", "owner": "Ines", "tag": "Design" },
+          { "title": "Rotate the signing keys", "owner": "Jonas", "tag": "Chore" }
+        ]
+      }
+    ]
+  }
+}

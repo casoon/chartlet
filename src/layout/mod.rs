@@ -285,6 +285,11 @@ pub(crate) fn layout(
         (ChartType::Parliament, _) => crate::parliament::layout(spec, warnings, metrics),
         (ChartType::Waffle, _) => crate::waffle::layout(spec, warnings, metrics),
         (ChartType::Heatmap, _) => crate::heatmap::layout(spec, warnings, metrics),
+        (ChartType::Venn, _) => crate::venn::layout(spec, warnings, metrics),
+        (ChartType::Valuemap, _) => crate::valuemap::layout(spec, warnings, metrics),
+        (ChartType::Journey, _) => crate::journey::layout(spec, warnings, metrics),
+        (ChartType::Storymap, _) => crate::storymap::layout(spec, warnings, metrics),
+        (ChartType::Kanban, _) => crate::kanban::layout(spec, warnings, metrics),
         (ChartType::Fishbone, _) => crate::fishbone::layout(spec, warnings, metrics),
         (ChartType::Waterfall, _) => crate::waterfall::layout(spec, warnings, metrics),
     }

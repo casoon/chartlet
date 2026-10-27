@@ -9,6 +9,7 @@ mod heatmap;
 mod locale;
 mod manifest;
 mod multiples;
+mod outlines;
 mod panes;
 mod part_of_whole;
 mod ranges;

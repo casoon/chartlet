@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "type": "venn",
+  "title": "Where the team's skills overlap",
+  "source": "Illustrative skills survey of a product team of 24",
+  "width": 760,
+  "height": 520,
+  "mobile": { "width": 380, "height": 560 },
+  "venn": {
+    "sets": ["Design", "Engineering", "Research"],
+    "regions": [
+      { "sets": ["Design"], "label": "Visual design only", "count": 3 },
+      { "sets": ["Engineering"], "label": "Engineering only", "count": 9 },
+      { "sets": ["Research"], "label": "Research only", "count": 2 },
+      { "sets": ["Design", "Engineering"], "label": "Prototyping", "count": 4 },
+      { "sets": ["Design", "Research"], "label": "Usability testing", "count": 2 },
+      { "sets": ["Engineering", "Research"], "label": "Analytics", "count": 3 },
+      { "sets": ["Design", "Engineering", "Research"], "label": "Product discovery", "count": 1 }
+    ]
+  }
+}

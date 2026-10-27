@@ -1738,6 +1738,193 @@ flywheel. An optional hub in the middle is what the steps feed.
 
 Limits: 3–8 steps (`too_few_steps`, `too_many_steps`), unique ids (`duplicate_id`).
 
+## Kanban boards
+
+`"type": "kanban"` shows work by state: columns, each with its cards.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "kanban",
+  "title": "Sprint board",
+  "kanban": {
+    "columns": [
+      { "label": "To do", "cards": [{ "title": "Export as CSV", "tag": "Feature" }] },
+      {
+        "label": "In progress",
+        "limit": 2,
+        "cards": [
+          { "title": "Single sign-on", "owner": "Mara", "tag": "Feature" },
+          { "title": "Duplicate email on signup", "owner": "Jonas", "tag": "Bug", "blocked": true }
+        ]
+      },
+      { "label": "Done" }
+    ]
+  }
+}
+```
+
+- **Columns.** One to six, each with up to 20 cards and unique labels. A `limit` (at least 1) is the
+  most cards the column should hold: its count is written as `3/4`. A column that holds more is
+  marked with its own dashed outline, a warning sign and a red count, so that the state does not
+  rest on color.
+- **Cards.** A `title`, and optionally an `owner`, a `tag` (drawn as a chip) and `blocked`: a
+  blocked card has a red outline, a sign and the word "Blocked".
+- **Layout.** Columns stand side by side where each is at least 150 pixels wide, and one under the
+  other on a narrower canvas, such as the phone variant.
+- **Text alternative.** The description counts the cards of every column, says which are over
+  their limit and names the blocked cards with their columns; the table has a row for every card
+  with its column, the load of the column, owner, tag and status.
+
+## Story maps
+
+`"type": "storymap"` lays out a product backlog as a map: the activities of a user across the top, the
+tasks under each, and below them the stories in release slices.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "storymap",
+  "title": "Story map of an online shop",
+  "storymap": {
+    "releases": ["MVP", "Release 2"],
+    "activities": [
+      {
+        "label": "Find a product",
+        "tasks": [
+          {
+            "label": "Search",
+            "stories": [
+              { "title": "Search by name", "release": "MVP" },
+              { "title": "Suggest while typing", "release": "Release 2" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+- **Backbone.** Up to eight activities, each spanning the columns of its tasks (16 tasks in all).
+- **Slices.** `releases` (up to five) are the slices from the top down. Each starts with a dashed
+  cut line that carries its name; a story names its release and stands under its task in that
+  slice.
+- **Narrow canvases.** Where the tasks would be narrower than 110 pixels the map reads as a list:
+  each activity, its tasks, and under each task its stories with the release written beside them.
+- **Text alternative.** The description gives the size of the map and then, for each activity, its
+  tasks with their stories by release; the table has a row for every story with its activity, task
+  and release, and one for a task without stories.
+
+## User journeys and service blueprints
+
+`"type": "journey"` follows a customer through stages: what they do, where, what they think and how
+they feel. `"display": "blueprint"` adds the service behind it.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "journey",
+  "title": "A customer asks for help",
+  "journey": {
+    "stages": [
+      { "label": "Notice", "action": "Cannot export a report", "touchpoint": "Product", "sentiment": -1 },
+      { "label": "Contact", "action": "Opens a chat", "touchpoint": "Chat widget", "sentiment": 0 },
+      { "label": "Solved", "action": "Follows the steps", "thought": "That was simple", "sentiment": 2 }
+    ]
+  }
+}
+```
+
+- **Stages.** Two to eight columns. Rows of `action`, `touchpoint` and `thought` text (up to 160
+  characters each) appear where some stage fills them; a row no stage fills is left out.
+- **Sentiment.** A whole number from -2 to 2 per stage, drawn as a line over the five levels with
+  every value written beside its dot, so that the feeling is never only a position or a color. A
+  stage without a value breaks the line.
+- **Blueprint.** With `"display": "blueprint"` the stages also take `frontstage`, `backstage` and
+  `support`: the customer's rows stand above the line of interaction, the frontstage between it and
+  the line of visibility, and the backstage and support below that. These fields are refused
+  without `"display": "blueprint"` (`option_not_supported`).
+- **Narrow canvases.** Where each stage would be narrower than 100 pixels, every stage is a block of
+  its own from top to bottom, with the sentiment as five steps and its value.
+- **Text alternative.** The description walks through the stages and what is said of each; the table
+  has one row per stage and a column for every row drawn.
+
+## Value chain maps
+
+`"type": "valuemap"` places the components of a service by how visible they are to the user (up) and
+how far they have evolved (right), with their dependencies and where each is going.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "valuemap",
+  "title": "Value chain of an online shop",
+  "valuemap": {
+    "components": [
+      { "id": "customer", "label": "Coffee at home", "visibility": 0.97, "evolution": 0.62 },
+      { "id": "shop", "label": "Web shop", "visibility": 0.84, "evolution": 0.55 },
+      { "id": "recommend", "label": "Taste matching", "visibility": 0.58, "evolution": 0.12,
+        "movesTo": { "evolution": 0.34 } },
+      { "id": "hosting", "label": "Hosting", "visibility": 0.16, "evolution": 0.93 }
+    ],
+    "dependencies": [
+      { "from": "customer", "to": "shop" },
+      { "from": "shop", "to": "recommend" },
+      { "from": "shop", "to": "hosting" }
+    ]
+  }
+}
+```
+
+- **Positions.** `visibility` and `evolution` are numbers from 0 to 1 and are the specification's
+  own: chartlet does not compute them. The x axis has four stages with their names written under
+  them: genesis (from 0), custom (from 0.17), product (from 0.4) and commodity (from 0.7).
+- **Dependencies.** `from` needs `to`; each is a line between the two dots.
+- **Movement.** `movesTo` gives where a component is expected to go: a dashed arrow to a hollow
+  dot at a greater evolution, optionally with another visibility.
+- **Inertia.** `"inertia": true` marks a component something holds back with a bar beside its dot.
+- **Labels.** Each label stands to the right of its dot, or to the left, above or below where
+  something else would be covered; the canvas has room for up to 40 components.
+- **Text alternative.** The description lists the components from the most visible down with their
+  visibility, stage, movement and inertia, and then the dependencies; the table has a row for each
+  component.
+
+## Venn diagrams
+
+`"type": "venn"` shows how two or three sets overlap: circles at fixed places, with a label and a
+count for each region.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "venn",
+  "title": "Where the team's skills overlap",
+  "venn": {
+    "sets": ["Design", "Engineering"],
+    "regions": [
+      { "sets": ["Design"], "label": "Visual design only", "count": 3 },
+      { "sets": ["Design", "Engineering"], "label": "Prototyping", "count": 4 },
+      { "sets": ["Engineering"], "label": "Engineering only", "count": 9 }
+    ]
+  }
+}
+```
+
+- **Sets.** Two or three, with unique names. More are refused (`too_many_sets`): circles cannot
+  overlap in every combination of four sets.
+- **Regions.** A region is named by the sets it lies in: `["Design"]` is the part of Design that
+  lies in no other set, `["Design", "Engineering"]` the overlap of those two and no third. Each
+  takes an optional `label` and `count`; a region that is not listed stays empty. A region is given
+  once (`duplicate_region`).
+- **Layout.** The circles stand at fixed places, equal in size: the diagram shows which regions
+  exist, not how large they are. A label and its count sit inside their region where they fit.
+  Otherwise they stand beside the diagram, on the left or the right, joined to the region by a
+  line that ends in a dot. Each circle is named at its outer edge.
+- **Text alternative.** The description names the sets and every region the specification says
+  something about, and the table has a row for each of the two to seven regions, with its label
+  and count where it has them.
+
 ## Time series
 
 `"type": "time"` drops categories altogether: an observation carries a timestamp, the ticks land

@@ -891,6 +891,54 @@ const catalogue = [
       'Five steps on a ring with numbered dots and their labels outside, and a hub in the middle that every step feeds through a dotted link with a label of its own. In the HTML profile each step is a focus link that keeps its neighbours and the hub and dims the rest. The description names the hub and every link label. With a phone variant. Illustrative steps.',
   },
   {
+    slug: 'sprint-board',
+    group: 'Outlines and boards',
+    chart: 'Kanban board',
+    useCase: 'Show work by state',
+    blurb:
+      'Four states of a small team\'s sprint: cards with owner and tag, a column over its work-in-progress limit (3/2) marked with a sign and a dashed outline, and a blocked card with its own sign. On a phone the columns stand one under the other. The description counts cards per column and names the blocked ones. Illustrative board, with a phone variant.',
+  },
+  {
+    slug: 'shop-story-map',
+    group: 'Outlines and boards',
+    chart: 'Story map',
+    useCase: 'Plan releases from the user\'s view',
+    blurb:
+      'Three activities of an online shop, six user tasks and eleven stories in three release slices, each opened by a dashed cut line named MVP, Release 2 and Later. On a phone the map becomes a list with the release beside each story. The table lists every story by activity, task and release. Illustrative backlog, with a phone variant.',
+  },
+  {
+    slug: 'customer-support-journey',
+    group: 'Outlines and boards',
+    chart: 'User journey',
+    useCase: 'Follow a customer through stages',
+    blurb:
+      'Five stages of a customer who asks for help: actions, touchpoints and thoughts in rows, and a sentiment line from -2 to 2 with every value written beside its dot. The description walks through the stages and the table has a row for each. On a phone every stage is a block of its own. Illustrative journey, with a phone variant.',
+  },
+  {
+    slug: 'support-blueprint',
+    group: 'Outlines and boards',
+    chart: 'Service blueprint',
+    useCase: 'Show the service behind the journey',
+    blurb:
+      'The same kind of support request as a service blueprint: the customer\'s rows above the line of interaction, the frontstage between it and the line of visibility, and the backstage and support systems below. Illustrative blueprint, with a phone variant.',
+  },
+  {
+    slug: 'coffee-shop-chain',
+    group: 'Outlines and boards',
+    chart: 'Value chain map',
+    useCase: 'Show what a service depends on and where it is going',
+    blurb:
+      'Nine components of an online coffee shop from the user\'s need down to hosting: positions from the specification on a visibility and evolution plane with four named stages, dependency lines, two dashed arrows for planned movement and an inertia bar on roasting. The description lists the components from the most visible down. Illustrative map, with a phone variant.',
+  },
+  {
+    slug: 'team-skills',
+    group: 'Outlines and boards',
+    chart: 'Venn diagram',
+    useCase: 'Show what sets share',
+    blurb:
+      'Three skills of a product team of 24 as circles at fixed places, each of the seven regions with a label and a count. Text stays inside where it fits and moves to a leader line where it does not; the circles are named at their edge. The description and the table name every region. Illustrative survey, with a phone variant.',
+  },
+  {
     slug: 'mobile-revenue',
     group: 'Mobile variant',
     chart: 'Mobile variant',

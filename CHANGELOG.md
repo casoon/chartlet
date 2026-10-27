@@ -9,6 +9,33 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Venn diagrams:** `"type": "venn"` draws two or three sets as circles at fixed places, with a
+  label and a count for each region (`only A`, `A and B`, …); text sits inside where it fits and on
+  leader lines otherwise. More than three sets are refused. Details:
+  [Venn diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#venn-diagrams).
+
+- **Value chain maps:** `"type": "valuemap"` places components by visibility to the user (up) and
+  evolution (right, in the stages genesis, custom, product and commodity) at positions given in the
+  specification, with dependencies as lines, planned movement as dashed arrows and an inertia mark.
+  Details: [Value chain maps](https://casoon.github.io/chartlet/docs/guides/chart-types/#value-chain-maps).
+
+- **User journeys and service blueprints:** `"type": "journey"` follows a customer through stages with
+  rows of actions, touchpoints and thoughts and a sentiment line from -2 to 2 with every value
+  written; `"display": "blueprint"` adds the frontstage, backstage and support rows between the
+  lines of interaction and visibility. On a narrow canvas every stage is a block of its own.
+  Details: [User journeys and service blueprints](https://casoon.github.io/chartlet/docs/guides/chart-types/#user-journeys-and-service-blueprints).
+
+- **Story maps:** `"type": "storymap"` draws a backbone of activities, the user tasks under them and
+  the stories in release slices parted by labeled cut lines (`MVP`, `Release 2`); on a narrow
+  canvas it reads as a list with the release beside each story. The table lists every story by
+  activity, task and release. Details: [Story maps](https://casoon.github.io/chartlet/docs/guides/chart-types/#story-maps).
+
+- **Kanban boards:** `"type": "kanban"` draws the states of work as columns with cards. A column
+  can carry a limit, written as `3/4` and marked with a sign and its own outline when exceeded; a
+  card has an owner, a tag and a `blocked` sign. The description counts the cards per column and
+  names the blocked ones. Details:
+  [Kanban boards](https://casoon.github.io/chartlet/docs/guides/chart-types/#kanban-boards).
+
 - **Fishbone diagrams:** `"type": "fishbone"` draws one effect at the head of a spine and up to six
   categories as bones above and below it, each with causes and sub-causes on horizontal lines;
   labels are never set on a diagonal. The description and the table list the effect, the
