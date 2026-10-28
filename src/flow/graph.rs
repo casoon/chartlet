@@ -15,9 +15,6 @@ pub(super) struct Item {
     /// The groups the item lies in, outermost first; for a placeholder those both ends of its edge
     /// lie in.
     pub groups: Vec<usize>,
-    /// A placeholder of an edge that runs against the flow; it keeps to the outside of its lane,
-    /// so that the way back does not cut through the steps.
-    pub back: bool,
 }
 
 impl Item {
@@ -40,9 +37,9 @@ pub(super) struct Chain {
     pub reversed: bool,
 }
 
-/// How an item sorts within its layer: lane, whether it carries an edge back, the means of the
-/// groups it lies in level by level ending with its own barycenter, and its earlier position.
-type SortKey = (usize, bool, Vec<(f64, usize)>, usize);
+/// How an item sorts within its layer: lane, the means of the groups it lies in level by level
+/// ending with its own barycenter, and its earlier position.
+type SortKey = (usize, Vec<(f64, usize)>, usize);
 
 pub(super) struct Graph {
     pub items: Vec<Item>,
@@ -70,7 +67,6 @@ impl Graph {
                 node: Some(node),
                 lane: diagram.nodes[node].lane,
                 groups: diagram.chain(diagram.nodes[node].group),
-                back: false,
             })
             .collect();
         let mut layer = node_layers.clone();
@@ -92,8 +88,12 @@ impl Graph {
             let (first, last) = (node_layers[from], node_layers[to]);
             for between in first + 1..last {
                 // A placeholder keeps to the lane of the step it comes from for the first half of
-                // the way, then to the lane of the step it goes to.
-                let lane = if (between - first) * 2 <= last - first {
+                // the way, then to the lane of the step it goes to. The way back keeps to the
+                // lane of the step it returns to, so that it does not cross the lanes in between
+                // twice.
+                let lane = if reversed[index] {
+                    items[to].lane
+                } else if (between - first) * 2 <= last - first {
                     items[from].lane
                 } else {
                     items[to].lane
@@ -103,7 +103,6 @@ impl Graph {
                     node: None,
                     lane,
                     groups: shared.clone(),
-                    back: reversed[index],
                 });
                 layer.push(between);
             }
@@ -253,7 +252,6 @@ impl Graph {
                 path.push((*key, usize::MAX));
                 (
                     self.items[*item].lane.unwrap_or(0),
-                    self.items[*item].back,
                     path,
                     self.position[*item],
                 )
@@ -263,15 +261,12 @@ impl Graph {
         crate::sort::by(&mut order, |a, b| {
             let (a, b) = (&keys[*a], &keys[*b]);
             let path =
-                a.2.iter()
-                    .zip(&b.2)
+                a.1.iter()
+                    .zip(&b.1)
                     .map(|(a, b)| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)))
                     .find(|order| order.is_ne())
                     .unwrap_or(std::cmp::Ordering::Equal);
-            a.0.cmp(&b.0)
-                .then(a.1.cmp(&b.1))
-                .then(path)
-                .then(a.3.cmp(&b.3))
+            a.0.cmp(&b.0).then(path).then(a.2.cmp(&b.2))
         });
         let sorted: Vec<usize> = order.iter().map(|index| items[*index]).collect();
         self.layers[layer] = sorted;

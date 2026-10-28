@@ -22,7 +22,7 @@ use crate::{
 const MARGIN: f64 = 24.0;
 const COMPACT_MARGIN: f64 = 12.0;
 const GAP: f64 = 32.0;
-const HEADING: f64 = 30.0;
+const HEADING: f64 = 32.0;
 const LEDGER_LINE: f64 = 16.0;
 const BOTTOM: f64 = 16.0;
 /// Panels side by side from this canvas width on, one above the other below it.
@@ -683,7 +683,10 @@ pub(crate) fn layout(
     let margin = if compact { COMPACT_MARGIN } else { MARGIN };
     let width = f64::from(spec.width);
     let side = spec.width >= SIDE_BY_SIDE;
-    let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
+    let top = crate::flow::up(
+        56.0 + title_extra(spec, width - 2.0 * margin, metrics),
+        crate::flow::GRID,
+    );
     let panel_width = if side {
         (width - 2.0 * margin - GAP) / 2.0
     } else {
@@ -716,9 +719,15 @@ pub(crate) fn layout(
     };
     let first = (margin, top + HEADING);
     let second = if side {
-        (margin + union_width + GAP, top + HEADING)
+        (
+            margin + crate::flow::up(union_width, crate::flow::GRID) + GAP,
+            top + HEADING,
+        )
     } else {
-        (margin, top + 2.0 * HEADING + union_height + GAP)
+        (
+            margin,
+            top + 2.0 * HEADING + crate::flow::up(union_height, crate::flow::GRID) + GAP,
+        )
     };
     let panels_bottom = second.1 + union_height;
     let mut elements = Vec::new();

@@ -4,12 +4,12 @@
 use std::fmt::Write as _;
 
 use super::{
-    BRANCH, GROUP_HEAD, GROUP_PAD, LANE_HEAD, SUBLABEL_SIZE, WEIGHT_STEPS, blocks,
+    BRANCH, GRID, GROUP_HEAD, GROUP_PAD, LANE_HEAD, SUBLABEL_SIZE, WEIGHT_STEPS, blocks, down,
     measure::Model,
     model::{Diagram, Shape},
     place::Plan,
     route::Route,
-    trunks,
+    trunks, up,
 };
 use crate::{
     error::ChartWarning,
@@ -344,14 +344,18 @@ impl Plan {
                 },
             );
             // A frame is at least as wide as its own name, which sits in its top left corner.
-            let named = (metrics.width(&diagram.groups[group].label, SUBLABEL_SIZE) + 16.0).ceil();
+            let named = up(
+                metrics.width(&diagram.groups[group].label, SUBLABEL_SIZE) + 16.0,
+                GRID,
+            );
             let extra = (named - (right - left + 2.0 * GROUP_PAD)).max(0.0);
             // Along the flow the frame grows to the right only, away from the frames around it;
             // across it, on both sides.
             let (before, after) = if self.landscape {
                 (0.0, extra)
             } else {
-                (extra / 2.0, extra / 2.0)
+                let before = down(extra / 2.0, GRID);
+                (before, extra - before)
             };
             frames[group] = (
                 left - GROUP_PAD - before,

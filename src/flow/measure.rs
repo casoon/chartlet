@@ -2,13 +2,14 @@
 //! measured and wrapped into the boxes of the steps and the labels of the edges.
 
 use super::{
-    BALL, EDGE_LABEL, EDGE_SIZE, GAP, GROUP_GAP, INITIAL, INTERFACE_GAP, INTERFACE_LINE,
+    BALL, EDGE_LABEL, EDGE_SIZE, GAP, GRID, GROUP_GAP, INITIAL, INTERFACE_GAP, INTERFACE_LINE,
     INTERFACE_PAD, INTERFACE_SIZE, LABEL_SIZE, MARGIN, MAX_NODE, MEMBER_LINE, MEMBER_PAD,
     MEMBER_SIZE, MIN_NODE, NODE_GAP, NODE_LINE, PAD, PASSING_GAP, SUBLABEL_SIZE,
     graph::Graph,
     model::{Diagram, Node, Shape},
     ports::{Across, across_sides, side_room},
     trunks::Trunks,
+    up,
 };
 use crate::{
     diagram::wrap,
@@ -84,7 +85,7 @@ impl Spacing {
             DiagramSpacing::Roomy => (ROOMY, false),
         };
         let scale = |gap: f64, least: f64| {
-            let gap = gap * factor;
+            let gap = up(gap * factor, GRID);
             if floor { gap.max(least) } else { gap }
         };
         Self {
@@ -144,7 +145,13 @@ impl<'a> Model<'a> {
     ) -> Self {
         let ends = diagram.ends();
         let graph = Graph::new(diagram);
-        let (labels, sublabels, sizes) = node_boxes(diagram, &spacing, metrics, warnings);
+        let (labels, sublabels, mut sizes) = node_boxes(diagram, &spacing, metrics, warnings);
+        // A step's middle lies on the grid when its size is a multiple of twice the grid.
+        for (node, size) in diagram.nodes.iter().zip(&mut sizes) {
+            if node.shape != Shape::Interface {
+                *size = (up(size.0, 2.0 * GRID), up(size.1, 2.0 * GRID));
+            }
+        }
         let (edge_labels, edge_widths) =
             edge_labels(diagram, spacing.edge_label, metrics, warnings);
         let loops: Vec<Option<String>> = (0..diagram.nodes.len())
@@ -192,7 +199,7 @@ impl<'a> Model<'a> {
         let group_names = diagram
             .groups
             .iter()
-            .map(|group| (metrics.width(&group.label, SUBLABEL_SIZE) + 16.0).ceil())
+            .map(|group| up(metrics.width(&group.label, SUBLABEL_SIZE) + 16.0, GRID))
             .collect();
         Self {
             diagram,
