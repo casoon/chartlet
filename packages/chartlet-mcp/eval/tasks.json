@@ -132,7 +132,7 @@
       "request": "Make it fit a 16:9 slide.",
       "expectedType": "flow",
       "tools": ["chartlet_validate_spec", "chartlet_render"],
-      "reference": { "example": "order-fulfilment", "patch": { "size": "slide-16x9", "width": null, "height": null } },
+      "reference": { "example": "court-instances", "patch": { "size": "slide-16x9", "width": null, "height": null } },
       "expectInSvg": "width=\"1920\" height=\"1080\"",
       "mustKeep": "every step and edge; only the size preset changes"
     },
