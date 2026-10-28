@@ -329,6 +329,39 @@ fn step_sizes(model: &Model, landscape: bool) -> Vec<(f64, f64)> {
             size.1 = up(size.1.max(18.0 * count(labelled) + 14.0), 2.0 * GRID);
         }
     }
+    // A step that several edges meet on one side is wide enough, across the flow, to keep their
+    // ports 12 px apart.
+    for (node, size) in sizes.iter_mut().enumerate() {
+        let shape = model.diagram.nodes[node].shape;
+        if matches!(shape, Shape::Interface | Shape::Block) {
+            continue;
+        }
+        let meeting = |leaving: bool| {
+            model
+                .graph
+                .chains
+                .iter()
+                .flatten()
+                .filter(|chain| {
+                    let items = &chain.items;
+                    items[if leaving { 0 } else { items.len() - 1 }] == node
+                })
+                .count()
+        };
+        let ports = count(meeting(true).max(meeting(false)));
+        if ports >= 2.0 {
+            // The main path keeps the middle, so the other ports may all lie on one side of it.
+            let spread = 24.0 * (ports - 1.0) + 16.0;
+            let needed = if shape == Shape::Decision {
+                spread.max(40.0 * (ports - 1.0))
+            } else {
+                spread
+            };
+            let needed = up(needed, 2.0 * GRID);
+            let across = if landscape { &mut size.1 } else { &mut size.0 };
+            *across = across.max(needed);
+        }
+    }
     sizes
 }
 
