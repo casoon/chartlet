@@ -16,6 +16,12 @@ use crate::{
     spec::Dash,
 };
 
+/// Half the width and the height of the hop of an edge over one it crosses, and how far from the
+/// end of a run it must lie.
+const HOP_REACH: f64 = 4.0;
+const HOP_HEIGHT: f64 = 4.0;
+const HOP_CLEAR: f64 = 12.0;
+
 /// Where an edge ends: its tip and the direction the line runs into it.
 type EndPlace = ((f64, f64), (f64, f64));
 
@@ -212,6 +218,82 @@ impl Plan {
         })
     }
 
+    /// `points`, the way of edge `edge`, with a small hop where a horizontal run crosses a vertical
+    /// run of another edge on its own. A crossing that lies close to the end of a run or to
+    /// another crossing on it stays a plain crossing.
+    fn hop_over_crossings(
+        &self,
+        model: &Model,
+        edge: usize,
+        points: &[(f64, f64)],
+    ) -> Vec<(f64, f64)> {
+        let shares =
+            |edge: usize| model.trunks.leave[edge].is_some() || model.trunks.reach[edge].is_some();
+        let verticals: Vec<(f64, f64, f64)> = self
+            .routes
+            .iter()
+            .enumerate()
+            .filter(|(other, _)| *other != edge && !(shares(edge) && shares(*other)))
+            .filter_map(|(_, route)| route.as_ref())
+            .flat_map(|route| {
+                route
+                    .points
+                    .windows(2)
+                    .map(|pair| (self.page(pair[0]), self.page(pair[1])))
+                    .filter(|(a, b)| (a.0 - b.0).abs() < 1e-6)
+                    .map(|(a, b)| (a.0, a.1.min(b.1), a.1.max(b.1)))
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        let mut output = Vec::with_capacity(points.len());
+        for pair in points.windows(2) {
+            let (a, b) = (pair[0], pair[1]);
+            output.push(a);
+            if (a.1 - b.1).abs() > 1e-6 || (b.0 - a.0).abs() < 2.0 * (HOP_REACH + HOP_CLEAR) {
+                continue;
+            }
+            let sign = (b.0 - a.0).signum();
+            let (low, high) = (a.0.min(b.0) + HOP_CLEAR, a.0.max(b.0) - HOP_CLEAR);
+            let mut crossings: Vec<f64> = verticals
+                .iter()
+                .filter(|(x, from, to)| {
+                    *x > low && *x < high && *from + 0.5 < a.1 && a.1 < *to - 0.5
+                })
+                .map(|(x, _, _)| *x)
+                .collect();
+            crossings.sort_by(f64::total_cmp);
+            crossings.dedup_by(|p, q| (*p - *q).abs() < 1e-6);
+            let single: Vec<f64> = crossings
+                .iter()
+                .enumerate()
+                .filter(|(index, x)| {
+                    let near = |other: Option<&f64>| {
+                        other.is_some_and(|other| (**x - *other).abs() < 2.0 * HOP_REACH + 4.0)
+                    };
+                    !near(
+                        index
+                            .checked_sub(1)
+                            .and_then(|before| crossings.get(before)),
+                    ) && !near(crossings.get(index + 1))
+                })
+                .map(|(_, x)| *x)
+                .collect();
+            let mut hops = single;
+            if sign < 0.0 {
+                hops.reverse();
+            }
+            for x in hops {
+                let (near, far) = (x - sign * HOP_REACH, x + sign * HOP_REACH);
+                output.push((near, a.1));
+                output.push((x - sign * HOP_REACH * 0.6, a.1 - HOP_HEIGHT));
+                output.push((x + sign * HOP_REACH * 0.6, a.1 - HOP_HEIGHT));
+                output.push((far, a.1));
+            }
+        }
+        output.push(points[points.len() - 1]);
+        output
+    }
+
     #[allow(clippy::too_many_lines)]
     pub(super) fn draw_edge(
         &self,
@@ -281,6 +363,7 @@ impl Plan {
             Some(note) => Some(format!("{from_label} {} {to_label}: {note}", spec.sign)),
             None => Some(format!("{from_label} {} {to_label}", spec.sign)),
         };
+        let points = self.hop_over_crossings(model, edge, &points);
         elements.push(Element::Polyline(diagram::polyline(points, class, tooltip)));
         let head_class = if main {
             "chartlet-flow-head chartlet-flow-main-head"

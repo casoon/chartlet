@@ -7,6 +7,24 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Flow:** diagrams (flow charts, architecture, state and class diagrams) lay steps, lanes,
+  frames and their gaps out on a 4 px grid: every step's box, its position, the gaps between
+  steps and layers and the padding of frames and lanes are multiples of 4 px, and steps are a
+  multiple of 8 px wide and high so that their middle lies on the grid too. Text sizes are
+  exempt. Steps grow by up to 7 px to reach the grid, so a diagram may need a slightly larger
+  canvas than before; `tests/routing.rs` asserts the grid for every diagram example.
+
+- **Flow:** edges that change course beside each other keep 12 px apart (the tracks were 10 px),
+  and a way back to an earlier step keeps to the lane of the step it returns to instead of the
+  outside of the lane it starts in, which shortens it and spares it the crossings with the
+  lanes in between. Example `release-flow` loses its 3 crossings and about 8 % of its edge
+  length.
+
+- **Flow:** where an edge crosses another on a horizontal run, it hops over it with a small arc
+  instead of drawing a plain crossing; crossings close to a turn or to each other stay plain.
+
 ## [0.22.0] - 2026-10-28
 
 ### Added

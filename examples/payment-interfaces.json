@@ -4,8 +4,8 @@
   "title": "Checkout and the interfaces it relies on",
   "source": "Platform handbook, payment path",
   "width": 960,
-  "height": 760,
-  "mobile": { "width": 360, "height": 1000 },
+  "height": 780,
+  "mobile": { "width": 372, "height": 1000 },
   "architecture": {
     "boundaries": [{ "id": "shop", "label": "Shop platform" }],
     "components": [

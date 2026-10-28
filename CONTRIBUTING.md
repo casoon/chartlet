@@ -45,6 +45,11 @@ and commit the SVG with the change that caused it, together with the HTML
 boundaries, narrow canvases — and checks that each renders, renders the same twice and is
 well-formed SVG. A failure names the seed, so it can be reproduced.
 
+`tests/routing.rs` measures every diagram example: crossings, total edge length, runs closer than
+12 px, edges behind a foreign step and steps off the 4 px grid. A layout change may lower the
+numbers in its table, never raise them; `cargo test --test routing -- --ignored --nocapture`
+prints the new rows.
+
 ## The diagram pipeline
 
 A diagram passes the same stages on every render. Knowing which stage owns a feature tells you
