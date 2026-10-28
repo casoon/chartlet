@@ -4,7 +4,7 @@
   "title": "From commit to release: the quality gate",
   "source": "Team handbook, release process",
   "width": 1120,
-  "height": 1020,
+  "height": 1064,
   "flow": {
     "lanes": [
       {
@@ -165,7 +165,7 @@
   },
   "legend": "auto",
   "mobile": {
-    "width": 580,
+    "width": 584,
     "height": 1500
   }
 }

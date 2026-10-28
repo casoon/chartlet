@@ -36,11 +36,15 @@ const BASELINE: &[(&str, &str, usize, u32, usize)] = &[
     ("payment-notes", "mobile", 0, 1642, 0),
     ("payment-redesign", "desktop", 0, 960, 0),
     ("release-flow", "desktop", 0, 3585, 1),
+    ("release-focus", "desktop", 0, 3585, 1),
+    ("release-focus", "mobile", 0, 3277, 1),
     ("request-volume", "desktop", 0, 1132, 0),
     ("service-fan-out", "desktop", 0, 3056, 0),
     ("service-perspectives", "desktop", 0, 1566, 1),
     ("shop-architecture", "desktop", 0, 3638, 0),
     ("shop-deployment", "desktop", 0, 700, 0),
+    ("shop-focus", "desktop", 0, 2410, 0),
+    ("shop-focus", "mobile", 0, 2212, 0),
     ("shop-modules", "desktop", 0, 1068, 0),
     ("shop-schema", "desktop", 0, 296, 0),
     ("shop-symbols", "desktop", 0, 3706, 0),
@@ -91,6 +95,11 @@ fn points(tag: &str) -> Vec<Point> {
 /// The edges as polylines, and the steps as boxes (left, top, right, bottom).
 fn parse(svg: &str) -> (Vec<Vec<Point>>, Vec<[f64; 4]>) {
     let body = &svg[svg.find("</style>").expect("a style")..];
+    // The samples of a legend strip are no steps and no edges of the diagram.
+    let body = body
+        .split("class=\"chartlet-legend-strip\"")
+        .next()
+        .expect("a split has a first part");
     let (mut edges, mut steps) = (Vec::new(), Vec::new());
     for tag in body.split('<').skip(1) {
         let class = attribute(tag, "class").unwrap_or("");

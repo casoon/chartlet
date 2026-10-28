@@ -4,7 +4,7 @@
   "title": "Tenant architecture: the sign-in and data path",
   "source": "Illustrative reference architecture",
   "width": 1200,
-  "height": 1100,
+  "height": 1144,
   "architecture": {
     "boundaries": [
       {
@@ -162,8 +162,8 @@
     "orientation": "portrait"
   },
   "mobile": {
-    "width": 464,
-    "height": 1180
+    "width": 468,
+    "height": 1192
   },
   "emphasis": {
     "nodes": [
