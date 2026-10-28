@@ -22,6 +22,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   lanes in between. Example `release-flow` loses its 3 crossings and about 8 % of its edge
   length.
 
+- **Flow:** a step that several edges meet on one side is wide enough to keep their ports 12 px
+  apart, and runs of different edges that would still lie closer than 12 px side by side are moved
+  apart where that leads through no step and across no further edge. Examples `claim-handling`,
+  `service-perspectives`, `release-flow` and `order-flow` change; no diagram example has runs
+  closer than 12 px any more.
+
 - **Flow:** where an edge crosses another on a horizontal run, it hops over it with a small arc
   instead of drawing a plain crossing; crossings close to a turn or to each other stay plain.
 
