@@ -8,7 +8,7 @@ use resvg::{tiny_skia, usvg};
 
 use crate::error::{ChartError, ChartWarning};
 
-/// Inter, regular and semibold, in the Latin and Latin Extended subsets, and JetBrains Mono
+/// Inter, regular and semibold, in the Latin and Latin Extended subsets, and `JetBrains Mono`
 /// regular in Latin, the monospace of the editorial look; see `fonts/README.md`.
 const FONTS: [&[u8]; 5] = [
     include_bytes!("../fonts/Inter-Regular-latin.ttf"),

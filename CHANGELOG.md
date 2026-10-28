@@ -7,6 +7,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-10-28
+
 ### Added
 
 - **Diagrams:** `"look": "editorial"` (or `--theme editorial`, or a theme file with `look`) draws
