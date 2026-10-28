@@ -5,7 +5,7 @@ import barRaw from '../../../examples/monthly-revenue.json?raw';
 import architectureRaw from '../../../examples/tenant-architecture.json?raw';
 
 // The starting points: a bar chart and a flow diagram for the form, one specification with an
-// error to correct, one canvas that is too narrow, and an architecture model.
+// error to correct, one canvas that is too small, and an architecture model.
 const flow = `{
   "schemaVersion": 1,
   "type": "flow",
@@ -39,14 +39,14 @@ const broken = `{
   ]
 }`;
 const narrow = flow
-  .replace('"Handling an order"', '"A canvas that is too narrow"')
+  .replace('"Handling an order"', '"A canvas that is too small"')
   .replace('"width": 960', '"width": 320')
   .replace('"height": 300', '"height": 240');
 const examples = [
   { id: 'bar', label: 'Bar chart', json: barRaw.trim() },
   { id: 'flow', label: 'Flow diagram', json: flow },
   { id: 'error', label: 'A specification with an error', json: broken },
-  { id: 'narrow', label: 'A canvas that is too narrow', json: narrow },
+  { id: 'narrow', label: 'A canvas that is too small', json: narrow },
   { id: 'architecture', label: 'Architecture model', json: architectureRaw.trim() },
 ];
 ---

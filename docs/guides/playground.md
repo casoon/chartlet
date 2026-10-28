@@ -12,7 +12,7 @@ There is no second renderer on the page.
 ## What it does
 
 - **Start from an example:** a bar chart, a flow diagram, a specification with an error to correct,
-  a canvas that is too narrow, and an architecture model.
+  a canvas that is too small, and an architecture model.
 - **Two ways to edit, one specification:** the JSON view is the complete source. The form view edits
   a bar chart (one series in `data`) and a flow diagram: title, source, size, values and labels,
   steps with their kind, and connections. Fields the form does not know are kept as they are and
