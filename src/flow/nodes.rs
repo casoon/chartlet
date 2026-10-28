@@ -3,7 +3,8 @@
 
 use super::{
     BALL, INTERFACE_GAP, INTERFACE_LINE, INTERFACE_PAD, MEMBER_LINE, MEMBER_PAD, NODE_LINE, PAD,
-    measure::{Model, NOTE_PAD, class_header},
+    TAG_HEIGHT, TAG_INSET,
+    measure::{Model, NOTE_PAD, class_header, tag_width},
     model::Shape,
     place::Plan,
     shapes::shape,
@@ -24,6 +25,27 @@ impl Plan {
             None => spec.label.clone(),
         });
         shape(spec.shape, (x, y, width, height), tooltip, elements);
+        if let Some(tag) = &model.tags[node] {
+            // The tag stands on the top edge, left of the middle, on a plate that cuts the line.
+            let plate = tag_width(tag);
+            elements.push(Element::Rect(Rect {
+                x: x + TAG_INSET,
+                y: y - TAG_HEIGHT / 2.0,
+                width: plate,
+                height: TAG_HEIGHT,
+                class: "chartlet-diagram-tag",
+                series_index: None,
+                style_index: None,
+                tooltip: None,
+            }));
+            elements.push(Element::Text(Text {
+                x: x + TAG_INSET + plate / 2.0,
+                y: y + 3.0,
+                class: "chartlet-diagram-tag-text",
+                anchor: TextAnchor::Middle,
+                content: tag.clone(),
+            }));
+        }
         if spec.shape == Shape::Class {
             Self::class_text(model, node, (x, y, width), elements);
             return;

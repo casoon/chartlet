@@ -98,6 +98,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             value: None,
             parts: Vec::new(),
             symbol: None,
+            tag: None,
             role: None,
             category: None,
         });
@@ -145,6 +146,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             value: None,
             parts: Vec::new(),
             symbol: None,
+            tag: None,
             role: state.role,
             category: None,
         });

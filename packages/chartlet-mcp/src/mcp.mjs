@@ -231,7 +231,7 @@ In a client that shows MCP Apps, the chart also appears in the conversation as a
           .describe("The key of a perspective of an architecture model (architecture.perspectives) to show, in place of the one the model or the view selects; the manifest names it."),
         theme: z
           .union([
-            z.enum(["light", "dark", "blueprint"]),
+            z.enum(["light", "dark", "blueprint", "classic", "editorial"]),
             z.object({
               theme: z.enum(["light", "dark", "blueprint"]).optional(),
               tokens: z.record(z.string()).optional(),

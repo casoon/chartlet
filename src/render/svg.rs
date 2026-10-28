@@ -13,7 +13,7 @@ use super::{
 use crate::{
     Styles,
     scene::{Element, Scene, TextAnchor},
-    spec::{ChartSpec, ChartType, StrokeStyle, Theme},
+    spec::{ChartSpec, ChartType, Look, StrokeStyle, Theme},
 };
 
 /// Where a chart's stylesheet goes: all of it inline, only its own declared colors inline with the
@@ -36,6 +36,7 @@ impl From<Styles> for StyleMode {
 }
 
 /// Serializes a laid-out chart with its stylesheet placed as `styles` says.
+#[allow(clippy::too_many_lines)]
 pub(crate) fn svg(
     scene: &Scene,
     spec: &ChartSpec,
@@ -52,7 +53,7 @@ pub(crate) fn svg(
     let mut output = String::new();
     write!(
         output,
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}{}\"{}{}>",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}{}{}\"{}{}>",
         scene.width,
         scene.height,
         scene.width,
@@ -63,6 +64,11 @@ pub(crate) fn svg(
             (true, false) => " chartlet-theme-dark",
             (false, true) => " chartlet-multiples",
             (false, false) => "",
+        },
+        if spec.look == Look::Editorial {
+            " chartlet-look-editorial"
+        } else {
+            ""
         },
         // The shared stylesheet addresses each chart type by this class.
         if styles == StyleMode::External {
@@ -93,7 +99,7 @@ pub(crate) fn svg(
         StyleMode::External => layer_style(spec),
         StyleMode::Print => print_stylesheet(
             &(base_style(spec, true) + &layer_style(spec)),
-            (is_dark, is_blueprint),
+            (is_dark, is_blueprint, spec.look == Look::Editorial),
             &spec.tokens,
         ),
     };

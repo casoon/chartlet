@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "look": "editorial",
+  "title": "Checkout, from cart to parcel",
+  "source": "Illustrative order process",
+  "width": 720,
+  "height": 760,
+  "flow": {
+    "nodes": [
+      { "id": "cart", "label": "Cart ready", "kind": "start" },
+      { "id": "pay", "label": "Take payment", "sublabel": "POST /v1/charges" },
+      { "id": "psp", "label": "Payment provider", "kind": "external" },
+      { "id": "paid", "label": "Paid?", "kind": "decision" },
+      { "id": "stock", "label": "Reserve stock" },
+      { "id": "orders", "label": "Orders", "sublabel": "Postgres", "kind": "store" },
+      { "id": "ship", "label": "Ship parcel" },
+      { "id": "done", "label": "Delivered", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "cart", "to": "pay" },
+      { "from": "pay", "to": "psp", "label": "authorise" },
+      { "from": "psp", "to": "paid" },
+      { "from": "paid", "to": "stock", "label": "yes" },
+      { "from": "paid", "to": "cart", "label": "no, try another card", "dash": "dashed" },
+      { "from": "stock", "to": "orders", "label": "reserve", "dash": "dotted" },
+      { "from": "stock", "to": "ship" },
+      { "from": "ship", "to": "done" }
+    ],
+    "mainPath": ["cart", "pay", "psp", "paid", "stock", "ship", "done"]
+  },
+  "mobile": { "width": 360, "height": 900 }
+}

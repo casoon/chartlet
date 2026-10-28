@@ -33,6 +33,13 @@ impl ChartSpec {
                 "the blueprint theme is made for diagrams (sequence, flow, state, architecture, tree, classes, network, cycle, layers, plan); use light or dark",
             ));
         }
+        if !self.tags && !diagram {
+            return Err(ChartError::new(
+                "option_not_supported",
+                "/tags",
+                "type tags belong to diagrams (flow, architecture); remove `tags` or use a diagram type",
+            ));
+        }
         Ok(())
     }
 

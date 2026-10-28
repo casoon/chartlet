@@ -3,7 +3,8 @@
 
 use std::{collections::BTreeMap, fmt::Write};
 
-use crate::spec::{ChartSpec, ChartType, Dash, Mark, RangeDisplay, Stroke, Theme};
+use super::editorial;
+use crate::spec::{ChartSpec, ChartType, Dash, Look, Mark, RangeDisplay, Stroke, Theme};
 
 /// The light palette. Every color is a CSS custom property so a host page can override a single
 /// color, and so the dark palette below only has to restate the values.
@@ -257,6 +258,28 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
     let is_rangebar = spec.chart_type == ChartType::Rangebar;
     let is_dark = matches!(spec.theme, Theme::Dark | Theme::Blueprint);
     let diagram = diagram_style(spec.chart_type);
+    let editorial = spec.look == Look::Editorial;
+    let editorial_diagram = editorial
+        && matches!(
+            spec.chart_type,
+            ChartType::Sequence
+                | ChartType::Flow
+                | ChartType::State
+                | ChartType::Architecture
+                | ChartType::Tree
+                | ChartType::Classes
+                | ChartType::Network
+                | ChartType::Cycle
+        );
+    let editorial_mono = editorial
+        && matches!(
+            spec.chart_type,
+            ChartType::Sequence
+                | ChartType::Flow
+                | ChartType::State
+                | ChartType::Architecture
+                | ChartType::Classes
+        );
     let roles = if spec.has_roles() {
         crate::roles::style(spec.chart_type)
     } else {
@@ -313,6 +336,11 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
         when(spec.patterns, OUTLINE_STYLE),
         when(spec.width < crate::layout::NARROW, SMALL_TITLE_STYLE),
         &diagram,
+        // After the palettes of the root and of the diagrams, before the roles, so that a role
+        // still recolors an outline; before the blueprint palette, which keeps its own colors.
+        when(editorial, editorial::PALETTE),
+        when(editorial_diagram, editorial::DIAGRAM),
+        when(editorial_mono, editorial::MONO),
         // Before the roles: a role keeps its color on a connection in a category.
         when(
             spec.has_connection_categories(),
@@ -365,6 +393,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
     let groups: &[(&str, &[ChartType])] = &[
         (STYLE, &[]),
         (DARK_STYLE, &[]),
+        (editorial::PALETTE, &[]),
         (SMALL_TITLE_STYLE, &[]),
         (SERIES_STYLE, &[Bar]),
         (FILTER_STYLE, &[Bar]),
@@ -415,6 +444,23 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (STATE_STYLE, &[State]),
         (CLASSES_STYLE, &[Classes]),
         (ARCHITECTURE_STYLE, &[Architecture, Tree]),
+        (
+            editorial::DIAGRAM,
+            &[
+                Sequence,
+                Flow,
+                State,
+                Architecture,
+                Tree,
+                Classes,
+                Network,
+                Cycle,
+            ],
+        ),
+        (
+            editorial::MONO,
+            &[Sequence, Flow, State, Architecture, Classes],
+        ),
         (crate::parts::CONNECTION_STYLE, &[Architecture]),
         crate::roles::STYLE_GROUPS[0],
         crate::roles::STYLE_GROUPS[1],
@@ -499,7 +545,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
 /// together with the rules left empty by that.
 pub(super) fn print_stylesheet(
     stylesheet: &str,
-    (is_dark, is_blueprint): (bool, bool),
+    (is_dark, is_blueprint, is_editorial): (bool, bool, bool),
     tokens: &BTreeMap<String, String>,
 ) -> String {
     // Renderers outside the browser read font weights in hundreds only and would draw 650 as
@@ -511,6 +557,12 @@ pub(super) fn print_stylesheet(
             continue;
         };
         if selector != ".chartlet-root"
+            && !(is_editorial && selector == ".chartlet-root.chartlet-look-editorial")
+            && !(is_editorial
+                && is_dark
+                && !is_blueprint
+                && selector
+                    == ".chartlet-root.chartlet-look-editorial.chartlet-theme-dark:not(.chartlet-blueprint)")
             && !(is_dark && selector == ".chartlet-theme-dark")
             && !(is_blueprint && selector == ".chartlet-blueprint")
         {
@@ -610,11 +662,12 @@ pub(super) fn scope_stylesheet(stylesheet: &str, scope: &str, print: bool) -> St
 }
 
 fn scope_selector(selector: &str, scope: &str, print: bool) -> String {
-    const ROOT_CLASSES: [&str; 4] = [
+    const ROOT_CLASSES: [&str; 5] = [
         ".chartlet-root",
         ".chartlet-theme-dark",
         ".chartlet-blueprint",
         ".chartlet-multiples",
+        ".chartlet-look-editorial",
     ];
     if selector.starts_with('#')
         || selector.starts_with(".chartlet-wrapper")

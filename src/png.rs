@@ -8,12 +8,14 @@ use resvg::{tiny_skia, usvg};
 
 use crate::error::{ChartError, ChartWarning};
 
-/// Inter, regular and semibold, in the Latin and Latin Extended subsets; see `fonts/README.md`.
-const FONTS: [&[u8]; 4] = [
+/// Inter, regular and semibold, in the Latin and Latin Extended subsets, and JetBrains Mono
+/// regular in Latin, the monospace of the editorial look; see `fonts/README.md`.
+const FONTS: [&[u8]; 5] = [
     include_bytes!("../fonts/Inter-Regular-latin.ttf"),
     include_bytes!("../fonts/Inter-SemiBold-latin.ttf"),
     include_bytes!("../fonts/Inter-Regular-latin-ext.ttf"),
     include_bytes!("../fonts/Inter-SemiBold-latin-ext.ttf"),
+    include_bytes!("../fonts/JetBrainsMono-Regular-latin.ttf"),
 ];
 
 /// The largest scale factor: a 2400 × 1600 chart becomes 9600 × 6400 pixels.

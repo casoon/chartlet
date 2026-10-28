@@ -1,6 +1,7 @@
 //! Writing a laid-out chart: the SVG of its scene with its stylesheet, the hooks of the
 //! interactive module, and the HTML figure around it with its data table.
 
+mod editorial;
 mod hooks;
 mod html;
 mod sketch;

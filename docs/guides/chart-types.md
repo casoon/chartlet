@@ -1377,6 +1377,9 @@ grows the canvas least; set `orientation` to pin it, and `width` and `height` to
 - **Blueprint look.** `"theme": "blueprint"` draws a sequence, flow, state, architecture, tree or
   classes diagram in pale lines on a deep blue ground. Charts with axes keep `light` and `dark`
   (`option_not_supported`).
+- **Editorial look.** `"look": "editorial"` draws components in one neutral fill, tells the kind by
+  shape and a small type tag (`tag` on a component replaces it, `"tags": false` removes them) and
+  sets technologies in monospace on the connection labels: [Diagram design](../diagram-design/).
 - **Text alternative.** The description says what each boundary holds, the shape of the graph
   (see [Graph structure](#graph-structure)) and where each component connects to; the data table has one row per component with its kind, its boundaries
   (`Cloud › Private network`) and its connections.

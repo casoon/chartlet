@@ -30,10 +30,10 @@ use crate::{
     error::ChartWarning,
     heat,
     layout::{count, push_title, title_extra},
-    metrics::TextMetrics,
+    metrics::{Face, TextMetrics},
     parts, roles,
     scene::Scene,
-    spec::{ChartSpec, DiagramOrientation, FlowSpec},
+    spec::{ChartSpec, DiagramOrientation, FlowSpec, Look},
 };
 pub(crate) use blocks::{Block, Whole, blocks_reachable};
 pub(crate) use describe::{data_table, description, heaviest_edge, reading_order};
@@ -77,6 +77,14 @@ const GROUP_HEAD: f64 = 16.0;
 /// Inset of the steps from the sides of their lane, and the room for a lane's name.
 const LANE_PAD: f64 = 16.0;
 const LANE_HEAD: f64 = 26.0;
+/// The type tag of a step in the editorial look: the size of its letters, the tracking its CSS
+/// adds to each, the padding left and right, the height of the plate, and how far it stands in
+/// from the left corner of the step.
+const TAG_SIZE: f64 = 9.0;
+const TAG_TRACK: f64 = 0.5;
+const TAG_PAD: f64 = 5.0;
+const TAG_HEIGHT: f64 = 14.0;
+const TAG_INSET: f64 = 8.0;
 /// The diameter of a state machine's initial node.
 const INITIAL: f64 = 20.0;
 /// How far the loop of an edge from a step to itself reaches out.
@@ -153,9 +161,15 @@ pub(crate) fn layout_with_trunks(
     metrics: &impl TextMetrics,
 ) -> Scene {
     let width = f64::from(spec.width);
-    let spacing = Spacing::new(spec.width, diagram.spacing);
+    let editorial = spec.look == Look::Editorial;
+    let spacing = Spacing::new(spec.width, diagram.spacing, (editorial, spec.tags));
     let margin = spacing.margin;
     let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
+    // The title stays in the sans font; the technical text of the diagram is measured as the
+    // monospace text it is drawn in.
+    let sans = metrics;
+    let face = Face::new(metrics, editorial);
+    let metrics = &face;
     let mut model = Model::new(diagram, (spacing, spec.number_style()), metrics, warnings);
     if shared_trunks {
         model.trunks = Trunks::of(diagram, &model.graph);
@@ -187,7 +201,7 @@ pub(crate) fn layout_with_trunks(
             &canvas,
             margin,
             f64::from(canvas.width) - 2.0 * margin,
-            metrics,
+            sans,
             &mut round_warnings,
         );
         let (labels_right, labels_bottom) =

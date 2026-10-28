@@ -252,7 +252,7 @@ impl Landscape {
             )));
             chip(
                 lines,
-                (x + LOOP_OUT + 4.0 + CHIP_REACH, y + 14.0),
+                (x + LOOP_OUT + 4.0 + model.gap + CHIP_REACH, y + 14.0),
                 TextAnchor::Start,
                 metrics,
                 elements,
@@ -275,7 +275,7 @@ impl Landscape {
         let gap = self.center(from) + direction * self.lane / 2.0;
         chip(
             lines,
-            (x + 2.0 + CHIP_REACH, gap + 4.0 - block / 2.0),
+            (x + 2.0 + model.gap + CHIP_REACH, gap + 4.0 - block / 2.0),
             TextAnchor::Start,
             metrics,
             elements,

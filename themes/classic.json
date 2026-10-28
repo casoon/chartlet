@@ -1,0 +1,4 @@
+{
+  "$schema": "../schema/chartlet-theme.schema.json",
+  "look": "classic"
+}

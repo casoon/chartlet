@@ -148,6 +148,9 @@ pub(super) struct Label {
     /// Whether the label of an edge that runs against the flow was set above its end, and moves
     /// further up, not down, when it meets a step.
     up: bool,
+    /// The extra room between the label's plate and its line: 4 px in the editorial look, where a
+    /// label stands on a mask with a visible gap to the line.
+    gap: f64,
 }
 
 impl Label {
@@ -155,7 +158,7 @@ impl Label {
     /// beside nothing, back onto the page.
     fn keep_on_page(&mut self, width: f64, metrics: &impl TextMetrics) {
         let (left, _, chip_width, _) = chip_box(&self.lines, self.at, self.anchor, metrics);
-        let reach = CHIP_REACH + 2.0;
+        let reach = CHIP_REACH + 2.0 + self.gap;
         let over = left + chip_width - (width - 2.0);
         if over > 0.0 {
             match (self.beside, self.anchor) {
@@ -205,10 +208,14 @@ impl Plan {
         Some(Label {
             lines: lines.to_vec(),
             classes: model.edge_classes(edge),
-            at: (f64::midpoint(run[0].0, run[1].0), run[0].1 + 18.0),
+            at: (
+                f64::midpoint(run[0].0, run[1].0),
+                run[0].1 + 18.0 + model.label_gap(),
+            ),
             anchor: TextAnchor::Middle,
             beside: None,
             up: false,
+            gap: model.label_gap(),
         })
     }
 
@@ -303,7 +310,8 @@ impl Plan {
         }
         let (x, y) = self.page(route.label_at);
         let last = count(lines.len() - 1);
-        let reach = CHIP_REACH + 2.0 + route.clear;
+        let gap = model.label_gap();
+        let reach = CHIP_REACH + 2.0 + gap + route.clear;
         let side = |x: f64| {
             if route.after {
                 (x + reach, TextAnchor::Start)
@@ -314,12 +322,12 @@ impl Plan {
         // In landscape a label sits above its edge, or below it on the lower side of the step.
         let above = |y: f64| {
             if route.after {
-                y + 18.0 + route.clear
+                y + 18.0 + gap + route.clear
             } else {
-                y - 11.0 - LINE * last - route.clear
+                y - 11.0 - LINE * last - gap - route.clear
             }
         };
-        let along = CHIP_REACH + 2.0;
+        let along = CHIP_REACH + 2.0 + gap;
         let (x, y, anchor) = match (self.landscape, route.against) {
             (true, false) => (x + along, above(y), TextAnchor::Start),
             (true, true) => (x - along, above(y), TextAnchor::End),
@@ -340,6 +348,7 @@ impl Plan {
             anchor,
             beside: (!self.landscape).then_some(line),
             up: !self.landscape && route.against,
+            gap,
         });
     }
 
@@ -495,6 +504,7 @@ impl Plan {
                 anchor: text.2,
                 beside: None,
                 up: false,
+                gap: 0.0,
             });
         }
     }

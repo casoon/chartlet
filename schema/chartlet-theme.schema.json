@@ -17,6 +17,14 @@
       ],
       "default": "light"
     },
+    "look": {
+      "description": "How diagrams look apart from their palette: classic, a color per kind of node, or editorial, neutral paper and ink with one accent, type tags and monospace technical text.",
+      "enum": [
+        "classic",
+        "editorial"
+      ],
+      "default": "classic"
+    },
     "tokens": {
       "description": "Colors of the palette by the name of the --chartlet-* custom property without its prefix, as hex or rgb()/rgba() values. They win over the theme and apply to every variant, print and PNG included.",
       "type": "object",

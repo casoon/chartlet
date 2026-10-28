@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "type": "architecture",
+  "look": "editorial",
+  "title": "A shop on one cloud region",
+  "source": "Illustrative reference architecture",
+  "width": 1280,
+  "height": 640,
+  "architecture": {
+    "boundaries": [{ "id": "region", "label": "Cloud region eu-central-1" }],
+    "components": [
+      { "id": "customer", "label": "Customer", "kind": "person" },
+      { "id": "web", "label": "Web shop", "sublabel": "browser", "kind": "frontend" },
+      { "id": "api", "label": "Shop API", "sublabel": "Node.js", "in": "region" },
+      { "id": "db", "label": "Orders", "sublabel": "Postgres", "kind": "database", "in": "region" },
+      { "id": "events", "label": "Order events", "kind": "queue", "in": "region" },
+      { "id": "pay", "label": "Payment provider", "kind": "external" }
+    ],
+    "connections": [
+      { "from": "customer", "to": "web", "label": "browses" },
+      { "from": "web", "to": "api", "label": "calls", "technology": "HTTPS/JSON" },
+      { "from": "api", "to": "db", "label": "reads, writes", "technology": "SQL/TLS" },
+      { "from": "api", "to": "events", "label": "publishes", "technology": "AMQP" },
+      { "from": "events", "to": "pay", "label": "charges", "technology": "HTTPS" }
+    ],
+    "mainPath": ["customer", "web", "api", "events", "pay"]
+  },
+  "mobile": { "width": 360, "height": 900 }
+}

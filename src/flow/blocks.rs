@@ -75,7 +75,10 @@ impl Block {
         metrics: &impl TextMetrics,
         warnings: &mut Vec<ChartWarning>,
     ) -> Self {
-        let spacing = Spacing::new(spec.width, inner.spacing);
+        let editorial = spec.look == crate::spec::Look::Editorial;
+        let spacing = Spacing::new(spec.width, inner.spacing, (editorial, spec.tags));
+        let face = crate::metrics::Face::new(metrics, editorial);
+        let metrics = &face;
         let model = Model::new(inner, (spacing, spec.number_style()), metrics, warnings);
         let landscape = inner.orientation == DiagramOrientation::Landscape;
         // On a canvas of no size, nothing stretches and nothing is centred.

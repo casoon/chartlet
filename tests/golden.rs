@@ -654,6 +654,81 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/orders-delta.json"),
         include_str!("../examples/orders-delta.svg"),
     ),
+    (
+        "editorial-architecture",
+        include_str!("../examples/editorial-architecture.json"),
+        include_str!("../examples/editorial-architecture.svg"),
+    ),
+    (
+        "editorial-architecture-dark",
+        include_str!("../examples/editorial-architecture-dark.json"),
+        include_str!("../examples/editorial-architecture-dark.svg"),
+    ),
+    (
+        "editorial-bars",
+        include_str!("../examples/editorial-bars.json"),
+        include_str!("../examples/editorial-bars.svg"),
+    ),
+    (
+        "editorial-bars-dark",
+        include_str!("../examples/editorial-bars-dark.json"),
+        include_str!("../examples/editorial-bars-dark.svg"),
+    ),
+    (
+        "editorial-classes",
+        include_str!("../examples/editorial-classes.json"),
+        include_str!("../examples/editorial-classes.svg"),
+    ),
+    (
+        "editorial-classes-dark",
+        include_str!("../examples/editorial-classes-dark.json"),
+        include_str!("../examples/editorial-classes-dark.svg"),
+    ),
+    (
+        "editorial-dense-architecture",
+        include_str!("../examples/editorial-dense-architecture.json"),
+        include_str!("../examples/editorial-dense-architecture.svg"),
+    ),
+    (
+        "editorial-dense-flow",
+        include_str!("../examples/editorial-dense-flow.json"),
+        include_str!("../examples/editorial-dense-flow.svg"),
+    ),
+    (
+        "editorial-flow",
+        include_str!("../examples/editorial-flow.json"),
+        include_str!("../examples/editorial-flow.svg"),
+    ),
+    (
+        "editorial-flow-dark",
+        include_str!("../examples/editorial-flow-dark.json"),
+        include_str!("../examples/editorial-flow-dark.svg"),
+    ),
+    (
+        "editorial-sequence",
+        include_str!("../examples/editorial-sequence.json"),
+        include_str!("../examples/editorial-sequence.svg"),
+    ),
+    (
+        "editorial-sequence-dark",
+        include_str!("../examples/editorial-sequence-dark.json"),
+        include_str!("../examples/editorial-sequence-dark.svg"),
+    ),
+    (
+        "editorial-states",
+        include_str!("../examples/editorial-states.json"),
+        include_str!("../examples/editorial-states.svg"),
+    ),
+    (
+        "editorial-states-dark",
+        include_str!("../examples/editorial-states-dark.json"),
+        include_str!("../examples/editorial-states-dark.svg"),
+    ),
+    (
+        "editorial-trend",
+        include_str!("../examples/editorial-trend.json"),
+        include_str!("../examples/editorial-trend.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -968,6 +1043,31 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/campus-site.json"),
         include_str!("../examples/campus-site.mobile.svg"),
     ),
+    (
+        "editorial-architecture",
+        include_str!("../examples/editorial-architecture.json"),
+        include_str!("../examples/editorial-architecture.mobile.svg"),
+    ),
+    (
+        "editorial-classes",
+        include_str!("../examples/editorial-classes.json"),
+        include_str!("../examples/editorial-classes.mobile.svg"),
+    ),
+    (
+        "editorial-flow",
+        include_str!("../examples/editorial-flow.json"),
+        include_str!("../examples/editorial-flow.mobile.svg"),
+    ),
+    (
+        "editorial-sequence",
+        include_str!("../examples/editorial-sequence.json"),
+        include_str!("../examples/editorial-sequence.mobile.svg"),
+    ),
+    (
+        "editorial-states",
+        include_str!("../examples/editorial-states.json"),
+        include_str!("../examples/editorial-states.mobile.svg"),
+    ),
 ];
 
 /// Examples with a reviewed print variant: hatched bands and modeled lines on a light chart, and
@@ -992,6 +1092,16 @@ const PRINT_EXAMPLES: &[(&str, &str, &str)] = &[
         "sign-in-sequence",
         include_str!("../examples/sign-in-sequence.json"),
         include_str!("../examples/sign-in-sequence.print.svg"),
+    ),
+    (
+        "editorial-architecture",
+        include_str!("../examples/editorial-architecture.json"),
+        include_str!("../examples/editorial-architecture.print.svg"),
+    ),
+    (
+        "editorial-sequence",
+        include_str!("../examples/editorial-sequence.json"),
+        include_str!("../examples/editorial-sequence.print.svg"),
     ),
 ];
 

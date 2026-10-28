@@ -64,6 +64,8 @@ have one in [Value axis](#value-axis), and what the diagrams share in
 | `description` | string, up to 1000 characters | no | Replaces the generated description. |
 | `source` | string, up to 300 characters | no | Shown below the chart in the HTML output. |
 | `theme` | `light`, `dark`, `blueprint` | no | `light` (default), `dark` or, for diagrams, `blueprint`; the palettes are CSS custom properties on the root. |
+| `look` | `classic`, `editorial` | no | `classic` (default) or `editorial`: neutral paper and ink with one accent, type tags, monospace technical text and unbordered label masks for diagrams; a chart that is not a diagram takes the paper and ink palette only. See [Diagram design](../../guides/diagram-design/). |
+| `tags` | boolean | no | `false` leaves the type tags off the nodes of an editorial diagram. Diagrams only; `option_not_supported` at `/tags` otherwise. |
 | `tokens` | object | no | Single colors of the palette by the name of the `--chartlet-*` custom property without its prefix, such as `{ "accent": "#c2410c" }`; hex or `rgb()`/`rgba()` values. They win over the theme and carry into the print and social variants and PNG. `invalid_token` at `/tokens/<name>` for another name or value. See [Customize the look](../../guides/customize/). |
 | `stroke` | `clean`, `sketch` | no | `clean` (default) or `sketch`: lines and shapes are displaced by up to about a pixel and a half and bowed slightly, for essays and slides. The displacement is seeded from the specification, so the bytes are the same every time; text, colors and contrast are untouched. The print variant and PNG draw clean strokes. See [Customize the look](../../guides/customize/#hand-drawn-strokes). |
 | `typography` | object | no | `family` (titles and labels), `technicalFamily` (technical sublabels such as the technology of a node) and `widthScale` (0.7 to 1.5, the measured width of the family relative to the built-in metrics). The families come first in the font stack, before Inter; the output names them but does not carry them (`font_not_embedded`). `invalid_typography` at `/typography/<field>` for a value that is not a plain family name or scale. See [Typography](../../guides/customize/#typography). |
@@ -903,9 +905,10 @@ Edges may form cycles; an edge back is drawn against the flow. See
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `flow.nodes` | array, 1–40 | yes | The steps: `[{ "id": "a", "label": "…", "sublabel": "…", "kind": "process", "lane": "x", "value": 3, "parts": [{ "label": "…", "value": 2 }], "role": "critical" }]`. |
+| `flow.nodes` | array, 1–40 | yes | The steps: `[{ "id": "a", "label": "…", "sublabel": "…", "tag": "DB", "kind": "process", "lane": "x", "value": 3, "parts": [{ "label": "…", "value": 2 }], "role": "critical" }]`. |
 | `nodes[].id` | identifier | yes | Unique among steps and lanes. |
 | `nodes[].label`, `nodes[].sublabel` | string, up to 60 characters | label | Name and second line. |
+| `nodes[].tag` | string, up to 8 characters | no | The type tag of the step in the editorial look, replacing the tag of its kind; `text_too_long` at `/flow/nodes/<i>/tag`. Architecture components take `tag` too. |
 | `nodes[].kind` | `process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external` | no | Each kind has its own shape; default `process`. |
 | `nodes[].lane` | identifier | with lanes | The lane the step lies in. |
 | `nodes[].value` | number | no | Colors the step's fill, from light for the smallest value to dark for the largest. |

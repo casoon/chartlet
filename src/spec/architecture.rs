@@ -87,6 +87,10 @@ pub struct ComponentSpec {
     /// A second line, such as the technology or the host.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sublabel: Option<String>,
+    /// The small tag at the top left of the component in the editorial look, such as `DB`;
+    /// replaces the tag its kind carries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<String>,
     #[serde(default, skip_serializing_if = "ComponentKind::is_service")]
     pub kind: ComponentKind,
     /// The name of a symbol drawn above the label, which names the component's technology
@@ -721,6 +725,9 @@ impl ArchitectureSpec {
             validate_tags(&component.tags, &path)?;
             if let Some(sublabel) = &component.sublabel {
                 validate_text(sublabel, &format!("{path}/sublabel"), 60)?;
+            }
+            if let Some(tag) = &component.tag {
+                validate_text(tag, &format!("{path}/tag"), crate::spec::MAX_TAG)?;
             }
             if let Some(boundary) = &component.boundary
                 && self.boundary(boundary).is_none()

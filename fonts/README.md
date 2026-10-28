@@ -17,6 +17,14 @@ The files are the `inter-latin-*-normal.woff` and `inter-latin-ext-*-normal.woff
 npm package `@fontsource/inter` 5.2.8, unpacked from WOFF into the TrueType data they wrap; the
 font data itself is unchanged.
 
+| `JetBrainsMono-Regular-latin.ttf` | JetBrains Mono 400 | Latin |
+
+JetBrains Mono is copyright 2020 The JetBrains Mono Project Authors
+(https://github.com/JetBrains/JetBrainsMono) and licensed under the SIL Open Font License 1.1, see
+`OFL-JetBrainsMono.txt`. It is the `jetbrains-mono-latin-400-normal.woff` subset of the npm package
+`@fontsource/jetbrains-mono` 5.3.0, unpacked from WOFF into the TrueType data it wraps; the font
+data itself is unchanged. The PNG output uses it for the monospace text of the editorial look.
+
 Text outside these subsets, such as Greek, Cyrillic, subscript digits (CO₂) or ‰, has no glyphs
 in a PNG; the warning `glyph_missing` names such characters. The SVG and HTML output do not use
 these files.

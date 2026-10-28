@@ -201,6 +201,10 @@ pub struct FlowNodeSpec {
     pub label: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sublabel: Option<String>,
+    /// The small tag at the top left of the step in the editorial look, such as `DB`; replaces
+    /// the tag its kind carries.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tag: Option<String>,
     #[serde(default, skip_serializing_if = "NodeKind::is_process")]
     pub kind: NodeKind,
     /// The `id` of the lane the step belongs to; required once the chart has lanes.
@@ -816,6 +820,9 @@ impl FlowSpec {
             validate_text(&node.label, &format!("{path}/label"), 60)?;
             if let Some(sublabel) = &node.sublabel {
                 validate_text(sublabel, &format!("{path}/sublabel"), 60)?;
+            }
+            if let Some(tag) = &node.tag {
+                validate_text(tag, &format!("{path}/tag"), crate::spec::MAX_TAG)?;
             }
             match (&node.lane, self.lanes.is_empty()) {
                 (None, false) => {

@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "type": "classes",
+  "look": "editorial",
+  "title": "Orders and their lines",
+  "source": "Illustrative domain model",
+  "width": 720,
+  "height": 480,
+  "classes": {
+    "classes": [
+      {
+        "id": "order",
+        "label": "Order",
+        "attributes": [
+          "+ id: Int",
+          "+ status: Status"
+        ],
+        "methods": [
+          "+ total(): Money"
+        ]
+      },
+      {
+        "id": "line",
+        "label": "OrderLine",
+        "attributes": [
+          "+ quantity: Int",
+          "+ price: Money"
+        ]
+      },
+      {
+        "id": "status",
+        "label": "Status",
+        "kind": "enum",
+        "attributes": [
+          "PLACED",
+          "PAID",
+          "SHIPPED"
+        ]
+      }
+    ],
+    "relations": [
+      {
+        "from": "order",
+        "to": "line",
+        "kind": "composition",
+        "fromCardinality": "1",
+        "toCardinality": "1..*"
+      },
+      {
+        "from": "order",
+        "to": "status",
+        "kind": "dependency"
+      }
+    ]
+  },
+  "mobile": {
+    "width": 360,
+    "height": 800
+  },
+  "theme": "dark"
+}

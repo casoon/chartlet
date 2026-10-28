@@ -345,6 +345,7 @@ fn split(
                         value: None,
                         parts: Vec::new(),
                         symbol: None,
+                        tag: None,
                         role: None,
                         category: None,
                     }
@@ -409,6 +410,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             value: None,
             parts: Vec::new(),
             symbol: None,
+            tag: None,
             role: class.role,
             category: None,
         })

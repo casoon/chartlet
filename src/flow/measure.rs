@@ -4,7 +4,8 @@
 use super::{
     BALL, EDGE_LABEL, EDGE_SIZE, GAP, GROUP_GAP, INITIAL, INTERFACE_GAP, INTERFACE_LINE,
     INTERFACE_PAD, INTERFACE_SIZE, LABEL_SIZE, MARGIN, MAX_NODE, MEMBER_LINE, MEMBER_PAD,
-    MEMBER_SIZE, MIN_NODE, NODE_GAP, NODE_LINE, PAD, PASSING_GAP, SUBLABEL_SIZE,
+    MEMBER_SIZE, MIN_NODE, NODE_GAP, NODE_LINE, PAD, PASSING_GAP, SUBLABEL_SIZE, TAG_INSET,
+    TAG_PAD, TAG_SIZE, TAG_TRACK,
     graph::Graph,
     model::{Diagram, Node, Shape},
     ports::{Across, across_sides, side_room},
@@ -14,7 +15,7 @@ use crate::{
     diagram::wrap,
     error::ChartWarning,
     layout::{NARROW, count},
-    metrics::TextMetrics,
+    metrics::{MONO_ADVANCE, TextMetrics},
     parts,
     spec::{DiagramSpacing, NumberStyle},
     symbols,
@@ -35,6 +36,9 @@ pub(super) struct Spacing {
     pub(super) layer_gap: f64,
     pub(super) max_stretch: f64,
     edge_label: f64,
+    /// Whether the diagram has the editorial look, and whether it shows type tags.
+    pub(super) editorial: bool,
+    pub(super) tags: bool,
 }
 
 impl Spacing {
@@ -43,7 +47,8 @@ impl Spacing {
         self.margin < MARGIN
     }
 
-    pub(super) fn new(width: u32, profile: DiagramSpacing) -> Self {
+    pub(super) fn new(width: u32, profile: DiagramSpacing, look: (bool, bool)) -> Self {
+        let (editorial, tags) = look;
         let spacing = if width < NARROW {
             Self {
                 margin: 12.0,
@@ -55,6 +60,8 @@ impl Spacing {
                 layer_gap: GAP,
                 max_stretch: MAX_STRETCH,
                 edge_label: 96.0,
+                editorial,
+                tags,
             }
         } else {
             Self {
@@ -67,7 +74,21 @@ impl Spacing {
                 layer_gap: GAP,
                 max_stretch: MAX_STRETCH,
                 edge_label: EDGE_LABEL,
+                editorial,
+                tags,
             }
+        };
+        // The editorial look leaves more air, on the 4 px grid.
+        let spacing = if editorial && width >= NARROW {
+            Self {
+                node_gap: 32.0,
+                passing_gap: 16.0,
+                group_gap: 32.0,
+                layer_gap: 32.0,
+                ..spacing
+            }
+        } else {
+            spacing
         };
         spacing.scaled(profile)
     }
@@ -125,6 +146,9 @@ pub(super) struct Model<'a> {
     pub(super) loop_lines: Vec<Vec<String>>,
     /// How the values of the parts of a step are written.
     pub(super) number_style: NumberStyle,
+    /// Per step, the type tag it carries at its top left; always `None` outside the editorial look,
+    /// without tags and on a narrow canvas.
+    pub(super) tags: Vec<Option<String>>,
     /// The edges drawn on shared trunks.
     pub(super) trunks: Trunks,
     /// Per edge, the side across the flow it leaves its first step on and reaches its last on.
@@ -136,6 +160,12 @@ pub(super) struct Model<'a> {
 }
 
 impl<'a> Model<'a> {
+    /// The extra room between an edge label's mask and its line: 4 px in the editorial look, which
+    /// makes the visible gap 8 px, and none in the classic look.
+    pub(super) fn label_gap(&self) -> f64 {
+        if self.spacing.editorial { 4.0 } else { 0.0 }
+    }
+
     pub(super) fn new(
         diagram: &'a Diagram,
         (spacing, number_style): (Spacing, NumberStyle),
@@ -144,9 +174,15 @@ impl<'a> Model<'a> {
     ) -> Self {
         let ends = diagram.ends();
         let graph = Graph::new(diagram);
-        let (labels, sublabels, sizes) = node_boxes(diagram, &spacing, metrics, warnings);
-        let (edge_labels, edge_widths) =
-            edge_labels(diagram, spacing.edge_label, metrics, warnings);
+        let tags = node_tags(diagram, &spacing);
+        let (labels, sublabels, sizes) = node_boxes(diagram, &spacing, &tags, metrics, warnings);
+        let (edge_labels, edge_widths) = edge_labels(
+            diagram,
+            spacing.edge_label,
+            spacing.editorial,
+            metrics,
+            warnings,
+        );
         let loops: Vec<Option<String>> = (0..diagram.nodes.len())
             .map(|node| {
                 let labels: Vec<&str> = diagram
@@ -207,6 +243,7 @@ impl<'a> Model<'a> {
             loops,
             loop_lines,
             number_style,
+            tags,
             trunks: Trunks::none(diagram.edges.len()),
             across,
             side_room,
@@ -220,6 +257,7 @@ impl<'a> Model<'a> {
 fn node_boxes(
     diagram: &Diagram,
     spacing: &Spacing,
+    tags: &[Option<String>],
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> (Vec<Vec<String>>, Vec<Vec<String>>, Vec<(f64, f64)>) {
@@ -310,13 +348,17 @@ fn node_boxes(
         let width = (text + 2.0 * PAD)
             .clamp(spacing.min_node, spacing.max_node.max(room + 2.0 * PAD))
             + extra_width;
+        // The tag stands on the top edge, and the box is wide enough to hold it with its inset.
+        let width = tags[index].as_ref().map_or(width, |tag| {
+            width.max(tag_width(tag) + 2.0 * TAG_INSET + extra_width)
+        });
         let stripe = if node.has_stripe() { parts::ROOM } else { 0.0 };
         let symbol = if node.symbol.is_some() {
             symbols::ROOM
         } else {
             0.0
         };
-        let height = 20.0
+        let height = if spacing.editorial { 24.0 } else { 20.0 }
             + NODE_LINE * count(lines.len())
             + 14.0 * count(sublines.len())
             + extra_height
@@ -327,6 +369,57 @@ fn node_boxes(
         sizes.push((width, height));
     }
     (labels, sublabels, sizes)
+}
+
+/// The type tag of every step: the tag its specification gives, or the one its shape carries,
+/// in capitals; none outside the editorial look, with `tags: false` and on a narrow canvas.
+fn node_tags(diagram: &Diagram, spacing: &Spacing) -> Vec<Option<String>> {
+    let shown = spacing.editorial && spacing.tags && !spacing.is_compact();
+    diagram
+        .nodes
+        .iter()
+        .map(|node| {
+            let tag = match node.shape {
+                Shape::Initial
+                | Shape::Interface
+                | Shape::Note
+                | Shape::Block
+                | Shape::Decision => None,
+                shape => node
+                    .tag
+                    .clone()
+                    .or_else(|| default_tag(shape).map(str::to_owned)),
+            };
+            tag.filter(|_| shown).map(|tag| tag.to_uppercase())
+        })
+        .collect()
+}
+
+/// The tag a kind of step carries when its specification names none.
+const fn default_tag(shape: Shape) -> Option<&'static str> {
+    match shape {
+        Shape::Store => Some("DB"),
+        Shape::External => Some("EXT"),
+        Shape::Queue => Some("QUEUE"),
+        Shape::Cache => Some("CACHE"),
+        Shape::Bucket => Some("FILES"),
+        Shape::Shield => Some("SEC"),
+        Shape::Frontend => Some("UI"),
+        Shape::Person => Some("USER"),
+        Shape::Node => Some("HOST"),
+        Shape::Artifact => Some("ARTIFACT"),
+        _ => None,
+    }
+}
+
+/// The width of the tag plate for `tag`: its letters in monospace with their tracking, and the
+/// padding on both sides, rounded up to an even number of pixels.
+pub(super) fn tag_width(tag: &str) -> f64 {
+    // A tag has at most a few characters.
+    #[allow(clippy::cast_precision_loss)]
+    let letters = tag.chars().count() as f64;
+    let width = letters * (MONO_ADVANCE * TAG_SIZE + TAG_TRACK) + 2.0 * TAG_PAD;
+    (width / 2.0).ceil() * 2.0
 }
 
 /// The name of an interface on one or two lines, and its box in portrait: the ball in the
@@ -443,6 +536,7 @@ fn class_compartments(compartments: &[Vec<String>]) -> Vec<f64> {
 fn edge_labels(
     diagram: &Diagram,
     widest: f64,
+    editorial: bool,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) -> (Vec<Vec<String>>, Vec<f64>) {
@@ -463,7 +557,24 @@ fn edge_labels(
                 &edge.label_path,
             )
         });
-        if let Some(technology) = &edge.technology {
+        if let Some(technology) = &edge.technology
+            && editorial
+        {
+            // The technology joins the last line of the label after a dot, as long as that fits
+            // the width of a label; otherwise it stands on a line of its own. No brackets.
+            let room = widest.max(EDGE_LABEL);
+            let path = edge.label_path.replace("/label", "/technology");
+            match lines.last_mut() {
+                Some(last)
+                    if metrics.width(&format!("{last} · {technology}"), EDGE_SIZE) <= room =>
+                {
+                    *last = format!("{last} · {technology}");
+                }
+                _ => lines.push(crate::layout::fit_text(
+                    technology, room, EDGE_SIZE, metrics, warnings, &path,
+                )),
+            }
+        } else if let Some(technology) = &edge.technology {
             // A technology cannot wrap: it may run as wide as a label does on a wide canvas.
             lines.push(crate::layout::fit_text(
                 &format!("[{technology}]"),

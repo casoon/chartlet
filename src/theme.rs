@@ -50,13 +50,16 @@ const MORE_NAMES: [&str; 4] = ["role-gray", "role-gray-fill", "role-red", "role-
 
 /// The themes that ship with chartlet, as the theme files they are: the same mechanism as a theme
 /// file of your own, which can start from a copy of one of them.
-const BUNDLED: [(&str, &str); 3] = [
+const BUNDLED: [(&str, &str); 5] = [
     ("light", include_str!("../themes/light.json")),
     ("dark", include_str!("../themes/dark.json")),
     ("blueprint", include_str!("../themes/blueprint.json")),
+    ("classic", include_str!("../themes/classic.json")),
+    ("editorial", include_str!("../themes/editorial.json")),
 ];
 
-/// The text of the bundled theme file called `name`: `light`, `dark` or `blueprint`.
+/// The text of the bundled theme file called `name`: `light`, `dark` or `blueprint`, which are
+/// palettes, or `classic` or `editorial`, which are looks of diagrams.
 #[must_use]
 pub fn bundled_theme(name: &str) -> Option<&'static str> {
     BUNDLED
@@ -159,8 +162,9 @@ pub(crate) fn bundled_tokens(name: &str) -> BTreeMap<String, String> {
 }
 
 /// Applies a theme file to a specification, both as JSON text, and returns the specification.
-/// A theme file holds a `theme` and `tokens`: the theme is used where the specification names
-/// none, and a token of the specification replaces the token of the file with the same name.
+/// A theme file holds a `theme`, a `look` and `tokens`: the theme and the look are used where the
+/// specification names none, and a token of the specification replaces the token of the file with
+/// the same name.
 ///
 /// # Errors
 ///
@@ -175,7 +179,7 @@ pub fn apply_theme(spec: &str, theme: &str) -> Result<String, ChartError> {
         return Err(ChartError::new(
             "invalid_theme",
             "/",
-            "a theme file is a JSON object with `theme` and `tokens`",
+            "a theme file is a JSON object with `theme`, `look` and `tokens`",
         ));
     };
     let Value::Object(spec) = &mut spec else {
@@ -189,8 +193,8 @@ pub fn apply_theme(spec: &str, theme: &str) -> Result<String, ChartError> {
     for (key, value) in theme {
         match key.as_str() {
             "$schema" => {}
-            "theme" => {
-                spec.entry("theme").or_insert(value);
+            "theme" | "look" => {
+                spec.entry(key).or_insert(value);
             }
             "tokens" => {
                 let Value::Object(own) = value else {
@@ -206,7 +210,7 @@ pub fn apply_theme(spec: &str, theme: &str) -> Result<String, ChartError> {
                 return Err(ChartError::new(
                     "invalid_theme",
                     format!("/{key}"),
-                    "a theme file has `theme` and `tokens` only",
+                    "a theme file has `theme`, `look` and `tokens` only",
                 ));
             }
         }
@@ -374,6 +378,20 @@ mod tests {
         assert_eq!(merged["theme"], "dark");
         assert_eq!(merged["tokens"]["accent"], "#111");
         assert_eq!(merged["tokens"]["text"], "#333");
+    }
+
+    #[test]
+    fn a_theme_file_sets_the_look_where_the_specification_names_none() {
+        let themed =
+            apply_theme(BAR, bundled_theme("editorial").expect("bundled")).expect("applies");
+        let themed: serde_json::Value = serde_json::from_str(&themed).expect("json");
+        assert_eq!(themed["look"], "editorial");
+        let own = apply_theme(
+            r#"{"look":"classic"}"#,
+            bundled_theme("editorial").expect("bundled"),
+        )
+        .expect("applies");
+        assert!(own.contains("classic"));
     }
 
     #[test]

@@ -26,7 +26,9 @@ A chart itself runs no JavaScript in the browser: no chart script, no hydration,
   compromises such as shortened labels are reported as warnings instead of happening silently.
 - **Diagrams laid out for you:** sequence, flow, state, architecture, class, tree and network
   diagrams come from a description of what is connected; chartlet places every box and routes
-  every edge, in portrait or landscape, and lists the whole structure in the data table.
+  every edge, in portrait or landscape, and lists the whole structure in the data table. The
+  `editorial` look draws them in neutral paper and ink with type tags and monospace technical text
+  ([Diagram design](docs/guides/diagram-design.md)).
 - **Models, not only pictures:** one architecture model yields several views, deployments per
   environment and perspectives such as ownership, and `chartlet inspect` points out what its
   documentation leaves open.

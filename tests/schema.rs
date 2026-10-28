@@ -106,7 +106,7 @@ fn tokens_and_theme_files_match_their_schemas() {
     let theme_schema: Value =
         serde_json::from_str(include_str!("../schema/chartlet-theme.schema.json")).expect("JSON");
     let theme_validator = jsonschema::draft202012::new(&theme_schema).expect("compiles");
-    for name in ["light", "dark", "blueprint"] {
+    for name in ["light", "dark", "blueprint", "classic", "editorial"] {
         let theme: Value = serde_json::from_str(
             &fs::read_to_string(
                 Path::new(env!("CARGO_MANIFEST_DIR")).join(format!("themes/{name}.json")),

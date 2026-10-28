@@ -215,6 +215,15 @@ pub struct ChartSpec {
     /// existing specification.
     #[serde(default, skip_serializing_if = "Theme::is_light")]
     pub theme: Theme,
+    /// How diagrams look: `classic` (the default), a colored box per kind, or `editorial`, neutral
+    /// paper and ink with one accent, type tags and monospace technical text. Skipped while it is
+    /// the default, like `theme`.
+    #[serde(default, skip_serializing_if = "Look::is_classic")]
+    pub look: Look,
+    /// Whether the nodes of an `editorial` flow chart or architecture diagram carry their type tag;
+    /// `false` leaves the tags off.
+    #[serde(default = "default_true", skip_serializing_if = "is_true")]
+    pub tags: bool,
     /// How strokes and shapes are drawn: `clean` (the default) or `sketch`, slightly wobbly, for
     /// essays and slides. Text is not affected.
     #[serde(default, skip_serializing_if = "StrokeStyle::is_clean")]
@@ -464,6 +473,29 @@ impl Theme {
     #[allow(clippy::trivially_copy_pass_by_ref)]
     const fn is_light(&self) -> bool {
         matches!(self, Self::Light)
+    }
+}
+
+/// The longest type tag of a node, in characters: it is set in small capitals on the node's edge.
+pub(crate) const MAX_TAG: usize = 8;
+
+/// How diagrams are drawn, apart from their palette: the classic look gives every kind of node a
+/// color of its own; the editorial look is neutral paper and ink with one accent.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Look {
+    #[default]
+    Classic,
+    /// Neutral paper and ink, hairline strokes, an accent for the main path only, type tags on
+    /// nodes, and monospace for technical text and edge labels.
+    Editorial,
+}
+
+impl Look {
+    // serde hands this function a reference, so the signature follows serde's shape.
+    #[allow(clippy::trivially_copy_pass_by_ref)]
+    const fn is_classic(&self) -> bool {
+        matches!(self, Self::Classic)
     }
 }
 

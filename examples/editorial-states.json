@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "type": "state",
+  "look": "editorial",
+  "title": "Life of a document",
+  "source": "Illustrative editorial workflow",
+  "width": 720,
+  "height": 700,
+  "state": {
+    "initial": "draft",
+    "states": [
+      { "id": "draft", "label": "Draft" },
+      { "id": "review", "label": "In review", "sublabel": "two readers" },
+      { "id": "published", "label": "Published" },
+      { "id": "archived", "label": "Archived", "final": true }
+    ],
+    "transitions": [
+      { "from": "draft", "to": "review", "event": "submit" },
+      { "from": "review", "to": "draft", "event": "changes requested", "dash": "dashed" },
+      { "from": "review", "to": "published", "event": "approve" },
+      { "from": "published", "to": "archived", "event": "after 90 days" }
+    ],
+    "mainPath": ["draft", "review", "published", "archived"]
+  },
+  "mobile": { "width": 360, "height": 800 }
+}

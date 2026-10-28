@@ -7,6 +7,20 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **Diagrams:** `"look": "editorial"` (or `--theme editorial`, or a theme file with `look`) draws
+  flow, sequence, state, architecture and class diagrams in neutral paper and ink with hairline
+  strokes, one accent for the main path, type tags on nodes (`DB`, `QUEUE`, `EXT`, `SVC`, …, `tag` per
+  node, `"tags": false` to switch off), monospace sublabels and edge labels, and edge and message labels
+  on an unbordered mask 8 px from their line, `calls · HTTPS/JSON` on one line where it fits. Tree,
+  network and cycle diagrams take the neutral boxes and masks; other charts take the paper and ink
+  palette. The classic look stays the default and is available as `classic`; no existing output
+  changes. PNG output bundles JetBrains Mono (SIL Open Font License) for the monospace text. Details:
+  [Diagram design](https://casoon.github.io/chartlet/docs/guides/diagram-design/). Examples
+  `editorial-flow`, `-sequence`, `-architecture`, `-states`, `-classes` (each with a `-dark` twin),
+  `editorial-dense-architecture`, `editorial-dense-flow`, `editorial-bars`, `editorial-trend`.
+
 ## [0.22.0] - 2026-10-28
 
 ### Added

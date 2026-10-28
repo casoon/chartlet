@@ -15,6 +15,16 @@
     "description": { "type": "string", "minLength": 1, "maxLength": 1000 },
     "source": { "type": "string", "minLength": 1, "maxLength": 300 },
     "theme": { "enum": ["light", "dark", "blueprint"], "default": "light" },
+    "look": {
+      "description": "How diagrams look apart from the palette: classic gives every kind of node a color of its own; editorial is neutral paper and ink with one accent for the main path, type tags on nodes, monospace technical text and edge labels on an unbordered mask. Under editorial, a chart that is not a diagram takes the paper and ink palette only.",
+      "enum": ["classic", "editorial"],
+      "default": "classic"
+    },
+    "tags": {
+      "description": "Whether the nodes of an editorial flow chart or architecture diagram carry their type tag; false leaves them off. Diagrams only.",
+      "type": "boolean",
+      "default": true
+    },
     "tokens": { "$ref": "#/$defs/tokens" },
     "typography": {
       "description": "Font families and the width the layout reserves for text. A family is only named in the output, not embedded; render with the CLI option --font to measure and rasterize with a font file you supply.",
@@ -2230,6 +2240,7 @@
               "id": { "$ref": "#/$defs/identifier" },
               "label": { "type": "string", "minLength": 1, "maxLength": 60 },
               "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
+              "tag": { "description": "The small tag at the top left of the node in the editorial look, such as DB; replaces the tag its kind carries.", "type": "string", "minLength": 1, "maxLength": 8 },
               "kind": {
                 "enum": ["person", "frontend", "service", "database", "queue", "storage", "cache", "external", "security", "node", "artifact"],
                 "default": "service"
@@ -2458,6 +2469,7 @@
         "id": { "$ref": "#/$defs/identifier" },
         "label": { "type": "string", "minLength": 1, "maxLength": 60 },
         "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "tag": { "description": "The small tag at the top left of the node in the editorial look, such as DB; replaces the tag its kind carries.", "type": "string", "minLength": 1, "maxLength": 8 },
         "kind": {
           "enum": ["start", "end", "process", "decision", "io", "subprocess", "store", "external"],
           "default": "process"

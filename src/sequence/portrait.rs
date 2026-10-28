@@ -123,6 +123,7 @@ impl Portrait {
         let (head, branch) = Slots::uniform(model.sequence, 24.0, 22.0);
         // A numbered message's label rises above the badge on its arrow.
         let above = 10.0
+            + model.gap
             + if model.sequence.numbered {
                 BADGE_LIFT
             } else {
@@ -318,7 +319,7 @@ impl Portrait {
             } else {
                 0.0
             };
-            let first = y - 9.0 - lift - LINE * crate::layout::count(lines.len() - 1);
+            let first = y - 9.0 - model.gap - lift - LINE * crate::layout::count(lines.len() - 1);
             chip(
                 lines,
                 (x + CHIP_REACH, first),
@@ -345,7 +346,7 @@ impl Portrait {
         } else {
             0.0
         };
-        let first = y - 9.0 - lift - LINE * crate::layout::count(lines.len() - 1);
+        let first = y - 9.0 - model.gap - lift - LINE * crate::layout::count(lines.len() - 1);
         // A label wider than the span between its lifelines stays inside the canvas.
         let middle = f64::midpoint(x1, x2);
         let (chip_left, _, chip_width, _) =

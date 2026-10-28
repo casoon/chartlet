@@ -36,7 +36,7 @@ export interface RenderChartOptions {
    * A theme applied to the specification: `"light"`, `"dark"` or `"blueprint"` for a bundled
    * one, or a theme file as an object. The specification's own `theme` and `tokens` win over it.
    */
-  theme?: "light" | "dark" | "blueprint" | ChartTheme;
+  theme?: "light" | "dark" | "blueprint" | "classic" | "editorial" | ChartTheme;
   /**
    * Render every view of an architecture model on one HTML page instead of one view: a
    * navigation of links to the views, the default view first, and each view as a section with

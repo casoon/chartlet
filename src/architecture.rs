@@ -168,6 +168,7 @@ fn components_in_order(architecture: &ArchitectureSpec) -> Vec<usize> {
 /// The diagram of the components, connections and boundaries, without notes; in a
 /// perspective, every box names its category after its sublabel and carries a stripe in the
 /// category's color.
+#[allow(clippy::too_many_lines)]
 fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
     let boundary = |id: &Option<String>| {
         id.as_deref()
@@ -208,6 +209,10 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
                     .as_deref()
                     .map(|name| symbols::find(name).expect("validated")),
                 role: component.role,
+                tag: component.tag.clone().or_else(|| {
+                    (component.kind == crate::spec::ComponentKind::Service)
+                        .then(|| "SVC".to_owned())
+                }),
             })
             .collect(),
         edges: architecture
@@ -316,6 +321,7 @@ fn push_interfaces(architecture: &ArchitectureSpec, diagram: &mut Diagram) {
                 value: None,
                 parts: Vec::new(),
                 symbol: None,
+                tag: None,
                 role: None,
                 category: None,
             });

@@ -57,6 +57,7 @@ impl Diagram {
             parts: Vec::new(),
             id: None,
             symbol: None,
+            tag: None,
             role: None,
             category: None,
         });
@@ -72,7 +73,10 @@ pub(crate) fn push_band(
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
 ) {
-    let spacing = Spacing::new(spec.width, DiagramSpacing::Normal);
+    let editorial = spec.look == crate::spec::Look::Editorial;
+    let spacing = Spacing::new(spec.width, DiagramSpacing::Normal, (editorial, spec.tags));
+    let face = crate::metrics::Face::new(metrics, editorial);
+    let metrics = &face;
     let boxes: Vec<(&str, Vec<String>, (f64, f64))> = notes
         .iter()
         .enumerate()

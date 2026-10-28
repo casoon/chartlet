@@ -21,7 +21,8 @@ Tokens change colors only. Layout, text, data and the accessible description sta
 ## Bundled themes
 
 `light` (the default), `dark` and, for diagrams, `blueprint` ship with chartlet as theme files, the
-same kind of file you write yourself. Choose one in the specification or when rendering:
+same kind of file you write yourself; `classic` and `editorial` are theme files that set the `look` of
+diagrams (see [Diagram design](../diagram-design/)). Choose one in the specification or when rendering:
 
 ```json
 { "schemaVersion": 1, "type": "bar", "title": "Monthly revenue", "theme": "dark", … }

@@ -39,12 +39,15 @@ pub(super) struct Model<'a> {
     pub(super) compact: bool,
     pub(super) margin: f64,
     pub(super) has_actor: bool,
+    /// The room between a message label's mask and its arrow, beyond the usual: 6 px in the
+    /// editorial look, which makes the visible gap 8 px.
+    pub(super) gap: f64,
 }
 
 impl<'a> Model<'a> {
     pub(super) fn new(
         sequence: &'a SequenceSpec,
-        compact: bool,
+        (compact, editorial): (bool, bool),
         metrics: &impl TextMetrics,
     ) -> Self {
         let ends = sequence.ends();
@@ -110,6 +113,7 @@ impl<'a> Model<'a> {
             band: if has_sublabel { 48.0 } else { 34.0 } + if two_lines { LINE } else { 0.0 },
             compact,
             margin: if compact { COMPACT_MARGIN } else { MARGIN },
+            gap: if editorial { 6.0 } else { 0.0 },
             has_actor: sequence
                 .participants
                 .iter()

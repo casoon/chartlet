@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "type": "bar",
+  "look": "editorial",
+  "title": "Orders by channel",
+  "description": "Web orders lead, followed by the app and the phone line.",
+  "source": "Example data",
+  "categoryAxis": { "title": "Channel" },
+  "valueAxis": { "title": "Orders in thousands", "format": "number" },
+  "data": [
+    { "label": "Web", "value": 182 },
+    { "label": "App", "value": 131 },
+    { "label": "Phone", "value": 44 },
+    { "label": "Partner", "value": 27 }
+  ]
+}

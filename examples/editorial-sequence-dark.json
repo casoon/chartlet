@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "type": "sequence",
+  "look": "editorial",
+  "title": "Loading the cart",
+  "source": "Illustrative reference architecture",
+  "width": 720,
+  "height": 640,
+  "sequence": {
+    "participants": [
+      {
+        "id": "browser",
+        "label": "Browser",
+        "kind": "actor"
+      },
+      {
+        "id": "web",
+        "label": "Web shop",
+        "sublabel": "SvelteKit"
+      },
+      {
+        "id": "api",
+        "label": "Shop API",
+        "sublabel": "Rust"
+      },
+      {
+        "id": "db",
+        "label": "Orders",
+        "sublabel": "Postgres",
+        "kind": "database"
+      }
+    ],
+    "messages": [
+      {
+        "from": "browser",
+        "to": "web",
+        "label": "GET /cart"
+      },
+      {
+        "from": "web",
+        "to": "api",
+        "label": "Load the cart for this session"
+      },
+      {
+        "from": "api",
+        "to": "db",
+        "label": "SELECT items"
+      },
+      {
+        "from": "db",
+        "to": "api",
+        "label": "rows",
+        "kind": "reply"
+      },
+      {
+        "from": "api",
+        "to": "api",
+        "label": "Price and tax check"
+      },
+      {
+        "from": "api",
+        "to": "web",
+        "label": "Cart JSON",
+        "kind": "reply"
+      },
+      {
+        "from": "web",
+        "to": "browser",
+        "label": "Page",
+        "kind": "reply"
+      }
+    ],
+    "numbered": true
+  },
+  "mobile": {
+    "width": 360,
+    "height": 760
+  },
+  "theme": "dark"
+}

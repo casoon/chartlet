@@ -167,8 +167,11 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
     let spec = match &options["theme"] {
         Value::Null => spec,
         Value::String(name) => {
-            let theme = chartlet::bundled_theme(name)
-                .ok_or_else(|| failure("theme must be light, dark, blueprint or a theme object"))?;
+            let theme = chartlet::bundled_theme(name).ok_or_else(|| {
+                failure(
+                    "theme must be light, dark, blueprint, classic, editorial or a theme object",
+                )
+            })?;
             Cow::Owned(chartlet::apply_theme(&spec, theme).map_err(|error| error_json(&error))?)
         }
         theme => Cow::Owned(

@@ -86,7 +86,7 @@ pub use spec::{
     FunnelStageSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec,
     InstanceSpec, InterfaceSpec, ItemKind, ItemSpec, JourneyDisplay, JourneySpec, JourneyStageSpec,
     KanbanCardSpec, KanbanColumnSpec, KanbanSpec, LaneSpec, LayerSpec, LayersDisplay,
-    LayersProjection, LayersSpec, LegendPlacement, Linkage, MainPath, Mark, MarkerSpec,
+    LayersProjection, LayersSpec, LegendPlacement, Linkage, Look, MainPath, Mark, MarkerSpec,
     MessageKind, MessageSpec, MobileSpec, MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec,
     NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec,
     OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind,

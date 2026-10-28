@@ -49,6 +49,9 @@ pub(crate) struct Node {
     pub parts: Vec<PartSpec>,
     /// The symbol drawn above the label.
     pub symbol: Option<&'static Symbol>,
+    /// The tag the specification gives the node, which replaces the tag its shape carries in the
+    /// editorial look.
+    pub tag: Option<String>,
     /// What the node means beyond its kind: its outline and a badge on its corner.
     pub role: Option<DiagramRole>,
     /// The node's category in the perspective a diagram shows, as the class of the stripe drawn
@@ -246,6 +249,7 @@ impl Diagram {
                     value: node.value,
                     parts: node.parts.clone(),
                     symbol: None,
+                    tag: node.tag.clone(),
                     role: node.role,
                     category: None,
                 })
@@ -360,6 +364,7 @@ impl Diagram {
             parts: Vec::new(),
             id: None,
             symbol: None,
+            tag: None,
             role: None,
             category: None,
         });

@@ -21,9 +21,9 @@ use crate::{
     diagram,
     error::ChartWarning,
     layout::{push_title, title_extra},
-    metrics::TextMetrics,
+    metrics::{Face, TextMetrics},
     scene::Scene,
-    spec::{ChartSpec, DiagramOrientation, SequenceSpec},
+    spec::{ChartSpec, DiagramOrientation, Look, SequenceSpec},
 };
 
 /// The widest canvas that gets the compact layout: that of a mobile variant, whose width is at most
@@ -84,7 +84,13 @@ pub(crate) fn layout(
     let compact = spec.width < COMPACT_BELOW;
     let margin = if compact { COMPACT_MARGIN } else { MARGIN };
     let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
-    let model = Model::new(sequence, compact, metrics);
+    // The title stays in the sans font; the technical text of an editorial diagram is measured
+    // as the monospace text it is drawn in.
+    let editorial = spec.look == Look::Editorial;
+    let sans = metrics;
+    let face = Face::new(metrics, editorial);
+    let metrics = &face;
+    let model = Model::new(sequence, (compact, editorial), metrics);
     let mut ignored = Vec::new();
     let landscape = match sequence.orientation {
         DiagramOrientation::Portrait => false,
@@ -105,7 +111,7 @@ pub(crate) fn layout(
         spec,
         margin,
         width - 2.0 * margin,
-        metrics,
+        sans,
         warnings,
     );
     let (scene_width, scene_height) = if landscape {
