@@ -46,6 +46,20 @@ pub(crate) use shapes::shape;
 use trunks::Trunks;
 
 pub(crate) const MARGIN: f64 = 24.0;
+/// Every position, gap and padding of steps, lanes and frames is a multiple of this, and every
+/// step's size a multiple of twice this, so that its middle lies on the grid too. Text sizes and
+/// the way of edges are exempt.
+pub(crate) const GRID: f64 = 4.0;
+
+/// `value` rounded up to a multiple of `unit`.
+pub(crate) fn up(value: f64, unit: f64) -> f64 {
+    ((value / unit) - 1e-9).ceil() * unit
+}
+
+/// `value` rounded down to a multiple of `unit`.
+pub(crate) fn down(value: f64, unit: f64) -> f64 {
+    ((value / unit) + 1e-9).floor() * unit
+}
 const BOTTOM: f64 = 16.0;
 const LABEL_SIZE: f64 = 13.0;
 const SUBLABEL_SIZE: f64 = 11.0;
@@ -66,17 +80,18 @@ const EDGE_LABEL: f64 = 150.0;
 /// Space between neighbours in a layer: two steps, a step and a passing edge, and the extra
 /// around a group.
 const NODE_GAP: f64 = 28.0;
-const PASSING_GAP: f64 = 14.0;
-const GROUP_GAP: f64 = 30.0;
-/// The least distance between two layers, and between two tracks in it.
+const PASSING_GAP: f64 = 16.0;
+const GROUP_GAP: f64 = 32.0;
+/// The least distance between two layers, and between two tracks in it: the grid of the
+/// layout is 4 px, and so are the spacing of edges beside each other.
 const GAP: f64 = 28.0;
-const TRACK: f64 = 10.0;
+const TRACK: f64 = 12.0;
 /// A group's frame around its steps, and the room above them for its name.
 const GROUP_PAD: f64 = 12.0;
 const GROUP_HEAD: f64 = 16.0;
 /// Inset of the steps from the sides of their lane, and the room for a lane's name.
 const LANE_PAD: f64 = 16.0;
-const LANE_HEAD: f64 = 26.0;
+const LANE_HEAD: f64 = 28.0;
 /// The type tag of a step in the editorial look: the size of its letters, the tracking its CSS
 /// adds to each, the padding left and right, the height of the plate, and how far it stands in
 /// from the left corner of the step.
@@ -86,7 +101,7 @@ const TAG_PAD: f64 = 5.0;
 const TAG_HEIGHT: f64 = 14.0;
 const TAG_INSET: f64 = 8.0;
 /// The diameter of a state machine's initial node.
-const INITIAL: f64 = 20.0;
+const INITIAL: f64 = 24.0;
 /// How far the loop of an edge from a step to itself reaches out.
 const LOOP: f64 = 22.0;
 /// Radius of the dot where a shared trunk branches.
@@ -164,7 +179,10 @@ pub(crate) fn layout_with_trunks(
     let editorial = spec.look == Look::Editorial;
     let spacing = Spacing::new(spec.width, diagram.spacing, (editorial, spec.tags));
     let margin = spacing.margin;
-    let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
+    let top = up(
+        56.0 + title_extra(spec, width - 2.0 * margin, metrics),
+        GRID,
+    );
     // The title stays in the sans font; the technical text of the diagram is measured as the
     // monospace text it is drawn in.
     let sans = metrics;

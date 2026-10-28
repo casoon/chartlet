@@ -994,6 +994,7 @@ fn decision_branches_labels_and_lanes_keep_a_line_of_their_own() {
             &format!(r#"{{ "id": "{id}", "lane": "{lane}", "#),
         );
     }
+    let lanes = lanes.replace("\"height\": 700", "\"height\": 720");
     let output = svg(&lanes);
     assert!(output.warnings.is_empty(), "{:?}", output.warnings);
     // Payment is on the main path; the two Finance checks share a trunk, stock goes alone.

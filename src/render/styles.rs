@@ -347,6 +347,8 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
             crate::parts::CONNECTION_STYLE,
         ),
         &roles,
+        when(spec.has_emphasis(), crate::emphasis::STYLE),
+        when(spec.wants_legend(), crate::legend::STYLE),
         when(spec.has_edge_weights(), WEIGHT_STYLE),
         when(spec.has_node_values(), crate::heat::STYLE),
         when(
@@ -374,6 +376,17 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
 const fn when(condition: bool, style: &str) -> &str {
     if condition { style } else { "" }
 }
+
+/// The diagram types that emphasize nodes and show a legend strip.
+const DIAGRAM_TYPES: &[ChartType] = &[
+    ChartType::Flow,
+    ChartType::State,
+    ChartType::Architecture,
+    ChartType::Classes,
+    ChartType::Tree,
+    ChartType::Network,
+    ChartType::Sequence,
+];
 
 /// Every style group for each of `chart_types` that can use it, in the order of [`base_style`].
 /// The light palette and the dark theme apply to every chart; every other group is scoped to the
@@ -465,6 +478,8 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         crate::roles::STYLE_GROUPS[0],
         crate::roles::STYLE_GROUPS[1],
         crate::roles::STYLE_GROUPS[2],
+        (crate::emphasis::STYLE, DIAGRAM_TYPES),
+        (crate::legend::STYLE, DIAGRAM_TYPES),
         (WEIGHT_STYLE, &[Flow, Architecture, Network]),
         (NETWORK_STYLE, &[Network]),
         (CYCLE_STYLE, &[Cycle]),

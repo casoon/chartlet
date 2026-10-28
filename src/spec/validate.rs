@@ -453,6 +453,7 @@ impl ChartSpec {
     #[allow(clippy::too_many_lines)]
     pub(super) fn reject_foreign_blocks(&self) -> Result<(), ChartError> {
         let own = self.chart_type;
+        self.reject_foreign_emphasis()?;
         for (index, pane) in self.panes.iter().enumerate() {
             let Some(note) = &pane.note else {
                 if pane.note_emphasis {

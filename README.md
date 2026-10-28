@@ -177,6 +177,7 @@ writes the same accessible output as for a chart.
 | `cycle` | three to eight steps on a ring, labels outside or inside, an optional hub with labelled links | [improvement-cycle](examples/improvement-cycle.json), [growth-flywheel](examples/growth-flywheel.json) |
 | `layers` | levels of abstraction as a stack, or scopes drawn inside each other, with items, notes at the side and roles | [platform-layers](examples/platform-layers.json), [scope-nesting](examples/scope-nesting.json) |
 | `plan` | rooms, buildings and open ground on a grid in axonometric projection, low walls, furniture, phases as patterns | [office-floor](examples/office-floor.json), [campus-site](examples/campus-site.json) |
+| diagram options | `emphasis` (one or two nodes and a path in the accent, heavier as well as colored) and `legend` (a strip of the node kinds, line patterns and emphasis in use) on flow, state, classes, architecture, tree, network and sequence diagrams | [release-focus](examples/release-focus.json), [sign-in-focus](examples/sign-in-focus.json), [shop-focus](examples/shop-focus.json), [ownership-focus](examples/ownership-focus.json), [dependencies-focus](examples/dependencies-focus.json) |
 
 ```json
 {

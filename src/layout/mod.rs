@@ -241,6 +241,20 @@ pub(crate) fn layout(
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
+    let mut scene = layout_chart(spec, warnings, metrics);
+    // Diagrams mark what they emphasize and append their legend once they are drawn.
+    if spec.takes_emphasis() {
+        crate::emphasis::apply(spec, &mut scene);
+        crate::legend::push(spec, &mut scene, metrics);
+    }
+    scene
+}
+
+fn layout_chart(
+    spec: &ChartSpec,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) -> Scene {
     let dataset = spec.dataset();
     match (spec.chart_type, spec.orientation) {
         (ChartType::Bar, _) if spec.stack.is_some() => {

@@ -114,7 +114,7 @@ pub(super) fn route(
         let layer = plan.layers[graph.layer[item]];
         f64::midpoint(layer.0, layer.1)
     };
-    graph
+    let mut routes: Vec<Option<Route>> = graph
         .chains
         .iter()
         .enumerate()
@@ -199,5 +199,203 @@ pub(super) fn route(
                 clear,
             })
         })
-        .collect()
+        .collect();
+    separate_parallels(model, plan, &mut routes);
+    routes
+}
+
+/// Runs along the flow of different edges that lie closer than this are moved apart.
+const APART: f64 = 12.0;
+
+/// Whether a straight run of `edge` over `span` at `fixed` lies side by side with a run of
+/// another edge at less than [`APART`]: along the flow when `along` (fixed is a cross position),
+/// otherwise across it (fixed is a main position).
+fn crowded(
+    routes: &[Option<Route>],
+    edge: usize,
+    along: bool,
+    (low, high): (f64, f64),
+    fixed: f64,
+) -> bool {
+    let on = |p: &(f64, f64)| if along { p.1 } else { p.0 };
+    let over = |p: &(f64, f64)| if along { p.0 } else { p.1 };
+    routes
+        .iter()
+        .enumerate()
+        .filter(|(other, _)| *other != edge)
+        .filter_map(|(_, route)| route.as_ref())
+        .any(|route| {
+            route.points.windows(2).any(|pair| {
+                let distance = (on(&pair[0]) - fixed).abs();
+                (on(&pair[0]) - on(&pair[1])).abs() < 1e-6
+                    && distance > 0.01
+                    && distance < APART - 1e-6
+                    && over(&pair[0]).max(over(&pair[1])).min(high)
+                        - over(&pair[0]).min(over(&pair[1])).max(low)
+                        > 2.0
+            })
+        })
+}
+
+/// Whether two straight pieces of a way cross.
+#[allow(clippy::many_single_char_names)]
+fn crossing((a, b): ((f64, f64), (f64, f64)), (c, d): ((f64, f64), (f64, f64))) -> bool {
+    let side = (b.0 - a.0) * (d.1 - c.1) - (b.1 - a.1) * (d.0 - c.0);
+    if side.abs() < 1e-9 {
+        return false;
+    }
+    let t = ((c.0 - a.0) * (d.1 - c.1) - (c.1 - a.1) * (d.0 - c.0)) / side;
+    let u = ((c.0 - a.0) * (b.1 - a.1) - (c.1 - a.1) * (b.0 - a.0)) / side;
+    (0.001..0.999).contains(&t) && (0.001..0.999).contains(&u)
+}
+
+/// How often the way of `edge` crosses the ways of the other edges.
+fn crossings(routes: &[Option<Route>], edge: usize) -> usize {
+    let Some(route) = &routes[edge] else {
+        return 0;
+    };
+    let mut total = 0;
+    for (other, route_2) in routes.iter().enumerate() {
+        let Some(route_2) = route_2.as_ref().filter(|_| other != edge) else {
+            continue;
+        };
+        for first in route.points.windows(2) {
+            for second in route_2.points.windows(2) {
+                total += usize::from(crossing((first[0], first[1]), (second[0], second[1])));
+            }
+        }
+    }
+    total
+}
+
+/// Moves runs along the flow, between the first and the last point of an edge's way, away from
+/// the runs of other edges that lie closer than [`APART`], by the least distance that does not
+/// lead the edge through a step or across more edges than before.
+#[allow(clippy::too_many_lines)]
+fn separate_parallels(model: &Model, plan: &Plan, routes: &mut [Option<Route>]) {
+    let graph = &model.graph;
+    let boxes: Vec<[f64; 4]> = (0..model.diagram.nodes.len())
+        .map(|node| {
+            let layer = plan.layers[graph.layer[node]];
+            let middle = f64::midpoint(layer.0, layer.1);
+            let (width, height) = plan.sizes[node];
+            let (main, cross) = if plan.landscape {
+                (width, height)
+            } else {
+                (height, width)
+            };
+            [
+                middle - main / 2.0,
+                middle + main / 2.0,
+                plan.cross[node] - cross / 2.0,
+                plan.cross[node] + cross / 2.0,
+            ]
+        })
+        .collect();
+    let hits = |a: (f64, f64), b: (f64, f64)| {
+        boxes.iter().any(|node| {
+            a.0.max(b.0) > node[0] + 1.0
+                && a.0.min(b.0) < node[1] - 1.0
+                && a.1.max(b.1) > node[2] + 1.0
+                && a.1.min(b.1) < node[3] - 1.0
+        })
+    };
+    for _ in 0..3 {
+        for edge in 0..routes.len() {
+            let Some(length) = routes[edge].as_ref().map(|route| route.points.len()) else {
+                continue;
+            };
+            for at in 1..length.saturating_sub(2) {
+                let points = routes[edge].as_ref().expect("a route").points.clone();
+                let (p, q) = (points[at], points[at + 1]);
+                if (p.1 - q.1).abs() > 1e-6 || (p.0 - q.0).abs() < 2.0 {
+                    continue;
+                }
+                let span = (p.0.min(q.0), p.0.max(q.0));
+                if !crowded(routes, edge, true, span, p.1) {
+                    continue;
+                }
+                let before = crossings(routes, edge);
+                for step in 1..=6 {
+                    for sign in [1.0, -1.0] {
+                        let cross = p.1 + sign * 4.0 * f64::from(step);
+                        let (a, b) = ((p.0, cross), (q.0, cross));
+                        if crowded(routes, edge, true, span, cross)
+                            || hits(a, b)
+                            || hits(points[at - 1], a)
+                            || hits(b, points[at + 2])
+                        {
+                            continue;
+                        }
+                        let route = routes[edge].as_mut().expect("a route");
+                        route.points[at] = a;
+                        route.points[at + 1] = b;
+                        if crossings(routes, edge) > before {
+                            let route = routes[edge].as_mut().expect("a route");
+                            route.points[at] = p;
+                            route.points[at + 1] = q;
+                            continue;
+                        }
+                        break;
+                    }
+                    let moved = routes[edge].as_ref().expect("a route").points[at].1;
+                    if (moved - p.1).abs() > 1e-6 {
+                        break;
+                    }
+                }
+            }
+            // A change of course beside a run of another edge moves along the flow, out of its
+            // way.
+            for at in 1..length.saturating_sub(2) {
+                let points = routes[edge].as_ref().expect("a route").points.clone();
+                let (p, q) = (points[at], points[at + 1]);
+                if (p.0 - q.0).abs() > 1e-6 {
+                    continue;
+                }
+                let runs_crowded = |main: f64, routes: &[Option<Route>]| {
+                    // The run that ends at the change of course now ends at `main`.
+                    let (b0, b1) = if points[at - 1].0 < p.0 {
+                        (points[at - 1].0, main)
+                    } else {
+                        (main, points[at - 1].0)
+                    };
+                    let (a0, a1) = if points[at + 2].0 < q.0 {
+                        (points[at + 2].0, main)
+                    } else {
+                        (main, points[at + 2].0)
+                    };
+                    crowded(routes, edge, true, (b0, b1), points[at - 1].1)
+                        || crowded(routes, edge, true, (a0, a1), points[at + 2].1)
+                };
+                if !runs_crowded(p.0, routes) {
+                    continue;
+                }
+                let before = crossings(routes, edge);
+                'search: for step in 1..=6 {
+                    for sign in [1.0, -1.0] {
+                        let main = p.0 + sign * 4.0 * f64::from(step);
+                        let (a, b) = ((main, p.1), (main, q.1));
+                        if runs_crowded(main, routes)
+                            || crowded(routes, edge, false, (p.1.min(q.1), p.1.max(q.1)), main)
+                            || hits(points[at - 1], a)
+                            || hits(a, b)
+                            || hits(b, points[at + 2])
+                        {
+                            continue;
+                        }
+                        let route = routes[edge].as_mut().expect("a route");
+                        route.points[at] = a;
+                        route.points[at + 1] = b;
+                        if crossings(routes, edge) > before {
+                            let route = routes[edge].as_mut().expect("a route");
+                            route.points[at] = p;
+                            route.points[at + 1] = q;
+                            continue;
+                        }
+                        break 'search;
+                    }
+                }
+            }
+        }
+    }
 }

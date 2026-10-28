@@ -13,6 +13,7 @@ mod describe;
 mod diagram;
 mod diverging;
 mod draw;
+mod emphasis;
 mod error;
 mod exploded;
 mod fishbone;
@@ -25,6 +26,7 @@ mod journey;
 mod kanban;
 mod layers;
 mod layout;
+mod legend;
 mod metrics;
 mod mosaic;
 mod network;
@@ -81,28 +83,28 @@ pub use spec::{
     ChartType, ClassKind, ClassSpec, ClassesSpec, ComponentKind, ComponentSpec,
     ConnectionDirection, ConnectionSpec, Curve, CycleHubSpec, CycleLabels, CycleSpec,
     CycleStepSpec, Dash, DataPoint, DeltaSpec, DiagramOrientation, DiagramRole, DiagramSpacing,
-    DistancesSpec, FishboneBoneSpec, FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec,
-    FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec, FunnelDisplay, FunnelSpec,
-    FunnelStageSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder, HeatmapScale, HeatmapSpec,
-    InstanceSpec, InterfaceSpec, ItemKind, ItemSpec, JourneyDisplay, JourneySpec, JourneyStageSpec,
-    KanbanCardSpec, KanbanColumnSpec, KanbanSpec, LaneSpec, LayerSpec, LayersDisplay,
-    LayersProjection, LayersSpec, LegendPlacement, Linkage, Look, MainPath, Mark, MarkerSpec,
-    MessageKind, MessageSpec, MobileSpec, MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec,
-    NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec, NodeKind, NoteSpec,
-    OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec, PartSpec, ParticipantKind,
-    ParticipantSpec, PartySpec, PerspectiveSpec, PlanSpec, PolarDisplay, PolarPointSpec, PolarSpec,
-    PortSide, RadarAxisSpec, RadarSeriesSpec, RadarSpec, RangeDisplay, RangeSort, RangeSpec,
-    ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec, SankeyOrder,
-    SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
-    ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape,
-    SizePreset, Stack, StackLayerSpec, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec,
-    StorymapActivitySpec, StorymapSpec, StorymapStorySpec, StorymapTaskSpec, StripesSpec, Stroke,
-    StrokeStyle, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
-    TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
-    TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec,
-    ValueAxisSpec, ValueFormat, ValuemapComponentSpec, ValuemapDependencySpec, ValuemapMoveSpec,
-    ValuemapSpec, VennRegionSpec, VennSpec, ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec,
-    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    DistancesSpec, EmphasisSpec, FishboneBoneSpec, FishboneCauseSpec, FishboneSpec,
+    FishboneSubcauseSpec, FlowEdgeSpec, FlowNodeSpec, FlowSpec, FragmentKind, FragmentSpec,
+    FunnelDisplay, FunnelSpec, FunnelStageSpec, Gaps, GroupSpec, HeatmapCellSpec, HeatmapOrder,
+    HeatmapScale, HeatmapSpec, InstanceSpec, InterfaceSpec, ItemKind, ItemSpec, JourneyDisplay,
+    JourneySpec, JourneyStageSpec, KanbanCardSpec, KanbanColumnSpec, KanbanSpec, LaneSpec,
+    LayerSpec, LayersDisplay, LayersProjection, LayersSpec, LegendPlacement, Linkage, Look,
+    MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, MosaicColumnSpec,
+    MosaicSegmentSpec, MosaicSpec, NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder,
+    NetworkSpec, NodeKind, NoteSpec, OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec,
+    PartSpec, ParticipantKind, ParticipantSpec, PartySpec, PerspectiveSpec, PlanSpec, PolarDisplay,
+    PolarPointSpec, PolarSpec, PortSide, RadarAxisSpec, RadarSeriesSpec, RadarSpec, RangeDisplay,
+    RangeSort, RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec,
+    SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec,
+    ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec,
+    SeriesSpec, Shape, SizePreset, Stack, StackLayerSpec, StateKind, StateNodeSpec, StateSpec,
+    StepKind, StepSpec, StorymapActivitySpec, StorymapSpec, StorymapStorySpec, StorymapTaskSpec,
+    StripesSpec, Stroke, StrokeStyle, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec,
+    Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec,
+    Tooltips, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec,
+    TreemapSpec, ValueAxisSpec, ValueFormat, ValuemapComponentSpec, ValuemapDependencySpec,
+    ValuemapMoveSpec, ValuemapSpec, VennRegionSpec, VennSpec, ViewSpec, ViewStepSpec, ViolinScale,
+    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 pub use theme::{apply_theme, bundled_theme};
 pub use typography::{FontMetrics, TypographySpec, embed_font};

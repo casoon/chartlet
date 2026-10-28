@@ -194,7 +194,7 @@ pub(crate) fn push_legend(
     scene.height = crate::diagram::pixels(top + LEGEND_ROW * count(row + 1) + 6.0);
 }
 
-fn capitalized(word: &str) -> String {
+pub(crate) fn capitalized(word: &str) -> String {
     let mut chars = word.chars();
     chars.next().map_or_else(String::new, |first| {
         first.to_uppercase().chain(chars).collect()

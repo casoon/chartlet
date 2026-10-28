@@ -4,8 +4,8 @@
   "look": "editorial",
   "title": "A shop on one cloud region",
   "source": "Illustrative reference architecture",
-  "width": 1280,
-  "height": 640,
+  "width": 1296,
+  "height": 300,
   "architecture": {
     "boundaries": [
       {

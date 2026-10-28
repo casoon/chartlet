@@ -2,8 +2,8 @@
 //! their lanes, and the layers along it.
 
 use super::{
-    BALL, BOTTOM, EDGE_SIZE, INTERFACE_GAP, INTERFACE_LINE, LANE_HEAD, LANE_PAD, LOOP,
-    SUBLABEL_SIZE,
+    BALL, BOTTOM, EDGE_SIZE, GRID, INTERFACE_GAP, INTERFACE_LINE, LANE_HEAD, LANE_PAD, LOOP,
+    SUBLABEL_SIZE, down,
     frames::{clear_frames, frames_reach},
     gaps::Gaps,
     graph::{Graph, settle},
@@ -12,6 +12,7 @@ use super::{
     ports::Ports,
     route::{Route, route},
     straighten::straighten,
+    up,
 };
 use crate::{
     diagram::{CHIP_LINE, CHIP_REACH},
@@ -74,14 +75,14 @@ impl Plan {
         let loop_room = loop_room(model, landscape, metrics);
         // Beside a step, the room of its loop and of the edges that meet it across the flow.
         let after = |item: usize| {
-            graph.items[item]
-                .node
-                .map_or(0.0, |node| loop_room[node] + model.side_room[node].1)
+            graph.items[item].node.map_or(0.0, |node| {
+                up(loop_room[node] + model.side_room[node].1, GRID)
+            })
         };
         let before = |item: usize| {
             graph.items[item]
                 .node
-                .map_or(0.0, |node| model.side_room[node].0)
+                .map_or(0.0, |node| up(model.side_room[node].0, GRID))
         };
         let gap = |a: usize, b: usize| {
             let (first, second) = (&graph.items[a], &graph.items[b]);
@@ -92,12 +93,15 @@ impl Plan {
             };
             // Room for every frame between the two.
             let frames = count(first.frames_between(second));
-            cross_size(a) / 2.0
-                + cross_size(b) / 2.0
-                + base
-                + after(a)
-                + before(b)
-                + model.spacing.group_gap * frames
+            up(
+                cross_size(a) / 2.0
+                    + cross_size(b) / 2.0
+                    + base
+                    + after(a)
+                    + before(b)
+                    + model.spacing.group_gap * frames,
+                GRID,
+            )
         };
         let lane_head = if landscape { LANE_HEAD } else { 0.0 };
         let bands = lane_bands(
@@ -150,6 +154,7 @@ impl Plan {
         if plan.bands.is_empty() && model.side_room.iter().any(|room| room.0 > 0.0) {
             cross_needed += plan.clear_low_sides(graph, &cross_size, &before);
         }
+        cross_needed += snap_cross(graph, &mut plan.cross, &gap);
         let ports = Ports::new(graph, &plan.cross, &cross_size, model, landscape);
         let ends = lane_ends(diagram, landscape);
         let gaps = Gaps::new(model, &plan, &ports, landscape);
@@ -179,10 +184,10 @@ impl Plan {
         let (page_width, page_height) = (f64::from(spec.width), f64::from(spec.height));
         let landscape = self.landscape;
         self.main_origin = (if landscape { margin } else { top })
-            + ((main_room - self.main_length) / 2.0).max(0.0);
+            + down(((main_room - self.main_length) / 2.0).max(0.0), GRID);
         self.cross_origin = (if landscape { top } else { margin })
             + if self.bands.is_empty() {
-                ((cross_room - self.cross_length) / 2.0).max(0.0)
+                down(((cross_room - self.cross_length) / 2.0).max(0.0), GRID)
             } else {
                 0.0
             };
@@ -239,7 +244,7 @@ impl Plan {
     /// Spreads the lanes over `room` on the cross axis, each its share wider, its steps and
     /// passing edges moved to its middle.
     fn widen_lanes(&mut self, graph: &Graph, room: f64) {
-        let extra = (room - self.cross_length) / count(self.bands.len());
+        let extra = down((room - self.cross_length) / count(self.bands.len()), GRID);
         for (item, cross) in self.cross.iter_mut().enumerate() {
             let lane = graph.items[item].lane.unwrap_or(0);
             *cross += extra * (count(lane) + 0.5);
@@ -248,7 +253,7 @@ impl Plan {
             band.0 += extra * count(lane);
             band.1 += extra * count(lane + 1);
         }
-        self.cross_length = room;
+        self.cross_length += extra * count(self.bands.len());
     }
 
     /// A main and a cross position as a point on the page.
@@ -321,7 +326,40 @@ fn step_sizes(model: &Model, landscape: bool) -> Vec<(f64, f64)> {
                     !lines.is_empty() && chain.as_ref().is_some_and(|chain| chain.items[0] == node)
                 })
                 .count();
-            size.1 = size.1.max(18.0 * count(labelled) + 14.0);
+            size.1 = up(size.1.max(18.0 * count(labelled) + 14.0), 2.0 * GRID);
+        }
+    }
+    // A step that several edges meet on one side is wide enough, across the flow, to keep their
+    // ports 12 px apart.
+    for (node, size) in sizes.iter_mut().enumerate() {
+        let shape = model.diagram.nodes[node].shape;
+        if matches!(shape, Shape::Interface | Shape::Block) {
+            continue;
+        }
+        let meeting = |leaving: bool| {
+            model
+                .graph
+                .chains
+                .iter()
+                .flatten()
+                .filter(|chain| {
+                    let items = &chain.items;
+                    items[if leaving { 0 } else { items.len() - 1 }] == node
+                })
+                .count()
+        };
+        let ports = count(meeting(true).max(meeting(false)));
+        if ports >= 2.0 {
+            // The main path keeps the middle, so the other ports may all lie on one side of it.
+            let spread = 24.0 * (ports - 1.0) + 16.0;
+            let needed = if shape == Shape::Decision {
+                spread.max(40.0 * (ports - 1.0))
+            } else {
+                spread
+            };
+            let needed = up(needed, 2.0 * GRID);
+            let across = if landscape { &mut size.1 } else { &mut size.0 };
+            *across = across.max(needed);
         }
     }
     sizes
@@ -376,7 +414,10 @@ fn lane_bands(
             if lane_head > 0.0 {
                 0.0
             } else {
-                metrics.width(&lane.label, SUBLABEL_SIZE) + 2.0 * LANE_PAD
+                up(
+                    metrics.width(&lane.label, SUBLABEL_SIZE) + 2.0 * LANE_PAD,
+                    GRID,
+                )
             }
         })
         .collect();
@@ -394,7 +435,7 @@ fn lane_bands(
                 + cross_size(segment[segment.len() - 1]) / 2.0
                 + after(segment[segment.len() - 1]);
             let lane = graph.items[segment[0]].lane.unwrap_or(0);
-            widths[lane] = widths[lane].max(span + 2.0 * LANE_PAD + lane_head);
+            widths[lane] = widths[lane].max(up(span + 2.0 * LANE_PAD + lane_head, GRID));
         }
     }
     let mut start = 0.0;
@@ -411,6 +452,27 @@ fn lane_bands(
 /// The runs of a layer's items that share a lane.
 fn segments<'a>(graph: &'a Graph, layer: &'a [usize]) -> impl Iterator<Item = &'a [usize]> {
     layer.chunk_by(move |a, b| graph.items[*a].lane == graph.items[*b].lane)
+}
+
+/// Moves every item onto the grid, left to right in its layer and never closer to its neighbour
+/// than `gap` asks; returns how far the furthest moved on.
+fn snap_cross(graph: &Graph, cross: &mut [f64], gap: &impl Fn(usize, usize) -> f64) -> f64 {
+    let mut reach: f64 = 0.0;
+    for layer in &graph.layers {
+        for segment in segments(graph, layer) {
+            let mut previous: Option<usize> = None;
+            for &item in segment {
+                let mut snapped = (cross[item] / GRID).round() * GRID;
+                if let Some(previous) = previous {
+                    snapped = snapped.max(cross[previous] + gap(previous, item));
+                }
+                reach = reach.max(snapped - cross[item]);
+                cross[item] = snapped;
+                previous = Some(item);
+            }
+        }
+    }
+    reach
 }
 
 /// How often the layers are settled against their neighbours, alternately down and up.

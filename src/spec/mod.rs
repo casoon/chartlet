@@ -6,6 +6,7 @@ mod classes;
 mod cycle;
 mod dataset;
 mod deployment;
+mod emphasis;
 mod fishbone;
 mod flow;
 mod funnel;
@@ -58,6 +59,7 @@ pub use calendar::{CalendarDay, CalendarLayout, CalendarSpec};
 pub use categorical::{DataPoint, SeriesSpec};
 pub use classes::{ClassKind, ClassSpec, ClassesSpec, PackageSpec, RelationKind, RelationSpec};
 pub use cycle::{CycleHubSpec, CycleLabels, CycleSpec, CycleStepSpec};
+pub use emphasis::EmphasisSpec;
 pub use fishbone::{FishboneBoneSpec, FishboneCauseSpec, FishboneSpec, FishboneSubcauseSpec};
 pub use flow::{
     DiagramRole, DiagramSpacing, FlowEdgeSpec, FlowNodeSpec, FlowSpec, GroupSpec, LaneSpec,
@@ -357,9 +359,13 @@ pub struct ChartSpec {
     #[serde(default, skip_serializing_if = "Tooltips::is_observations")]
     pub tooltips: Tooltips,
     /// Where a `type: "time"` chart names its series: in a legend above the plot, or at the end
-    /// of every line.
+    /// of every line. A diagram takes `auto`, a strip below the drawing that names the node
+    /// kinds, edge styles and emphasis it uses, or `none` (the default).
     #[serde(default, skip_serializing_if = "LegendPlacement::is_top")]
     pub legend: LegendPlacement,
+    /// What a diagram asks the reader to look at first: up to two nodes and a path.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub emphasis: Option<EmphasisSpec>,
     /// Gives every panel of a `type: "multiples"` chart its own value axis, for panels whose
     /// values differ in unit or size; they can then no longer be compared by height.
     #[serde(default, skip_serializing_if = "is_false")]
@@ -700,13 +706,20 @@ pub enum LegendPlacement {
     Top,
     /// The name of each line at its last observation, right of the plot.
     End,
+    /// Diagrams: a strip below the drawing that lists the node kinds, edge styles and emphasis
+    /// that occur, when the diagram uses more than one.
+    Auto,
+    /// Diagrams: no strip, which is what a diagram without `legend` has.
+    #[serde(rename = "none")]
+    Off,
 }
 
 impl LegendPlacement {
     // serde hands this function a reference, so the signature follows serde's shape.
     #[allow(clippy::trivially_copy_pass_by_ref)]
     const fn is_top(&self) -> bool {
-        matches!(self, Self::Top)
+        // A diagram without a legend is the same as one that says `none`.
+        matches!(self, Self::Top | Self::Off)
     }
 }
 
@@ -1047,6 +1060,7 @@ impl ChartSpec {
             ChartType::Plan => self.validate_plan(),
             ChartType::Bar | ChartType::Line => self.validate_bar_and_line(),
         }?;
+        warnings.extend(self.validate_emphasis()?);
         warnings.extend(crate::contrast::warnings(self));
         warnings.extend(crate::readability::warnings(self));
         Ok(warnings)

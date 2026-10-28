@@ -27,5 +27,5 @@
       { "from": "fix", "to": "tag" }
     ]
   },
-  "mobile": { "width": 360, "height": 760 }
+  "mobile": { "width": 364, "height": 760 }
 }

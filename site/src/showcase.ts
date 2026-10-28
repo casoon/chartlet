@@ -620,6 +620,14 @@ const catalogue = [
       'A browser, a backend for frontend, an identity provider, an API and a database: fifteen numbered messages through an OIDC sign-in, a self-call that creates the session, and an `opt` fragment around the asynchronous back-channel logout. The description lists the messages in order and names the fragment with the messages it spans. Illustrative reference architecture, with a phone variant.',
   },
   {
+    slug: 'sign-in-focus',
+    group: 'Sequence and state diagrams',
+    chart: 'Sequence diagram with emphasis and a legend',
+    useCase: 'Point at one exchange between two systems',
+    blurb:
+      'The sign-in sequence with the identity provider emphasized and the messages between the web backend and the provider drawn in the accent, labels in bold. The legend names the three kinds of message, call, reply and asynchronous, and the emphasis.',
+  },
+  {
     slug: 'ticket-states',
     group: 'Sequence and state diagrams',
     chart: 'State diagram',
@@ -634,6 +642,14 @@ const catalogue = [
     useCase: 'Explain a process across teams',
     blurb:
       'Ten steps in three lanes, laid out by chartlet from nothing but the connections: the main path runs straight in the accent color, two loops back — a retry and a request for changes — are drawn against the flow, and a group frames the quality gates. The description and the table follow the steps in reading order.',
+  },
+  {
+    slug: 'release-focus',
+    group: 'Flow charts',
+    chart: 'Flow chart with emphasis and a legend',
+    useCase: 'Point at the step that matters',
+    blurb:
+      'The release flow with one decision emphasized and the way through the quality gate drawn in the accent: the outline and the line are heavier than anything else, so the cue does not rest on color, and the rest stays neutral. A legend strip below the drawing names the node kinds, the line patterns and the emphasis. The description names what is emphasized.',
   },
   {
     slug: 'order-flow',
@@ -698,6 +714,14 @@ const catalogue = [
     useCase: 'Show the path of a request through a system',
     blurb:
       'Eleven components of a multi-tenant school application in three nested boundaries: a data center, the application network and a data zone. The main path from the user to the domain data is drawn straight and thicker, connections say what they do and over which protocol, and the description names the most connected component and what nothing leads into. Illustrative reference architecture, with a phone variant.',
+  },
+  {
+    slug: 'shop-focus',
+    group: 'Architecture diagrams',
+    chart: 'Architecture diagram with emphasis and a legend',
+    useCase: 'Point at a component and the path of a request',
+    blurb:
+      'The tenant architecture with the sign-in component emphasized and the path from the web backend through the API to the data in the accent. The legend lists the component kinds, the line patterns and the emphasis that occur, in rows that wrap.',
   },
   {
     slug: 'checkout-calls',
@@ -877,6 +901,14 @@ const catalogue = [
       'A group of companies as a tree: ten nodes in four levels, a share written on every link, parents centered over their children, and subtrees pushed together so that a narrow branch tucks in under a broad one. Laid out twice, at 1000 pixels and at 448 for a phone. The description names the root and what hangs below every node; the table lists each node with its level, parent, link and children. Illustrative values.',
   },
   {
+    slug: 'ownership-focus',
+    group: 'Trees and networks',
+    chart: 'Tree with emphasis and a legend',
+    useCase: 'Follow one branch of a group',
+    blurb:
+      'The ownership structure with one subsidiary emphasized and the chain of links from the holding to a platform company in the accent. The legend names the unit and the emphasis.',
+  },
+  {
     slug: 'family-tree',
     group: 'Trees and networks',
     chart: 'Tree (couples)',
@@ -923,6 +955,14 @@ const catalogue = [
     useCase: 'Show what one thing depends on',
     blurb:
       'The checkout service in the middle, the services it calls on the first ring, theirs on the second, and so on; arrowheads say which way a dependency runs. The description lists the rings with their services. Illustrative values.',
+  },
+  {
+    slug: 'dependencies-focus',
+    group: 'Trees and networks',
+    chart: 'Network with emphasis, a legend and a phone variant',
+    useCase: 'Follow the payment chain through a network',
+    blurb:
+      'A network of services with one dot ringed in the accent and the chain from checkout through payments and the ledger to the event bus drawn heavy. A ring stands for the emphasized dot, since a dot is too small for an outline; the legend names it with the line patterns.',
   },
   {
     slug: 'delivery-delays',

@@ -25,5 +25,5 @@
       { "from": "store", "to": "answer" }
     ]
   },
-  "mobile": { "width": 360, "height": 640 }
+  "mobile": { "width": 360, "height": 660 }
 }

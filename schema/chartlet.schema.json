@@ -94,9 +94,28 @@
       "default": "observations"
     },
     "legend": {
-      "description": "type: \"time\" only: top (default) names the series in a legend above the plot; end names each line at its last observation, right of the plot.",
-      "enum": ["top", "end"],
+      "description": "type: \"time\": top (default) names the series in a legend above the plot; end names each line at its last observation, right of the plot. Flow, state, architecture, classes, tree, network and sequence: auto draws a strip below the drawing that names the node kinds, line patterns and emphasis the diagram uses (when it uses more than one kind or pattern, or emphasizes something; left out in compact spacing); none (default) draws no strip.",
+      "enum": ["top", "end", "auto", "none"],
       "default": "top"
+    },
+    "emphasis": {
+      "description": "Flow, state, architecture, classes, tree, network and sequence diagrams: what the reader should look at first. Emphasized nodes get the accent outline (heavier than any other) and tint; the edges (messages, in a sequence diagram) between consecutive nodes of the path get the accent line; everything else stays neutral. More than two emphasized nodes warn with too_much_emphasis. Without `path`, a main path stays drawn in the accent.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodes": {
+          "description": "The ids of the emphasized nodes, each named once; at most two keep the accent meaningful.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+        },
+        "path": {
+          "description": "The ids of the nodes along the emphasized path, at least two, each joined to the next by an edge (a message in a sequence diagram), in either direction.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 40,
+          "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+        }
+      }
     },
     "independentAxes": {
       "description": "type: \"multiples\" only: every panel gets its own value axis instead of one shared one.",

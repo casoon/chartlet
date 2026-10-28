@@ -2,8 +2,8 @@
 //! course.
 
 use super::{
-    GROUP_HEAD, GROUP_PAD, LINE, TRACK, graph::Graph, measure::Model, place::Plan, ports::Ports,
-    trunks::Trunks,
+    GRID, GROUP_HEAD, GROUP_PAD, LINE, TRACK, down, graph::Graph, measure::Model, place::Plan,
+    ports::Ports, trunks::Trunks, up,
 };
 use crate::layout::count;
 
@@ -147,6 +147,10 @@ impl Gaps {
 
     /// The width of gap `gap` at scale 1.
     fn size(&self, gap: usize) -> f64 {
+        up(self.raw_size(gap), GRID)
+    }
+
+    fn raw_size(&self, gap: usize) -> f64 {
         self.layer_gap
             + self.frame_after[gap]
             + self.label_room[gap]
@@ -194,7 +198,7 @@ impl Gaps {
             plan.layers.push((at, at + depth));
             at += depth;
             if index < self.tracks.len() {
-                at += self.size(index) * stretch;
+                at += down(self.size(index) * stretch, GRID).max(self.size(index));
             }
         }
         at + self.frame_after.last().copied().unwrap_or(0.0) + trail
@@ -257,11 +261,14 @@ fn frame_room(model: &Model, landscape: bool) -> (Vec<f64>, Vec<f64>) {
 
 /// How deep a layer is on the main axis: as deep as its deepest step.
 fn depth(graph: &Graph, layer: &[usize], main_size: &impl Fn(usize) -> f64) -> f64 {
-    layer
-        .iter()
-        .filter_map(|item| graph.items[*item].node)
-        .map(main_size)
-        .fold(0.0, f64::max)
+    up(
+        layer
+            .iter()
+            .filter_map(|item| graph.items[*item].node)
+            .map(main_size)
+            .fold(0.0, f64::max),
+        2.0 * GRID,
+    )
 }
 
 /// The tracks of the pieces that change course in one gap, so that no edge crosses another where

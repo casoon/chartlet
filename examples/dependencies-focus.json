@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "type": "network",
+  "title": "Checkout dependencies: the payment chain",
+  "source": "Service catalogue",
+  "width": 900,
+  "height": 560,
+  "network": {
+    "layout": "rings",
+    "center": "checkout",
+    "directed": true,
+    "nodes": [
+      {
+        "id": "checkout",
+        "label": "Checkout",
+        "group": "Shop"
+      },
+      {
+        "id": "cart",
+        "label": "Cart",
+        "group": "Shop"
+      },
+      {
+        "id": "pricing",
+        "label": "Pricing",
+        "group": "Shop"
+      },
+      {
+        "id": "payments",
+        "label": "Payments",
+        "group": "Finance"
+      },
+      {
+        "id": "auth",
+        "label": "Sign-in",
+        "group": "Platform"
+      },
+      {
+        "id": "fraud",
+        "label": "Fraud check",
+        "group": "Finance"
+      },
+      {
+        "id": "ledger",
+        "label": "Ledger",
+        "group": "Finance"
+      },
+      {
+        "id": "events",
+        "label": "Event bus",
+        "group": "Platform"
+      }
+    ],
+    "edges": [
+      {
+        "from": "checkout",
+        "to": "cart"
+      },
+      {
+        "from": "checkout",
+        "to": "pricing"
+      },
+      {
+        "from": "checkout",
+        "to": "payments"
+      },
+      {
+        "from": "checkout",
+        "to": "auth"
+      },
+      {
+        "from": "payments",
+        "to": "fraud"
+      },
+      {
+        "from": "payments",
+        "to": "ledger"
+      },
+      {
+        "from": "ledger",
+        "to": "events"
+      },
+      {
+        "from": "fraud",
+        "to": "events",
+        "dash": "dashed"
+      }
+    ]
+  },
+  "emphasis": {
+    "nodes": [
+      "payments"
+    ],
+    "path": [
+      "checkout",
+      "payments",
+      "ledger",
+      "events"
+    ]
+  },
+  "legend": "auto",
+  "mobile": {
+    "width": 540,
+    "height": 640
+  }
+}
