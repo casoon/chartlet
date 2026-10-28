@@ -186,6 +186,14 @@ fn pairs(spec: &ChartSpec) -> Vec<Pair> {
         }
         _ => {}
     }
+    if spec.has_emphasis() {
+        pairs.push(pair(
+            "accent",
+            "background",
+            "the outline and the line of emphasis",
+            MARK,
+        ));
+    }
     pairs
 }
 
@@ -294,7 +302,48 @@ fn luminance(color: Rgba) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    use super::{TEXT, blend, bundled_tokens, color, luminance};
     use crate::{RenderFormat, RenderOptions, render_json};
+
+    /// The contrast of two colors.
+    fn between(front: [f64; 4], back: [f64; 4]) -> f64 {
+        let (a, b) = (luminance(front), luminance(back));
+        (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+
+    #[test]
+    fn the_tint_of_an_emphasized_node_keeps_its_text_and_outline_readable_in_every_theme() {
+        // The tint is the accent at 14 % over the ground; the outline is the accent itself.
+        for theme in ["light", "dark", "blueprint"] {
+            let palette = bundled_tokens(theme);
+            let token = |name: &str| color(&palette[name]).expect("a color");
+            let tint = blend(
+                [
+                    token("accent")[0],
+                    token("accent")[1],
+                    token("accent")[2],
+                    0.14,
+                ],
+                token("background"),
+            );
+            assert!(
+                between(token("text"), tint) >= TEXT,
+                "{theme}: text on the tint"
+            );
+            assert!(
+                between(token("muted"), tint) >= TEXT,
+                "{theme}: muted text on the tint"
+            );
+            assert!(
+                between(token("accent"), tint) >= 3.0,
+                "{theme}: the outline against the tint"
+            );
+            assert!(
+                between(token("accent"), token("background")) >= 3.0,
+                "{theme}: the outline against the ground"
+            );
+        }
+    }
 
     fn spec(extra: &str) -> String {
         format!(

@@ -95,8 +95,16 @@ pub(super) fn render_data_table(
 
 /// The data table of a chart as text: its caption, the column heads and one row per category,
 /// each starting with the category, with values written as the chart writes them.
-#[allow(clippy::too_many_lines)]
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
+    let mut table = chart_table(spec);
+    if spec.takes_emphasis() {
+        crate::emphasis::extend_table(spec, &mut table);
+    }
+    table
+}
+
+#[allow(clippy::too_many_lines)]
+fn chart_table(spec: &ChartSpec) -> DataTable {
     match spec.chart_type {
         ChartType::Sequence => return crate::sequence::data_table(spec),
         ChartType::Flow => return crate::flow::data_table(spec),

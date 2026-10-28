@@ -6,8 +6,12 @@ use crate::{
     state, stripes, text, time, tree,
 };
 
-#[allow(clippy::too_many_lines)]
 pub(crate) fn automatic_description(spec: &ChartSpec) -> String {
+    crate::emphasis::describe(spec, chart_description(spec))
+}
+
+#[allow(clippy::too_many_lines)]
+fn chart_description(spec: &ChartSpec) -> String {
     match spec.chart_type {
         ChartType::Multiples if spec.is_bar_multiples() => return panel_bars_description(spec),
         ChartType::Time | ChartType::Multiples => return time_description(spec),

@@ -654,6 +654,31 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/orders-delta.json"),
         include_str!("../examples/orders-delta.svg"),
     ),
+    (
+        "release-focus",
+        include_str!("../examples/release-focus.json"),
+        include_str!("../examples/release-focus.svg"),
+    ),
+    (
+        "sign-in-focus",
+        include_str!("../examples/sign-in-focus.json"),
+        include_str!("../examples/sign-in-focus.svg"),
+    ),
+    (
+        "shop-focus",
+        include_str!("../examples/shop-focus.json"),
+        include_str!("../examples/shop-focus.svg"),
+    ),
+    (
+        "ownership-focus",
+        include_str!("../examples/ownership-focus.json"),
+        include_str!("../examples/ownership-focus.svg"),
+    ),
+    (
+        "dependencies-focus",
+        include_str!("../examples/dependencies-focus.json"),
+        include_str!("../examples/dependencies-focus.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -967,6 +992,31 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "campus-site",
         include_str!("../examples/campus-site.json"),
         include_str!("../examples/campus-site.mobile.svg"),
+    ),
+    (
+        "release-focus",
+        include_str!("../examples/release-focus.json"),
+        include_str!("../examples/release-focus.mobile.svg"),
+    ),
+    (
+        "sign-in-focus",
+        include_str!("../examples/sign-in-focus.json"),
+        include_str!("../examples/sign-in-focus.mobile.svg"),
+    ),
+    (
+        "shop-focus",
+        include_str!("../examples/shop-focus.json"),
+        include_str!("../examples/shop-focus.mobile.svg"),
+    ),
+    (
+        "ownership-focus",
+        include_str!("../examples/ownership-focus.json"),
+        include_str!("../examples/ownership-focus.mobile.svg"),
+    ),
+    (
+        "dependencies-focus",
+        include_str!("../examples/dependencies-focus.json"),
+        include_str!("../examples/dependencies-focus.mobile.svg"),
     ),
 ];
 

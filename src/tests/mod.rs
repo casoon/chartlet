@@ -5,6 +5,7 @@ mod basics;
 mod collapsed_gaps;
 mod diagrams;
 mod distributions;
+mod emphasis;
 mod fishbone;
 mod funnel;
 mod heatmap;

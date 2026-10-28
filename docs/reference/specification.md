@@ -97,7 +97,7 @@ Rules:
   `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `waterfall`,
   `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `kanban`, `storymap`, `journey`, `valuemap`, `venn`, `layers`, `plan`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
-  `stack`, `patterns`, `slope`, `rank`, `legend`, `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
+  `stack`, `patterns`, `slope`, `rank`, `legend` (`end` outside a time chart, `auto` and `none` outside a diagram), `emphasis` (outside a diagram), `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
 - A type whose block is absent is refused with the block's own code: `missing_stripes`,
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
@@ -214,7 +214,7 @@ Rules:
 | `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane) and six annotation layers. |
 | `sparkline` | boolean | no | `true` draws the lines and areas of one pane across the whole canvas, without axes, title, legend or value labels, with a dot at the end of each line; `width` 60–600 and `height` 16–200. The title and description remain the accessible name and description, and the HTML profile keeps its caption and table. Only line and area layers; no zoom steps or mobile variant. |
 | `tooltips` | `observations`, `markers` | no | `"observations"` (default) gives every observation a tooltip while observations stand at least 4 pixels apart, on an invisible target where no marker is drawn; `"markers"` gives tooltips only to drawn markers, so a line too dense for markers has none and its SVG stays small. |
-| `legend` | `top`, `end` | no | `top` (default) names the series in a legend above the plot; `end` writes each name at the last observation of its line, right of the plot, which makes room for the widest name (at most a third of the chart). Names that would overlap move apart. Not with candles, whose legend explains hollow and filled bodies. |
+| `legend` | `top`, `end` (time charts); `auto`, `none` (diagrams) | no | Diagrams: see [Diagram fields](#diagram-fields). Time charts: `top` (default) names the series in a legend above the plot; `end` writes each name at the last observation of its line, right of the plot, which makes room for the widest name (at most a third of the chart). Names that would overlap move apart. Not with candles, whose legend explains hollow and filled bodies. |
 | `zoomSteps` | array, 2–4 | no | `{ "label", "from", "to" }` windows selectable in the HTML output; `from` and `to` are times. Each window must hold at least two observations of one layer, and the chart is redrawn from the observations inside it. |
 
 A time is Unix seconds between 1700-01-01 and 2200-01-01, an ISO 8601 date such as `2026-03-01` or
@@ -827,6 +827,10 @@ digits, hyphens or underscores (`invalid_id`).
 | `notes[].on` | identifier | — | The step, class, package, component or boundary the note explains; flow charts take notes on steps only. |
 | `notes[].text` | string, up to 160 characters | — | Required; wraps onto as many lines as it needs. |
 | `role` | `critical`, `planned`, `deprecated` | flow, state, classes, architecture, tree, network, cycle, layers | What a node or an edge means beyond its kind, drawn alike in every diagram. |
+| `emphasis` | object, top level | flow, state, classes, architecture, tree, network, sequence | What the reader should look at first: `{ "nodes": ["checkout"], "path": ["web", "api", "checkout"] }`. |
+| `emphasis.nodes` | array of ids | — | The emphasized nodes (steps, states, classes, components, participants), each named once; they get the accent outline and tint. More than two warn with `too_much_emphasis` at `/emphasis/nodes`. A composite state is a frame and cannot be named. |
+| `emphasis.path` | array of ids, at least two | — | The nodes along the emphasized path, each joined to the next by an edge (a message in a sequence diagram), in either direction; the edges between them get the accent line. |
+| `legend` | `auto`, `none` | flow, state, classes, architecture, tree, network, sequence | `auto` draws a strip below the drawing; `none` (the default) draws none. See below. |
 
 **Notes.** A note on an element is drawn beside it and joined to it by a dotted line that is no
 edge, relation or connection; a note on a package or boundary stands inside that frame, at the
@@ -856,6 +860,36 @@ dot keeps the color of its group. A composite state is a frame and takes no role
 (`option_not_supported`). The marks at the ends of a relation keep their form, a hollow mark stays
 hollow; a realization or a dependency is dashed by its kind, so it takes `critical` only
 (`role_conflict` at its `role`). An unknown role is `invalid_spec`.
+
+**Emphasis.** `emphasis` marks what to look at first, without adding anything to the diagram. An
+emphasized node keeps its shape and gets a 3.5 px outline in the accent color, heavier than any
+other outline, and the accent at 14 % opacity as its fill; the edges (in a sequence diagram, the
+messages) between consecutive nodes of `path` get a 3.2 px accent line and arrowhead, and their
+labels turn bold. A network node is a dot too small for an outline of its own: a ring in the accent
+color stands around it. Everything else stays neutral, so the cue is weight as well as color, and
+the accent meets the contrast the theme's `accent` has against the ground in light, dark,
+blueprint and print. Without `path`, a `mainPath` stays drawn in the accent; with one, the
+emphasized path is the accent line and the main path keeps its place in the layout but is drawn
+neutral. The description names the emphasized nodes and the path (`Emphasized: Pay. Emphasized
+path: Cart → Pay → Paid?.`) and the table adds an Emphasis column (`emphasized`, `on emphasized
+path`; in a sequence diagram the messages between the path's participants). Errors: an id that
+names nothing is `unknown_node` at `/emphasis/nodes/0` or `/emphasis/path/0`; a node named twice
+`duplicate_emphasis`; a path of one node `emphasis_path_short`; two consecutive nodes of the path
+that no edge joins `emphasis_path_gap` at the second; `emphasis` on another chart type
+`option_not_supported` at `/emphasis`.
+
+**Legend strip.** `"legend": "auto"` draws one horizontal strip below the drawing, in rows that
+fit the canvas, and grows the canvas by its height, so it never lies inside the drawing. It lists
+only what occurs: a sample and the name of each node kind (flow, state, architecture, tree), each
+line pattern in use (solid, dashed, dotted; in a sequence diagram the call, reply and
+asynchronous message), the main path or the emphasized path in the accent, and an emphasized
+node. It is drawn when the diagram uses more than one node kind or line pattern, or emphasizes
+something; otherwise there is nothing to explain. With `"spacing": "compact"` the strip is left
+out and the description says so (`The legend is left out in compact mode.`); otherwise the
+description ends with `Legend: …` naming the entries. The default is `none`, so that a diagram
+that does not ask for a legend is drawn exactly as before; the roles keep their own legend below
+the diagram. A time chart takes `top` and `end` for its series (`option_not_supported` the other
+way round).
 
 **Layout.** A sequence diagram or flow chart — and every diagram laid out like one — that does not
 fit its canvas is drawn larger and reported as `canvas_too_small` at `/width` or `/height`. A

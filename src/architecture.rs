@@ -130,7 +130,7 @@ fn architecture(spec: &ChartSpec) -> &ArchitectureSpec {
         .expect("validated architecture diagrams carry an architecture block")
 }
 
-const fn shape(kind: ComponentKind) -> Shape {
+pub(crate) const fn shape(kind: ComponentKind) -> Shape {
     match kind {
         ComponentKind::Person => Shape::Person,
         ComponentKind::Frontend => Shape::Frontend,

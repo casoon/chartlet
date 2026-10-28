@@ -1200,6 +1200,29 @@ Only the gaps change. Steps, their texts and where those wrap, the margins, the 
 and lanes and the distance between two parallel edges keep their size, in every orientation and
 in the mobile variant, which scales its own smaller gaps the same way.
 
+### Emphasis and legend
+
+Two optional top-level fields help the reader of a flow chart, state diagram, class diagram,
+architecture diagram, tree, network or sequence diagram:
+
+```json
+"emphasis": { "nodes": ["checkout"], "path": ["web", "api", "checkout"] },
+"legend": "auto"
+```
+
+- **Emphasis.** `emphasis.nodes` (one or two ids) draws those nodes with a heavy accent outline
+  and an accent tint; `emphasis.path` draws the edges between consecutive ids with a heavy accent
+  line, in a sequence diagram the messages between those participants. Everything else stays
+  neutral, and weight carries the cue without color. A main path is drawn as the emphasized path
+  when no `path` is given. More than two emphasized nodes warn with `too_much_emphasis`. The
+  description names what is emphasized and the table adds an Emphasis column. Examples
+  `release-focus` (flow), `sign-in-focus` (sequence), `shop-focus` (architecture),
+  `ownership-focus` (tree) and `dependencies-focus` (network).
+- **Legend.** `"legend": "auto"` adds a strip below the drawing that lists the node kinds, line
+  patterns and emphasis that occur, when there is more than one to tell apart. It wraps into rows
+  on a narrow canvas, grows the canvas, is left out in compact spacing (the description says so)
+  and is off by default. Roles keep their own legend.
+
 ### Graph structure
 
 Flow charts, architecture diagrams, class diagrams and networks describe the shape of their graph in a few

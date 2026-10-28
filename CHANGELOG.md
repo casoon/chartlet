@@ -7,6 +7,24 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **Emphasis:** `emphasis` on a flow chart, state diagram, class diagram, architecture diagram,
+  tree, network or sequence diagram marks what to look at first: `nodes` (one or two) get a heavy
+  accent outline and tint, `path` draws the edges (messages) between consecutive ids in the accent,
+  and everything else stays neutral. Weight carries the cue as well as color, in light, dark and
+  print. A `mainPath` without an emphasis path stays drawn in the accent. More than two emphasized
+  nodes warn with `too_much_emphasis`; an unknown id is `unknown_node`, a path no edge joins
+  `emphasis_path_gap`. The description names the emphasized elements and the table adds an Emphasis
+  column. Details:
+  [Emphasis and legend](https://casoon.github.io/chartlet/docs/guides/chart-types/#emphasis-and-legend).
+  Examples `release-focus`, `sign-in-focus`, `shop-focus`, `ownership-focus`, `dependencies-focus`.
+
+- **Legend:** `"legend": "auto"` on the same diagrams draws one strip below the drawing that lists
+  the node kinds, line patterns and emphasis that occur, when there is more than one to tell apart.
+  It wraps into rows on a narrow canvas, grows the canvas, is left out in compact spacing (the
+  description says so) and is off by default, so existing diagrams are drawn as before.
+
 ## [0.22.0] - 2026-10-28
 
 ### Added
