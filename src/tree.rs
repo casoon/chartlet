@@ -128,6 +128,8 @@ fn draw_all(
     let width = f64::from(spec.width);
     let top = 56.0 + title_extra(spec, width - 2.0 * margin, metrics);
     let nodes = boxes(tree, compact, metrics, warnings);
+    // Type tags belong to the editorial look and not to a narrow canvas.
+    let tags = spec.look == crate::spec::Look::Editorial && spec.tags && !compact;
     if tree.layout == TreeLayout::Radial {
         let radial = Radial::new(spec, tree, &nodes, (top, margin, compact));
         let mut elements = Vec::new();
@@ -145,7 +147,7 @@ fn draw_all(
             "use the layered layout",
             warnings,
         );
-        radial.draw((tree, spec.number_style()), &nodes, &mut elements);
+        radial.draw((tree, (spec.number_style(), tags)), &nodes, &mut elements);
         return Scene {
             width: pixels(radial.width),
             height: pixels(radial.height),
@@ -176,7 +178,12 @@ fn draw_all(
         warnings,
     );
     warn_growth(spec, plan.width, plan.height, warnings);
-    plan.draw((tree, spec.number_style()), &nodes, metrics, &mut elements);
+    plan.draw(
+        (tree, (spec.number_style(), tags)),
+        &nodes,
+        metrics,
+        &mut elements,
+    );
     Scene {
         width: pixels(plan.width),
         height: pixels(plan.height),
@@ -505,7 +512,7 @@ impl Plan {
 
     fn draw(
         &self,
-        (tree, style): (&TreeSpec, NumberStyle),
+        (tree, style): (&TreeSpec, (NumberStyle, bool)),
         nodes: &[NodeBox],
         metrics: &impl TextMetrics,
         elements: &mut Vec<Element>,
@@ -737,7 +744,7 @@ impl Radial {
     /// boxes, under the boxes.
     fn draw(
         &self,
-        (tree, style): (&TreeSpec, NumberStyle),
+        (tree, style): (&TreeSpec, (NumberStyle, bool)),
         nodes: &[NodeBox],
         elements: &mut Vec<Element>,
     ) {
@@ -904,7 +911,7 @@ fn edge_toward(from: (f64, f64), to: (f64, f64), node: &NodeBox) -> (f64, f64) {
 /// Every node: its shape, its text, and the hotspot the HTML profile focuses; `node_box` says
 /// where each one stands.
 fn draw_nodes(
-    (tree, style): (&TreeSpec, NumberStyle),
+    (tree, style): (&TreeSpec, (NumberStyle, bool)),
     nodes: &[NodeBox],
     node_box: impl Fn(usize) -> (f64, f64, f64, f64),
     elements: &mut Vec<Element>,
@@ -919,6 +926,7 @@ fn draw_nodes(
         related.sort_unstable();
         related
     };
+    let (style, tags) = style;
     let heat = heat::steps(&tree.nodes.iter().map(|node| node.value).collect::<Vec<_>>());
     let names = parts::names(tree.nodes.iter().map(|node| node.parts.as_slice()));
     for (node, drawn) in nodes.iter().enumerate() {
@@ -942,6 +950,15 @@ fn draw_nodes(
             TreeNodeKind::External => Shape::External,
         };
         shape(kind, (x, y, width, height), tooltip, elements);
+        if tags
+            && let Some(tag) = match spec.kind {
+                TreeNodeKind::Unit => None,
+                TreeNodeKind::Person => Some("USER"),
+                TreeNodeKind::External => Some("EXT"),
+            }
+        {
+            crate::flow::push_tag(tag, (x, y), elements);
+        }
         let stripe = if spec.parts.is_empty() {
             0.0
         } else {

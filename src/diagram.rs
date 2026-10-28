@@ -183,6 +183,114 @@ pub(crate) fn chip(
     }
 }
 
+/// The size of the technology of an edge label, set in monospace after the label.
+pub(crate) const TECH_SIZE: f64 = 11.0;
+
+/// The width of a chip line whose tail is the technology `tech`: the label before it, then the
+/// technology in its own size.
+pub(crate) fn run_width(line: &str, tech: Option<&str>, metrics: &impl TextMetrics) -> f64 {
+    match tech.filter(|tech| !tech.is_empty() && line.ends_with(*tech)) {
+        Some(tech) => {
+            metrics.width(&line[..line.len() - tech.len()], CHIP_SIZE)
+                + metrics.width(tech, TECH_SIZE)
+        }
+        None => metrics.width(line, CHIP_SIZE),
+    }
+}
+
+/// [`chip_box`] for lines that may end in the technology `tech`.
+pub(crate) fn chip_box_tech(
+    lines: &[String],
+    tech: Option<&str>,
+    at: (f64, f64),
+    anchor: TextAnchor,
+    metrics: &impl TextMetrics,
+) -> (f64, f64, f64, f64) {
+    if tech.is_none() {
+        return chip_box(lines, at, anchor, metrics);
+    }
+    let width = lines
+        .iter()
+        .map(|line| run_width(line, tech, metrics))
+        .fold(0.0, f64::max);
+    let left = match anchor {
+        TextAnchor::Start => at.0,
+        TextAnchor::Middle => at.0 - width / 2.0,
+        TextAnchor::End => at.0 - width,
+    };
+    let rows = crate::layout::count(lines.len());
+    (
+        left - CHIP_PAD_X,
+        at.1 - 11.0 - CHIP_PAD_Y,
+        width + 2.0 * CHIP_PAD_X,
+        15.0 + CHIP_LINE * (rows - 1.0) + 2.0 * CHIP_PAD_Y,
+    )
+}
+
+/// [`chip`] for lines that may end in the technology `tech`: the label in the sans font, the
+/// technology after it in monospace.
+pub(crate) fn chip_tech(
+    lines: &[String],
+    tech: Option<&str>,
+    at: (f64, f64),
+    anchor: TextAnchor,
+    metrics: &impl TextMetrics,
+    elements: &mut Vec<Element>,
+) {
+    if tech.is_none() {
+        chip(lines, at, anchor, metrics, elements);
+        return;
+    }
+    let (left, top, width, height) = chip_box_tech(lines, tech, at, anchor, metrics);
+    elements.push(Element::Rect(Rect {
+        x: left,
+        y: top,
+        width,
+        height,
+        class: "chartlet-diagram-chip",
+        series_index: None,
+        style_index: None,
+        tooltip: None,
+    }));
+    for (index, line) in lines.iter().enumerate() {
+        let y = at.1 + CHIP_LINE * crate::layout::count(index);
+        let own = run_width(line, tech, metrics);
+        let start = match anchor {
+            TextAnchor::Start => at.0,
+            TextAnchor::Middle => at.0 - own / 2.0,
+            TextAnchor::End => at.0 - own,
+        };
+        match tech.filter(|tech| !tech.is_empty() && line.ends_with(*tech)) {
+            Some(tech) => {
+                let label = &line[..line.len() - tech.len()];
+                if !label.is_empty() {
+                    elements.push(Element::Text(Text {
+                        x: start,
+                        y,
+                        class: "chartlet-diagram-chip-text",
+                        anchor: TextAnchor::Start,
+                        content: label.to_owned(),
+                    }));
+                }
+                elements.push(Element::Text(Text {
+                    x: start + metrics.width(label, CHIP_SIZE),
+                    y,
+                    class: "chartlet-diagram-tech",
+                    anchor: TextAnchor::Start,
+                    content: tech.to_owned(),
+                }));
+            }
+            None => elements.push(Element::Text(Text {
+                x: at.0,
+                y,
+                class: "chartlet-diagram-chip-text",
+                anchor,
+                content: line.clone(),
+            })),
+        }
+    }
+}
+
 /// A round badge with a number, centred on `center`.
 pub(crate) fn badge(number: usize, center: (f64, f64), elements: &mut Vec<Element>) {
     elements.push(Element::Circle(Circle {

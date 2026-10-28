@@ -41,6 +41,7 @@ pub(crate) use draw::{focus_classes, weight_widths_of};
 use graph::Graph;
 use measure::{Model, Spacing};
 pub(crate) use model::{Diagram, Edge, End, Ends, Group, Node, Shape, Sides};
+pub(crate) use nodes::push_tag;
 use place::Plan;
 pub(crate) use shapes::shape;
 use trunks::Trunks;

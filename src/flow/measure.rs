@@ -13,6 +13,7 @@ use super::{
     up,
 };
 use crate::{
+    diagram::TECH_SIZE,
     diagram::wrap,
     error::ChartWarning,
     layout::{NARROW, count},
@@ -141,6 +142,8 @@ pub(super) struct Model<'a> {
     /// Each edge's label on one or two lines, and the widest of them.
     pub(super) edge_labels: Vec<Vec<String>>,
     pub(super) edge_widths: Vec<f64>,
+    /// Per edge, the technology its label ends in, set in monospace; only in the editorial look.
+    pub(super) edge_tech: Vec<Option<String>>,
     /// The labels of the edges from each step to itself, joined.
     pub(super) loops: Vec<Option<String>>,
     /// The same, on as many lines as the edge labels take.
@@ -184,7 +187,7 @@ impl<'a> Model<'a> {
                 *size = (up(size.0, 2.0 * GRID), up(size.1, 2.0 * GRID));
             }
         }
-        let (edge_labels, edge_widths) = edge_labels(
+        let (edge_labels, edge_widths, edge_tech) = edge_labels(
             diagram,
             spacing.edge_label,
             spacing.editorial,
@@ -248,6 +251,7 @@ impl<'a> Model<'a> {
             sizes,
             edge_labels,
             edge_widths,
+            edge_tech,
             loops,
             loop_lines,
             number_style,
@@ -547,10 +551,12 @@ fn edge_labels(
     editorial: bool,
     metrics: &impl TextMetrics,
     warnings: &mut Vec<ChartWarning>,
-) -> (Vec<Vec<String>>, Vec<f64>) {
+) -> (Vec<Vec<String>>, Vec<f64>, Vec<Option<String>>) {
     let mut edge_labels = Vec::with_capacity(diagram.edges.len());
     let mut edge_widths = Vec::with_capacity(diagram.edges.len());
+    let mut edge_tech = Vec::with_capacity(diagram.edges.len());
     for edge in &diagram.edges {
+        let mut tech = None;
         let mut lines = edge.label.as_ref().map_or_else(Vec::new, |label| {
             let word = label
                 .split(' ')
@@ -572,16 +578,19 @@ fn edge_labels(
             // the width of a label; otherwise it stands on a line of its own. No brackets.
             let room = widest.max(EDGE_LABEL);
             let path = edge.label_path.replace("/label", "/technology");
+            let fitted =
+                crate::layout::fit_text(technology, room, TECH_SIZE, metrics, warnings, &path);
             match lines.last_mut() {
                 Some(last)
-                    if metrics.width(&format!("{last} · {technology}"), EDGE_SIZE) <= room =>
+                    if metrics.width(&format!("{last} · "), EDGE_SIZE)
+                        + metrics.width(&fitted, TECH_SIZE)
+                        <= room =>
                 {
-                    *last = format!("{last} · {technology}");
+                    *last = format!("{last} · {fitted}");
                 }
-                _ => lines.push(crate::layout::fit_text(
-                    technology, room, EDGE_SIZE, metrics, warnings, &path,
-                )),
+                _ => lines.push(fitted.clone()),
             }
+            tech = Some(fitted);
         } else if let Some(technology) = &edge.technology {
             // A technology cannot wrap: it may run as wide as a label does on a wide canvas.
             lines.push(crate::layout::fit_text(
@@ -596,10 +605,11 @@ fn edge_labels(
         edge_widths.push(
             lines
                 .iter()
-                .map(|line| metrics.width(line, EDGE_SIZE))
+                .map(|line| crate::diagram::run_width(line, tech.as_deref(), metrics))
                 .fold(0.0, f64::max),
         );
         edge_labels.push(lines);
+        edge_tech.push(tech);
     }
-    (edge_labels, edge_widths)
+    (edge_labels, edge_widths, edge_tech)
 }

@@ -34,18 +34,19 @@ diagrams on one page belong together; see the `editorial-bars` and `editorial-tr
 | Outlines and lines | 1.5 px, a shadow below boxes | 1 px, no shadows; 2 px for the main path |
 | Corners | 7 px | 6 px (states 8 px, frames 8 px) |
 | Names | sans, 13 px, weight 600 | the same |
-| Sublabels, edge labels, members, frame names | sans | monospace, 11 or 12 px |
-| Edge labels | on a bordered plate, 4 px from the line | on a mask in the color of the paper, no border, 8 px from the line; a technology joins the label after a dot: `calls · HTTPS/JSON` |
+| Sublabels, frame names, the technology of an edge | sans | monospace, 11 px; names, edge labels and members stay sans |
+| Edge labels | on a bordered plate, 4 px from the line | on a mask in the color of the paper, no border, 8 px from the line; a technology joins the label after a dot, the name in sans and the technology in monospace: `calls · HTTPS/JSON` |
 | Number badges | accent disc | ink disc |
 | Roles | color, line pattern and badge | the same; `critical` keeps a red outline, `planned` and `deprecated` are ink with their pattern and badge |
 
 The type tag is a small plate with capital letters on the top edge of a node, 8 px from its left
 corner. Every kind has a default (`DB`, `QUEUE`, `CACHE`, `FILES`, `SEC`, `UI`, `USER`, `EXT`,
 `HOST`, `ARTIFACT`; `SVC` for an ordinary architecture component), `"tag": "API"` on a flow step or
-component replaces it (at most 8 characters), and `"tags": false` leaves the tags off. Tags are not
-drawn on decisions, initial dots, notes, interfaces and class boxes, and not on a canvas narrower than
-480 px; the data table and the description still name the kind. Sequence participants and class
-boxes carry no tags; their shape and their stereotype tell the kind.
+component replaces it (at most 8 characters), and `"tags": false` leaves the tags off. Class diagrams tag
+`IFACE`, `ABSTRACT`, `ENUM` and `ENTITY`; trees tag `USER` and `EXT` nodes. Tags are not drawn on
+decisions, initial dots, notes and interfaces, and not on a canvas narrower than 480 px; the data
+table and the description still name the kind. Sequence participants, network nodes and cycle steps
+have no kinds to tag, and a sequence participant's shape tells what it is.
 
 Tokens, tags and masks never carry meaning alone: the kind is also the shape, the role is also a line
 pattern and a badge, the main path is also thicker.
@@ -74,7 +75,7 @@ The other role tokens are set to the neutral outline and fill, so a custom style
 stays neutral. Contrast, measured and tested (`tests/editorial.rs`): text on paper and on the second
 paper is at least 8:1 for ink and 7.5:1 for muted text; outlines, lines and the accent are at least
 4.6:1 against the paper, far above the 3:1 that marks need. The tags and masks use the same pairs.
-Print and PNG resolve the same values; the print variant carries no custom properties.
+Print and PNG resolve the same values; the print variant carries no custom properties. The `low_contrast` warning for a token of your own measures it against this palette when the look is `editorial`.
 
 ## Sizes and spacing
 
@@ -83,8 +84,8 @@ All values are pixels at the canvas size; a diagram is never scaled by the look.
 | Part | Value |
 | --- | --- |
 | Name | 13, weight 600, line height 16 |
-| Sublabel, group name | monospace 11 |
-| Edge or message label, class member | monospace 12, line height 15 |
+| Sublabel, group name, technology of an edge | monospace 11 |
+| Edge or message label, class member | sans 12, line height 15 |
 | Type tag | monospace 9, tracking 0.5, plate 14 high, 5 padding left and right, 8 in from the corner |
 | Node padding | 12 along the text, 24 height beyond the text lines (classic: 20) |
 | Gap between nodes in a layer | 32; between layers 32; around frames 32 (classic: 28, 28, 30) |
@@ -96,7 +97,7 @@ Distances that are multiples of four: the gaps, the corner of the tag, the label
 radius and the node height beyond its text. The text sizes and the 15 px line height follow the
 type, not the grid, and the lines of an edge keep their routing.
 
-Monospace text is measured as 0.6 times its size per character, which is what the system monospace
+Monospace text (11 px and smaller) is measured as 0.6 times its size per character, which is what the system monospace
 faces and the bundled face give; widths are the same in the web output, the print variant and PNG.
 In PNG the monospace face is JetBrains Mono (SIL Open Font License, `fonts/`), next to Inter.
 
@@ -119,8 +120,11 @@ nodes apart by fill and line, and is the one that survives dark paper. It was ch
 
 What the review found, and what it changed:
 
-- Mono labels are about 15 % wider than sans labels. A diagram that fitted exactly grows a little
+- Monospace sublabels and technologies are wider than sans text. A diagram that fitted exactly grows a little
   (`canvas_too_small` names the size); the committed examples are sized for it.
+- With the emphasis and the legend strip (`release-focus`, `shop-focus`, `sign-in-focus`) the emphasized
+  elements take the accent over the neutral fills, and the legend swatches are neutral; checked on
+  desktop, dark and at 360 px.
 - The tag stands half outside the box. The first row of nodes therefore gets 7 px less room above;
   the title margin covers it.
 - On a canvas narrower than 480 px the tags are dropped and labels wrap sooner. At 360 px a class

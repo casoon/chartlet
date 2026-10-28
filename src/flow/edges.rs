@@ -9,7 +9,7 @@ use super::{
     route::Route,
 };
 use crate::{
-    diagram::{self, CHIP_LINE, CHIP_REACH, HEAD, arrowhead, chip, chip_box, rounded},
+    diagram::{self, CHIP_LINE, CHIP_REACH, HEAD, arrowhead, chip_box_tech, chip_tech, rounded},
     layout::count,
     metrics::TextMetrics,
     scene::{Element, Text, TextAnchor},
@@ -144,6 +144,8 @@ fn end_text(text: &str, end: End, at: (f64, f64), direction: (f64, f64)) -> Text
 /// An edge label waiting to be drawn: its lines, the first baseline and how it is anchored.
 pub(super) struct Label {
     lines: Vec<String>,
+    /// The technology the last line ends in, set in monospace.
+    tech: Option<String>,
     /// The focus classes of the edge it labels.
     classes: String,
     at: (f64, f64),
@@ -163,7 +165,13 @@ impl Label {
     /// Moves a label that would run off the side of the page to the other side of its line, or,
     /// beside nothing, back onto the page.
     fn keep_on_page(&mut self, width: f64, metrics: &impl TextMetrics) {
-        let (left, _, chip_width, _) = chip_box(&self.lines, self.at, self.anchor, metrics);
+        let (left, _, chip_width, _) = chip_box_tech(
+            &self.lines,
+            self.tech.as_deref(),
+            self.at,
+            self.anchor,
+            metrics,
+        );
         let reach = CHIP_REACH + 2.0 + self.gap;
         let over = left + chip_width - (width - 2.0);
         if over > 0.0 {
@@ -185,7 +193,13 @@ impl Label {
         }
         // A label wider than the page, moved back from the right edge, ends up past the left
         // one: it starts at the left edge instead, and the canvas grows to its right.
-        let (left, _, _, _) = chip_box(&self.lines, self.at, self.anchor, metrics);
+        let (left, _, _, _) = chip_box_tech(
+            &self.lines,
+            self.tech.as_deref(),
+            self.at,
+            self.anchor,
+            metrics,
+        );
         if left < 2.0 {
             self.at.0 += 2.0 - left;
         }
@@ -213,6 +227,7 @@ impl Plan {
             .max_by(|a, b| (a[0].0 - a[1].0).abs().total_cmp(&(b[0].0 - b[1].0).abs()))?;
         Some(Label {
             lines: lines.to_vec(),
+            tech: model.edge_tech[edge].clone(),
             classes: model.edge_classes(edge),
             at: (
                 f64::midpoint(run[0].0, run[1].0),
@@ -426,6 +441,7 @@ impl Plan {
         let (line, _) = self.page(route.label_at);
         labels.push(Label {
             lines: lines.clone(),
+            tech: model.edge_tech[edge].clone(),
             classes: model.edge_classes(edge),
             at: (x, y),
             anchor,
@@ -471,7 +487,13 @@ impl Plan {
         for mut label in labels {
             label.keep_on_page(self.width, metrics);
             for _ in 0..12 {
-                let (x, y, width, height) = chip_box(&label.lines, label.at, label.anchor, metrics);
+                let (x, y, width, height) = chip_box_tech(
+                    &label.lines,
+                    label.tech.as_deref(),
+                    label.at,
+                    label.anchor,
+                    metrics,
+                );
                 let hits = |other: &&(f64, f64, f64, f64)| {
                     x < other.0 + other.2 + AIR
                         && other.0 < x + width + AIR
@@ -498,14 +520,27 @@ impl Plan {
                     label.at.1 += other.1 + other.3 + AIR - y;
                 }
             }
-            let placed_at = chip_box(&label.lines, label.at, label.anchor, metrics);
+            let placed_at = chip_box_tech(
+                &label.lines,
+                label.tech.as_deref(),
+                label.at,
+                label.anchor,
+                metrics,
+            );
             reach = (
                 reach.0.max(placed_at.0 + placed_at.2),
                 reach.1.max(placed_at.1 + placed_at.3),
             );
             placed.push(placed_at);
             elements.push(Element::Group(label.classes.clone()));
-            chip(&label.lines, label.at, label.anchor, metrics, elements);
+            chip_tech(
+                &label.lines,
+                label.tech.as_deref(),
+                label.at,
+                label.anchor,
+                metrics,
+                elements,
+            );
             elements.push(Element::GroupEnd);
         }
         reach
@@ -582,6 +617,7 @@ impl Plan {
             };
             labels.push(Label {
                 lines: lines.clone(),
+                tech: None,
                 classes: model.node_classes(node),
                 at: (text.0, text.1 - rise),
                 anchor: text.2,

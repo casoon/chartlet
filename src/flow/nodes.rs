@@ -26,25 +26,7 @@ impl Plan {
         });
         shape(spec.shape, (x, y, width, height), tooltip, elements);
         if let Some(tag) = &model.tags[node] {
-            // The tag stands on the top edge, left of the middle, on a plate that cuts the line.
-            let plate = tag_width(tag);
-            elements.push(Element::Rect(Rect {
-                x: x + TAG_INSET,
-                y: y - TAG_HEIGHT / 2.0,
-                width: plate,
-                height: TAG_HEIGHT,
-                class: "chartlet-diagram-tag",
-                series_index: None,
-                style_index: None,
-                tooltip: None,
-            }));
-            elements.push(Element::Text(Text {
-                x: x + TAG_INSET + plate / 2.0,
-                y: y + 3.0,
-                class: "chartlet-diagram-tag-text",
-                anchor: TextAnchor::Middle,
-                content: tag.clone(),
-            }));
+            push_tag(tag, (x, y), elements);
         }
         if spec.shape == Shape::Class {
             Self::class_text(model, node, (x, y, width), elements);
@@ -253,4 +235,27 @@ impl Plan {
             }));
         }
     }
+}
+
+/// The type tag `tag` of the box whose top left corner is at `x`, `y`: a plate on the top edge,
+/// a little in from the corner, that cuts the outline.
+pub(crate) fn push_tag(tag: &str, (x, y): (f64, f64), elements: &mut Vec<Element>) {
+    let plate = tag_width(tag);
+    elements.push(Element::Rect(Rect {
+        x: x + TAG_INSET,
+        y: y - TAG_HEIGHT / 2.0,
+        width: plate,
+        height: TAG_HEIGHT,
+        class: "chartlet-diagram-tag",
+        series_index: None,
+        style_index: None,
+        tooltip: None,
+    }));
+    elements.push(Element::Text(Text {
+        x: x + TAG_INSET + plate / 2.0,
+        y: y + 3.0,
+        class: "chartlet-diagram-tag-text",
+        anchor: TextAnchor::Middle,
+        content: tag.to_owned(),
+    }));
 }

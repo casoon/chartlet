@@ -132,6 +132,9 @@ fn check(spec: &ChartSpec, pairs: &[Pair]) -> Vec<ChartWarning> {
         Theme::Dark => "dark",
         Theme::Blueprint => "blueprint",
     });
+    if spec.look == crate::spec::Look::Editorial && spec.theme != Theme::Blueprint {
+        palette.extend(crate::render::editorial::tokens(spec.theme == Theme::Dark));
+    }
     palette.extend(spec.tokens.clone());
     pairs
         .iter()

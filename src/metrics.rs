@@ -17,9 +17,9 @@ impl TextMetrics for BuiltinMetrics {
 }
 
 /// Texts of this size or smaller are the technical text of an editorial diagram: sublabels,
-/// edge labels, tags and members are set in monospace; names (13 px and up) stay in the sans
-/// font.
-const MONO_UP_TO: f64 = 12.5;
+/// the technology of an edge, tags and frame names are set in monospace; names and labels
+/// (12 px and up) stay in the sans font.
+const MONO_UP_TO: f64 = 11.5;
 
 /// The advance of a monospace character in em: that of the system monospace faces and of the
 /// bundled `JetBrains Mono`.

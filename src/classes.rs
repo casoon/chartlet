@@ -410,7 +410,13 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
             value: None,
             parts: Vec::new(),
             symbol: None,
-            tag: None,
+            tag: match class.kind {
+                crate::spec::ClassKind::Class => None,
+                crate::spec::ClassKind::Interface => Some("IFACE".to_owned()),
+                crate::spec::ClassKind::Abstract => Some("ABSTRACT".to_owned()),
+                crate::spec::ClassKind::Enum => Some("ENUM".to_owned()),
+                crate::spec::ClassKind::Entity => Some("ENTITY".to_owned()),
+            },
             role: class.role,
             category: None,
         })

@@ -135,7 +135,7 @@ fn masks_have_no_border_and_sublabels_are_monospace() {
     let svg = svg(&example("editorial-architecture"));
     assert!(svg.contains(".chartlet-look-editorial .chartlet-diagram-chip{fill:var(--chartlet-background);stroke:none"));
     assert!(svg.contains("font-family:ui-monospace"));
-    assert!(svg.contains("calls · HTTPS/JSON"));
+    assert!(svg.contains(">calls · </text>"));
 }
 
 /// The custom properties of the rule with `selector` in the shared stylesheet.
@@ -201,4 +201,36 @@ fn the_editorial_palettes_keep_their_contrast() {
             "{selector}"
         );
     }
+}
+
+#[test]
+fn trees_and_class_diagrams_tag_their_kinds() {
+    let tree = std::fs::read_to_string("examples/family-tree.json")
+        .expect("example")
+        .replacen('{', "{\"look\":\"editorial\",", 1);
+    let tree = svg(&tree);
+    assert!(tree.contains(">USER</text>") || tree.contains(">EXT</text>"));
+    let classes = svg(&example("editorial-classes"));
+    assert!(classes.contains(">ENUM</text>"));
+}
+
+#[test]
+fn only_the_technology_of_an_edge_label_is_monospace() {
+    let svg = svg(&example("editorial-architecture"));
+    assert!(svg.contains("class=\"chartlet-diagram-tech\""));
+    assert!(svg.contains(">HTTPS/JSON</text>"));
+    assert!(svg.contains(">calls · </text>"));
+}
+
+#[test]
+fn low_contrast_is_measured_against_the_editorial_palette() {
+    let spec = example("editorial-architecture")
+        .replace("\"look\"", "\"tokens\": {\"text\": \"#f0eee8\"}, \"look\"");
+    let output = render_json(&spec, RenderFormat::Svg, &RenderOptions::default()).expect("renders");
+    assert!(
+        output
+            .warnings
+            .iter()
+            .any(|warning| warning.code == "low_contrast")
+    );
 }
