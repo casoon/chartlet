@@ -4,8 +4,9 @@ import {
   AnchorGrid,
   Badge,
   Badges,
-  Button,
   BuildOutput,
+  Button,
+  CallToAction,
   CodeBlock,
   Facts,
   Faq,
@@ -241,6 +242,12 @@ const specJson = `{
         a: 'chartlet is before 1.0: a minor release may still change the specification, and flow, state and class diagrams are marked experimental. The support matrix in the documentation lists what is verified and what is only designed.',
       },
     ]}
+  />
+
+  <CallToAction
+    title="Your first chart in a few minutes."
+    href={url('docs/getting-started/quickstart/')}
+    label="Read the quickstart"
   />
 </Base>
 
