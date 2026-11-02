@@ -9,7 +9,7 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Changed
 
-- **Pages:** the project site uses the current shared theme (0.12.5).
+- **Pages:** the project site uses the current shared theme (0.12.6).
 
 
 ## [0.23.0] - 2026-10-28
