@@ -27,5 +27,11 @@
     "onlyBuiltDependencies": [
       "esbuild"
     ]
+  },
+  "casoonPagesCheck": {
+    "allowScript": [
+      "interactive/",
+      "playground/"
+    ]
   }
 }
