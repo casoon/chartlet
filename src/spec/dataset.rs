@@ -366,6 +366,18 @@ impl ChartSpec {
         }
     }
 
+    /// A position on the time axis as a description writes it. On a numeric axis with a title,
+    /// the title comes first, as it heads the first column of the data table ("Bar 12"):
+    /// positions and values are both plain numbers there, and only the name tells them apart.
+    pub(crate) fn position_text(&self, position: &str) -> String {
+        match &self.time_axis.title {
+            Some(title) if self.time_axis.kind == super::TimeAxisKind::Number => {
+                format!("{title} {position}")
+            }
+            _ => position.to_owned(),
+        }
+    }
+
     /// How finely the observations of all data layers need their times named, whatever the
     /// specification declares. The time axis spaces its ticks by it, so that a declared
     /// precision changes how times are named but not how many ticks there are.

@@ -954,9 +954,16 @@ fn a_numeric_axis_reads_plain_numbers_and_can_run_backwards() {
                 "points": [{"time": 0, "value": 10}, {"time": 2.5, "value": 30},
                            {"time": 10, "value": 20}]}]}]}"#;
     let html = html_ok(spec);
+    // The title of the axis names its positions, which are plain numbers like the values.
     assert!(
-        html.contains("Line chart with 3 points from 0.0 to 10.0."),
+        html.contains(
+            "Line chart with 3 points from Distance (km) 0.0 to 10.0. Highest: 30 (Distance (km) 2.5). Lowest: 10 (Distance (km) 0.0)."
+        ),
         "{html}"
+    );
+    assert!(
+        html_ok(&spec.replace(r#", "title": "Distance (km)""#, ""))
+            .contains("Line chart with 3 points from 0.0 to 10.0. Highest: 30 (2.5).")
     );
     assert!(html.contains("<th scope=\"col\">Distance (km)</th>"));
     let svg = render_ok(spec).content;

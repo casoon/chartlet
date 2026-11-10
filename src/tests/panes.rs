@@ -310,3 +310,124 @@ fn german_candles_and_panes_write_german_texts() {
     assert!(html.contains("<th scope=\"col\">Price (Eröffnung)</th><th scope=\"col\">Price (Hoch)</th><th scope=\"col\">Price (Tief)</th><th scope=\"col\">Price (Schluss)</th>"));
     assert!(html.contains("<td>12\u{202f}%</td>"));
 }
+
+/// Two panes of candles along a numeric axis titled "Bar", with a line through two turning
+/// points, reference lines in both panes, a zone and a point marker.
+const BARS: &str = r#"{
+        "schemaVersion": 1, "type": "time", "title": "Two series",
+        "timeAxis": {"kind": "number", "title": "Bar"},
+        "panes": [
+            {"valueAxis": {"title": "Series (a)"}, "layers": [
+                {"mark": "ohlc", "name": "(a)", "data": [
+                    {"time": 0, "open": 100, "high": 103, "low": 99, "close": 102},
+                    {"time": 1, "open": 101, "high": 104, "low": 100, "close": 103},
+                    {"time": 2, "open": 102, "high": 105, "low": 101, "close": 104},
+                    {"time": 3, "open": 103, "high": 106, "low": 102, "close": 105}]},
+                {"mark": "line", "name": "Zigzag", "points": [
+                    {"time": 1, "value": 101}, {"time": 3, "value": 106}]},
+                {"mark": "annotation", "time": 2, "label": "1"},
+                {"mark": "band", "label": "Range", "from": 1, "to": 2},
+                {"mark": "annotation", "time": 3, "value": 106, "label": "Top"}]},
+            {"valueAxis": {"title": "Series (b)"}, "layers": [
+                {"mark": "ohlc", "name": "(b)", "data": [
+                    {"time": 0, "open": 100, "high": 103, "low": 99, "close": 102},
+                    {"time": 1, "open": 101, "high": 104, "low": 100, "close": 103},
+                    {"time": 2, "open": 102, "high": 105, "low": 101, "close": 104},
+                    {"time": 3, "open": 103, "high": 106, "low": 102, "close": 105}]},
+                {"mark": "annotation", "time": 2, "label": "1"},
+                {"mark": "annotation", "value": 104, "label": "Level"}]}
+        ]
+    }"#;
+
+fn description(spec: &str) -> String {
+    text_alternative(&ChartSpec::from_json(spec).expect("parses"))
+        .expect("valid")
+        .description
+}
+
+#[test]
+fn candles_on_a_numeric_axis_are_described_by_position_and_pane() {
+    assert_eq!(
+        description(BARS),
+        "Candlestick chart with 4 candles from Bar 0 to 3 and 3 series ((a), Zigzag, (b)). \
+         2 stacked panes on one shared axis (Bar): Series (a), Series (b). \
+         (a): open 100 at Bar 0, close 105 at Bar 3, a change of +5 (+5.0%); high 106 at Bar 3, low 99 at Bar 0. \
+         Series (a) – Highest: 106 (Zigzag at Bar 3). Lowest: 101 (Zigzag at Bar 1). \
+         (b): open 100 at Bar 0, close 105 at Bar 3, a change of +5 (+5.0%); high 106 at Bar 3, low 99 at Bar 0. \
+         Series (a) – Reference lines: 1 at Bar 2. \
+         Series (b) – Reference lines: 1 at Bar 2; Level at 104. \
+         Series (a) – Zones: Range, Bar 1 to 2. \
+         Series (a) – Markers: Top at Bar 3, 106."
+    );
+    assert_eq!(
+        description(&german(BARS, "time")),
+        "Kerzendiagramm mit 4 Kerzen von Bar 0 bis 3 und 3 Reihen ((a), Zigzag, (b)). \
+         2 übereinanderliegende Teildiagramme auf einer gemeinsamen Achse (Bar): Series (a), Series (b). \
+         (a): Eröffnung 100 bei Bar 0, Schluss 105 bei Bar 3, Veränderung +5 (+5,0\u{202f}%); Hoch 106 bei Bar 3, Tief 99 bei Bar 0. \
+         Series (a) – Höchster Wert: 106 (Zigzag, Bar 3). Niedrigster Wert: 101 (Zigzag, Bar 1). \
+         (b): Eröffnung 100 bei Bar 0, Schluss 105 bei Bar 3, Veränderung +5 (+5,0\u{202f}%); Hoch 106 bei Bar 3, Tief 99 bei Bar 0. \
+         Series (a) – Bezugslinien: 1 bei Bar 2. \
+         Series (b) – Bezugslinien: 1 bei Bar 2; Level bei 104. \
+         Series (a) – Bereiche: Range, Bar 1 bis 2. \
+         Series (a) – Markierungen: Top bei Bar 3, 106."
+    );
+    // Without a title the positions stay plain numbers and the axis has no name.
+    let untitled = description(&BARS.replace(r#", "title": "Bar"}"#, "}"));
+    assert!(
+        untitled.starts_with(
+            "Candlestick chart with 4 candles from 0 to 3 and 3 series ((a), Zigzag, (b)). \
+             2 stacked panes on one shared axis: Series (a), Series (b). \
+             (a): open 100 at 0, close 105 at 3,"
+        ),
+        "{untitled}"
+    );
+    assert!(untitled.contains("Series (a) – Reference lines: 1 at 2."));
+}
+
+#[test]
+fn a_chart_with_candles_is_a_candlestick_chart_on_a_calendar_axis_too() {
+    let candles = description(&stacked(&candle_pane(""), ""));
+    assert!(
+        candles.starts_with(
+            "Candlestick chart with 3 candles from 2026-03-02 to 2026-03-04. \
+             Price: opened at 10.00 on 2026-03-02"
+        ),
+        "{candles}"
+    );
+    // One pane: its reference line needs no pane before it.
+    let level = description(&stacked(
+        &candle_pane(r#", {"mark": "annotation", "value": 11, "label": "Target"}"#),
+        "",
+    ));
+    assert!(
+        level.ends_with(" Reference lines: Target at 11.00."),
+        "{level}"
+    );
+    // A line that reaches a day beyond the candles: not every position is a candle.
+    let longer = description(&stacked(
+        &candle_pane(
+            r#", {"mark": "line", "name": "Plan", "points": [{"time": "2026-03-04", "value": 9}, {"time": "2026-03-05", "value": 10}]}"#,
+        ),
+        "",
+    ));
+    assert!(
+        longer.starts_with(
+            "Candlestick chart with 4 points from 2026-03-02 to 2026-03-05 and 2 series (Price, Plan)."
+        ),
+        "{longer}"
+    );
+    // Two panes on a calendar axis keep their time axis and name the pane of a reference line.
+    let panes = description(&stacked(
+        &format!(
+            "{}, {}",
+            candle_pane(r#", {"mark": "annotation", "value": 11, "label": "Target"}"#),
+            VOLUME_PANE
+        ),
+        "",
+    ));
+    assert!(panes.contains(" 2 stacked panes on one time axis: Price, Volume."));
+    assert!(
+        panes.ends_with(" Price – Reference lines: Target at 11.00."),
+        "{panes}"
+    );
+}

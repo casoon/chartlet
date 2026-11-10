@@ -193,6 +193,17 @@ fn describe_stack(spec: &ChartSpec, dataset: &Dataset, show: &impl Fn(f64) -> St
 }
 
 fn labels_at_value(dataset: &Dataset, value: f64, locale: spec::Locale) -> String {
+    places_at_value(dataset, value, |name, category| {
+        text::series_at(locale, name, category)
+    })
+}
+
+/// [`labels_at_value`] with the wording of a series at a category given by `series_at`.
+fn places_at_value(
+    dataset: &Dataset,
+    value: f64,
+    series_at: impl Fn(&str, &str) -> String,
+) -> String {
     let grouped = dataset.series.len() > 1;
     dataset
         .categories
@@ -206,10 +217,11 @@ fn labels_at_value(dataset: &Dataset, value: f64, locale: spec::Locale) -> Strin
                     series.values[index]
                         .is_some_and(|series_value| series_value.total_cmp(&value).is_eq())
                 })
-                .map(move |series| match series.name.as_deref() {
-                    Some(name) if grouped => text::series_at(locale, name, category),
+                .map(|series| match series.name.as_deref() {
+                    Some(name) if grouped => series_at(name, category),
                     _ => category.clone(),
                 })
+                .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -289,22 +301,11 @@ fn time_description(spec: &ChartSpec) -> String {
     let locale = spec.locale;
     let words = locale.words();
     let zone = spec.time_zone().unwrap_or_default();
-    let dataset = spec.time_dataset(zone, false);
+    let mut dataset = spec.time_dataset(zone, false);
     let show = |value| value_with_unit(spec, value);
     let points = dataset.categories.len();
-    let range = format!(
-        "{} {} {} {}",
-        words.from,
-        dataset
-            .categories
-            .first()
-            .expect("validated time charts have points"),
-        words.to,
-        dataset
-            .categories
-            .last()
-            .expect("validated time charts have points")
-    );
+    let range = time_range(spec, &dataset);
+    let form = time_form(spec, zone);
     let names = spec
         .series_names()
         .into_iter()
@@ -320,13 +321,20 @@ fn time_description(spec: &ChartSpec) -> String {
             }
         })
         .collect::<Vec<_>>();
-    let opening = if spec.chart_type == ChartType::Multiples {
+    let mut description = if spec.chart_type == ChartType::Multiples {
         let panels = spec
             .panes
             .iter()
             .filter_map(|pane| pane.title.clone())
             .collect::<Vec<_>>();
-        text::multiples_opening(locale, &panels, &range, &names, !spec.independent_axes)
+        text::multiples_opening(
+            locale,
+            form,
+            &panels,
+            &range,
+            &names,
+            !spec.independent_axes,
+        )
     } else {
         // A single series names itself only through the title; several are listed.
         let listed = if dataset.series.len() > 1 {
@@ -336,13 +344,13 @@ fn time_description(spec: &ChartSpec) -> String {
         };
         text::time_opening(
             locale,
+            form,
             points,
             &range,
             listed,
             names.len() == 1 && spec.data_layers().any(|entry| entry.layer.modeled),
         )
     };
-    let mut description = text::axis_noun(locale, zone, opening);
 
     describe_panel_notes(spec, &mut description);
 
@@ -368,21 +376,98 @@ fn time_description(spec: &ChartSpec) -> String {
             show(highest_value)
         )
     } else {
+        for category in &mut dataset.categories {
+            *category = spec.position_text(category);
+        }
+        let at = |value| {
+            places_at_value(&dataset, value, |name, place| {
+                series_at_place(locale, zone, name, place)
+            })
+        };
         write!(
             description,
             " {}: {} ({}). {}: {} ({}).",
             words.highest,
             show(highest_value),
-            labels_at_value(&dataset, highest_value, locale),
+            at(highest_value),
             words.lowest,
             show(lowest_value),
-            labels_at_value(&dataset, lowest_value, locale)
+            at(lowest_value)
         )
     }
     .expect("writing to String cannot fail");
 
     describe_additions(spec, zone, &mut description);
     description
+}
+
+/// The range of a time chart, "from … to …". On a numeric axis with a title the title names the
+/// first position and is not repeated before the last: "from Bar 0 to 149".
+fn time_range(spec: &ChartSpec, dataset: &Dataset) -> String {
+    let words = spec.locale.words();
+    format!(
+        "{} {} {} {}",
+        words.from,
+        spec.position_text(
+            dataset
+                .categories
+                .first()
+                .expect("validated time charts have points")
+        ),
+        words.to,
+        dataset
+            .categories
+            .last()
+            .expect("validated time charts have points")
+    )
+}
+
+/// What the description calls the chart: a candlestick chart once a layer draws candles, on
+/// either axis; otherwise a time chart, or a line chart along a numeric axis. The positions are
+/// counted as candles when every one of them carries a candle.
+fn time_form(spec: &ChartSpec, zone: time::TimeZone) -> text::TimeForm {
+    let candles: std::collections::BTreeSet<i64> = spec
+        .data_layers()
+        .filter(|entry| entry.layer.mark == spec::Mark::Ohlc)
+        .flat_map(|entry| entry.layer.resolved_times(zone))
+        .collect();
+    if candles.is_empty() {
+        return if zone.is_numeric() {
+            text::TimeForm::Line
+        } else {
+            text::TimeForm::Time
+        };
+    }
+    text::TimeForm::Candles {
+        counted: spec
+            .data_layers()
+            .flat_map(|entry| entry.layer.resolved_times(zone))
+            .all(|epoch| candles.contains(&epoch)),
+    }
+}
+
+/// A series at a time or, on a numeric axis, at a position.
+fn series_at_place(locale: spec::Locale, zone: time::TimeZone, name: &str, place: &str) -> String {
+    if zone.is_numeric() {
+        text::series_at_position(locale, name, place)
+    } else {
+        text::series_at(locale, name, place)
+    }
+}
+
+/// The name of every pane of a time chart: the title of its value axis, or its number.
+fn pane_labels(spec: &ChartSpec) -> Vec<String> {
+    let words = spec.locale.words();
+    spec.panes
+        .iter()
+        .enumerate()
+        .map(|(index, pane)| {
+            pane.value_axis
+                .title
+                .clone()
+                .unwrap_or_else(|| format!("{} {}", words.pane, index + 1))
+        })
+        .collect()
 }
 
 /// What a time chart adds to its opening and its values: collapsed gaps, missing values, areas,
@@ -410,19 +495,7 @@ fn stacked_description(spec: &ChartSpec) -> String {
     let words = locale.words();
     let zone = spec.time_zone().unwrap_or_default();
     let dataset = spec.time_dataset(zone, false);
-    let range = format!(
-        "{} {} {} {}",
-        words.from,
-        dataset
-            .categories
-            .first()
-            .expect("validated time charts have points"),
-        words.to,
-        dataset
-            .categories
-            .last()
-            .expect("validated time charts have points")
-    );
+    let range = time_range(spec, &dataset);
     let names = spec
         .data_layers()
         .filter_map(|entry| {
@@ -435,30 +508,22 @@ fn stacked_description(spec: &ChartSpec) -> String {
         })
         .collect::<Vec<_>>();
     let layered = spec.data_layers().count() > 1;
-    let mut description = text::axis_noun(
+    let mut description = text::time_opening(
         locale,
-        zone,
-        text::time_opening(
-            locale,
-            dataset.categories.len(),
-            &range,
-            if layered { names.as_slice() } else { &[] },
-            !layered && spec.data_layers().any(|entry| entry.layer.modeled),
-        ),
+        time_form(spec, zone),
+        dataset.categories.len(),
+        &range,
+        if layered { names.as_slice() } else { &[] },
+        !layered && spec.data_layers().any(|entry| entry.layer.modeled),
     );
-    let labels: Vec<String> = spec
-        .panes
-        .iter()
-        .enumerate()
-        .map(|(index, pane)| {
-            pane.value_axis
-                .title
-                .clone()
-                .unwrap_or_else(|| format!("{} {}", words.pane, index + 1))
-        })
-        .collect();
+    let labels = pane_labels(spec);
     if spec.panes.len() > 1 {
-        description.push_str(&text::panes(locale, &labels));
+        let axis = if zone.is_numeric() {
+            text::SharedAxis::Numeric(spec.time_axis.title.as_deref())
+        } else {
+            text::SharedAxis::Time
+        };
+        description.push_str(&text::panes(locale, &labels, axis));
     }
     for (pane_index, label) in labels.iter().enumerate() {
         let style = spec.pane_style(pane_index);
@@ -483,9 +548,9 @@ fn stacked_description(spec: &ChartSpec) -> String {
                     .resolved_points(zone)
                     .into_iter()
                     .map(move |(epoch, value)| {
-                        let time = precision.format(epoch, zone);
+                        let time = spec.position_text(&precision.format(epoch, zone));
                         let place = match &entry.layer.name {
-                            Some(name) if layered => text::series_at(locale, name, &time),
+                            Some(name) if layered => series_at_place(locale, zone, name, &time),
                             _ => time,
                         };
                         (value, place)
@@ -627,7 +692,7 @@ fn describe_bands(spec: &ChartSpec, description: &mut String) {
     description.push_str(&text::bands(spec.locale, banded, hatched));
 }
 
-/// The sentence that names every reference line and where it lies.
+/// The sentences that name every reference line and where it lies.
 fn describe_rules(spec: &ChartSpec, zone: time::TimeZone, description: &mut String) {
     let words = spec.locale.words();
     let rules = spec
@@ -637,72 +702,108 @@ fn describe_rules(spec: &ChartSpec, zone: time::TimeZone, description: &mut Stri
             let layer = entry.layer;
             let label = layer.label.as_deref()?;
             if let Some(value) = layer.value {
-                return Some(format!(
-                    "{label} {} {}",
-                    words.at,
-                    layout::format_value(value, spec.pane_style(entry.pane))
+                return Some((
+                    entry.pane,
+                    format!(
+                        "{label} {} {}",
+                        words.at,
+                        layout::format_value(value, spec.pane_style(entry.pane))
+                    ),
                 ));
             }
             let epoch = layer.time.as_ref()?.resolve(zone).ok()?;
-            Some(format!(
-                "{label} {} {}",
-                words.at,
-                time::Precision::of(std::iter::once(epoch), zone)
-                    .at_least(spec.time_precision(zone))
-                    .format(epoch, zone)
+            Some((
+                entry.pane,
+                format!(
+                    "{label} {} {}",
+                    words.at,
+                    spec.position_text(
+                        &time::Precision::of(std::iter::once(epoch), zone)
+                            .at_least(spec.time_precision(zone))
+                            .format(epoch, zone)
+                    )
+                ),
             ))
         })
         .collect::<Vec<_>>();
-    if !rules.is_empty() {
-        write!(
-            description,
-            " {}: {}.",
-            words.reference_lines,
-            rules.join("; ")
-        )
-        .expect("writing to String cannot fail");
-    }
+    describe_annotations(spec, words.reference_lines, &rules, description);
 }
 
 /// The sentences that name every zone with its extent and every point marker with its time and
 /// value.
 fn describe_zones_and_markers(spec: &ChartSpec, zone: time::TimeZone, description: &mut String) {
     let words = spec.locale.words();
-    let zones: Vec<String> = spec
+    let zones: Vec<(usize, String)> = spec
         .indexed_layers()
         .filter(|entry| entry.layer.mark == spec::Mark::Band)
         .filter_map(|entry| {
-            let label = entry.layer.label.as_deref()?;
-            Some(format!(
-                "{label}, {}",
-                layout::zone_extent(spec, entry.layer, zone, spec.pane_style(entry.pane))
-            ))
+            let layer = entry.layer;
+            let label = layer.label.as_deref()?;
+            let extent = layout::zone_extent(spec, layer, zone, spec.pane_style(entry.pane));
+            // An extent along the axis begins with its positions; one in values alone has none.
+            let extent = if layer.from.is_some() || layer.to.is_some() {
+                spec.position_text(&extent)
+            } else {
+                extent
+            };
+            Some((entry.pane, format!("{label}, {extent}")))
         })
         .collect();
-    if !zones.is_empty() {
-        write!(description, " {}: {}.", words.zones, zones.join("; "))
-            .expect("writing to String cannot fail");
-    }
-    let markers: Vec<String> = spec
+    describe_annotations(spec, words.zones, &zones, description);
+    let markers: Vec<(usize, String)> = spec
         .indexed_layers()
         .filter(|entry| entry.layer.is_marker())
         .filter_map(|entry| {
             let label = entry.layer.label.as_deref()?;
-            Some(format!(
-                "{label} {} {}",
-                words.at,
-                layout::marker_position(
-                    entry.layer,
-                    zone,
-                    spec.time_precision(zone),
-                    spec.pane_style(entry.pane),
-                )
+            Some((
+                entry.pane,
+                format!(
+                    "{label} {} {}",
+                    words.at,
+                    spec.position_text(&layout::marker_position(
+                        entry.layer,
+                        zone,
+                        spec.time_precision(zone),
+                        spec.pane_style(entry.pane),
+                    ))
+                ),
             ))
         })
         .collect();
-    if !markers.is_empty() {
-        write!(description, " {}: {}.", words.markers, markers.join("; "))
-            .expect("writing to String cannot fail");
+    describe_annotations(spec, words.markers, &markers, description);
+}
+
+/// Writes the reference lines, zones or markers of a chart under `heading`, each entry with
+/// the pane it is drawn in. A chart with one pane, and small multiples, list them in one
+/// sentence. Stacked panes get a sentence each, begun with the pane's name like its extremes:
+/// a level belongs to the values of its pane, and the same label may recur in every pane.
+fn describe_annotations(
+    spec: &ChartSpec,
+    heading: &str,
+    entries: &[(usize, String)],
+    description: &mut String,
+) {
+    let listed = |pane: Option<usize>| {
+        entries
+            .iter()
+            .filter(|(own, _)| pane.is_none_or(|pane| pane == *own))
+            .map(|(_, entry)| entry.as_str())
+            .collect::<Vec<_>>()
+            .join("; ")
+    };
+    if spec.chart_type != ChartType::Time || spec.panes.len() < 2 {
+        if !entries.is_empty() {
+            write!(description, " {heading}: {}.", listed(None))
+                .expect("writing to String cannot fail");
+        }
+        return;
+    }
+    for (pane, label) in pane_labels(spec).iter().enumerate() {
+        let own = listed(Some(pane));
+        if !own.is_empty() {
+            write!(description, " {label} – {heading}: {own}.")
+                .expect("writing to String cannot fail");
+        }
     }
 }
 

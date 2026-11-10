@@ -184,7 +184,9 @@ before it (`unordered_time`); a layer takes 2 to 2000 candles. The legend draws 
 filled candle and says “hollow: rising, filled: falling”. Each body has a tooltip with open,
 high, low and close; the data table has one column for each of the four, and the description
 names the first open, the last close, the change between them in absolute terms and in percent,
-and the highest high and lowest low with their times.
+and the highest high and lowest low with their times. A chart with a candlestick layer is
+described as a candlestick chart, and its positions are counted as candles when every one of them
+carries a candle: “Candlestick chart with 65 candles from 2026-01-07 to 2026-04-09 …”.
 
 More candles than a third of the plot's horizontal pixels — 234 at the default width — leave
 less than three pixels per candle. The layer is then drawn as wicks only, from low to high, in the
@@ -220,7 +222,8 @@ show the same window in every pane, and each window has to hold two observations
 every pane (`zoom_out_of_range`). The data table stays one table with a column for every layer
 of every pane, each written in its pane's format. The description names the panes by their
 `valueAxis.title` — “Pane 2” when a pane has none — and gives the extremes of each pane
-separately. A pane lower than 40 pixels is reported as `dense_chart` at its `heightRatio`. A pane
+separately, and likewise its reference lines, zones and point markers: “Price (USD) – Reference
+lines: Target at 60.00.” A pane lower than 40 pixels is reported as `dense_chart` at its `heightRatio`. A pane
 takes no `title`; that heads the panels of small multiples.
 
 ## Uncertainty bands and modeled lines
@@ -333,7 +336,12 @@ Profiles and deep time have no calendar: elevation along a distance, temperature
 an isotope record over millions of years. `"timeAxis": { "kind": "number" }` reads every `time`
 as a plain number and keeps everything else of a time chart — bands, zones, reference lines,
 point markers, panes. Ticks fall on round numbers, values are written in the chart's `locale`,
-and the axis `title` names the first column of the data table. `"reverse": true` runs the axis
+and the axis `title` names the first column of the data table. The description uses the title
+the same way: positions and values are both plain numbers on such an axis, so every position is
+written with the title before it — “from Bar 0 to 149”, “high 106 at Bar 90”, “Target at Bar 12”,
+“Highest: 3.5 (Million years ago 2.6)” — and stacked panes are said to share “one shared axis
+(Bar)” rather than a time axis. A short noun as the title, such as “Bar”, “Day” or “Depth (m)”,
+reads best. `"reverse": true` runs the axis
 from right to left, so that ages before present read from the oldest on the left; the value axis
 takes `"reverse": true` too, for records drawn with larger values downward.
 

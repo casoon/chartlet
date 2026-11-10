@@ -10,6 +10,14 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 ### Changed
 
 - **Pages:** the project site uses the current shared theme (0.12.6).
+- **Time charts:** the description calls a chart with a candlestick layer a candlestick chart and
+  counts its candles, on a calendar and on a numeric axis. With stacked panes, reference lines,
+  zones and point markers are listed per pane (“Price – Reference lines: …”) instead of in one
+  list for all panes.
+- **Time charts:** on a numeric axis the description writes a position with the axis title before
+  it and “at” instead of “on” (“open 100 at Bar 0”, “Target at Bar 12”), and stacked panes share
+  “one shared axis (Bar)” instead of a time axis. Details:
+  [Numbers instead of dates](https://casoon.github.io/chartlet/docs/guides/time-series/#numbers-instead-of-dates).
 
 ### Fixed
 

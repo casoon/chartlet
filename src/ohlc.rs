@@ -329,7 +329,7 @@ pub(crate) fn describe(
     let low = pick(2, |candidate, best| candidate < best);
     let (open, close) = (first.1[0], last.1[3]);
     let show = |value: f64| format_value(value, style);
-    let at = |epoch: i64| precision.format(epoch, zone);
+    let at = |epoch: i64| spec.position_text(&precision.format(epoch, zone));
     let percent = (open != 0.0).then(|| {
         signed(
             (close - open) / open.abs(),
@@ -347,6 +347,7 @@ pub(crate) fn describe(
         spec.locale,
         &CandleSummary {
             name: entry.layer.name.as_deref(),
+            numeric: zone.is_numeric(),
             open: (&values[0], &times[0]),
             close: (&values[1], &times[1]),
             change: &signed(close - open, style),
