@@ -23,6 +23,10 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   markers together) instead of six, so that six marked points and a few levels fit one pane;
   `too_many_annotations` starts at the thirteenth. Whether the labels stay readable is measured
   as before and reported as `label_overlap`. Example `wave-count`.
+- **Time charts:** the legend writes “hollow: rising, filled: falling” once for all candlestick
+  layers instead of after every name. Where each is the only one of its pane and the pane has a
+  `valueAxis.title`, the names are left out and one entry with the key remains. Example
+  `candle-panes`.
 - **Time charts:** the labels of reference lines and zones move out of each other's way and off
   the data instead of only reporting the collision. Beside neighbouring vertical lines they step
   down line by line, then try the other side; along a horizontal line they stand beside the label

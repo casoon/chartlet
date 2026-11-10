@@ -177,7 +177,10 @@ high.
 Every candle needs `low` at or below its open and close and `high` at or above them
 (`invalid_candle` with the path of the field), finite numbers, and a later `time` than the candle
 before it (`unordered_time`); a layer takes 1 to 2000 candles. The legend draws a hollow and a
-filled candle and says “hollow: rising, filled: falling”. Each body has a tooltip with open,
+filled candle and says “hollow: rising, filled: falling” after the layer's name. A chart with
+several candlestick layers says it once, after the first name; and where each of them is the only
+one of its pane and the pane has a `valueAxis.title`, that title already says which candles are
+which, so the legend leaves the names out and keeps one entry with the key alone. Each body has a tooltip with open,
 high, low and close; the data table has one column for each of the four, and the description
 names the first open, the last close, the change between them in absolute terms and in percent,
 and the highest high and lowest low with their times.
@@ -218,7 +221,8 @@ height a pane takes against the others: `3` and `1` give the upper pane three qu
 ```
 
 There is no volume mark: trading volume is an `area` layer (or a `line`) in a pane of its own.
-All panes share one legend at the top, which is why layer names are unique across the whole chart.
+All panes share one legend at the top, which is why layer names are unique across the whole chart;
+candles in several panes take [one entry](#candlesticks) between them.
 Reference lines, zones and point markers belong to their pane and stay inside it. Zoom steps
 show the same window in every pane, and each window has to hold two observations of a layer in
 every pane (`zoom_out_of_range`). The data table stays one table with a column for every layer

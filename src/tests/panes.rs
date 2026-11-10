@@ -515,6 +515,81 @@ fn several_measures_at_one_time_move_outward_on_both_sides() {
     assert!(xs[0] < labels[0].0 && labels[0].0 < xs[2], "{labels:?}");
 }
 
+/// A pane with one candlestick layer of the given name, and a value axis title if `title` is given.
+fn named_candles(name: &str, title: Option<&str>) -> String {
+    let axis = title.map_or_else(String::new, |title| {
+        format!(r#""valueAxis": {{"title": "{title}"}}, "#)
+    });
+    format!(r#"{{{axis}"layers": [{{"mark": "ohlc", "name": "{name}", "data": {CANDLES}}}]}}"#)
+}
+
+/// The texts of the legend, in order.
+fn legend_texts(svg: &str) -> Vec<String> {
+    placed_texts(svg, "chartlet-legend")
+        .into_iter()
+        .map(|(_, _, content)| content)
+        .collect()
+}
+
+#[test]
+fn several_candle_layers_share_one_key_in_the_legend() {
+    // Each pane names its candles by its value axis: the key alone stands for all of them.
+    let titled = stacked(
+        &format!(
+            "{}, {}",
+            named_candles("A", Some("First")),
+            named_candles("B", Some("Second"))
+        ),
+        "",
+    );
+    let svg = render_ok(&titled).content;
+    assert_eq!(legend_texts(&svg), ["hollow: rising, filled: falling"]);
+    // One sample: a rising and a falling candle.
+    assert_eq!(
+        svg.matches("class=\"chartlet-wick chartlet-wick-rise\"")
+            .count(),
+        1 + 4
+    );
+    // Tooltips, description and table keep the names.
+    assert!(svg.contains("<title>2026-03-02 – B: open 10, high 12, low 9, close 11</title>"));
+    assert!(svg.contains("A: opened at 10"));
+    assert!(html_ok(&titled).contains("<th scope=\"col\">B (close)</th>"));
+    let german = render_ok(&german(&titled, "time")).content;
+    assert_eq!(legend_texts(&german), ["hohl: steigend, gefüllt: fallend"]);
+
+    // Without a title on every such pane the names stay, and the first carries the key.
+    let untitled = stacked(
+        &format!(
+            "{}, {}",
+            named_candles("A", Some("First")),
+            named_candles("B", None)
+        ),
+        "",
+    );
+    assert_eq!(
+        legend_texts(&render_ok(&untitled).content),
+        ["A (hollow: rising, filled: falling)", "B"]
+    );
+
+    // A line keeps its entry beside the key, and a pane without candles changes nothing.
+    let mixed = stacked(
+        &format!(
+            "{}, {}, {VOLUME_PANE}",
+            named_candles("A", Some("First")),
+            named_candles("B", Some("Second")).replacen(
+                r#""layers": ["#,
+                r#""layers": [{"mark": "line", "name": "Average", "points": [{"time": "2026-03-02", "value": 10}, {"time": "2026-03-04", "value": 9}]}, "#,
+                1
+            )
+        ),
+        "",
+    );
+    assert_eq!(
+        legend_texts(&render_ok(&mixed).content),
+        ["hollow: rising, filled: falling", "Average", "Volume"]
+    );
+}
+
 #[test]
 fn invalid_candles_are_refused_with_their_path() {
     let refuse = |data: &str, layer: &str| {
