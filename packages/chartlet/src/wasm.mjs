@@ -79,9 +79,14 @@ export function createRenderer(module) {
     },
 
     // The shared stylesheet that charts rendered with `styles: "external"` rely on, for every
-    // chart type or for those in `options.types`.
+    // chart type or for those in `options.types`, with the rules for `options.breakpoints`.
     stylesheet(options = {}) {
-      const response = send({ stylesheet: true, types: options.types, common: options.common });
+      const response = send({
+        stylesheet: true,
+        types: options.types,
+        common: options.common,
+        breakpoints: options.breakpoints,
+      });
       if (!response.ok) {
         throw new Error(`chartlet: ${response.error.message}`);
       }

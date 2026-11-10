@@ -139,16 +139,25 @@ The stylesheet is the same for every chart, so it caches across pages, and as a 
 CSP hash. `stylesheet()` returns it as a string; the CLI prints it with `chartlet stylesheet` and
 renders with `--styles external`. A chart looks the same either way.
 
+The HTML figure of a chart then has no `<style>` element outside its SVGs and no `style`
+attribute: the rules that switch to a [mobile variant](../responsive/#where-the-rules-live) and
+between zoom steps are part of the common rules. The stylesheet covers the default
+`mobile.breakpoint` of 640; `stylesheet({ breakpoints: [420] })` or
+`chartlet stylesheet --breakpoints 420` appends the rule for another one. The focus of a diagram
+and the page of all views of a model keep a `<style>` of their own, because their rules name the
+nodes of the one diagram.
+
 The full file covers every chart type. A site that renders only some of them can serve just
 those: `stylesheet({ types: ['bar', 'time'] })` or `chartlet stylesheet --types bar,time` keeps
-the common rules (about 2 KB) and the rules of the named types.
+the common rules (about 5 KB) and the rules of the named types.
 
 A site that links a stylesheet per type, only on the pages that use it, takes the parts apart:
 
 | Part | JavaScript | CLI |
 |---|---|---|
-| Common: colors, text, grid, axes | `stylesheet({ types: [] })` | `chartlet stylesheet --common` |
+| Common: colors, text, grid, axes, the switch to a mobile variant at 640, zoom steps | `stylesheet({ types: [] })` | `chartlet stylesheet --common` |
 | One or more types, without the common part | `stylesheet({ types: ['time'], common: false })` | `chartlet stylesheet --types time --no-common` |
+| The switch to a mobile variant at other breakpoints, appended to any of the above | `stylesheet({ …, breakpoints: [420] })` | `chartlet stylesheet … --breakpoints 420` |
 
 These are guarantees, not details of the output: the common part is the same for every type and
 comes first; each type's part styles only charts of that type, mostly through `.chartlet-type-<type>`,
@@ -341,6 +350,11 @@ export default defineConfig({
   },
 });
 ```
+
+With `styles: 'external'` there is less to hash, and often nothing: a chart then carries a
+`<style>` only inside an SVG whose layers declare colors of their own (`color` on a layer) or
+that has `tokens` or `typography`, and `styleHashes` lists exactly those. A chart without them
+renders under `style-src 'self'` with the shared stylesheet as a file and an empty `styleHashes`.
 
 The styles depend on the specification, the format and the `idPrefix`, so hash the same render
 you embed. The WebAssembly build computes the hashes in the renderer, so `createRenderer` returns

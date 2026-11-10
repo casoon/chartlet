@@ -3,7 +3,10 @@
 
 use std::{collections::BTreeMap, fmt::Write};
 
-use super::editorial;
+use super::{
+    editorial,
+    html::{RESPONSIVE_STYLE, ZOOM_STYLE, breakpoint_style},
+};
 use crate::spec::{ChartSpec, ChartType, Dash, Look, Mark, RangeDisplay, Stroke, Theme};
 
 /// The light palette. Every color is a CSS custom property so a host page can override a single
@@ -536,6 +539,12 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         for (group, _) in groups.iter().filter(|(_, types)| types.is_empty()) {
             stylesheet.push_str(&scope_stylesheet(group, ".chartlet-root", false));
         }
+        // The controls of the HTML figure that any chart may have: the switch to the mobile
+        // variant, at the default breakpoint, and the zoom steps. They address the wrapper
+        // around the SVGs and are not scoped to a chart.
+        stylesheet.push_str(RESPONSIVE_STYLE);
+        stylesheet.push_str(&breakpoint_style(crate::spec::DEFAULT_BREAKPOINT));
+        stylesheet.push_str(ZOOM_STYLE);
     }
     for (index, chart_type) in chart_types.iter().enumerate() {
         if chart_types[..index].contains(chart_type) {
@@ -550,6 +559,17 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         }
     }
     stylesheet
+}
+
+/// The rules that switch a chart to its mobile variant below each of `breakpoints`, once per
+/// distinct breakpoint and in their order.
+pub(crate) fn breakpoint_stylesheet(breakpoints: &[u32]) -> String {
+    breakpoints
+        .iter()
+        .enumerate()
+        .filter(|(index, breakpoint)| !breakpoints[..*index].contains(breakpoint))
+        .map(|(_, breakpoint)| breakpoint_style(*breakpoint))
+        .collect()
 }
 
 /// The stylesheet of the print variant. Renderers outside the browser, such as those of print and

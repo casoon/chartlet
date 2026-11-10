@@ -7,6 +7,21 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **Rendering:** with `styles: "external"`, the HTML figure of a chart has no `<style>` element
+  outside its SVGs any more: the rules that switch to a mobile variant and between zoom steps are
+  part of the shared stylesheet, which covers the default breakpoint of 640. A page that renders
+  with `styles: "external"` and another `mobile.breakpoint` has to add that rule to the stylesheet
+  it serves, or the chart keeps its full-size layout. The default, `styles: "inline"`, is unchanged.
+
+### Added
+
+- **Rendering:** `stylesheet({ breakpoints: [420] })`, `chartlet stylesheet --breakpoints 420` and
+  `stylesheet_breakpoints` in Rust give the rules that switch a chart to its mobile variant at a
+  `mobile.breakpoint` other than the default. Details:
+  [Where the rules live](https://casoon.github.io/chartlet/docs/guides/responsive/#where-the-rules-live).
+
 ### Changed
 
 - **Pages:** the project site uses the current shared theme (0.12.6).

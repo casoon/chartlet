@@ -1122,8 +1122,12 @@ const fn default_mobile_height() -> u32 {
     360
 }
 
+/// The container width below which the mobile variant shows, unless `mobile.breakpoint` says
+/// otherwise. The shared stylesheet carries the rule for it.
+pub(crate) const DEFAULT_BREAKPOINT: u32 = 640;
+
 const fn default_breakpoint() -> u32 {
-    640
+    DEFAULT_BREAKPOINT
 }
 
 const fn default_show_values() -> bool {

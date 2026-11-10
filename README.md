@@ -278,7 +278,7 @@ used for editor validation. Every field, per chart type, and every limit is list
 ```sh
 chartlet render <spec.json | -> [options]
 chartlet inspect <spec.json | -> [--format text|json] [--strict]
-chartlet stylesheet [--types bar,time,...] [--no-common | --common]
+chartlet stylesheet [--types bar,time,...] [--no-common | --common] [--breakpoints 420,...]
 ```
 
 | Option of `render` | Effect |

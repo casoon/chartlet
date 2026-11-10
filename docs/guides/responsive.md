@@ -52,6 +52,61 @@ The wrapper takes the full width of its container, because the container query m
 switch follows the container, not the viewport: a chart in a narrow sidebar of a wide page gets the
 mobile layout too.
 
+### Where the rules live
+
+The rules that switch the variants are these, here for a breakpoint of 420:
+
+```css
+.chartlet-wrapper.chartlet-responsive{display:block;width:100%;container-type:inline-size}
+.chartlet-variant-mobile{display:none}
+@container (max-width:419px){
+  .chartlet-bp-420 .chartlet-variant-desktop{display:none}
+  .chartlet-bp-420 .chartlet-variant-mobile{display:block}
+}
+```
+
+By default the figure brings them along in a `<style>` element at the start of its wrapper, like
+the rest of its stylesheet: the output stands alone. A `<style>` element inside the page body is
+not valid HTML, though, and a Content Security Policy without `'unsafe-inline'` blocks it unless
+it is named by hash. With [`styles: "external"`](../javascript/#shared-stylesheet) the figure
+carries no `<style>` outside its SVGs and no `style` attribute; the page loads the rules with the
+shared stylesheet:
+
+```html
+<link rel="stylesheet" href="/chartlet.css" />
+…
+<div class="chartlet-wrapper chartlet-responsive chartlet-bp-420">
+  <figure class="chartlet-figure" data-viz="chart">
+    <figcaption>…</figcaption>
+    <div class="chartlet-variant-desktop"><svg …>…</svg></div>
+    <div class="chartlet-variant-mobile"><svg …>…</svg></div>
+    …
+  </figure>
+</div>
+```
+
+The shared stylesheet has the first two rules and the container query of the default breakpoint,
+640. Every other breakpoint is one more container query, which the site adds to the file it
+serves:
+
+```js
+import { stylesheet } from '@casoon/chartlet';
+
+const css = stylesheet({ types: ['time'], breakpoints: [420] });
+```
+
+```sh
+chartlet stylesheet --types time --breakpoints 420 > public/chartlet.css
+```
+
+`stylesheet({ types: [], common: false, breakpoints: [420, 560] })` returns the container queries
+alone, for a file of their own; Rust has `stylesheet_breakpoints(&[420, 560])`. Each query
+addresses its breakpoint by the class on the wrapper, so the queries of several breakpoints load
+in any order. A chart whose breakpoint has no rule on the page keeps showing its full-size layout.
+The rules of the zoom steps are part of the shared stylesheet too. A layer that declares a color
+of its own still brings a `<style>` inside its SVG, see
+[Content Security Policy](../javascript/#content-security-policy).
+
 ## SVG output
 
 The SVG profile is unchanged by `mobile` and renders the chart at `width` × `height`. To render the
