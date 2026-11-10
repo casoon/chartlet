@@ -138,7 +138,7 @@ fn chart_table(spec: &ChartSpec) -> DataTable {
         _ => {}
     }
     let words = spec.locale.words();
-    let dataset = spec.table_dataset();
+    let (dataset, observed) = spec.table_columns();
     // A numeric axis is named by its title; it holds no times.
     let numeric = spec.time_axis.kind == crate::spec::TimeAxisKind::Number;
     let first = match spec.chart_type {
@@ -201,13 +201,19 @@ fn chart_table(spec: &ChartSpec) -> DataTable {
         .enumerate()
         .map(|(index, category)| {
             std::iter::once(category.clone())
-                .chain(dataset.series.iter().map(|series| {
-                    series.values[index].map_or_else(
-                        || words.missing.to_owned(),
-                        |value| {
+                .chain(dataset.series.iter().enumerate().map(|(column, series)| {
+                    // A layer of a time chart without an observation at this position leaves
+                    // its cell empty: nothing was measured there, so nothing is missing.
+                    let unobserved = observed
+                        .as_ref()
+                        .is_some_and(|observed| !observed[column][index]);
+                    match series.values[index] {
+                        Some(value) => {
                             format_value(value, series.style.unwrap_or_else(|| spec.number_style()))
-                        },
-                    )
+                        }
+                        None if unobserved => String::new(),
+                        None => words.missing.to_owned(),
+                    }
                 }))
                 .chain(extra.iter().map(|(_, cells)| cells[index].clone()))
                 .collect()

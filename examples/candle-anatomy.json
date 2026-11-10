@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "type": "time",
+  "title": "One candle and the shares of its range",
+  "source": "Illustrative values, chartlet",
+  "width": 560,
+  "height": 420,
+  "timeAxis": { "kind": "number" },
+  "panes": [
+    {
+      "valueAxis": { "title": "Share of the range", "decimals": 2, "min": 0, "max": 1 },
+      "layers": [
+        {
+          "mark": "ohlc",
+          "name": "Candle",
+          "data": [{ "time": 0, "open": 0.65, "high": 1, "low": 0, "close": 0.85 }]
+        },
+        { "mark": "annotation", "time": 0, "bottom": 0.85, "top": 1, "label": "Upper wick: 0.15" },
+        { "mark": "annotation", "time": 0, "bottom": 0.65, "top": 0.85, "label": "Body: 0.20" },
+        { "mark": "annotation", "time": 0, "bottom": 0, "top": 0.65, "label": "Lower wick: 0.65" },
+        { "mark": "annotation", "time": 0, "bottom": 0, "top": 1, "label": "Range: 1.00" }
+      ]
+    }
+  ]
+}

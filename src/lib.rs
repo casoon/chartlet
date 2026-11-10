@@ -150,7 +150,10 @@ pub enum Styles {
     #[default]
     Inline,
     /// The page loads the shared [`stylesheet`] once; a chart carries only what is its own, such
-    /// as declared layer colors, and often no `<style>` at all.
+    /// as declared layer colors, and often no `<style>` at all. The HTML figure of a chart has no
+    /// `<style>` outside its SVGs: the switch to the mobile variant and the zoom steps are rules
+    /// of the shared stylesheet, see [`stylesheet_breakpoints`] for a breakpoint other than the
+    /// default. The focus of a diagram and the page of all views keep their own `<style>`.
     External,
 }
 
@@ -182,6 +185,17 @@ pub fn stylesheet_common() -> String {
 #[must_use]
 pub fn stylesheet_types(chart_types: &[ChartType]) -> String {
     render::shared_stylesheet(chart_types, false)
+}
+
+/// The rules that switch a chart rendered with [`Styles::External`] to its mobile variant below
+/// each of `breakpoints`, the container widths its `mobile.breakpoint` names. The common part of
+/// the shared stylesheet carries the rule for the default breakpoint of 640; a page whose charts
+/// name another one loads these rules as well, as part of the same file or of one of its own.
+/// Every rule addresses its breakpoint by a class of the wrapper (`chartlet-bp-420`), so the
+/// rules of several breakpoints load in any order, before or after the rest.
+#[must_use]
+pub fn stylesheet_breakpoints(breakpoints: &[u32]) -> String {
+    render::breakpoint_stylesheet(breakpoints)
 }
 
 /// Which layout the SVG profile renders. The HTML profile always carries the chart and, when the
@@ -674,6 +688,12 @@ fn render_content_as(
         Variant::Social => return render_social(spec, format, &id_prefix, metrics),
     }
 
+    let figure = render::Figure {
+        table_mode: options.table_mode,
+        id_prefix: &id_prefix,
+        hooks: options.hooks,
+        styles: options.styles,
+    };
     // The HTML profile lays the chart out a second time at the mobile size; its warnings are
     // reported where they add to those of the chart itself.
     let mut mobile_warnings = match (&mobile, format) {
@@ -706,13 +726,7 @@ fn render_content_as(
         dedupe_warnings(&mut warnings);
         merge_mobile_warnings(&mut warnings, mobile_warnings);
         return Ok(RenderOutput {
-            content: render::html_zoom(
-                &panels,
-                spec,
-                options.table_mode,
-                &id_prefix,
-                options.hooks,
-            ),
+            content: render::html_zoom(&panels, spec, figure),
             warnings,
             manifest: None,
         });
@@ -735,9 +749,7 @@ fn render_content_as(
                     stages,
                 },
                 spec,
-                options.table_mode,
-                &id_prefix,
-                options.hooks,
+                figure,
             )
         }
     };

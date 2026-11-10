@@ -188,6 +188,23 @@ test("reports the outcome as structured diagnostics without throwing", () => {
   assert.equal(time, cli("--types", "time", "--no-common"));
   assert.equal(common + stylesheet({ common: false }), css);
   assert.throws(() => stylesheet({ types: ["pie"] }), /unknown chart type/);
+  // The switch to a mobile variant: the default breakpoint with the common part, any other on
+  // request, after whatever else was asked for or alone.
+  const rule = (breakpoint) =>
+    `@container (max-width:${breakpoint - 1}px){.chartlet-bp-${breakpoint} .chartlet-variant-desktop{display:none}.chartlet-bp-${breakpoint} .chartlet-variant-mobile{display:block}}`;
+  assert.ok(common.includes(rule(640)) && !common.includes("chartlet-bp-420"));
+  assert.equal(stylesheet({ types: [], common: false, breakpoints: [420, 560, 420] }), rule(420) + rule(560));
+  assert.equal(stylesheet({ types: ["time"], breakpoints: [420] }), common + time + rule(420));
+  assert.equal(stylesheet({ breakpoints: [420] }), cli("--breakpoints", "420"));
+  assert.throws(() => stylesheet({ breakpoints: ["420px"] }), /widths in pixels/);
+  // With the shared stylesheet, the figure of a chart with a mobile variant has no style element.
+  const responsive = renderChart(
+    { ...spec, mobile: { width: 280, breakpoint: 420 } },
+    { format: "html", styles: "external" },
+  );
+  assert.ok(responsive.content.startsWith('<div class="chartlet-wrapper chartlet-responsive chartlet-bp-420"><figure'));
+  assert.ok(!responsive.content.includes("<style"));
+  assert.deepEqual(responsive.styleHashes, []);
 
   const pie = renderChartDetailed({ ...spec, type: "pie" });
   assert.equal(pie.ok, false);

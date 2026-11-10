@@ -13,16 +13,16 @@ pub(crate) use architecture::{
     not_stated, perspective, relation_phrase, requires_interface, step_number, steps, view_scope,
 };
 pub(crate) use charts::{
-    CandleSummary, areas, axis_noun, bands, calendar_opening, candle_values, candles,
+    CandleSummary, SharedAxis, TimeForm, areas, bands, calendar_opening, candle_values, candles,
     categories_opening, diverging_scale, dumbbell_note, equal_values, error_bars, funnel_note,
-    funnel_summary, gaps_collapsed, heatmap_categories, heatmap_values, missing_values,
+    funnel_summary, gaps_collapsed, heatmap_categories, heatmap_values, measure, missing_values,
     modeled_ranges, mosaic_summary, mosaic_tooltip, multiples_opening, of_previous_stage,
     panel_bars_opening, panel_notes, panes, parliament_coalition, parliament_summary, percent_done,
     polar_summary, pyramid_summary, radar_series, radar_summary, range_groups, rangebar_opening,
-    rank_summary, sankey_summary, scatter_sizes, series_at, slope_summary, stacked_areas,
-    stacked_shares, stacked_totals, stripes_opening, summary_ranges, time_opening, timeline_item,
-    timeline_markers, timeline_opening, treemap_summary, waffle_summary, waterfall_summary,
-    weighted_ranges, years_without_value, zone_times, zone_values,
+    rank_summary, sankey_summary, scatter_sizes, series_at, series_at_position, slope_summary,
+    stacked_areas, stacked_shares, stacked_totals, stripes_opening, summary_ranges, time_opening,
+    timeline_item, timeline_markers, timeline_opening, treemap_summary, waffle_summary,
+    waterfall_summary, weighted_ranges, years_without_value, zone_times, zone_values,
 };
 pub(crate) use diagrams::{
     DeltaField, DeltaKind, area_kind, bottlenecks, choices, closest_pair, composite, cycle_hub,
@@ -60,6 +60,7 @@ pub(crate) struct Words {
     pub reference_lines: &'static str,
     pub zones: &'static str,
     pub markers: &'static str,
+    pub measures: &'static str,
     pub source: &'static str,
     pub show_data: &'static str,
     pub data_for: &'static str,
@@ -228,6 +229,7 @@ const EN: Words = Words {
     reference_lines: "Reference lines",
     zones: "Zones",
     markers: "Markers",
+    measures: "Measures",
     source: "Source",
     show_data: "Show chart data",
     data_for: "Data for",
@@ -367,6 +369,7 @@ const DE: Words = Words {
     reference_lines: "Bezugslinien",
     zones: "Bereiche",
     markers: "Markierungen",
+    measures: "Maße",
     source: "Quelle",
     show_data: "Diagrammdaten anzeigen",
     data_for: "Daten zu",
@@ -521,8 +524,8 @@ fn listed(locale: Locale, names: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        calendar_opening, categories_opening, equal_values, missing_values, stripes_opening,
-        time_opening, timeline_opening, value_span, years_without_value,
+        TimeForm, calendar_opening, categories_opening, equal_values, missing_values,
+        stripes_opening, time_opening, timeline_opening, value_span, years_without_value,
     };
     use crate::spec::Locale;
 
@@ -533,11 +536,11 @@ mod tests {
             "Balkendiagramm mit 1 Wert: 5."
         );
         assert_eq!(
-            time_opening(Locale::De, 1, "2024", &[], false),
+            time_opening(Locale::De, TimeForm::Time, 1, "2024", &[], false),
             "Zeitreihe mit 1 Punkt 2024."
         );
         assert_eq!(
-            time_opening(Locale::De, 2, "2024", &[], false),
+            time_opening(Locale::De, TimeForm::Time, 2, "2024", &[], false),
             "Zeitreihe mit 2 Punkten 2024."
         );
     }
@@ -557,16 +560,17 @@ mod tests {
             "Line chart with 1 category and 2 series (A, B)."
         );
         assert_eq!(
-            time_opening(Locale::En, 1, "in 2024", &[], false),
+            time_opening(Locale::En, TimeForm::Time, 1, "in 2024", &[], false),
             "Time chart with 1 point in 2024."
         );
         assert_eq!(
-            time_opening(Locale::En, 1, "in 2024", &[], true),
+            time_opening(Locale::En, TimeForm::Time, 1, "in 2024", &[], true),
             "Time chart with 1 point in 2024, modelled."
         );
         assert_eq!(
             time_opening(
                 Locale::En,
+                TimeForm::Time,
                 1,
                 "in 2024",
                 &["A".to_owned(), "B".to_owned()],
@@ -589,7 +593,7 @@ mod tests {
             "Bar chart with 3 categories."
         );
         assert_eq!(
-            time_opening(Locale::En, 3, "in 2024", &[], false),
+            time_opening(Locale::En, TimeForm::Time, 3, "in 2024", &[], false),
             "Time chart with 3 points in 2024."
         );
         assert!(

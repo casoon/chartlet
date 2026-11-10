@@ -10,8 +10,8 @@ mod svg;
 mod table;
 
 pub(crate) use hooks::Hooks;
-pub(crate) use html::{Panel, Stage, ViewSection, html, html_views, html_zoom};
-pub(crate) use styles::shared_stylesheet;
+pub(crate) use html::{Figure, Panel, Stage, ViewSection, html, html_views, html_zoom};
+pub(crate) use styles::{breakpoint_stylesheet, shared_stylesheet};
 pub(crate) use svg::{StyleMode, svg};
 pub(crate) use table::data_table;
 

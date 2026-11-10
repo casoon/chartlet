@@ -126,4 +126,16 @@ test("keeps the theme a specification sets", async (t) => {
   const invalid = await client.callTool({ name: "chartlet_render", arguments: { spec: { ...spec, type: "pie" } } });
   assert.equal(invalid.isError, true);
   assert.equal(invalid._meta?.["chartlet/view"], undefined);
+
+  // The view's stylesheet covers the default breakpoint of a mobile variant; another one comes
+  // with the figure.
+  const mobile = async (/** @type {Record<string, unknown>} */ variant) =>
+    (await client.callTool({ name: "chartlet_render", arguments: { spec: { ...spec, mobile: variant } } }))._meta[
+      "chartlet/view"
+    ].figures.light;
+  assert.doesNotMatch(await mobile({ width: 360 }), /<style/);
+  assert.match(
+    await mobile({ width: 280, breakpoint: 420 }),
+    /<\/div><style>@container \(max-width:419px\)\{\.chartlet-bp-420 [^<]*<\/style>$/,
+  );
 });

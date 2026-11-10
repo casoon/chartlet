@@ -2821,10 +2821,10 @@
           "enum": ["normal", "stream"]
         },
         "layers": {
-          "description": "Up to 6 data layers (8 in a stacked pane) — on a time chart at most 4 line and area layers of the whole chart without their own color — and up to 6 annotation layers (zones, reference lines and point markers together).",
+          "description": "Up to 6 data layers (8 in a stacked pane), not counting one candlestick layer — on a time chart at most 4 line and area layers of the whole chart without their own color — and up to 12 annotation layers (zones, reference lines and point markers together).",
           "type": "array",
           "minItems": 1,
-          "maxItems": 14,
+          "maxItems": 21,
           "items": { "$ref": "#/$defs/layer" }
         }
       }
@@ -2836,7 +2836,7 @@
       "required": ["mark"],
       "properties": {
         "mark": {
-          "description": "line and area draw data, point draws a dot per observation and no line; ohlc draws candlesticks (time charts only); band is a zone; annotation is a reference line or, with both time and value, a point marker.",
+          "description": "line and area draw data, point draws a dot per observation and no line; ohlc draws candlesticks (time charts only); band is a zone; annotation is a reference line, with both time and value a point marker, or with time, bottom and top a measure.",
           "enum": ["line", "area", "point", "ohlc", "band", "annotation"]
         },
         "name": { "type": "string", "minLength": 1, "maxLength": 100 },
@@ -2870,9 +2870,9 @@
           }
         },
         "data": {
-          "description": "Candlesticks of an ohlc layer, with increasing time; low at or below open and close, high at or above them.",
+          "description": "Candlesticks of an ohlc layer, with increasing time; low at or below open and close, high at or above them. A single candle stands in the middle of the plot, twice as wide as a candle among others, and the time axis has no ticks.",
           "type": "array",
-          "minItems": 2,
+          "minItems": 1,
           "maxItems": 2000,
           "items": {
             "type": "object",
@@ -2888,23 +2888,23 @@
           }
         },
         "from": {
-          "description": "Start of a zone; missing, the zone begins at the plot's left edge.",
+          "description": "Start of a zone; missing, the zone begins at the plot's left edge. In a chart with candles the zone covers the candles at from and to in full, half a candle's room beyond their middles.",
           "$ref": "#/$defs/timeValue"
         },
         "to": {
-          "description": "End of a zone, after from; missing, the zone ends at the plot's right edge.",
+          "description": "End of a zone, after from; missing, the zone ends at the plot's right edge. In a chart with candles to may equal from: the zone then covers that one candle.",
           "$ref": "#/$defs/timeValue"
         },
         "top": {
-          "description": "Upper edge of a zone, above bottom; missing, the zone reaches the top of the plot.",
+          "description": "Upper edge of a zone, above bottom; missing, the zone reaches the top of the plot. On an annotation with time: the upper end of a measure.",
           "type": "number"
         },
         "bottom": {
-          "description": "Lower edge of a zone; missing, the zone reaches the bottom of the plot.",
+          "description": "Lower edge of a zone; missing, the zone reaches the bottom of the plot. On an annotation with time: the lower end of a measure.",
           "type": "number"
         },
         "time": {
-          "description": "Time of a vertical reference line or of a point marker.",
+          "description": "Time of a vertical reference line, of a point marker or of a measure.",
           "$ref": "#/$defs/timeValue"
         },
         "value": {
@@ -2912,7 +2912,7 @@
           "type": "number"
         },
         "label": {
-          "description": "Text of a reference line, point marker or zone; required there.",
+          "description": "Text of a reference line, point marker, measure or zone; required there.",
           "type": "string",
           "minLength": 1,
           "maxLength": 100
@@ -3000,11 +3000,19 @@
         {
           "if": { "properties": { "mark": { "const": "annotation" } }, "required": ["mark"] },
           "then": {
-            "description": "A reference line: value draws a horizontal one, time a vertical one; both draw a point marker, which alone takes a shape. label is required.",
+            "description": "A reference line: value draws a horizontal one, time a vertical one; both draw a point marker, which alone takes a shape. time with bottom and top draws a measure: a line between the two values beside that time, with a stroke at either end. label is required.",
             "required": ["label"],
             "anyOf": [{ "required": ["value"] }, { "required": ["time"] }],
-            "if": { "not": { "required": ["time", "value"] } },
-            "then": { "not": { "required": ["shape"] } },
+            "allOf": [
+              {
+                "if": { "not": { "required": ["time", "value"] } },
+                "then": { "not": { "required": ["shape"] } }
+              },
+              {
+                "if": { "anyOf": [{ "required": ["bottom"] }, { "required": ["top"] }] },
+                "then": { "required": ["time", "bottom", "top"], "not": { "required": ["value"] } }
+              }
+            ],
             "not": {
               "anyOf": [
                 { "required": ["name"] },
@@ -3012,8 +3020,6 @@
                 { "required": ["data"] },
                 { "required": ["from"] },
                 { "required": ["to"] },
-                { "required": ["top"] },
-                { "required": ["bottom"] },
                 { "required": ["modeled"] },
                 { "required": ["stroke"] },
                 { "required": ["dash"] }

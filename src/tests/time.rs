@@ -378,9 +378,11 @@ fn a_modeled_band_is_hatched_dashed_and_named_modeled() {
     assert!(html.content.contains(
         "<th scope=\"col\">Scenario</th><th scope=\"col\">Scenario (lower)</th><th scope=\"col\">Scenario (upper)</th>"
     ));
-    assert!(html.content.contains(
-        "<th scope=\"row\">2050</th><td>Missing</td><td>1.8</td><td>0.5</td><td>2.5</td>"
-    ));
+    // The history ends before 2050: its cell is empty, not a missing value.
+    assert!(
+        html.content
+            .contains("<th scope=\"row\">2050</th><td></td><td>1.8</td><td>0.5</td><td>2.5</td>")
+    );
 }
 
 #[test]
@@ -501,6 +503,23 @@ fn a_null_value_breaks_the_line_and_counts_as_missing() {
 
     let html = html_ok(&spec);
     assert!(html.contains("<th scope=\"row\">2026-03-03</th><td>Missing</td>"));
+
+    // A second layer observed on two of the five days: its other cells stay empty, and only the
+    // `null` of the first layer is a missing value, in the table as in the description.
+    let sparse = r#"{"mark": "line", "name": "Peaks", "points": [{"time": "2026-03-02", "value": 12}, {"time": "2026-03-03", "value": 16}]}"#;
+    let spec = week(&format!("{}, {sparse}", sensor("Load", "", GAPPED)), "");
+    let html = html_ok(&spec);
+    assert!(
+        html.contains("<th scope=\"row\">2026-03-01</th><td>10</td><td></td></tr>"),
+        "{html}"
+    );
+    assert!(html.contains("<th scope=\"row\">2026-03-03</th><td>Missing</td><td>16</td></tr>"));
+    assert!(html.contains("1 value is missing."));
+    let table = text_alternative(&ChartSpec::from_json(&spec).expect("parses"))
+        .unwrap()
+        .table;
+    assert_eq!(table.rows[0], ["2026-03-01", "10", ""]);
+    assert_eq!(table.rows[2], ["2026-03-03", "Missing", "16"]);
 
     let german = html_ok(&german(&spec, "time"));
     assert!(german.contains("1 Wert fehlt."));

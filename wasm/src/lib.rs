@@ -7,8 +7,9 @@
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
 //! "variant", "view", "allViews", "perspective", "theme", "strict", "allowWarnings", "manifest",
 //! "alternative", "styles", "hooks", "advice" } }`, or
-//! `{ "stylesheet": true, "types": ["bar", …] }` for the shared stylesheet of
-//! `"styles": "external"`, for every chart type when `types` is absent, or
+//! `{ "stylesheet": true, "types": ["bar", …], "common", "breakpoints": [420, …] }` for the
+//! shared stylesheet of `"styles": "external"`, for every chart type when `types` is absent,
+//! followed by the rules for the listed `mobile.breakpoint` widths, or
 //! `{ "inspect": true, "spec", "disable": ["code", …] }` for the inspections of a model, answered
 //! with `{ "ok": true, "findings": [{ "code", "severity", "path", "message", "hint" }] }`. Response: `{ "ok": true, "content", "styleHashes",
 //! "warnings" }`, with `"manifest"` when the request asks for it, or
@@ -31,8 +32,8 @@ use std::{
 
 use chartlet::{
     ChartSpec, ChartType, ChartWarning, INSPECTIONS, Manifest, RenderFormat, RenderOptions, Styles,
-    TableMode, TextAlternative, Variant, inspect_json, render_json, stylesheet, stylesheet_for,
-    stylesheet_types, text_alternative,
+    TableMode, TextAlternative, Variant, inspect_json, render_json, stylesheet,
+    stylesheet_breakpoints, stylesheet_for, stylesheet_types, text_alternative,
 };
 use serde_json::{Value, json};
 
@@ -78,7 +79,11 @@ fn respond(request: &[u8]) -> Value {
     if let Ok(request) = serde_json::from_slice::<Value>(request)
         && request["stylesheet"] == true
     {
-        return shared_stylesheet(&request["types"], request["common"] != false);
+        return shared_stylesheet(
+            &request["types"],
+            request["common"] != false,
+            &request["breakpoints"],
+        );
     }
     if let Ok(request) = serde_json::from_slice::<Value>(request)
         && request["inspect"] == true
@@ -295,15 +300,30 @@ fn error_json(error: &chartlet::ChartError) -> Value {
     json!({ "code": error.code, "path": error.path, "message": error.message })
 }
 
-/// The shared stylesheet, for every chart type or for the names in `types`.
-fn shared_stylesheet(types: &Value, common: bool) -> Value {
+/// The shared stylesheet, for every chart type or for the names in `types`, followed by the
+/// rules that switch to the mobile variant below each of `breakpoints`, if any are given.
+fn shared_stylesheet(types: &Value, common: bool, breakpoints: &Value) -> Value {
+    let mut widths = Vec::new();
+    for width in breakpoints.as_array().into_iter().flatten() {
+        match width.as_u64().and_then(|width| u32::try_from(width).ok()) {
+            Some(width) => widths.push(width),
+            None => {
+                return json!({
+                    "ok": false,
+                    "error": failure(&format!("breakpoints are widths in pixels, not {width}")),
+                    "warnings": [],
+                });
+            }
+        }
+    }
+    let breakpoints = stylesheet_breakpoints(&widths);
     let Some(names) = types.as_array() else {
         let stylesheet = if common {
             stylesheet()
         } else {
             stylesheet_types(&ChartType::ALL)
         };
-        return json!({ "ok": true, "stylesheet": stylesheet });
+        return json!({ "ok": true, "stylesheet": stylesheet + &breakpoints });
     };
     let mut chart_types = Vec::new();
     for name in names {
@@ -323,7 +343,7 @@ fn shared_stylesheet(types: &Value, common: bool) -> Value {
     } else {
         stylesheet_types(&chart_types)
     };
-    json!({ "ok": true, "stylesheet": stylesheet })
+    json!({ "ok": true, "stylesheet": stylesheet + &breakpoints })
 }
 
 /// The findings of the inspections of `spec`, leaving out those whose codes are in `disable`.

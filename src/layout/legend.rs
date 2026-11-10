@@ -26,9 +26,41 @@ struct LegendEntry<'a> {
     row: usize,
 }
 
+/// How the legend writes the key to candle bodies, “hollow: rising, filled: falling”.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CandleKey {
+    /// After the name of the chart's one candlestick layer.
+    Each,
+    /// After the name of the first of several candlestick layers.
+    Once,
+    /// As the only candle entry, without a name: the panes name their candles.
+    Alone,
+}
+
+impl CandleKey {
+    fn of(spec: &ChartSpec) -> Self {
+        let candles = |pane: &crate::spec::PaneSpec| {
+            pane.layers
+                .iter()
+                .filter(|layer| layer.mark == Mark::Ohlc)
+                .count()
+        };
+        if spec.panes.iter().map(candles).sum::<usize>() < 2 {
+            Self::Each
+        } else if spec.panes.iter().all(|pane| {
+            candles(pane) == 0 || (candles(pane) == 1 && pane.value_axis.title.is_some())
+        }) {
+            Self::Alone
+        } else {
+            Self::Once
+        }
+    }
+}
+
 /// One legend entry per series name, in order of first appearance, placed in rows: an entry that
 /// would reach past `available_width` starts a new row. A modeled series says so in its entry,
-/// because the dashing alone is not a legend.
+/// because the dashing alone is not a legend, and candles carry the key to their bodies, once
+/// per chart.
 fn legend_entries<'a>(
     spec: &'a ChartSpec,
     left: f64,
@@ -45,6 +77,15 @@ fn legend_entries<'a>(
         }
     }
     let words = spec.locale.words();
+    // Several candlestick layers look alike, so the key to their bodies is written once. Where
+    // each is the only one of its pane and the pane has a title on its value axis, that title
+    // says which candles are which, and one entry with the key alone stands for all of them.
+    let candles = CandleKey::of(spec);
+    if candles == CandleKey::Alone {
+        let mut first = true;
+        layers.retain(|entry| entry.layer.mark != Mark::Ohlc || std::mem::take(&mut first));
+    }
+    let mut keyed = false;
     let sample = LEGEND_LINE + 8.0;
     let (mut x, mut row) = (left, 0);
     let mut entries = Vec::new();
@@ -53,7 +94,13 @@ fn legend_entries<'a>(
         let name = if entry.layer.modeled {
             format!("{name} ({})", words.modeled)
         } else if entry.layer.mark == Mark::Ohlc {
-            format!("{name} ({})", words.candle_key)
+            match (candles, std::mem::replace(&mut keyed, true)) {
+                (CandleKey::Alone, _) => words.candle_key.to_owned(),
+                (CandleKey::Once, true) => name.to_owned(),
+                (CandleKey::Once | CandleKey::Each, _) => {
+                    format!("{name} ({})", words.candle_key)
+                }
+            }
         } else {
             name.to_owned()
         };

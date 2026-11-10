@@ -206,9 +206,10 @@ pub(super) fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) 
             .filter(|layer| layer.mark == Mark::Annotation)
             .filter_map(|layer| layer.value),
     );
+    // The edges of a zone and the two ends of a measure.
     values.extend(
         layers()
-            .filter(|layer| layer.mark == Mark::Band)
+            .filter(|layer| !layer.is_data())
             .flat_map(|layer| [layer.bottom, layer.top])
             .flatten(),
     );
@@ -278,8 +279,9 @@ pub(super) fn pane_frames(
 }
 
 /// The first and last timestamp any data layer, vertical reference line, point marker, zone
-/// edge, step end or declared end of the time axis uses, a missing value included. Validation guarantees every data layer holds at least two observations that
-/// increase, and a zoom window at least two of one layer, so the span is never empty.
+/// edge, step end or declared end of the time axis uses, a missing value included. A line holds
+/// at least two observations and a zoom window two of one layer; only a candle on its own, with
+/// nothing at another time, leaves a span of a single time.
 fn time_span(spec: &ChartSpec, zone: TimeZone) -> (i64, i64) {
     let mut min = i64::MAX;
     let mut max = i64::MIN;
@@ -310,15 +312,23 @@ pub(super) fn time_axis(spec: &ChartSpec, zone: TimeZone) -> ((i64, i64), Option
     (span, slots)
 }
 
-/// Maps the slot at `index` of `total` evenly spaced slots onto the time axis.
+/// Maps the slot at `index` of `total` evenly spaced slots onto the time axis; a single slot
+/// takes the middle.
 fn slot_x(index: usize, total: usize, plot: PlotArea) -> f64 {
+    if total <= 1 {
+        return plot.left + plot.width / 2.0;
+    }
     let last = total.saturating_sub(1);
     let ratio = count(index.min(last)) / count(last.max(1));
     plot.left + TIME_INSET + ratio * (plot.width - 2.0 * TIME_INSET)
 }
 
-/// Maps a timestamp onto the time axis.
+/// Maps a timestamp onto the time axis; a span of a single time, such as one candle on its
+/// own, takes the middle.
 fn time_x(epoch: i64, span: (i64, i64), plot: PlotArea) -> f64 {
+    if span.0 == span.1 {
+        return plot.left + plot.width / 2.0;
+    }
     // The specification allows 1700 to 2200, so a span stays below 2^53 seconds and the ratio
     // keeps full precision even in 64-bit seconds.
     #[allow(clippy::cast_precision_loss)]

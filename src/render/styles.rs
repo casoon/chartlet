@@ -3,8 +3,11 @@
 
 use std::{collections::BTreeMap, fmt::Write};
 
-use super::editorial;
-use crate::spec::{ChartSpec, ChartType, Dash, Look, Mark, RangeDisplay, Stroke, Theme};
+use super::{
+    editorial,
+    html::{RESPONSIVE_STYLE, ZOOM_STYLE, breakpoint_style},
+};
+use crate::spec::{ChartSpec, ChartType, Dash, LayerSpec, Look, Mark, RangeDisplay, Stroke, Theme};
 
 /// The light palette. Every color is a CSS custom property so a host page can override a single
 /// color, and so the dark palette below only has to restate the values.
@@ -50,6 +53,10 @@ const MEDIUM_LINE_STYLE: &str = ".chartlet-line-medium{stroke-width:2}.chartlet-
 /// Zones and point markers of time charts. Only included when a chart uses one of them, for the
 /// same reason as [`LAYER_EXTRA_STYLE`]. A marker is ringed in the background color so that it
 /// stands apart from the line it sits on.
+/// A measure: a solid line between two values with a stroke at either end. Only included when a
+/// time chart draws one, for the same reason as [`LAYER_EXTRA_STYLE`].
+const MEASURE_STYLE: &str =
+    ".chartlet-measure{fill:none;stroke:var(--chartlet-text);stroke-width:1.5}";
 const ANNOTATION_EXTRA_STYLE: &str = ".chartlet-zone{fill:var(--chartlet-zero);fill-opacity:.14;stroke:none}.chartlet-marker{fill:var(--chartlet-text);stroke:var(--chartlet-background);stroke-width:1.5;stroke-linejoin:round}";
 
 /// Candlesticks. A rising candle is hollow and a falling one filled, so the direction does not
@@ -58,6 +65,10 @@ const ANNOTATION_EXTRA_STYLE: &str = ".chartlet-zone{fill:var(--chartlet-zero);f
 /// color-vision deficiencies keep. Only
 /// included when a chart draws candles, for the same reason as [`LAYER_EXTRA_STYLE`].
 const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall:#d03a0f}.chartlet-theme-dark{--chartlet-rise:#99f6e4;--chartlet-fall:#e5484d}.chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}";
+/// Candles too narrow for an outline: filled bars over wicks at half strength, where the
+/// difference in lightness between the two colors is what is left of the direction. Only
+/// included when a layer holds more candles than have room for an outline.
+const NARROW_CANDLE_STYLE: &str = ".chartlet-wick-narrow{stroke-width:1;stroke-opacity:.5}.chartlet-candle-narrow{stroke:none}.chartlet-candle-rise.chartlet-candle-narrow{fill:var(--chartlet-rise)}";
 
 /// Small multiples draw thinner lines, because their plots are small.
 const MULTIPLES_STYLE: &str = ".chartlet-multiples .chartlet-line{stroke-width:2}.chartlet-panel-title{font-size:13px;font-weight:650;fill:var(--chartlet-text)}";
@@ -308,6 +319,10 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
             is_time && needs_annotation_extras(spec),
             ANNOTATION_EXTRA_STYLE,
         ),
+        when(
+            is_time && spec.layers().any(LayerSpec::is_measure),
+            MEASURE_STYLE,
+        ),
         when(is_multiples, MULTIPLES_STYLE),
         when(
             is_multiples && spec.panes.iter().any(|pane| pane.note.is_some()),
@@ -368,6 +383,10 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
             is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc),
             OHLC_STYLE,
         ),
+        when(
+            is_time && crate::ohlc::has_narrow_candles(spec),
+            NARROW_CANDLE_STYLE,
+        ),
     ]
     .concat()
 }
@@ -415,6 +434,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (MARK_EXTRA_STYLE, &[Line, Time, Multiples]),
         (MEDIUM_LINE_STYLE, &[Time, Multiples]),
         (ANNOTATION_EXTRA_STYLE, &[Time, Multiples]),
+        (MEASURE_STYLE, &[Time, Multiples]),
         (MULTIPLES_STYLE, &[Multiples]),
         (PANEL_NOTE_STYLE, &[Multiples]),
         (crate::diverging::STYLE, &[Stripes, Calendar]),
@@ -529,6 +549,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (SCATTER_STYLE, &[Scatter]),
         (SCATTER_BUBBLE_STYLE, &[Scatter]),
         (OHLC_STYLE, &[Time]),
+        (NARROW_CANDLE_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
     // An empty list of types: the group applies to every chart.
@@ -536,6 +557,12 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         for (group, _) in groups.iter().filter(|(_, types)| types.is_empty()) {
             stylesheet.push_str(&scope_stylesheet(group, ".chartlet-root", false));
         }
+        // The controls of the HTML figure that any chart may have: the switch to the mobile
+        // variant, at the default breakpoint, and the zoom steps. They address the wrapper
+        // around the SVGs and are not scoped to a chart.
+        stylesheet.push_str(RESPONSIVE_STYLE);
+        stylesheet.push_str(&breakpoint_style(crate::spec::DEFAULT_BREAKPOINT));
+        stylesheet.push_str(ZOOM_STYLE);
     }
     for (index, chart_type) in chart_types.iter().enumerate() {
         if chart_types[..index].contains(chart_type) {
@@ -550,6 +577,17 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         }
     }
     stylesheet
+}
+
+/// The rules that switch a chart to its mobile variant below each of `breakpoints`, once per
+/// distinct breakpoint and in their order.
+pub(crate) fn breakpoint_stylesheet(breakpoints: &[u32]) -> String {
+    breakpoints
+        .iter()
+        .enumerate()
+        .filter(|(index, breakpoint)| !breakpoints[..*index].contains(breakpoint))
+        .map(|(_, breakpoint)| breakpoint_style(*breakpoint))
+        .collect()
 }
 
 /// The stylesheet of the print variant. Renderers outside the browser, such as those of print and

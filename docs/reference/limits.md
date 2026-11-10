@@ -20,7 +20,7 @@ This page separates three kinds of limit:
 | Length of a text field | 200 characters for titles and labels (`text_too_long`), see the schema for the others | with the path of the field |
 | JSON nesting | 128 levels, the parser's recursion limit | `invalid_json` or `invalid_spec` at the position; the process does not overflow its stack |
 | Bar and line data points | 100 per series (`too_many_data_points`) | |
-| Time chart | 2000 points per layer, 6 layers (8 stacked), 4 panes, 60 markers | |
+| Time chart | 2000 points per layer, 6 layers (8 stacked) besides one candlestick layer and 12 annotation layers per pane, 4 panes, 60 markers | |
 | Scatter | 5000 points, 8 lines | |
 | Box plot, survival | 1000 observations per box, 2000 observations | |
 | Flow, state, architecture | 40 nodes, 80 edges or connections, 8 lanes and 8 groups; 12 boundaries nested up to 4 deep | |

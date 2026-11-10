@@ -4,11 +4,11 @@
 use std::fmt::Write;
 
 use super::{escape, number, table::render_data_table};
-use crate::{TableMode, spec::ChartSpec};
+use crate::{Styles, TableMode, spec::ChartSpec};
 
 /// CSS rules for radio-selectable zoom panels. Only the panel whose radio is checked shows;
 /// the first radio carries `checked`, so the first step is the default view.
-const ZOOM_STYLE: &str = ".chartlet-zoom{border:none;padding:0;margin:0 0 12px 0}.chartlet-zoom legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-zoom label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-zoom input{margin-right:4px}.chartlet-zoom input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-panel{display:none}.chartlet-wrapper:has(.chartlet-zoom input.zoom-0:checked) .chartlet-panel-0{display:block}.chartlet-wrapper:has(.chartlet-zoom input.zoom-1:checked) .chartlet-panel-1{display:block}.chartlet-wrapper:has(.chartlet-zoom input.zoom-2:checked) .chartlet-panel-2{display:block}.chartlet-wrapper:has(.chartlet-zoom input.zoom-3:checked) .chartlet-panel-3{display:block}";
+pub(super) const ZOOM_STYLE: &str = ".chartlet-zoom{border:none;padding:0;margin:0 0 12px 0}.chartlet-zoom legend{font-size:14px;font-weight:650;margin-bottom:4px}.chartlet-zoom label{display:inline-flex;align-items:center;min-height:44px;font-size:13px;margin-right:14px;cursor:pointer;white-space:nowrap}.chartlet-zoom input{margin-right:4px}.chartlet-zoom input:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-panel{display:none}.chartlet-wrapper:has(.chartlet-zoom input.zoom-0:checked) .chartlet-panel-0{display:block}.chartlet-wrapper:has(.chartlet-zoom input.zoom-1:checked) .chartlet-panel-1{display:block}.chartlet-wrapper:has(.chartlet-zoom input.zoom-2:checked) .chartlet-panel-2{display:block}.chartlet-wrapper:has(.chartlet-zoom input.zoom-3:checked) .chartlet-panel-3{display:block}";
 
 /// One chart of the HTML figure: a zoom step, or the only chart. `mobile` is its mobile variant,
 /// when the specification has one.
@@ -30,24 +30,22 @@ pub(crate) struct Stage {
     pub hotspots: Vec<crate::scene::Hotspot>,
 }
 
-pub(crate) fn html(
-    panel: Panel,
-    spec: &ChartSpec,
-    table_mode: TableMode,
-    id_prefix: &str,
-    hooks: bool,
-) -> String {
-    html_document(&[panel], spec, table_mode, id_prefix, false, hooks)
+/// How the HTML figure is written: the table, the ID prefix, whether it carries the hooks of the
+/// interactive module, and where the rules of its controls live.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Figure<'a> {
+    pub table_mode: TableMode,
+    pub id_prefix: &'a str,
+    pub hooks: bool,
+    pub styles: Styles,
 }
 
-pub(crate) fn html_zoom(
-    panels: &[Panel],
-    spec: &ChartSpec,
-    table_mode: TableMode,
-    id_prefix: &str,
-    hooks: bool,
-) -> String {
-    html_document(panels, spec, table_mode, id_prefix, true, hooks)
+pub(crate) fn html(panel: Panel, spec: &ChartSpec, figure: Figure) -> String {
+    html_document(&[panel], spec, figure, false)
+}
+
+pub(crate) fn html_zoom(panels: &[Panel], spec: &ChartSpec, figure: Figure) -> String {
+    html_document(panels, spec, figure, true)
 }
 
 /// One view of an architecture model on the page of all its views: the ID prefix of its figure,
@@ -102,25 +100,31 @@ pub(crate) fn html_views(sections: &[ViewSection], spec: &ChartSpec, id_prefix: 
 /// Switches between the chart and its mobile variant by the width of the wrapper. The mobile
 /// variant is hidden unless the container query applies, so a browser without container queries
 /// keeps showing the chart at its full size. `display:none` also takes the hidden variant out of
-/// the accessibility tree. The rules carry the breakpoint in their selector, so charts with
-/// different breakpoints on one page do not switch each other.
-fn responsive_style(breakpoint: u32) -> String {
+/// the accessibility tree. This part is the same for every breakpoint.
+pub(super) const RESPONSIVE_STYLE: &str = ".chartlet-wrapper.chartlet-responsive{display:block;width:100%;container-type:inline-size}.chartlet-variant-mobile{display:none}";
+
+/// The container query of one breakpoint. The rules carry the breakpoint in their selector, so
+/// charts with different breakpoints on one page do not switch each other, and the rules of
+/// several breakpoints stand in one stylesheet in any order.
+pub(super) fn breakpoint_style(breakpoint: u32) -> String {
     format!(
-        ".chartlet-wrapper.chartlet-responsive{{display:block;width:100%;container-type:inline-size}}.chartlet-variant-mobile{{display:none}}@container (max-width:{}px){{.chartlet-bp-{breakpoint} .chartlet-variant-desktop{{display:none}}.chartlet-bp-{breakpoint} .chartlet-variant-mobile{{display:block}}}}",
-        breakpoint - 1
+        "@container (max-width:{}px){{.chartlet-bp-{breakpoint} .chartlet-variant-desktop{{display:none}}.chartlet-bp-{breakpoint} .chartlet-variant-mobile{{display:block}}}}",
+        breakpoint.saturating_sub(1)
     )
 }
 
 /// Builds the HTML figure. With one panel and no zoom name this is the plain figure; with
 /// several panels it adds a radio group that switches between pre-computed variants.
-fn html_document(
-    panels: &[Panel],
-    spec: &ChartSpec,
-    table_mode: TableMode,
-    id_prefix: &str,
-    zoomable: bool,
-    hooks: bool,
-) -> String {
+fn html_document(panels: &[Panel], spec: &ChartSpec, figure: Figure, zoomable: bool) -> String {
+    let Figure {
+        table_mode,
+        id_prefix,
+        hooks,
+        styles,
+    } = figure;
+    // With the shared stylesheet, the rules that switch variants and zoom steps come from it:
+    // the figure of a chart then carries no `<style>` outside its SVGs.
+    let inline = styles == Styles::Inline;
     let mut output = String::new();
     // A stack shows every series as part of a whole; hiding one would leave a gap in it.
     let has_series = spec.series.len() > 1 && spec.stack.is_none();
@@ -131,10 +135,17 @@ fn html_document(
     if let Some(breakpoint) = breakpoint {
         write!(
             output,
-            "<div class=\"chartlet-wrapper chartlet-responsive chartlet-bp-{breakpoint}\"><style>{}</style>",
-            responsive_style(breakpoint)
+            "<div class=\"chartlet-wrapper chartlet-responsive chartlet-bp-{breakpoint}\">"
         )
         .expect("write");
+        if inline {
+            write!(
+                output,
+                "<style>{RESPONSIVE_STYLE}{}</style>",
+                breakpoint_style(breakpoint)
+            )
+            .expect("write");
+        }
     } else if wrapped {
         output.push_str("<div class=\"chartlet-wrapper\">");
     }
@@ -159,9 +170,12 @@ fn html_document(
         output.push_str("</fieldset>");
     }
     if zoom {
+        if inline {
+            write!(output, "<style>{ZOOM_STYLE}</style>").expect("write");
+        }
         write!(
             output,
-            "<style>{ZOOM_STYLE}</style><fieldset class=\"chartlet-zoom\"><legend>{}</legend>",
+            "<fieldset class=\"chartlet-zoom\"><legend>{}</legend>",
             spec.locale.words().view
         )
         .expect("write");

@@ -201,7 +201,7 @@ Rules:
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `timeAxis.kind` | `calendar`, `number` | no | `calendar` (default) reads every `time` as a timestamp. `number` reads it as a plain number — a distance along a profile, a depth, an age in millions of years — with ticks at round numbers, values written in the chart's `locale`, and the axis `title` as the head of the table's first column. No `timezone`, `gaps: "collapse"` or `zoomSteps` with it. |
+| `timeAxis.kind` | `calendar`, `number` | no | `calendar` (default) reads every `time` as a timestamp. `number` reads it as a plain number — a distance along a profile, a depth, an age in millions of years — with ticks at round numbers, values written in the chart's `locale`, and the axis `title` as the head of the table's first column and, in the description, before every position (“Bar 12”). No `timezone`, `gaps: "collapse"` or `zoomSteps` with it. |
 | `timeAxis.timezone` | string | no | Fixed UTC offset such as `"+02:00"`, or `UTC` (default). Timestamps without their own offset are read as wall-clock time in this zone. |
 | `timeAxis.title` | string, up to 100 characters | no | Title of the time axis. |
 | `timeAxis.gaps` | `show`, `collapse` | no | `show` (default) keeps the distances in time; `collapse` places every observed timestamp at the same distance from the next, so weekends and holidays take no space. Reference lines, point markers and zones then take the slot of an observation and must lie within the observed range. |
@@ -213,10 +213,10 @@ Rules:
 | `panes[].heightRatio` | integer, 1–10 | no | The pane's share of the plot height against the other panes, default 1. |
 | `panes[].valueAxis` | object | no | `title`, `format`, `decimals`, `min`, `max`, `step`, `exact`, `thousandsSeparator`, `scale`, `reverse` and `unit` of the pane's own value axis. |
 | `panes[].stack` | `normal`, `stream` | no | Stacks the pane's `area` layers in layer order, each on top of the ones before it, so that the top edge shows their total; line and point layers in the pane stay as they are. Markers and the end labels sit on top of the stack; tooltips and the data table give each layer's own value. `stream` stacks them around a moving baseline instead of zero, so that the stack is centered (a streamgraph): the value axis becomes a scale bar for thickness, the areas are named at their right ends, and the pane takes area layers and reference lines of time only, with no `min`, `max`, `exact`, `reverse` or logarithmic scale on its axis (`option_not_supported`). |
-| `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane) and six annotation layers. |
+| `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane), not counting one candlestick layer, and twelve annotation layers. |
 | `sparkline` | boolean | no | `true` draws the lines and areas of one pane across the whole canvas, without axes, title, legend or value labels, with a dot at the end of each line; `width` 60–600 and `height` 16–200. The title and description remain the accessible name and description, and the HTML profile keeps its caption and table. Only line and area layers; no zoom steps or mobile variant. |
 | `tooltips` | `observations`, `markers` | no | `"observations"` (default) gives every observation a tooltip while observations stand at least 4 pixels apart, on an invisible target where no marker is drawn; `"markers"` gives tooltips only to drawn markers, so a line too dense for markers has none and its SVG stays small. |
-| `legend` | `top`, `end` (time charts); `auto`, `none` (diagrams) | no | Diagrams: see [Diagram fields](#diagram-fields). Time charts: `top` (default) names the series in a legend above the plot; `end` writes each name at the last observation of its line, right of the plot, which makes room for the widest name (at most a third of the chart). Names that would overlap move apart. Not with candles, whose legend explains hollow and filled bodies. |
+| `legend` | `top`, `end` (time charts); `auto`, `none` (diagrams) | no | Diagrams: see [Diagram fields](#diagram-fields). Time charts: `top` (default) names the series in a legend above the plot; `end` writes each name at the last observation of its line, right of the plot, which makes room for the widest name (at most a third of the chart). Names that would overlap move apart. Not with candles, whose legend explains hollow and filled bodies: once per chart, and without the layers' names where every candlestick layer is the only one of a pane with a `valueAxis.title`. |
 | `zoomSteps` | array, 2–4 | no | `{ "label", "from", "to" }` windows selectable in the HTML output; `from` and `to` are times. Each window must hold at least two observations of one layer, and the chart is redrawn from the observations inside it. |
 
 A time is Unix seconds between 1700-01-01 and 2200-01-01, an ISO 8601 date such as `2026-03-01` or
@@ -228,11 +228,11 @@ Small multiples take the same layers, without `ohlc`.
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `mark` | `line`, `area`, `point`, `ohlc`, `band`, `annotation` | yes | An `area` is a line whose region down to zero is filled in its color; the value axis then always includes zero. A `point` layer draws a dot for every observation and no line, as in a scatter plot; it takes no `dash`, `stroke`, `curve`, `modeled` or `lower`/`upper`. `ohlc` draws candlesticks (`time` only), `band` a zone, `annotation` a reference line or point marker. The area between two lines is an uncertainty band (`lower`/`upper`), not a separate mark. |
+| `mark` | `line`, `area`, `point`, `ohlc`, `band`, `annotation` | yes | An `area` is a line whose region down to zero is filled in its color; the value axis then always includes zero. A `point` layer draws a dot for every observation and no line, as in a scatter plot; it takes no `dash`, `stroke`, `curve`, `modeled` or `lower`/`upper`. `ohlc` draws candlesticks (`time` only), `band` a zone, `annotation` a reference line, point marker or measure. The area between two lines is an uncertainty band (`lower`/`upper`), not a separate mark. |
 | `name` | string, up to 100 characters | one of | Legend and table label; required once a pane — or a `time` chart across its panes — has several data layers, and unique within the pane; on a `time` chart unique across all panes, since they share one legend. |
 | `points` | array, 1–2000 | line, area, point | `[{ "time": 1772323200, "value": 1 }]`; ISO 8601 dates and bare years (`"1850"`) are accepted too, with increasing `time`. `"value": null` marks a missing observation: the line, its area and its band break there, and table and description say “Missing”. |
 | `points[].lower`, `points[].upper` | number | no | An uncertainty band: on every point with a value, or on none; a point without a value carries neither. |
-| `data` | array, 2–2000 | ohlc | `[{ "time": "2026-03-02", "open": 10, "high": 12, "low": 9, "close": 11 }]`, candles with increasing `time`; `low` at or below `open` and `close`, `high` at or above them. A candlestick layer takes no `color`, `modeled`, `stroke` or `dash`. |
+| `data` | array, 1–2000 | ohlc | `[{ "time": "2026-03-02", "open": 10, "high": 12, "low": 9, "close": 11 }]`, candles with increasing `time`; `low` at or below `open` and `close`, `high` at or above them. A candlestick layer takes no `color`, `modeled`, `stroke` or `dash`. |
 | `color` | string, up to 100 characters | no | `#rgb`, `#rrggbb`, `#rrggbbaa`, `var(--name)`, or `var(--name, #hex)` with a hex fallback, which the print variant draws. Anything else is painted in the neutral tone and warns with `color_not_supported`; a `var(--name)` without fallback is drawn in the text color by the print and social variants, with `color_not_resolved`. |
 | `modeled` | boolean | no | Line and area layers: the line is dashed (unless `dash` says otherwise), its band hatched, and legend, description and table say “modelled”. |
 | `stroke` | `regular`, `thin`, `medium`, `bold` | no | Line and area layers: `regular` (default, 3 px), `thin` (1 px), `medium` (2 px, for small panels) or `bold` (4.5 px); the legend sample shows the same weight, so two lines differ in more than color. |
@@ -241,40 +241,43 @@ Small multiples take the same layers, without `ohlc`.
 | `stepEnd` | time | no | `line` and `area` with `"curve": "step"`: a time after the last observation where its step ends — annual means drawn as steps end at the end of their last year. It is no observation: no marker, tooltip, table row or description. Not with collapsed gaps or in a stacked pane. |
 | `markers` | boolean | no | `line` and `area` only: `false` draws no markers, for a fitted or reference line whose observations are not data; tooltips stay on invisible targets unless the chart sets `"tooltips": "markers"`. |
 | `precision` | `year`, `month`, `day`, `minute` | no | Data layers on a calendar axis: the same values as `timeAxis.precision`, for one layer — yearly means beside monthly values. On a numeric axis each layer writes its positions with the decimals its own positions need. |
-| `value`, `time` | number, time | annotation | A horizontal reference line at `value`, a vertical one at `time`, or a point marker at both. Both widen the axes. |
+| `value`, `time` | number, time | annotation | A horizontal reference line at `value`, a vertical one at `time`, or a point marker at both. Both widen the axes. `time` with `bottom` and `top` instead of `value` draws a measure. |
 | `shape` | `circle`, `square`, `diamond`, `triangle-up`, `triangle-down` | no | Point markers only, `circle` by default. |
-| `bottom`, `top` | number | band | Value edges of a zone; `bottom` must lie below `top`. A missing edge is the edge of the plot. Given edges widen the value axis. |
-| `from`, `to` | time | band | Time edges of a zone; `from` must lie before `to`. A missing edge is the edge of the plot. At least `bottom` and `top`, or `from` and `to`, are required. |
-| `label` | string, up to 100 characters | annotation, band | Required text of a reference line, point marker or zone. |
+| `bottom`, `top` | number | band, annotation | Value edges of a zone; `bottom` must lie below `top`. A missing edge is the edge of the plot. Given edges widen the value axis. On an annotation with `time`: the two ends of a measure, a line between the two values beside that time with a stroke at either end; both are required, and the label stands beside the line. |
+| `from`, `to` | time | band | Time edges of a zone; `from` must lie before `to`. A missing edge is the edge of the plot. At least `bottom` and `top`, or `from` and `to`, are required. In a chart with candles the zone covers the candles at both edges in full, and `from` may equal `to` for a zone over one candle. |
+| `label` | string, up to 100 characters | annotation, band | Required text of a reference line, point marker, measure or zone. |
 
 Rules:
 
 - One to four panes (`too_many_panes`), each with a `heightRatio` from 1 to 10
-  (`invalid_height_ratio`) and up to six data layers (eight in a stacked pane) of 2000
-  observations or candles each (`too_many_data_points`). At most four data layers of the whole
+  (`invalid_height_ratio`) and up to six data layers (eight in a stacked pane), not counting one
+  candlestick layer, of 2000 observations or candles each (`too_many_data_points`). At most four data layers of the whole
   chart take a palette color — candles take none — and a further layer needs its own `color`
   (`too_many_layers`). Layer names are unique across the panes (`duplicate_series`), and every
   data layer needs one once the chart has more than one (`missing_name`).
 - Observations: a time that cannot be read is `invalid_time`; times must increase
   (`unordered_time`); a layer without observations, or a line, area or point layer with fewer
-  than two, is `empty_series`; a candlestick layer needs at least two candles (`empty_series`). A `stepEnd`
+  than two, is `empty_series`; a candlestick layer needs at least one candle (`empty_series`). A `stepEnd`
   at or before the last observation is `unordered_time`.
 - Bands: `lower` and `upper` on every point with a value or on none (`incomplete_band`), `upper`
   not below `lower` (`invalid_band`); a value outside its own band warns with
   `value_outside_band`.
 - A candle whose `low` lies above its open or close, or whose `high` lies below them, is
-  `invalid_candle`; more candles than a third of the plot's horizontal pixels are drawn as wicks
-  only and reported as `dense_chart`.
+  `invalid_candle`; more candles than a third of the plot's horizontal pixels are drawn as thin
+  filled bars over paler wicks, more than half of them as wicks only, both reported as
+  `dense_chart`.
 - A stacked pane needs area layers with the same times and `curve`, a value of zero or more at
   every time (`unaligned_stack`, `negative_in_stack`) and no `lower`/`upper`.
-- A pane takes up to six annotation layers — zones, reference lines and point markers together
+- A pane takes up to twelve annotation layers — zones, reference lines and point markers together
   (`too_many_annotations`). A zone needs `bottom` and `top`, `from` and `to`, or both, and a
-  reference line `time`, `value` or both (`missing_position`); `bottom` at or above `top`, or
-  `from` at or after `to`, is `invalid_band`; a zone, reference line or point marker without
+  reference line `time`, `value` or both, a measure `time`, `bottom` and `top`
+  (`missing_position`); `bottom` at or above `top`, or
+  `from` at or after `to`, is `invalid_band` (among candles `from` may equal `to`); a zone, reference line or point marker without
   `label` is `missing_label`. A field that belongs to another mark — `name`, `points`, `value` or
   `shape` on a zone, `shape` on a reference line — is `option_not_supported` with its path. A
-  label that overlaps another annotation label, crosses a data line, or leaves the plot is
-  reported as a `label_overlap` warning.
+  label that would overlap another annotation label, cross a data line, or leave the plot takes
+  another place where one is free; where none is, it stays and is reported as a `label_overlap`
+  warning.
 - With `"gaps": "collapse"`, a reference line or point marker outside the observed range and a
   zone that encloses no observation are `time_out_of_range`.
 - `timeAxis`: `max` at or before `min` is `invalid_axis_range`; a `step` that is no whole number of
@@ -303,7 +306,7 @@ top-level `categories`, its own `values` — small multiples of bars.
 | `panes[].title` | string, up to 100 characters | yes | Heading of the panel. Panel titles take two lines before they are shortened; every panel keeps the same head height, so the plots stay aligned. |
 | `panes[].note` | string, up to 160 characters | no | A short finding under the panel title, such as a verdict, on up to two lines. The notes are part of the description. |
 | `panes[].noteEmphasis` | boolean | no | `true` draws the panel's note in the text color and semibold instead of muted, to set one finding apart from the others by weight, not by color alone. Needs a `note`. |
-| `panes[].layers` | array | one of | Up to six data layers and six annotation layers. |
+| `panes[].layers` | array | one of | Up to six data layers and twelve annotation layers. |
 | `panes[].values` | array of numbers or `null`, up to 100 | one of | With `categories`: one value per category, `null` for none. |
 | `panes[].valueAxis` | object | no | With `categories`: the panel's own value axis. |
 | `categories` | array of strings, 1–20 | no | The categories of small multiples of bars. |

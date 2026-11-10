@@ -83,13 +83,17 @@ export function viewPayload(input, result) {
   const idPrefix = result.manifest.idPrefix;
   const view = result.manifest.view;
   const html = { format: /** @type {const} */ ("html"), idPrefix, table: input.table, view, allViews: input.allViews };
+  // The view's stylesheet switches to a mobile variant at the default breakpoint; a chart that
+  // names its own brings the rule for it.
+  const breakpoint = /** @type {{ mobile?: { breakpoint?: number } }} */ (spec).mobile?.breakpoint;
+  const rule =
+    typeof breakpoint === "number" ? stylesheet({ types: [], common: false, breakpoints: [breakpoint] }) : "";
+  const figure = (/** @type {Record<string, unknown>} */ themed) =>
+    render(themed, { ...html, styles: "external" }) + (rule === "" ? "" : `<style>${rule}</style>`);
   const figures =
     spec.theme === undefined
-      ? {
-          light: render(spec, { ...html, styles: "external" }),
-          dark: render({ ...spec, theme: "dark" }, { ...html, styles: "external" }),
-        }
-      : { [String(spec.theme)]: render(spec, { ...html, styles: "external" }) };
+      ? { light: figure(spec), dark: figure({ ...spec, theme: "dark" }) }
+      : { [String(spec.theme)]: figure(spec) };
   // A view of an architecture model carries its own title.
   const views = /** @type {{ architecture?: { views?: { key: string, title: string }[] } }} */ (spec)
     .architecture?.views;

@@ -51,7 +51,9 @@ export interface RenderChartOptions {
   manifest?: boolean;
   /**
    * `inline` (default): every chart carries its whole stylesheet. `external`: the page loads
-   * `@casoon/chartlet/chartlet.css` once, and a chart carries only its own declared colors.
+   * `@casoon/chartlet/chartlet.css` once, and a chart carries only its own declared colors. The
+   * HTML figure of a chart then has no `<style>` outside its SVGs; a `mobile.breakpoint` other
+   * than 640 needs its rule from `stylesheet({ breakpoints })`.
    */
   styles?: "inline" | "external";
   /**
@@ -159,6 +161,13 @@ export interface StylesheetOptions {
    * in any order after the common part.
    */
   common?: boolean;
+  /**
+   * Container widths in pixels, as `mobile.breakpoint` names them: the rules that switch a
+   * chart to its mobile variant below each are appended. The common part carries the rule for
+   * the default breakpoint of 640, so only other breakpoints need naming. With `types: []` and
+   * `common: false` the result is these rules alone.
+   */
+  breakpoints?: number[];
 }
 
 /** The shared stylesheet that charts rendered with `styles: "external"` rely on. */
