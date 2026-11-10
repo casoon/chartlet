@@ -13,11 +13,13 @@ use crate::{
 };
 
 /// What the layers of a pane are checked against: the chart's time zone, the width of its plot
-/// in pixels, and whether every data layer needs a name.
+/// in pixels, whether every data layer needs a name, and whether the chart draws candles.
 pub(crate) struct LayerContext {
     pub zone: crate::time::TimeZone,
     pub plot_pixels: usize,
     pub named: bool,
+    /// Among candles a time has the width of a candle, so a zone may start and end on the same one.
+    pub candles: bool,
 }
 
 /// A layer's own color has to be one of the forms in the contract; anything else is replaced by
@@ -265,7 +267,7 @@ fn validate_stream(pane: &PaneSpec, path: &str) -> Result<(), ChartError> {
     for (index, layer) in pane.layers.iter().enumerate() {
         let allowed = match layer.mark {
             Mark::Area => true,
-            Mark::Annotation => layer.value.is_none(),
+            Mark::Annotation => layer.value.is_none() && !layer.is_measure(),
             Mark::Line | Mark::Point | Mark::Ohlc | Mark::Band => false,
         };
         if !allowed {
@@ -303,12 +305,15 @@ pub(super) fn validate_pane_layers(
     } else {
         MAX_TIME_LAYERS
     };
-    if data_layers > limit {
+    // Candles are what the other layers of their pane are drawn over, not one more line among
+    // them: one candlestick layer does not count against the limit.
+    let candles = usize::from(pane.layers.iter().any(|layer| layer.mark == Mark::Ohlc));
+    if data_layers - candles > limit {
         return Err(ChartError::new(
             "too_many_layers",
             format!("{pane_path}/layers"),
             format!(
-                "at most {MAX_TIME_LAYERS} data layers are supported, {MAX_STACKED_LAYERS} in a stacked pane"
+                "at most {MAX_TIME_LAYERS} data layers are supported besides one candlestick layer, {MAX_STACKED_LAYERS} in a stacked pane"
             ),
         ));
     }
@@ -338,7 +343,7 @@ pub(super) fn validate_pane_layers(
         let layer_path = format!("{pane_path}/layers/{layer_index}");
         match layer.mark {
             Mark::Annotation => validate_annotation(layer, &layer_path, zone, warnings)?,
-            Mark::Band => validate_zone(layer, &layer_path, zone, warnings)?,
+            Mark::Band => validate_zone(layer, &layer_path, context, warnings)?,
             Mark::Ohlc => crate::ohlc::validate(layer, &layer_path, context, names, warnings)?,
             Mark::Line | Mark::Area | Mark::Point => {
                 validate_layer(layer, &layer_path, context, names, warnings)?;
@@ -348,8 +353,58 @@ pub(super) fn validate_pane_layers(
     Ok(())
 }
 
-/// An annotation: a horizontal reference line at a `value`, a vertical one at a `time`, or a
-/// point marker at both, always with a label. Only a point marker takes a `shape`.
+/// A measure: an annotation at a `time` that spans from `bottom` to `top`, both given and in
+/// that order, and no `value` of its own.
+fn validate_measure(layer: &LayerSpec, path: &str) -> Result<(), ChartError> {
+    if !layer.is_measure() {
+        return Ok(());
+    }
+    let given = if layer.bottom.is_some() {
+        "bottom"
+    } else {
+        "top"
+    };
+    if layer.value.is_some() {
+        return Err(ChartError::new(
+            "option_not_supported",
+            format!("{path}/{given}"),
+            "a measure spans from bottom to top at a time and takes no value; a point marker sits at one value",
+        ));
+    }
+    if layer.time.is_none() {
+        return Err(ChartError::new(
+            "missing_position",
+            format!("{path}/time"),
+            "a measure stands at a time; for a range of values across the plot use a band layer",
+        ));
+    }
+    let (Some(bottom), Some(top)) = (layer.bottom, layer.top) else {
+        let missing = if layer.bottom.is_some() {
+            "top"
+        } else {
+            "bottom"
+        };
+        return Err(ChartError::new(
+            "missing_position",
+            format!("{path}/{missing}"),
+            "a measure needs both bottom and top, the two values it spans",
+        ));
+    };
+    validate_number(bottom, &format!("{path}/bottom"))?;
+    validate_number(top, &format!("{path}/top"))?;
+    if bottom >= top {
+        return Err(ChartError::new(
+            "invalid_band",
+            format!("{path}/top"),
+            "top must lie above bottom",
+        ));
+    }
+    Ok(())
+}
+
+/// An annotation: a horizontal reference line at a `value`, a vertical one at a `time`, a point
+/// marker at both, or a measure from `bottom` to `top` at a `time`, always with a label. Only a
+/// point marker takes a `shape`.
 fn validate_annotation(
     layer: &LayerSpec,
     path: &str,
@@ -366,8 +421,6 @@ fn validate_annotation(
         ("data", !layer.data.is_empty(), "belongs to an ohlc layer"),
         ("from", layer.from.is_some(), "belongs to a band layer"),
         ("to", layer.to.is_some(), "belongs to a band layer"),
-        ("top", layer.top.is_some(), "belongs to a band layer"),
-        ("bottom", layer.bottom.is_some(), "belongs to a band layer"),
         ("modeled", layer.modeled, "belongs to a line layer"),
         (
             "stroke",
@@ -399,11 +452,12 @@ fn validate_annotation(
             ));
         }
     }
+    validate_measure(layer, path)?;
     if layer.time.is_none() && layer.value.is_none() {
         return Err(ChartError::new(
             "missing_position",
             path,
-            "give time for a vertical reference line, value for a horizontal one, or both for a point marker",
+            "give time for a vertical reference line, value for a horizontal one, both for a point marker, or time with bottom and top for a measure",
         ));
     }
     if let Some(time) = &layer.time {
@@ -419,6 +473,8 @@ fn validate_annotation(
             format!("{path}/label"),
             if layer.is_marker() {
                 "a point marker needs a label that says what it marks"
+            } else if layer.is_measure() {
+                "a measure needs a label that says what it measures"
             } else {
                 "a reference line needs a label that says what it marks"
             },
@@ -429,11 +485,12 @@ fn validate_annotation(
 
 /// A zone: a shaded area between `bottom` and `top`, between `from` and `to`, or both. A missing
 /// edge is the edge of the plot, so a zone with only `bottom` covers every value above it; at
-/// least one edge has to be given, and the zone needs a label.
+/// least one edge has to be given, and the zone needs a label. `to` lies after `from`; in a chart
+/// with candles it may equal `from`, for a zone over a single candle.
 fn validate_zone(
     layer: &LayerSpec,
     path: &str,
-    zone: crate::time::TimeZone,
+    context: &LayerContext,
     warnings: &mut Vec<ChartWarning>,
 ) -> Result<(), ChartError> {
     check_layer_color(layer, path, warnings);
@@ -481,6 +538,25 @@ fn validate_zone(
             ));
         }
     }
+    validate_zone_edges(layer, path, context)?;
+    let Some(label) = &layer.label else {
+        return Err(ChartError::new(
+            "missing_label",
+            format!("{path}/label"),
+            "a zone needs a label that says what it marks",
+        ));
+    };
+    validate_text(label, &format!("{path}/label"), 100)
+}
+
+/// The edges of a zone: times that resolve, finite values, at least one edge, `top` above
+/// `bottom` and `to` after `from` — or, among candles, at `from`.
+fn validate_zone_edges(
+    layer: &LayerSpec,
+    path: &str,
+    context: &LayerContext,
+) -> Result<(), ChartError> {
+    let zone = context.zone;
     let resolve = |field: &str, time: Option<&TimeValue>| {
         time.map(|time| {
             time.resolve(zone).map_err(|message| {
@@ -520,22 +596,19 @@ fn validate_zone(
         ));
     }
     if let (Some(from), Some(to)) = (from, to)
-        && from >= to
+        && (from > to || (from == to && !context.candles))
     {
         return Err(ChartError::new(
             "invalid_band",
             format!("{path}/to"),
-            "to must lie after from",
+            if from == to {
+                "to must lie after from; only among candles a single time has a width, that of its candle"
+            } else {
+                "to must lie after from"
+            },
         ));
     }
-    let Some(label) = &layer.label else {
-        return Err(ChartError::new(
-            "missing_label",
-            format!("{path}/label"),
-            "a zone needs a label that says what it marks",
-        ));
-    };
-    validate_text(label, &format!("{path}/label"), 100)
+    Ok(())
 }
 
 /// The name of a data layer: required once the legend lists more than one layer, and unique

@@ -7,8 +7,31 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **Time charts:** an `annotation` with `time`, `bottom` and `top` draws a measure, a line between
+  two values with its label beside it; tooltip and description give both values and their
+  difference. Details: [Measures](https://casoon.github.io/chartlet/docs/guides/time-series/#measures).
+- **Time charts:** an `ohlc` layer takes a single candle, drawn wide in the middle of the plot on
+  an axis without time ticks. Example `candle-anatomy`.
+
 ### Changed
 
+- **Time charts:** in a chart with candles a zone covers the candles at `from` and `to` in full
+  instead of ending at their middles, and `from` equal to `to` marks one candle where it was
+  `invalid_band`. Example `candle-zones`; details: [Zones](https://casoon.github.io/chartlet/docs/guides/time-series/#zones).
+- **Time charts:** a pane takes twelve annotation layers instead of six; `too_many_annotations`
+  starts at the thirteenth. Example `wave-count`.
+- **Time charts:** one candlestick layer no longer counts among the six data layers of its pane,
+  so a price takes six lines over it.
+- **Time charts:** candles with two to three pixels each keep a body, a thin filled bar over a
+  paler wick, where they were drawn as wicks only; `dense_chart` still reports them. Example
+  `dense-candles`; details: [Candlesticks](https://casoon.github.io/chartlet/docs/guides/time-series/#candlesticks).
+- **Time charts:** the labels of reference lines and zones move out of each other's way and off
+  the data, and `label_overlap` is reported only when no place is free. Examples `stepped-labels`
+  and `emission-pathways`; details: [Label collisions](https://casoon.github.io/chartlet/docs/guides/time-series/#label-collisions).
+- **Time charts:** the legend writes “hollow: rising, filled: falling” once for all candlestick
+  layers, and without their names where each pane titles its own candles. Example `candle-panes`.
 - **Pages:** the project site uses the current shared theme (0.12.6).
 
 

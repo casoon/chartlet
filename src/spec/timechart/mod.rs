@@ -15,7 +15,9 @@ pub(crate) use validate::{LayerContext, validate_layer_name};
 /// Per layer, measured against the size and the render time of the SVG and the HTML profile.
 pub(crate) const MAX_TIME_POINTS_PER_LAYER: usize = 2_000;
 /// Data layers per pane. Beyond the palette's [`MAX_SERIES`](super::MAX_SERIES) colors a layer has to bring its own
-/// color, and past six lines the legend and the plot stop being readable.
+/// color, and past six lines the legend and the plot stop being readable. One candlestick layer
+/// of the pane is not counted: the other layers are drawn over it, as three bands and three
+/// averages over a price.
 pub(crate) const MAX_TIME_LAYERS: usize = 6;
 /// Data layers of a stacked pane: stacked areas lie side by side instead of crossing, so a few
 /// more stay readable, such as the sources of an electricity mix.
@@ -24,8 +26,11 @@ pub(crate) const MAX_STACKED_LAYERS: usize = 8;
 pub(crate) const MAX_TIME_PANES: usize = 4;
 /// The largest share one pane may claim against another.
 pub(crate) const MAX_HEIGHT_RATIO: u32 = 10;
-/// Reference lines per pane. They are drawn over the data, so more than a handful hide it.
-pub(crate) const MAX_ANNOTATIONS: usize = 6;
+/// Zones, reference lines and point markers per pane. A count cannot tell whether they stay
+/// readable — six wave labels of one character do, three long ones side by side may not — so
+/// this only bounds the drawing; the placement of their labels is measured and reported as
+/// `label_overlap`.
+pub(crate) const MAX_ANNOTATIONS: usize = 12;
 /// Small multiples: fewer than two panels is a time chart, more than twelve no longer fit a
 /// page width with readable axes.
 pub(crate) const MIN_PANELS: usize = 2;

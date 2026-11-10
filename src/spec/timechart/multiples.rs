@@ -257,6 +257,7 @@ impl ChartSpec {
                 zone,
                 plot_pixels,
                 named: pane.layers.iter().filter(|layer| layer.is_data()).count() > 1,
+                candles: false,
             };
             validate_pane_layers(
                 pane,

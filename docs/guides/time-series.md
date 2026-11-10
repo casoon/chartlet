@@ -49,7 +49,9 @@ Timestamps must increase within a layer and lie between 1700-01-01 and 2200-01-0
 ## Layers
 
 A pane holds up to six data layers (eight in a stacked pane), each a `line`, an `area`, a `point` or an `ohlc` candlestick layer, and up
-to six annotation layers: zones, reference lines and point markers together.
+to twelve annotation layers: zones, reference lines and point markers together. One candlestick
+layer does not count among the six: the other layers are drawn over the candles, so a price takes
+six lines on top of it, such as three bands and three averages.
 Four palette colors are available for the whole chart: at most four line and area layers go
 without a `color` of their own, and a fifth one has to bring one (`too_many_layers` otherwise).
 Candles take no palette color. A layer without a color takes the palette color of its position
@@ -174,17 +176,28 @@ high.
 
 Every candle needs `low` at or below its open and close and `high` at or above them
 (`invalid_candle` with the path of the field), finite numbers, and a later `time` than the candle
-before it (`unordered_time`); a layer takes 2 to 2000 candles. The legend draws a hollow and a
-filled candle and says “hollow: rising, filled: falling”. Each body has a tooltip with open,
+before it (`unordered_time`); a layer takes 1 to 2000 candles. The legend draws a hollow and a
+filled candle and says “hollow: rising, filled: falling” after the layer's name. A chart with
+several candlestick layers says it once, after the first name; and where each of them is the only
+one of its pane and the pane has a `valueAxis.title`, that title already says which candles are
+which, so the legend leaves the names out and keeps one entry with the key alone. Each body has a tooltip with open,
 high, low and close; the data table has one column for each of the four, and the description
 names the first open, the last close, the change between them in absolute terms and in percent,
 and the highest high and lowest low with their times.
 
 More candles than a third of the plot's horizontal pixels — 234 at the default width — leave
-less than three pixels per candle. The layer is then drawn as wicks only, from low to high, in the
-rise and fall colors, without bodies and tooltips, and the render reports `dense_chart`. A zoom
-step with fewer candles draws the bodies again. Candles closer than 4 pixels keep their bodies but, like the
-observations of a line, lose their tooltips.
+less than three pixels per candle, too little for a body with an outline. Each body is then a thin
+filled bar, one to two pixels wide with a pixel to the next, over its wick at half strength, in the
+rise and fall colors: open and close stay visible, but rising and falling candles differ by color
+only — the two differ in lightness as well as in hue — and the render reports `dense_chart`. More
+candles than half the plot's pixels — 352 at the default width — leave no room for a body at all;
+the layer is drawn as wicks only, from low to high, and `dense_chart` says so. A zoom step with
+fewer candles draws the full bodies again. Candles closer than 4 pixels keep their bodies but, like
+the observations of a line, lose their tooltips.
+
+A single candle is the subject of its chart rather than one of a row: it stands in the middle of
+the plot with a body 32 pixels wide, and the time axis has no ticks, since one time is no axis. With
+[measures](#measures) beside it, that is the picture of what a candle is made of.
 
 A candlestick pane may carry line layers such as a moving average, which are drawn over the
 candles, as well as zones, reference lines and point markers. Candles are drawn on `time` charts
@@ -208,7 +221,8 @@ height a pane takes against the others: `3` and `1` give the upper pane three qu
 ```
 
 There is no volume mark: trading volume is an `area` layer (or a `line`) in a pane of its own.
-All panes share one legend at the top, which is why layer names are unique across the whole chart.
+All panes share one legend at the top, which is why layer names are unique across the whole chart;
+candles in several panes take [one entry](#candlesticks) between them.
 Reference lines, zones and point markers belong to their pane and stay inside it. Zoom steps
 show the same window in every pane, and each window has to hold two observations of a layer in
 every pane (`zoom_out_of_range`). The data table stays one table with a column for every layer
@@ -266,9 +280,20 @@ window, and `bottom` and `top` alone a range across the whole time axis, such as
 
 A zone is filled at low opacity in its `color`, or in the neutral gray, and drawn before every
 line, so the data stays on top. Its `label` is required and sits in the zone's top left corner when
-the zone is tall enough, otherwise just above or below it. Given edges widen the axes. A zone has
+the zone is tall enough, otherwise just above or below it; see [Label collisions](#label-collisions)
+for where it goes when that place is taken. Given edges widen the axes. A zone has
 no legend entry and no table column; the description lists it under “Zones” with its extent, and
 its tooltip says the same.
+
+In a chart with candles a time on the axis is as wide as a candle, so a zone covers the candles at
+`from` and `to` in full: its edges lie half the distance between two candles beyond their middles,
+in every pane of the chart, and never outside the plot. `from` equal to `to` then marks a single
+candle — a hammer, a gap day — and tooltip and description name that one time. Without candles a
+time has no width, and `from` has to lie before `to` (`invalid_band`).
+
+```json
+{ "mark": "band", "label": "Hammer", "from": "2026-03-12", "to": "2026-03-12" }
+```
 
 ## Point markers
 
@@ -286,13 +311,52 @@ another label, a data line or a marker, it tries the left, then above and below.
 native tooltip with label, time and value, widens both axes, and is listed under “Markers” in the
 description.
 
+## Measures
+
+An `"annotation"` with `time`, `bottom` and `top` draws a measure: a solid line from one value to
+the other, with a short stroke at either end and its label beside it — the body of a candle, the
+distance between two lines on one day.
+
+```json
+{ "mark": "annotation", "time": "2026-03-12", "bottom": 44.7, "top": 45.0, "label": "Body: 0.30" }
+```
+
+A measure stands beside the time it measures, clear of a candle's body: the first to the right,
+one that would overlap it to the left, further ones alternately further out on either side; in the
+right part of the plot the left side comes first. Measures at one time that do not overlap share a
+column, as the body of a candle and its two wicks do. The label takes the room its side of the plot
+has left: one line where it fits, two lines broken at a space where it does not, and shortened only
+when neither fits (`text_truncated`). Both values widen the value axis. The tooltip and the
+description, under “Measures”, give both values and their difference. `bottom` and `top` are both
+required (`missing_position`) and in that order (`invalid_band`); a measure takes no `value` and no
+`shape` (`option_not_supported`), and a stream has no place for one.
+
 ## Label collisions
 
-chartlet measures every annotation label with the same text metrics as the rest of the layout.
-When the label of a zone, reference line or point marker overlaps another annotation label, when
-the label of a zone or reference line crosses a data line, or when a label reaches outside the
-plot, the render reports a `label_overlap` warning with the path of the annotation layer. The
-label is never dropped; move the annotation or shorten its label.
+chartlet measures every annotation label with the same text metrics as the rest of the layout and
+gives it the first place that is clear of the plot's edges, of the labels placed before it — in
+the order of the layers, zones first — and of the data lines:
+
+- A **vertical reference line** writes its label beside its top end: on the right, or on the left
+  in the right part of the plot. A label that would overlap steps down a line of text at a time, up
+  to four and no further than the middle of the pane, so the labels of neighbouring lines form a
+  staircase, each beside its own line. A label that finds no line free there tries the other side
+  of its line.
+- A **horizontal reference line** writes its label above its left end; then right of the label in
+  its way, above its right end, and below the line at either end.
+- A **zone** writes its label inside its top corner, then inside its bottom corner, then a line
+  further in from either; a zone too low for a line of text, just above it or below.
+- A **point marker** tries the right of its symbol, then the left, above and below.
+
+Two labels on one line of text keep six pixels between them where there is a choice. When no place
+is free — the label overlaps another one, crosses a data line or reaches outside the plot wherever
+it goes — it takes the first place where it at least stays inside the plot and off the other
+labels, or else its first place, and the render reports a `label_overlap` warning with the path of
+the annotation layer. The label is never dropped; move the annotation or shorten its label.
+
+A pane takes up to twelve annotation layers. The count only bounds the drawing: six wave labels of
+one character and three levels read well in one pane, three long labels side by side may not, and
+that is what the measurement above reports.
 
 ## Sparklines
 
@@ -403,11 +467,12 @@ chartlet reports that as a `dense_chart` warning.
 | Limit | Value |
 | --- | --- |
 | Observations or candles per layer | 2000 |
-| Data layers per pane | 6; at most 4 of the chart in palette colors |
-| Zones, reference lines and point markers per pane | 6 together |
+| Data layers per pane | 6, besides one candlestick layer; at most 4 of the chart in palette colors |
+| Zones, reference lines and point markers per pane | 12 together |
 | Panes | 1–4 (`time`), 2–12 (`multiples`) |
 | `heightRatio` | 1–10 |
-| Candles with bodies | a third of the plot's horizontal pixels per layer |
+| Candles with outlined bodies | a third of the plot's horizontal pixels per layer |
+| Candles with thin filled bodies | half the plot's horizontal pixels per layer |
 | Observations with markers and value labels | 60 per layer |
 
 ## Value labels

@@ -110,6 +110,36 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/share-price.svg"),
     ),
     (
+        "candle-zones",
+        include_str!("../examples/candle-zones.json"),
+        include_str!("../examples/candle-zones.svg"),
+    ),
+    (
+        "candle-anatomy",
+        include_str!("../examples/candle-anatomy.json"),
+        include_str!("../examples/candle-anatomy.svg"),
+    ),
+    (
+        "dense-candles",
+        include_str!("../examples/dense-candles.json"),
+        include_str!("../examples/dense-candles.svg"),
+    ),
+    (
+        "candle-panes",
+        include_str!("../examples/candle-panes.json"),
+        include_str!("../examples/candle-panes.svg"),
+    ),
+    (
+        "wave-count",
+        include_str!("../examples/wave-count.json"),
+        include_str!("../examples/wave-count.svg"),
+    ),
+    (
+        "stepped-labels",
+        include_str!("../examples/stepped-labels.json"),
+        include_str!("../examples/stepped-labels.svg"),
+    ),
+    (
         "mobile-revenue",
         include_str!("../examples/mobile-revenue.json"),
         include_str!("../examples/mobile-revenue.svg"),

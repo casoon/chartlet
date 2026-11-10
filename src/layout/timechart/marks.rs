@@ -11,7 +11,7 @@ use crate::{
     error::ChartWarning,
     layout::{
         AREA_CLASSES, LABEL_SIZE,
-        annotation::{push_marker, push_marker_label, push_rule, push_zone},
+        annotation::{push_marker, push_marker_label, push_measures, push_rule, push_zone},
         axis::format_value,
         labels::LabelSpace,
         tooltip, tooltips_fit,
@@ -37,8 +37,8 @@ pub(crate) fn tooltip_name(spec: &ChartSpec, entry: LayerRef) -> Option<String> 
 }
 
 /// Draws the layers of one pane: zones first, filled areas and uncertainty bands over them,
-/// reference lines over those, then the lines with their markers, the point markers, and the
-/// labels of every annotation last so nothing covers them.
+/// reference lines over those, then the lines with their markers, the measures, the point
+/// markers, and the labels of every annotation last so nothing covers them.
 pub(super) fn draw_pane(
     spec: &ChartSpec,
     pane: usize,
@@ -121,6 +121,44 @@ pub(super) fn draw_pane(
         elements.push(Element::Hook(Hook::End));
     }
 
+    // Measures stand beside the data they measure, over the lines.
+    push_measures(
+        spec,
+        &entries,
+        frame,
+        elements,
+        &mut rule_labels,
+        &mut space,
+        warnings,
+        metrics,
+    );
+
+    push_markers(
+        &entries,
+        frame,
+        detail,
+        elements,
+        &mut rule_labels,
+        &mut space,
+        warnings,
+        metrics,
+    );
+    elements.extend(rule_labels);
+}
+
+/// The point markers of a pane: every symbol first, then the labels, so that a label keeps clear
+/// of all the symbols.
+#[allow(clippy::too_many_arguments)]
+fn push_markers(
+    entries: &[LayerRef],
+    frame: &TimeFrame,
+    detail: Detail,
+    elements: &mut Vec<Element>,
+    labels: &mut Vec<Element>,
+    space: &mut LabelSpace,
+    warnings: &mut Vec<ChartWarning>,
+    metrics: &impl TextMetrics,
+) {
     let markers: Vec<LayerRef> = entries
         .iter()
         .filter(|entry| entry.layer.is_marker())
@@ -129,21 +167,12 @@ pub(super) fn draw_pane(
     let radius = if detail == Detail::Full { 6.0 } else { 4.5 };
     for entry in &markers {
         elements.push(Element::Hook(Hook::Layer(entry.global)));
-        push_marker(*entry, frame, radius, elements, &mut space);
+        push_marker(*entry, frame, radius, elements, space);
         elements.push(Element::Hook(Hook::End));
     }
     for entry in &markers {
-        push_marker_label(
-            *entry,
-            frame,
-            radius,
-            &mut rule_labels,
-            &mut space,
-            warnings,
-            metrics,
-        );
+        push_marker_label(*entry, frame, radius, labels, space, warnings, metrics);
     }
-    elements.extend(rule_labels);
 }
 
 /// The region between an area layer's line and zero, one closed outline per run of values: along

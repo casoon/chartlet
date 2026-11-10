@@ -1,7 +1,8 @@
 //! Candlesticks: one wick from low to high and one body from open to close per observation. A
 //! rising candle (close at or above open) has a hollow body and a falling one a filled body, so
 //! the direction never rests on the rise and fall colors alone. Once the candles sit closer than
-//! three pixels apart, only the wicks are drawn.
+//! three pixels apart, a body has no room for an outline: it becomes a thin filled bar over a
+//! paler wick, in the rise or fall color. Closer than two pixels, only the wicks are drawn.
 
 use std::collections::BTreeSet;
 
@@ -10,7 +11,7 @@ use crate::{
     layout::{TimeFrame, format_value, plot_pixels, tooltip_name, tooltips_fit},
     scene::{Element, Line, Rect},
     spec::{
-        ChartSpec, LayerContext, LayerRef, LayerSpec, MAX_TIME_POINTS_PER_LAYER, NumberStyle,
+        ChartSpec, LayerContext, LayerRef, LayerSpec, MAX_TIME_POINTS_PER_LAYER, Mark, NumberStyle,
         Stroke, ValueFormat, validate_layer_name, validate_number,
     },
     text::{self, CandleSummary},
@@ -19,17 +20,52 @@ use crate::{
 
 /// A body is never wider than this, however far apart the candles are.
 const MAX_BODY: f64 = 16.0;
+/// The body of a candle that stands alone: it is the subject of its chart, not one of a row.
+const LONE_BODY: f64 = 32.0;
 /// Share of the distance between two candles their bodies take; the rest is the gap.
 const BODY_SHARE: f64 = 0.7;
-/// Below this many pixels per candle the bodies cannot be told apart.
+/// Below this many pixels per candle a body has no room for its outline, so hollow and filled
+/// cannot be told apart.
 const PIXELS_PER_CANDLE: u32 = 3;
+/// Below this many pixels per candle a body has no room at all: one pixel for the bar and one
+/// for the gap to the next.
+const PIXELS_PER_NARROW_CANDLE: u32 = 2;
 
-/// The number of candles above which a chart of `width` draws wicks only.
-pub(crate) const fn dense_limit(width: u32) -> u32 {
-    plot_pixels(width) / PIXELS_PER_CANDLE
+/// How a layer draws its candles, by the room each has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Density {
+    /// Hollow and filled bodies with an outline.
+    Bodies,
+    /// Thin filled bars over paler wicks.
+    Narrow,
+    /// Wicks only.
+    Wicks,
 }
 
-/// An `ohlc` layer: no field of another mark, a name by the rules of every data layer, and two to
+impl Density {
+    /// The density of `candles` candles on a plot of `plot_pixels` horizontal pixels.
+    fn of(candles: usize, plot_pixels: usize) -> Self {
+        let per = |pixels: u32| plot_pixels / usize::try_from(pixels).expect("a small number");
+        if candles > per(PIXELS_PER_NARROW_CANDLE) {
+            Self::Wicks
+        } else if candles > per(PIXELS_PER_CANDLE) {
+            Self::Narrow
+        } else {
+            Self::Bodies
+        }
+    }
+}
+
+/// Whether a layer of the chart holds more candles than have room for an outline, so that it,
+/// or a zoom window into it, may draw thin bodies.
+pub(crate) fn has_narrow_candles(spec: &ChartSpec) -> bool {
+    let plot_pixels =
+        usize::try_from(plot_pixels(spec.width)).expect("a usize is at least 32 bits wide");
+    spec.layers()
+        .any(|layer| Density::of(layer.data.len(), plot_pixels) != Density::Bodies)
+}
+
+/// An `ohlc` layer: no field of another mark, a name by the rules of every data layer, and one to
 /// 2000 candles whose low lies at or below open and close, whose high lies at or above them, and
 /// whose timestamps increase.
 pub(crate) fn validate(
@@ -105,20 +141,30 @@ pub(crate) fn validate(
         ));
     }
     validate_candles(layer, path, context.zone)?;
-    if layer.data.len() < 2 {
+    if layer.data.is_empty() {
         return Err(ChartError::new(
             "empty_series",
             format!("{path}/data"),
-            "a candlestick layer needs at least two candles",
+            "a candlestick layer needs at least one candle",
         ));
     }
-    let limit = context.plot_pixels / usize::try_from(PIXELS_PER_CANDLE).expect("a small number");
-    if layer.data.len() > limit {
+    let drawn = match Density::of(layer.data.len(), context.plot_pixels) {
+        Density::Bodies => None,
+        Density::Narrow => Some((
+            PIXELS_PER_CANDLE,
+            "their bodies are drawn as thin filled bars over paler wicks, and rising and falling ones differ by color only",
+        )),
+        Density::Wicks => Some((
+            PIXELS_PER_NARROW_CANDLE,
+            "only their wicks from low to high are drawn",
+        )),
+    };
+    if let Some((pixels, drawn)) = drawn {
         warnings.push(ChartWarning::new(
             "dense_chart",
             format!("{path}/data"),
             format!(
-                "{} candles leave less than {PIXELS_PER_CANDLE} pixels each; only their wicks from low to high are drawn",
+                "{} candles leave less than {pixels} pixels each; {drawn}",
                 layer.data.len()
             ),
         ));
@@ -169,28 +215,71 @@ fn validate_candles(layer: &LayerSpec, path: &str, zone: TimeZone) -> Result<(),
     Ok(())
 }
 
-/// The width of every body: a share of the median distance between neighbouring candles, at
-/// least one pixel and at most [`MAX_BODY`].
-fn body_width(xs: &[f64]) -> f64 {
+/// The median distance between neighbouring candles at the horizontal positions `xs`; `None` for
+/// a single candle, which has no neighbour.
+fn median_distance(xs: &[f64]) -> Option<f64> {
     let mut distances: Vec<f64> = xs
         .windows(2)
         .map(|pair| (pair[1] - pair[0]).abs())
         .collect();
     if distances.is_empty() {
-        return MAX_BODY;
+        return None;
     }
     crate::sort::by(&mut distances, f64::total_cmp);
     let middle = distances.len() / 2;
-    let median = if distances.len().is_multiple_of(2) {
+    Some(if distances.len().is_multiple_of(2) {
         f64::midpoint(distances[middle - 1], distances[middle])
     } else {
         distances[middle]
-    };
-    (median * BODY_SHARE).clamp(1.0, MAX_BODY)
+    })
 }
 
-/// Draws the candles of one layer: every wick, and while there is room for them, the bodies with
-/// a tooltip each.
+/// The width of every body: a share of the median distance between neighbouring candles, at
+/// least one pixel and at most [`MAX_BODY`]; a single candle takes [`LONE_BODY`].
+fn body_width(xs: &[f64]) -> f64 {
+    median_distance(xs).map_or(LONE_BODY, |median| {
+        (median * BODY_SHARE).clamp(1.0, MAX_BODY)
+    })
+}
+
+/// Half the width of the bodies in `pane`, which a measure beside a candle keeps clear of; zero
+/// in a pane without candles.
+pub(crate) fn half_body(spec: &ChartSpec, pane: usize, frame: &TimeFrame) -> f64 {
+    spec.indexed_layers()
+        .filter(|entry| entry.pane == pane && entry.layer.mark == Mark::Ohlc)
+        .map(|entry| {
+            let xs: Vec<f64> = entry
+                .layer
+                .resolved_candles(frame.zone)
+                .iter()
+                .map(|(epoch, _)| frame.x(*epoch))
+                .collect();
+            body_width(&xs) / 2.0
+        })
+        .fold(0.0, f64::max)
+}
+
+/// Half the room one candle takes on the time axis of `pane`: half the median distance between
+/// neighbouring candles. A zone reaches this far beyond the candles at its edges, so that it
+/// covers them in full. The candles are those of the pane, or of the first pane that has some,
+/// since all panes share the time axis; `None` in a chart without candles.
+pub(crate) fn half_slot(spec: &ChartSpec, pane: usize, frame: &TimeFrame) -> Option<f64> {
+    let candles = spec
+        .indexed_layers()
+        .filter(|entry| entry.layer.mark == Mark::Ohlc)
+        .min_by_key(|entry| (entry.pane != pane, entry.global))?;
+    let xs: Vec<f64> = candles
+        .layer
+        .resolved_candles(frame.zone)
+        .iter()
+        .map(|(epoch, _)| frame.x(*epoch))
+        .collect();
+    // A single candle has no neighbour: its room is the one its body is the usual share of.
+    Some(median_distance(&xs).unwrap_or(LONE_BODY / BODY_SHARE) / 2.0)
+}
+
+/// Draws the candles of one layer: every wick, and while there is room for them, the bodies —
+/// with an outline and a tooltip each, or as thin filled bars over paler wicks.
 pub(crate) fn push_candles(
     spec: &ChartSpec,
     entry: LayerRef,
@@ -200,9 +289,16 @@ pub(crate) fn push_candles(
     let candles = entry.layer.resolved_candles(frame.zone);
     let precision = spec.layer_precision(entry.layer, frame.zone);
     let xs: Vec<f64> = candles.iter().map(|(epoch, _)| frame.x(*epoch)).collect();
-    let dense = candles.len()
-        > usize::try_from(dense_limit(spec.width)).expect("a usize is at least 32 bits wide");
-    let width = body_width(&xs);
+    let plot_pixels =
+        usize::try_from(plot_pixels(spec.width)).expect("a usize is at least 32 bits wide");
+    let density = Density::of(candles.len(), plot_pixels);
+    let narrow = density == Density::Narrow;
+    // A narrow body leaves a pixel to the next one and is never wider than two.
+    let width = if narrow {
+        (median_distance(&xs).unwrap_or(2.0) - 1.0).clamp(1.0, 2.0)
+    } else {
+        body_width(&xs)
+    };
     let with_tooltips = tooltips_fit(&xs);
     let name = tooltip_name(spec, entry);
     for ((epoch, [open, high, low, close]), x) in candles.iter().zip(xs) {
@@ -212,13 +308,14 @@ pub(crate) fn push_candles(
             y1: frame.y(*high),
             x2: x,
             y2: frame.y(*low),
-            class: if rising {
-                "chartlet-wick chartlet-wick-rise"
-            } else {
-                "chartlet-wick chartlet-wick-fall"
+            class: match (rising, narrow) {
+                (true, false) => "chartlet-wick chartlet-wick-rise",
+                (false, false) => "chartlet-wick chartlet-wick-fall",
+                (true, true) => "chartlet-wick chartlet-wick-rise chartlet-wick-narrow",
+                (false, true) => "chartlet-wick chartlet-wick-fall chartlet-wick-narrow",
             },
         }));
-        if dense {
+        if density == Density::Wicks {
             continue;
         }
         let top = frame.y(open.max(*close));
@@ -237,10 +334,11 @@ pub(crate) fn push_candles(
             y,
             width,
             height,
-            class: if rising {
-                "chartlet-candle chartlet-candle-rise"
-            } else {
-                "chartlet-candle chartlet-candle-fall"
+            class: match (rising, narrow) {
+                (true, false) => "chartlet-candle chartlet-candle-rise",
+                (false, false) => "chartlet-candle chartlet-candle-fall",
+                (true, true) => "chartlet-candle chartlet-candle-rise chartlet-candle-narrow",
+                (false, true) => "chartlet-candle chartlet-candle-fall chartlet-candle-narrow",
             },
             series_index: None,
             style_index: None,
@@ -365,6 +463,7 @@ mod tests {
     fn bodies_take_a_share_of_the_median_distance_within_their_bounds() {
         assert!((body_width(&[0.0, 10.0, 20.0, 50.0]) - 7.0).abs() < 1e-9);
         assert!((body_width(&[0.0, 100.0]) - 16.0).abs() < 1e-9);
+        assert!((body_width(&[40.0]) - 32.0).abs() < 1e-9);
         assert!((body_width(&[0.0, 1.0, 2.0]) - 1.0).abs() < 1e-9);
     }
 }

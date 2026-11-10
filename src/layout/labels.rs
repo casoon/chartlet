@@ -6,6 +6,10 @@ use crate::{
     spec::LayerRef,
 };
 
+/// The room two labels on one line of text keep between them where there is a choice: closer,
+/// they read as one.
+const LABEL_GAP: f64 = 6.0;
+
 /// A label's box on the canvas: left, top, right and bottom edge.
 pub(super) type LabelBox = (f64, f64, f64, f64);
 
@@ -101,6 +105,57 @@ impl LabelSpace {
         } else {
             None
         }
+    }
+
+    /// Places a label at the first of `candidates` that collides with nothing and keeps
+    /// [`LABEL_GAP`] from the labels beside it. Failing that, at the first that collides with
+    /// nothing; then at the first that stays inside the plot and clear of the other labels, and
+    /// reports the data line it crosses; failing that too, at the first candidate, with whatever
+    /// it collides with. `candidates` holds at least one place, the one the label takes when
+    /// nothing is in its way.
+    pub(super) fn settle(
+        &mut self,
+        candidates: Vec<Text>,
+        entry: LayerRef,
+        metrics: &impl TextMetrics,
+        warnings: &mut Vec<ChartWarning>,
+    ) -> Text {
+        let boxes: Vec<LabelBox> = candidates
+            .iter()
+            .map(|text| label_box(text, metrics))
+            .collect();
+        let apart = |label: &LabelBox| {
+            let wider = (label.0 - LABEL_GAP, label.1, label.2 + LABEL_GAP, label.3);
+            self.collision(*label, true).is_none() && !self.hits_label(wider)
+        };
+        let free = |lines: bool| {
+            boxes
+                .iter()
+                .position(|label| self.collision(*label, lines).is_none())
+        };
+        let index = boxes
+            .iter()
+            .position(apart)
+            .or_else(|| free(true))
+            .or_else(|| free(false))
+            .unwrap_or(0);
+        if let Some(collision) = self.collision(boxes[index], true) {
+            warn_label_overlap(entry, collision, warnings);
+        }
+        self.labels.push(boxes[index]);
+        candidates
+            .into_iter()
+            .nth(index)
+            .expect("the index comes from the candidates")
+    }
+
+    /// The right edge of the labels a label collides with, if it collides with any.
+    pub(super) fn right_of_labels(&self, label: LabelBox) -> Option<f64> {
+        self.labels
+            .iter()
+            .filter(|other| boxes_overlap(label, **other))
+            .map(|other| other.2)
+            .reduce(f64::max)
     }
 
     /// Takes the room of a label that stays where it is, and reports whatever it collides with.

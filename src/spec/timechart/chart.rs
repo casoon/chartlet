@@ -174,6 +174,7 @@ impl ChartSpec {
         // The panes share one legend, so a name has to be unique across all of them, and every
         // layer needs one as soon as the chart has more than one.
         let data_layers = self.data_layers().count();
+        let candles = self.layers().any(|layer| layer.mark == Mark::Ohlc);
         let mut names = BTreeSet::new();
         for (pane_index, pane) in self.panes.iter().enumerate() {
             let pane_path = format!("/panes/{pane_index}");
@@ -200,6 +201,7 @@ impl ChartSpec {
                 zone,
                 plot_pixels,
                 named: data_layers > 1,
+                candles,
             };
             validate_pane_layers(pane, &pane_path, &context, &mut names, &mut warnings)?;
             validate_pane_stack(pane, &pane_path, zone)?;

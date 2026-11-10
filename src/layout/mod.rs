@@ -15,7 +15,7 @@ use crate::{
     scene::{Element, Line, Scene, Text, TextAnchor},
     spec::{ChartSpec, ChartType, MAX_SERIES, NumberStyle, Orientation},
 };
-pub(crate) use annotation::{marker_position, zone_extent};
+pub(crate) use annotation::{marker_position, measure_extent, zone_extent};
 pub(crate) use axis::{
     NumericScale, add_bottom_category_title, format_value, push_category_label, push_side_label,
 };

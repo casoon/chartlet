@@ -172,6 +172,10 @@ pub(super) fn push_time_ticks(
     elements: &mut Vec<Element>,
 ) {
     let plot = frame.plot;
+    // A single time, such as one candle on its own, has no axis to tick.
+    if frame.span.0 == frame.span.1 {
+        return;
+    }
     let sub_day = frame.sub_day;
     let ticks = match &frame.slots {
         Some(slots) => {

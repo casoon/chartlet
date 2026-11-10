@@ -16,6 +16,8 @@ pub(crate) fn series_at(locale: Locale, name: &str, category: &str) -> String {
 /// The span of time a zone covers: both ends, or the one that is given.
 pub(crate) fn zone_times(locale: Locale, from: Option<&str>, to: Option<&str>) -> Option<String> {
     match (locale, from, to) {
+        // A zone over a single candle starts and ends at the same time.
+        (_, Some(from), Some(to)) if from == to => Some(from.to_owned()),
         (Locale::En, Some(from), Some(to)) => Some(format!("{from} to {to}")),
         (Locale::De, Some(from), Some(to)) => Some(format!("{from} bis {to}")),
         (Locale::En, Some(from), None) => Some(format!("from {from}")),
@@ -40,6 +42,14 @@ pub(crate) fn zone_values(
         (Locale::En, None, Some(top)) => Some(format!("values below {top}")),
         (Locale::De, None, Some(top)) => Some(format!("Werte unter {top}")),
         (_, None, None) => None,
+    }
+}
+
+/// What a measure spans: both values and the difference between them.
+pub(crate) fn measure(locale: Locale, bottom: &str, top: &str, difference: &str) -> String {
+    match locale {
+        Locale::En => format!("{bottom} to {top}, difference {difference}"),
+        Locale::De => format!("{bottom} bis {top}, Differenz {difference}"),
     }
 }
 

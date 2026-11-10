@@ -88,10 +88,10 @@ pub struct LayerSpec {
     /// End of a `band`.
     #[serde(default)]
     pub to: Option<TimeValue>,
-    /// Upper edge of a `band`.
+    /// Upper edge of a `band`, or the upper end of a measure.
     #[serde(default)]
     pub top: Option<f64>,
-    /// Lower edge of a `band`.
+    /// Lower edge of a `band`, or the lower end of a measure.
     #[serde(default)]
     pub bottom: Option<f64>,
     /// Position of an `annotation`.
@@ -342,7 +342,14 @@ impl LayerSpec {
 
     /// Whether the layer is a reference line: an annotation at either a time or a value.
     pub(crate) fn is_rule(&self) -> bool {
-        self.mark == Mark::Annotation && (self.time.is_some() != self.value.is_some())
+        self.mark == Mark::Annotation
+            && (self.time.is_some() != self.value.is_some())
+            && !self.is_measure()
+    }
+
+    /// Whether the layer is a measure: an annotation that spans from `bottom` to `top` at a time.
+    pub(crate) fn is_measure(&self) -> bool {
+        self.mark == Mark::Annotation && (self.bottom.is_some() || self.top.is_some())
     }
 
     /// Whether the layer is a point marker: an annotation at both a time and a value.
