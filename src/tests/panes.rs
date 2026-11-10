@@ -65,34 +65,94 @@ fn candles_differ_in_shape_and_color_by_direction() {
     assert!(!render_ok(TIME).content.contains("chartlet-rise"));
 }
 
-#[test]
-fn dense_candles_are_drawn_as_wicks_only() {
-    // 704 plot pixels at the default width leave room for 234 candles.
-    let data = (0..240)
+/// A chart of `count` level candles, one a day.
+fn many_candles(count: usize) -> String {
+    let data = (0..count)
         .map(|index| {
             format!(
-                r#"{{"time": {}, "open": 10, "high": 12, "low": 9, "close": 11}}"#,
-                1_770_000_000 + index * 86_400
+                r#"{{"time": {}, "open": 10, "high": 12, "low": 9, "close": {}}}"#,
+                1_770_000_000 + index * 86_400,
+                if index % 2 == 0 { 11.0 } else { 9.5 }
             )
         })
         .collect::<Vec<_>>()
         .join(",");
-    let output = render_ok(&stacked(
+    stacked(
         &format!(r#"{{"layers": [{{"mark": "ohlc", "data": [{data}]}}]}}"#),
         "",
-    ));
+    )
+}
+
+#[test]
+fn candles_closer_than_three_pixels_are_thin_bars_over_paler_wicks() {
+    // 704 plot pixels at the default width leave three pixels each to 234 candles.
+    assert_eq!(render_ok(&many_candles(234)).warnings, []);
+    let output = render_ok(&many_candles(240));
     assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
     assert_eq!(output.warnings[0].code, "dense_chart");
     assert_eq!(output.warnings[0].path, "/panes/0/layers/0/data");
+    assert!(output.warnings[0].message.contains("less than 3 pixels"));
     let svg = output.content;
+    // Every candle keeps a body; the legend sample is the only one with an outline.
+    assert_eq!(
+        svg.matches("class=\"chartlet-candle chartlet-candle-rise chartlet-candle-narrow\"")
+            .count(),
+        120
+    );
+    assert_eq!(
+        svg.matches("class=\"chartlet-candle chartlet-candle-fall chartlet-candle-narrow\"")
+            .count(),
+        120
+    );
+    assert_eq!(svg.matches("chartlet-wick-narrow\"").count(), 240);
+    assert!(svg.contains(".chartlet-wick-narrow{stroke-width:1;stroke-opacity:.5}"));
+    // Charts whose candles have room for an outline carry none of these styles.
+    assert!(!render_ok(&many_candles(234)).content.contains("narrow"));
+    assert!(
+        svg.contains(".chartlet-candle-rise.chartlet-candle-narrow{fill:var(--chartlet-rise)}")
+    );
+    // A bar leaves a pixel to the next one and is at most two wide.
+    let xs = wick_xs(&svg);
+    let width: f64 = svg
+        .split("chartlet-candle-narrow\"")
+        .next()
+        .and_then(|head| head.rsplit(" width=\"").next())
+        .and_then(|rest| rest.split('"').next())
+        .and_then(|value| value.parse().ok())
+        .expect("the width of the first narrow body");
+    assert!(
+        (width - (xs[1] - xs[0] - 1.0).min(2.0)).abs() < 0.01,
+        "{width}"
+    );
+    // Too close for tooltips.
+    assert!(!svg.contains("<title>2026-02-02"));
+}
+
+#[test]
+fn candles_closer_than_two_pixels_are_drawn_as_wicks_only() {
+    // 704 plot pixels leave two pixels each to 352 candles.
+    let narrow = render_ok(&many_candles(352));
+    assert!(narrow.content.contains("chartlet-candle-narrow\""));
+    let output = render_ok(&many_candles(353));
+    assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
+    assert_eq!(output.warnings[0].code, "dense_chart");
+    assert_eq!(output.warnings[0].path, "/panes/0/layers/0/data");
+    assert!(output.warnings[0].message.contains("less than 2 pixels"));
+    let svg = output.content;
+    // 177 rising candles and the legend sample.
     assert_eq!(
         svg.matches("class=\"chartlet-wick chartlet-wick-rise\"")
             .count(),
-        241
+        178
     );
     // Only the legend sample keeps its bodies.
     assert_eq!(
-        svg.matches("class=\"chartlet-candle chartlet-candle-rise\"")
+        svg.matches("class=\"chartlet-candle chartlet-candle-rise")
+            .count(),
+        1
+    );
+    assert_eq!(
+        svg.matches("class=\"chartlet-candle chartlet-candle-fall")
             .count(),
         1
     );

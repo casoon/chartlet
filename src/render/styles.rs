@@ -62,6 +62,10 @@ const ANNOTATION_EXTRA_STYLE: &str = ".chartlet-zone{fill:var(--chartlet-zero);f
 /// color-vision deficiencies keep. Only
 /// included when a chart draws candles, for the same reason as [`LAYER_EXTRA_STYLE`].
 const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall:#d03a0f}.chartlet-theme-dark{--chartlet-rise:#99f6e4;--chartlet-fall:#e5484d}.chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}";
+/// Candles too narrow for an outline: filled bars over wicks at half strength, where the
+/// difference in lightness between the two colors is what is left of the direction. Only
+/// included when a layer holds more candles than have room for an outline.
+const NARROW_CANDLE_STYLE: &str = ".chartlet-wick-narrow{stroke-width:1;stroke-opacity:.5}.chartlet-candle-narrow{stroke:none}.chartlet-candle-rise.chartlet-candle-narrow{fill:var(--chartlet-rise)}";
 
 /// Small multiples draw thinner lines, because their plots are small.
 const MULTIPLES_STYLE: &str = ".chartlet-multiples .chartlet-line{stroke-width:2}.chartlet-panel-title{font-size:13px;font-weight:650;fill:var(--chartlet-text)}";
@@ -376,6 +380,10 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
             is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc),
             OHLC_STYLE,
         ),
+        when(
+            is_time && crate::ohlc::has_narrow_candles(spec),
+            NARROW_CANDLE_STYLE,
+        ),
     ]
     .concat()
 }
@@ -538,6 +546,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (SCATTER_STYLE, &[Scatter]),
         (SCATTER_BUBBLE_STYLE, &[Scatter]),
         (OHLC_STYLE, &[Time]),
+        (NARROW_CANDLE_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
     // An empty list of types: the group applies to every chart.

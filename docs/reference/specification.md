@@ -263,8 +263,9 @@ Rules:
   not below `lower` (`invalid_band`); a value outside its own band warns with
   `value_outside_band`.
 - A candle whose `low` lies above its open or close, or whose `high` lies below them, is
-  `invalid_candle`; more candles than a third of the plot's horizontal pixels are drawn as wicks
-  only and reported as `dense_chart`.
+  `invalid_candle`; more candles than a third of the plot's horizontal pixels are drawn as thin
+  filled bars over paler wicks, more than half of them as wicks only, both reported as
+  `dense_chart`.
 - A stacked pane needs area layers with the same times and `curve`, a value of zero or more at
   every time (`unaligned_stack`, `negative_in_stack`) and no `lower`/`upper`.
 - A pane takes up to twelve annotation layers — zones, reference lines and point markers together

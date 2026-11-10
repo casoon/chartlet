@@ -183,10 +183,14 @@ names the first open, the last close, the change between them in absolute terms 
 and the highest high and lowest low with their times.
 
 More candles than a third of the plot's horizontal pixels — 234 at the default width — leave
-less than three pixels per candle. The layer is then drawn as wicks only, from low to high, in the
-rise and fall colors, without bodies and tooltips, and the render reports `dense_chart`. A zoom
-step with fewer candles draws the bodies again. Candles closer than 4 pixels keep their bodies but, like the
-observations of a line, lose their tooltips.
+less than three pixels per candle, too little for a body with an outline. Each body is then a thin
+filled bar, one to two pixels wide with a pixel to the next, over its wick at half strength, in the
+rise and fall colors: open and close stay visible, but rising and falling candles differ by color
+only — the two differ in lightness as well as in hue — and the render reports `dense_chart`. More
+candles than half the plot's pixels — 352 at the default width — leave no room for a body at all;
+the layer is drawn as wicks only, from low to high, and `dense_chart` says so. A zoom step with
+fewer candles draws the full bodies again. Candles closer than 4 pixels keep their bodies but, like
+the observations of a line, lose their tooltips.
 
 A single candle is the subject of its chart rather than one of a row: it stands in the middle of
 the plot with a body 32 pixels wide, and the time axis has no ticks, since one time is no axis. With
@@ -447,7 +451,8 @@ chartlet reports that as a `dense_chart` warning.
 | Zones, reference lines and point markers per pane | 12 together |
 | Panes | 1–4 (`time`), 2–12 (`multiples`) |
 | `heightRatio` | 1–10 |
-| Candles with bodies | a third of the plot's horizontal pixels per layer |
+| Candles with outlined bodies | a third of the plot's horizontal pixels per layer |
+| Candles with thin filled bodies | half the plot's horizontal pixels per layer |
 | Observations with markers and value labels | 60 per layer |
 
 ## Value labels
