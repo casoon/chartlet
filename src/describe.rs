@@ -664,8 +664,8 @@ fn describe_rules(spec: &ChartSpec, zone: time::TimeZone, description: &mut Stri
     }
 }
 
-/// The sentences that name every zone with its extent and every point marker with its time and
-/// value.
+/// The sentences that name every zone with its extent, every point marker with its time and
+/// value, and every measure with its time, both values and their difference.
 fn describe_zones_and_markers(spec: &ChartSpec, zone: time::TimeZone, description: &mut String) {
     let words = spec.locale.words();
     let zones: Vec<String> = spec
@@ -702,6 +702,26 @@ fn describe_zones_and_markers(spec: &ChartSpec, zone: time::TimeZone, descriptio
         .collect();
     if !markers.is_empty() {
         write!(description, " {}: {}.", words.markers, markers.join("; "))
+            .expect("writing to String cannot fail");
+    }
+    let measures: Vec<String> = spec
+        .indexed_layers()
+        .filter(|entry| entry.layer.is_measure())
+        .filter_map(|entry| {
+            let label = entry.layer.label.as_deref()?;
+            let epoch = entry.layer.time.as_ref()?.resolve(zone).ok()?;
+            Some(format!(
+                "{label} {} {}: {}",
+                words.at,
+                time::Precision::of(std::iter::once(epoch), zone)
+                    .at_least(spec.time_precision(zone))
+                    .format(epoch, zone),
+                layout::measure_extent(spec, entry.layer, spec.pane_style(entry.pane))
+            ))
+        })
+        .collect();
+    if !measures.is_empty() {
+        write!(description, " {}: {}.", words.measures, measures.join("; "))
             .expect("writing to String cannot fail");
     }
 }

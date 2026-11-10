@@ -7,6 +7,16 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **Time charts:** an `annotation` with `time`, `bottom` and `top` draws a measure: a line between
+  the two values beside that time, with a stroke at either end and its label beside it, on two
+  lines where one does not fit. Measures at one time that do not overlap share a column, others
+  move outward on both sides. Tooltip and description give both values and their difference.
+- **Time charts:** an `ohlc` layer takes a single candle (`empty_series` only without any): it
+  stands in the middle of the plot with a body 32 pixels wide, and the time axis has no ticks.
+  Example `candle-anatomy`.
+
 ### Changed
 
 - **Time charts:** a pane takes up to twelve annotation layers (zones, reference lines and point

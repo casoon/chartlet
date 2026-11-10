@@ -252,7 +252,8 @@ fn one_candlestick_layer_does_not_count_against_the_data_layers_of_its_pane() {
                     r##", {{"mark": "line", "name": "L{index}", "color": "#2563eb", "points": [{{"time": "2026-03-02", "value": 9}}, {{"time": "2026-03-04", "value": 1{index}}}]}}"##
                 )
             })
-            .collect::<String>()
+            .collect::<Vec<_>>()
+            .concat()
     };
     // Candles with six lines over them, such as three bands and three averages.
     render_ok(&stacked(&candle_pane(&lines(6)), ""));
@@ -269,6 +270,189 @@ fn one_candlestick_layer_does_not_count_against_the_data_layers_of_its_pane() {
         render_err(&stacked(&candle_pane(&second), "")),
         ("too_many_layers", "/panes/0/layers".to_owned())
     );
+}
+
+/// One candle on a numeric axis, with `extra` layers after it and `tail` at the top level.
+fn lone_candle(extra: &str, tail: &str) -> String {
+    format!(
+        r#"{{
+                "schemaVersion": 1,
+                "type": "time",
+                "title": "One candle",
+                "timeAxis": {{"kind": "number"}}{tail},
+                "panes": [{{"valueAxis": {{"decimals": 2}}, "layers": [
+                    {{"mark": "ohlc", "name": "Candle", "data": [{{"time": 0, "open": 0.65, "high": 1, "low": 0, "close": 0.85}}]}}{extra}
+                ]}}]
+            }}"#
+    )
+}
+
+const MEASURES: &str = r#",
+    {"mark": "annotation", "time": 0, "bottom": 0.85, "top": 1, "label": "Upper wick"},
+    {"mark": "annotation", "time": 0, "bottom": 0.65, "top": 0.85, "label": "Body"},
+    {"mark": "annotation", "time": 0, "bottom": 0, "top": 0.65, "label": "Lower wick"},
+    {"mark": "annotation", "time": 0, "bottom": 0, "top": 1, "label": "Range"}"#;
+
+/// The first x of every measure line of a rendering, which is its left end stroke.
+fn measure_xs(svg: &str) -> Vec<f64> {
+    svg.split("<polyline points=\"")
+        .skip(1)
+        .filter(|rest| {
+            rest.split('>')
+                .next()
+                .is_some_and(|tag| tag.contains("class=\"chartlet-measure"))
+        })
+        .map(|rest| rest[..rest.find(',').unwrap()].parse().unwrap())
+        .collect()
+}
+
+#[test]
+fn a_single_candle_stands_in_the_middle_without_time_ticks() {
+    let output = render_ok(&lone_candle("", ""));
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    let svg = &output.content;
+    // The candle stands halfway between the plot's left edge and its right one, 24 pixels from
+    // the edge of the chart; its body is 32 wide.
+    let middle = wick_xs(svg)[0];
+    let left = middle - (776.0 - middle);
+    assert!(left > 28.0 && left < 72.0, "{left}");
+    assert!(
+        svg.contains(&format!("<rect x=\"{}\"", middle - 16.0)),
+        "{svg}"
+    );
+    assert!(svg.contains(" width=\"32\""));
+    // The only tick labels are those of the value axis, and no grid line stands upright.
+    let ticks: Vec<String> = placed_texts(svg, "chartlet-tick")
+        .into_iter()
+        .map(|(_, _, content)| content)
+        .collect();
+    assert_eq!(ticks, ["0.0", "0.5", "1.0", "1.5"]);
+    assert!(!svg.contains(&format!("<line x1=\"{middle}\" y1=\"102\"")));
+    assert!(svg.contains("<title>0 – Candle: open 0.65, high 1.00, low 0.00, close 0.85</title>"));
+    let html = html_ok(&lone_candle("", ""));
+    assert!(html.contains("<td>0.65</td><td>1.00</td><td>0.00</td><td>0.85</td>"));
+}
+
+#[test]
+fn measures_stand_beside_the_candle_and_are_described() {
+    let output = render_ok(&lone_candle(MEASURES, ""));
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    let svg = &output.content;
+    // The body and the two wicks touch without overlapping and share the column right of the
+    // candle; the range overlaps all three and stands on its left.
+    let middle = wick_xs(svg)[0];
+    let xs = measure_xs(svg);
+    assert_eq!(xs.len(), 4);
+    assert!(xs[0] > middle + 16.0);
+    assert!((xs[0] - xs[1]).abs() < 1e-9 && (xs[1] - xs[2]).abs() < 1e-9);
+    assert!(xs[3] < middle - 16.0);
+    let labels = placed_texts(svg, "chartlet-rule-label");
+    assert_eq!(labels.len(), 4);
+    assert!(labels[..3].iter().all(|(x, _, _)| *x > xs[0]));
+    assert!(labels[3].0 < xs[3]);
+    assert!(svg.contains(".chartlet-measure{fill:none;stroke:var(--chartlet-text)"));
+    assert!(svg.contains("<title>Body: 0.65 to 0.85, difference 0.20</title>"));
+    assert!(svg.contains(
+        "Measures: Upper wick at 0: 0.85 to 1.00, difference 0.15; Body at 0: 0.65 to 0.85, difference 0.20; Lower wick at 0: 0.00 to 0.65, difference 0.65; Range at 0: 0.00 to 1.00, difference 1.00."
+    ), "{svg}");
+    // A measure is neither a reference line nor a series.
+    assert!(!svg.contains("Reference lines"));
+    assert!(!svg.contains("class=\"chartlet-rule\""));
+    // In German.
+    let german = render_ok(&german(&lone_candle(MEASURES, ""), "time")).content;
+    assert!(german.contains("<title>Body: 0,65 bis 0,85, Differenz 0,20</title>"));
+    assert!(german.contains("Maße: Upper wick bei 0: 0,85 bis 1,00, Differenz 0,15;"));
+    // Charts without measures carry none of their styles.
+    assert!(
+        !render_ok(&lone_candle("", ""))
+            .content
+            .contains("chartlet-measure")
+    );
+}
+
+#[test]
+fn a_measure_widens_the_value_axis_and_breaks_a_long_label() {
+    let measure = r#", {"mark": "annotation", "time": 0, "bottom": 1, "top": 1.4, "label": "Two fifths above"}"#;
+    let wide = render_ok(&lone_candle(measure, "")).content;
+    assert!(wide.contains(">1.4<") || wide.contains(">1.5<"), "{wide}");
+    assert!(wide.contains(">Two fifths above</text>"));
+    // Where the label does not fit beside its line, it takes two lines instead of being cut.
+    let output = render_ok(&lone_candle(
+        measure,
+        r#", "width": 300, "showTitle": false"#,
+    ));
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    let labels = placed_texts(&output.content, "chartlet-rule-label");
+    assert_eq!(labels.len(), 2, "{labels:?}");
+    assert_eq!(
+        format!("{} {}", labels[0].2, labels[1].2),
+        "Two fifths above"
+    );
+    assert!((labels[1].1 - labels[0].1 - 14.0).abs() < 1e-9);
+}
+
+#[test]
+fn measures_are_validated_by_name() {
+    for (measure, code, path) in [
+        (
+            r#"{"mark": "annotation", "time": 0, "bottom": 0.2, "label": "M"}"#,
+            "missing_position",
+            "/panes/0/layers/1/top",
+        ),
+        (
+            r#"{"mark": "annotation", "time": 0, "top": 0.2, "label": "M"}"#,
+            "missing_position",
+            "/panes/0/layers/1/bottom",
+        ),
+        (
+            r#"{"mark": "annotation", "bottom": 0.2, "top": 0.4, "label": "M"}"#,
+            "missing_position",
+            "/panes/0/layers/1/time",
+        ),
+        (
+            r#"{"mark": "annotation", "time": 0, "bottom": 0.4, "top": 0.4, "label": "M"}"#,
+            "invalid_band",
+            "/panes/0/layers/1/top",
+        ),
+        (
+            r#"{"mark": "annotation", "time": 0, "value": 0.3, "bottom": 0.2, "top": 0.4, "label": "M"}"#,
+            "option_not_supported",
+            "/panes/0/layers/1/bottom",
+        ),
+        (
+            r#"{"mark": "annotation", "time": 0, "bottom": 0.2, "top": 0.4}"#,
+            "missing_label",
+            "/panes/0/layers/1/label",
+        ),
+        (
+            r#"{"mark": "annotation", "time": 0, "bottom": 0.2, "top": 0.4, "label": "M", "shape": "circle"}"#,
+            "option_not_supported",
+            "/panes/0/layers/1/shape",
+        ),
+    ] {
+        assert_eq!(
+            render_err(&lone_candle(&format!(", {measure}"), "")),
+            (code, path.to_owned()),
+            "{measure}"
+        );
+    }
+}
+
+#[test]
+fn several_measures_at_one_time_move_outward_on_both_sides() {
+    // Three measures that all overlap: right, left, then right again beyond the first label.
+    let measures = r#",
+        {"mark": "annotation", "time": 0, "bottom": 0, "top": 1, "label": "A"},
+        {"mark": "annotation", "time": 0, "bottom": 0.1, "top": 0.9, "label": "B"},
+        {"mark": "annotation", "time": 0, "bottom": 0.2, "top": 0.8, "label": "C"}"#;
+    let output = render_ok(&lone_candle(measures, ""));
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    let middle = wick_xs(&output.content)[0];
+    let xs = measure_xs(&output.content);
+    assert!(xs[1] < middle && middle < xs[0] && xs[0] < xs[2], "{xs:?}");
+    let labels = placed_texts(&output.content, "chartlet-rule-label");
+    // The label of the first measure lies between its line and the third.
+    assert!(xs[0] < labels[0].0 && labels[0].0 < xs[2], "{labels:?}");
 }
 
 #[test]
@@ -300,10 +484,7 @@ fn invalid_candles_are_refused_with_their_path() {
         )
     );
     assert_eq!(
-        refuse(
-            r#"[{"time": "2026-03-02", "open": 1, "high": 2, "low": 0, "close": 1}]"#,
-            ""
-        ),
+        refuse("[]", ""),
         ("empty_series", "/panes/0/layers/0/data".to_owned())
     );
     assert_eq!(

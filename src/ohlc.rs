@@ -19,6 +19,8 @@ use crate::{
 
 /// A body is never wider than this, however far apart the candles are.
 const MAX_BODY: f64 = 16.0;
+/// The body of a candle that stands alone: it is the subject of its chart, not one of a row.
+const LONE_BODY: f64 = 32.0;
 /// Share of the distance between two candles their bodies take; the rest is the gap.
 const BODY_SHARE: f64 = 0.7;
 /// Below this many pixels per candle the bodies cannot be told apart.
@@ -29,7 +31,7 @@ pub(crate) const fn dense_limit(width: u32) -> u32 {
     plot_pixels(width) / PIXELS_PER_CANDLE
 }
 
-/// An `ohlc` layer: no field of another mark, a name by the rules of every data layer, and two to
+/// An `ohlc` layer: no field of another mark, a name by the rules of every data layer, and one to
 /// 2000 candles whose low lies at or below open and close, whose high lies at or above them, and
 /// whose timestamps increase.
 pub(crate) fn validate(
@@ -105,11 +107,11 @@ pub(crate) fn validate(
         ));
     }
     validate_candles(layer, path, context.zone)?;
-    if layer.data.len() < 2 {
+    if layer.data.is_empty() {
         return Err(ChartError::new(
             "empty_series",
             format!("{path}/data"),
-            "a candlestick layer needs at least two candles",
+            "a candlestick layer needs at least one candle",
         ));
     }
     let limit = context.plot_pixels / usize::try_from(PIXELS_PER_CANDLE).expect("a small number");
@@ -189,11 +191,28 @@ fn median_distance(xs: &[f64]) -> Option<f64> {
 }
 
 /// The width of every body: a share of the median distance between neighbouring candles, at
-/// least one pixel and at most [`MAX_BODY`].
+/// least one pixel and at most [`MAX_BODY`]; a single candle takes [`LONE_BODY`].
 fn body_width(xs: &[f64]) -> f64 {
-    median_distance(xs).map_or(MAX_BODY, |median| {
+    median_distance(xs).map_or(LONE_BODY, |median| {
         (median * BODY_SHARE).clamp(1.0, MAX_BODY)
     })
+}
+
+/// Half the width of the bodies in `pane`, which a measure beside a candle keeps clear of; zero
+/// in a pane without candles.
+pub(crate) fn half_body(spec: &ChartSpec, pane: usize, frame: &TimeFrame) -> f64 {
+    spec.indexed_layers()
+        .filter(|entry| entry.pane == pane && entry.layer.mark == Mark::Ohlc)
+        .map(|entry| {
+            let xs: Vec<f64> = entry
+                .layer
+                .resolved_candles(frame.zone)
+                .iter()
+                .map(|(epoch, _)| frame.x(*epoch))
+                .collect();
+            body_width(&xs) / 2.0
+        })
+        .fold(0.0, f64::max)
 }
 
 /// Half the room one candle takes on the time axis of `pane`: half the median distance between
@@ -211,7 +230,8 @@ pub(crate) fn half_slot(spec: &ChartSpec, pane: usize, frame: &TimeFrame) -> Opt
         .iter()
         .map(|(epoch, _)| frame.x(*epoch))
         .collect();
-    median_distance(&xs).map(|median| median / 2.0)
+    // A single candle has no neighbour: its room is the one its body is the usual share of.
+    Some(median_distance(&xs).unwrap_or(LONE_BODY / BODY_SHARE) / 2.0)
 }
 
 /// Draws the candles of one layer: every wick, and while there is room for them, the bodies with
@@ -390,6 +410,7 @@ mod tests {
     fn bodies_take_a_share_of_the_median_distance_within_their_bounds() {
         assert!((body_width(&[0.0, 10.0, 20.0, 50.0]) - 7.0).abs() < 1e-9);
         assert!((body_width(&[0.0, 100.0]) - 16.0).abs() < 1e-9);
+        assert!((body_width(&[40.0]) - 32.0).abs() < 1e-9);
         assert!((body_width(&[0.0, 1.0, 2.0]) - 1.0).abs() < 1e-9);
     }
 }

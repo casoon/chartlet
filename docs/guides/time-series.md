@@ -176,7 +176,7 @@ high.
 
 Every candle needs `low` at or below its open and close and `high` at or above them
 (`invalid_candle` with the path of the field), finite numbers, and a later `time` than the candle
-before it (`unordered_time`); a layer takes 2 to 2000 candles. The legend draws a hollow and a
+before it (`unordered_time`); a layer takes 1 to 2000 candles. The legend draws a hollow and a
 filled candle and says “hollow: rising, filled: falling”. Each body has a tooltip with open,
 high, low and close; the data table has one column for each of the four, and the description
 names the first open, the last close, the change between them in absolute terms and in percent,
@@ -187,6 +187,10 @@ less than three pixels per candle. The layer is then drawn as wicks only, from l
 rise and fall colors, without bodies and tooltips, and the render reports `dense_chart`. A zoom
 step with fewer candles draws the bodies again. Candles closer than 4 pixels keep their bodies but, like the
 observations of a line, lose their tooltips.
+
+A single candle is the subject of its chart rather than one of a row: it stands in the middle of
+the plot with a body 32 pixels wide, and the time axis has no ticks, since one time is no axis. With
+[measures](#measures) beside it, that is the picture of what a candle is made of.
 
 A candlestick pane may carry line layers such as a moving average, which are drawn over the
 candles, as well as zones, reference lines and point markers. Candles are drawn on `time` charts
@@ -298,12 +302,32 @@ another label, a data line or a marker, it tries the left, then above and below.
 native tooltip with label, time and value, widens both axes, and is listed under “Markers” in the
 description.
 
+## Measures
+
+An `"annotation"` with `time`, `bottom` and `top` draws a measure: a solid line from one value to
+the other, with a short stroke at either end and its label beside it — the body of a candle, the
+distance between two lines on one day.
+
+```json
+{ "mark": "annotation", "time": "2026-03-12", "bottom": 44.7, "top": 45.0, "label": "Body: 0.30" }
+```
+
+A measure stands beside the time it measures, clear of a candle's body: the first to the right,
+one that would overlap it to the left, further ones alternately further out on either side; in the
+right part of the plot the left side comes first. Measures at one time that do not overlap share a
+column, as the body of a candle and its two wicks do. The label takes the room its side of the plot
+has left: one line where it fits, two lines broken at a space where it does not, and shortened only
+when neither fits (`text_truncated`). Both values widen the value axis. The tooltip and the
+description, under “Measures”, give both values and their difference. `bottom` and `top` are both
+required (`missing_position`) and in that order (`invalid_band`); a measure takes no `value` and no
+`shape` (`option_not_supported`), and a stream has no place for one.
+
 ## Label collisions
 
 chartlet measures every annotation label with the same text metrics as the rest of the layout.
-When the label of a zone, reference line or point marker overlaps another annotation label, when
-the label of a zone or reference line crosses a data line, or when a label reaches outside the
-plot, the render reports a `label_overlap` warning with the path of the annotation layer. The
+When the label of a zone, reference line, measure or point marker overlaps another annotation
+label, when the label of a zone, reference line or measure crosses a data line, or when a label
+reaches outside the plot, the render reports a `label_overlap` warning with the path of the annotation layer. The
 label is never dropped; move the annotation or shorten its label.
 
 A pane takes up to twelve annotation layers. The count only bounds the drawing: six wave labels of

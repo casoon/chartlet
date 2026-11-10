@@ -4,7 +4,7 @@
 use std::{collections::BTreeMap, fmt::Write};
 
 use super::editorial;
-use crate::spec::{ChartSpec, ChartType, Dash, Look, Mark, RangeDisplay, Stroke, Theme};
+use crate::spec::{ChartSpec, ChartType, Dash, LayerSpec, Look, Mark, RangeDisplay, Stroke, Theme};
 
 /// The light palette. Every color is a CSS custom property so a host page can override a single
 /// color, and so the dark palette below only has to restate the values.
@@ -50,6 +50,10 @@ const MEDIUM_LINE_STYLE: &str = ".chartlet-line-medium{stroke-width:2}.chartlet-
 /// Zones and point markers of time charts. Only included when a chart uses one of them, for the
 /// same reason as [`LAYER_EXTRA_STYLE`]. A marker is ringed in the background color so that it
 /// stands apart from the line it sits on.
+/// A measure: a solid line between two values with a stroke at either end. Only included when a
+/// time chart draws one, for the same reason as [`LAYER_EXTRA_STYLE`].
+const MEASURE_STYLE: &str =
+    ".chartlet-measure{fill:none;stroke:var(--chartlet-text);stroke-width:1.5}";
 const ANNOTATION_EXTRA_STYLE: &str = ".chartlet-zone{fill:var(--chartlet-zero);fill-opacity:.14;stroke:none}.chartlet-marker{fill:var(--chartlet-text);stroke:var(--chartlet-background);stroke-width:1.5;stroke-linejoin:round}";
 
 /// Candlesticks. A rising candle is hollow and a falling one filled, so the direction does not
@@ -308,6 +312,10 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
             is_time && needs_annotation_extras(spec),
             ANNOTATION_EXTRA_STYLE,
         ),
+        when(
+            is_time && spec.layers().any(LayerSpec::is_measure),
+            MEASURE_STYLE,
+        ),
         when(is_multiples, MULTIPLES_STYLE),
         when(
             is_multiples && spec.panes.iter().any(|pane| pane.note.is_some()),
@@ -415,6 +423,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (MARK_EXTRA_STYLE, &[Line, Time, Multiples]),
         (MEDIUM_LINE_STYLE, &[Time, Multiples]),
         (ANNOTATION_EXTRA_STYLE, &[Time, Multiples]),
+        (MEASURE_STYLE, &[Time, Multiples]),
         (MULTIPLES_STYLE, &[Multiples]),
         (PANEL_NOTE_STYLE, &[Multiples]),
         (crate::diverging::STYLE, &[Stripes, Calendar]),

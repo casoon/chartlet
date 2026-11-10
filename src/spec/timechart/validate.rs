@@ -267,7 +267,7 @@ fn validate_stream(pane: &PaneSpec, path: &str) -> Result<(), ChartError> {
     for (index, layer) in pane.layers.iter().enumerate() {
         let allowed = match layer.mark {
             Mark::Area => true,
-            Mark::Annotation => layer.value.is_none(),
+            Mark::Annotation => layer.value.is_none() && !layer.is_measure(),
             Mark::Line | Mark::Point | Mark::Ohlc | Mark::Band => false,
         };
         if !allowed {
@@ -353,8 +353,58 @@ pub(super) fn validate_pane_layers(
     Ok(())
 }
 
-/// An annotation: a horizontal reference line at a `value`, a vertical one at a `time`, or a
-/// point marker at both, always with a label. Only a point marker takes a `shape`.
+/// A measure: an annotation at a `time` that spans from `bottom` to `top`, both given and in
+/// that order, and no `value` of its own.
+fn validate_measure(layer: &LayerSpec, path: &str) -> Result<(), ChartError> {
+    if !layer.is_measure() {
+        return Ok(());
+    }
+    let given = if layer.bottom.is_some() {
+        "bottom"
+    } else {
+        "top"
+    };
+    if layer.value.is_some() {
+        return Err(ChartError::new(
+            "option_not_supported",
+            format!("{path}/{given}"),
+            "a measure spans from bottom to top at a time and takes no value; a point marker sits at one value",
+        ));
+    }
+    if layer.time.is_none() {
+        return Err(ChartError::new(
+            "missing_position",
+            format!("{path}/time"),
+            "a measure stands at a time; for a range of values across the plot use a band layer",
+        ));
+    }
+    let (Some(bottom), Some(top)) = (layer.bottom, layer.top) else {
+        let missing = if layer.bottom.is_some() {
+            "top"
+        } else {
+            "bottom"
+        };
+        return Err(ChartError::new(
+            "missing_position",
+            format!("{path}/{missing}"),
+            "a measure needs both bottom and top, the two values it spans",
+        ));
+    };
+    validate_number(bottom, &format!("{path}/bottom"))?;
+    validate_number(top, &format!("{path}/top"))?;
+    if bottom >= top {
+        return Err(ChartError::new(
+            "invalid_band",
+            format!("{path}/top"),
+            "top must lie above bottom",
+        ));
+    }
+    Ok(())
+}
+
+/// An annotation: a horizontal reference line at a `value`, a vertical one at a `time`, a point
+/// marker at both, or a measure from `bottom` to `top` at a `time`, always with a label. Only a
+/// point marker takes a `shape`.
 fn validate_annotation(
     layer: &LayerSpec,
     path: &str,
@@ -371,8 +421,6 @@ fn validate_annotation(
         ("data", !layer.data.is_empty(), "belongs to an ohlc layer"),
         ("from", layer.from.is_some(), "belongs to a band layer"),
         ("to", layer.to.is_some(), "belongs to a band layer"),
-        ("top", layer.top.is_some(), "belongs to a band layer"),
-        ("bottom", layer.bottom.is_some(), "belongs to a band layer"),
         ("modeled", layer.modeled, "belongs to a line layer"),
         (
             "stroke",
@@ -404,11 +452,12 @@ fn validate_annotation(
             ));
         }
     }
+    validate_measure(layer, path)?;
     if layer.time.is_none() && layer.value.is_none() {
         return Err(ChartError::new(
             "missing_position",
             path,
-            "give time for a vertical reference line, value for a horizontal one, or both for a point marker",
+            "give time for a vertical reference line, value for a horizontal one, both for a point marker, or time with bottom and top for a measure",
         ));
     }
     if let Some(time) = &layer.time {
@@ -424,6 +473,8 @@ fn validate_annotation(
             format!("{path}/label"),
             if layer.is_marker() {
                 "a point marker needs a label that says what it marks"
+            } else if layer.is_measure() {
+                "a measure needs a label that says what it measures"
             } else {
                 "a reference line needs a label that says what it marks"
             },

@@ -45,6 +45,14 @@ pub(crate) fn zone_values(
     }
 }
 
+/// What a measure spans: both values and the difference between them.
+pub(crate) fn measure(locale: Locale, bottom: &str, top: &str, difference: &str) -> String {
+    match locale {
+        Locale::En => format!("{bottom} to {top}, difference {difference}"),
+        Locale::De => format!("{bottom} bis {top}, Differenz {difference}"),
+    }
+}
+
 /// The opening sentence of a time chart.
 pub(crate) fn time_opening(
     locale: Locale,
