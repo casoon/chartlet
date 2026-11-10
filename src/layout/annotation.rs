@@ -1,7 +1,7 @@
 use super::{
     LABEL_SIZE,
     axis::format_value,
-    fit_text,
+    count, fit_text,
     labels::{Collision, LabelBox, LabelSpace, boxes_overlap, label_box, warn_label_overlap},
     timechart::TimeFrame,
 };
@@ -73,8 +73,10 @@ pub(crate) fn marker_position(
 
 /// A zone: a shaded rectangle behind the data between its edges, each missing edge taken from
 /// the plot. In a chart with candles its time edges lie at the outer edges of the candles' room
-/// instead of their middles, so `from` equal to `to` marks a single candle. Its label sits inside the zone's top left corner when the zone is tall enough, and
-/// just outside its upper or lower edge when it is not.
+/// instead of their middles, so `from` equal to `to` marks a single candle. Its label sits inside
+/// the zone's top left corner when the zone is tall enough; where another label or a data line
+/// is in the way there, at its bottom, or a line further in from either. A zone too low for a
+/// line of text takes its label just outside its upper or lower edge.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn push_zone(
     spec: &ChartSpec,
@@ -138,22 +140,38 @@ pub(super) fn push_zone(
     } else {
         (left + 4.0, TextAnchor::Start)
     };
-    let y = if bottom - top >= 20.0 {
-        top + 14.0
-    } else if top - 17.0 >= plot.top {
-        top - 5.0
-    } else {
-        bottom + 13.0
-    };
-    let text = Text {
+    let at = |y: f64| Text {
         x,
         y,
         class: "chartlet-rule-label",
         anchor,
-        content,
+        content: content.clone(),
     };
-    space.place(&text, entry, true, metrics, warnings);
-    labels.push(Element::Text(text));
+    // A zone too low for a line of text takes its label just above it, or below.
+    let candidates = if bottom - top < 20.0 {
+        let (above, below) = (at(top - 5.0), at(bottom + 13.0));
+        if top - 17.0 >= plot.top {
+            vec![above, below]
+        } else {
+            vec![below]
+        }
+    } else {
+        // Inside the zone: at its top, then at its bottom, then a line further in from either.
+        let rows = label_rows(bottom - top - 8.0).min(count(STAGGER_ROWS));
+        (0..STAGGER_ROWS)
+            .map(count)
+            .take_while(|row| *row < rows.max(1.0))
+            .flat_map(|row| [at(top + 14.0 + row * LINE), at(bottom - 6.0 - row * LINE)])
+            .collect()
+    };
+    labels.push(Element::Text(
+        space.settle(candidates, entry, metrics, warnings),
+    ));
+}
+
+/// How many lines of label text fit into `height` pixels.
+fn label_rows(height: f64) -> f64 {
+    (height / LINE).floor()
 }
 
 /// The symbol of a point marker, in its declared shape. Shape and label carry its meaning, so a
@@ -292,8 +310,17 @@ pub(super) fn push_marker_label(
 }
 
 /// A reference line across the plot: horizontal at a value, vertical at a time. Its label is
-/// collected separately and drawn after the data; it stays where it is, and a collision with the
-/// plot's edges, another label or a data line is reported.
+/// collected separately and drawn after the data. It takes the first place that is clear of the
+/// plot's edges, the labels before it and the data lines; a collision that no place avoids is
+/// reported.
+///
+/// A vertical line writes its label beside its top end, on the right, or on the left in the right
+/// part of the plot. Labels that would overlap step down line by line, so that neighbouring
+/// lines read as a staircase, each label beside its own line; a label that finds no line of
+/// text free there tries the other side of its line.
+///
+/// A horizontal line writes its label above its left end; then right of the labels in its way,
+/// above its right end, and below the line at either end.
 pub(super) fn push_rule(
     entry: LayerRef,
     frame: &TimeFrame,
@@ -311,24 +338,39 @@ pub(super) fn push_rule(
     let path = format!("/panes/{}/layers/{}/label", entry.pane, entry.local);
     let plot = frame.plot;
     let bottom = plot.top + plot.height;
-    let (points, text, tooltip) = if let Some(value) = layer.value {
+    let text = |x: f64, y: f64, anchor: TextAnchor, content: &str| Text {
+        x,
+        y,
+        class: "chartlet-rule-label",
+        anchor,
+        content: content.to_owned(),
+    };
+    let (points, candidates, tooltip) = if let Some(value) = layer.value {
         let y = frame.y(value);
+        let content = fit_text(
+            label,
+            plot.width / 2.0,
+            LABEL_SIZE,
+            metrics,
+            warnings,
+            &path,
+        );
+        let (start, end) = (plot.left + 4.0, plot.left + plot.width - 4.0);
+        let mut candidates = vec![text(start, y - 6.0, TextAnchor::Start, &content)];
+        // Right of whatever label is in the way, as long as there is one and room for it.
+        for _ in 0..STAGGER_ROWS {
+            let last = candidates.last().expect("there is a first candidate");
+            let Some(taken) = space.right_of_labels(label_box(last, metrics)) else {
+                break;
+            };
+            candidates.push(text(taken + 8.0, y - 6.0, TextAnchor::Start, &content));
+        }
+        candidates.push(text(end, y - 6.0, TextAnchor::End, &content));
+        candidates.push(text(start, y + LINE, TextAnchor::Start, &content));
+        candidates.push(text(end, y + LINE, TextAnchor::End, &content));
         (
             vec![(plot.left, y), (plot.left + plot.width, y)],
-            Text {
-                x: plot.left + 4.0,
-                y: y - 6.0,
-                class: "chartlet-rule-label",
-                anchor: TextAnchor::Start,
-                content: fit_text(
-                    label,
-                    plot.width / 2.0,
-                    LABEL_SIZE,
-                    metrics,
-                    warnings,
-                    &path,
-                ),
-            },
+            candidates,
             format!("{label}: {}", format_value(value, frame.style)),
         )
     } else {
@@ -338,30 +380,41 @@ pub(super) fn push_rule(
             .and_then(|time| time.resolve(frame.zone).ok())
             .expect("validated annotations carry a value or a time");
         let x = frame.x(epoch);
+        let content = fit_text(
+            label,
+            plot.width * 0.4,
+            LABEL_SIZE,
+            metrics,
+            warnings,
+            &path,
+        );
+        let width = metrics.width(&content, LABEL_SIZE);
         // A line in the right part of the plot takes its label on its left, so the label stays
-        // inside the chart.
-        let (label_x, anchor) = if x > plot.left + plot.width * 0.7 {
-            (x - 4.0, TextAnchor::End)
+        // inside the chart; so does one whose label would leave the plot on the right.
+        let left = x > plot.left + plot.width * 0.7 || x + 4.0 + width > plot.left + plot.width;
+        let sides = if left && x - 4.0 - width >= plot.left {
+            [(x - 4.0, TextAnchor::End), (x + 4.0, TextAnchor::Start)]
         } else {
-            (x + 4.0, TextAnchor::Start)
+            [(x + 4.0, TextAnchor::Start), (x - 4.0, TextAnchor::End)]
         };
+        // Down to the middle of the plot at most: further down a label no longer reads as the
+        // head of its line. The other side of the line comes only after every line of text on
+        // the first: side by side, two labels between two close lines could not be told apart.
+        let rows = label_rows(plot.height / 2.0).clamp(1.0, count(STAGGER_ROWS));
+        let candidates = sides
+            .into_iter()
+            .flat_map(|(label_x, anchor)| {
+                let content = &content;
+                (0..STAGGER_ROWS)
+                    .map(count)
+                    .take_while(move |row| *row < rows)
+                    .map(move |row| text(label_x, plot.top + 12.0 + row * LINE, anchor, content))
+            })
+            .collect();
         let precision = Precision::of(std::iter::once(epoch), frame.zone).at_least(frame.precision);
         (
             vec![(x, plot.top), (x, bottom)],
-            Text {
-                x: label_x,
-                y: plot.top + 12.0,
-                class: "chartlet-rule-label",
-                anchor,
-                content: fit_text(
-                    label,
-                    plot.width * 0.4,
-                    LABEL_SIZE,
-                    metrics,
-                    warnings,
-                    &path,
-                ),
-            },
+            candidates,
             format!("{label}: {}", precision.format(epoch, frame.zone)),
         )
     };
@@ -372,8 +425,9 @@ pub(super) fn push_rule(
         style_index: layer.resolved_color().is_some().then_some(entry.global),
         tooltip: Some(tooltip),
     }));
-    space.place(&text, entry, true, metrics, warnings);
-    labels.push(Element::Text(text));
+    labels.push(Element::Text(
+        space.settle(candidates, entry, metrics, warnings),
+    ));
 }
 
 /// What a measure spans, for its tooltip and the description: both values and their difference.
@@ -394,8 +448,11 @@ pub(crate) fn measure_extent(spec: &ChartSpec, layer: &LayerSpec, style: NumberS
 const MEASURE_END: f64 = 4.0;
 /// Space between a measure and what it stands beside: the candle, its own label, the next column.
 const MEASURE_GAP: f64 = 8.0;
-/// The distance between the two lines of a label that is broken.
+/// The distance between two lines of label text: those of a label that is broken, and those of
+/// labels that step out of each other's way.
 const LINE: f64 = 14.0;
+/// How many lines a label steps away from its first place before it gives up.
+const STAGGER_ROWS: usize = 4;
 
 /// One measure as it is placed: its layer, the time and position it measures at, the pixels it
 /// spans, the column it stands in and, once its column is laid out, the width of its label.
@@ -631,7 +688,7 @@ fn measure_label(
         .enumerate()
         .map(|(line, content)| Text {
             x,
-            y: baseline - shift + LINE * super::count(line),
+            y: baseline - shift + LINE * count(line),
             class: "chartlet-rule-label",
             anchor: if right {
                 TextAnchor::Start

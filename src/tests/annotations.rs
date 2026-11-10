@@ -284,22 +284,95 @@ fn a_marker_label_moves_to_the_left_at_the_right_edge() {
     );
 }
 
+/// The labels of a rendering's annotations as position and content, in document order.
+fn rule_labels(svg: &str) -> Vec<(f64, f64, String)> {
+    placed_texts(svg, "chartlet-rule-label")
+}
+
+/// A line that zigzags between 0 and 20 so tightly that no label near the middle escapes it.
+fn zigzag() -> String {
+    let points = (0..60)
+        .map(|index| {
+            format!(
+                r#"{{"time": {}, "value": {}}}"#,
+                1_772_323_200 + index * 86_400,
+                (index % 2) * 20
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        r#"{{"schemaVersion": 1, "type": "time", "title": "Zigzag", "showValues": false,
+            "panes": [{{"layers": [
+                {{"mark": "annotation", "value": 10, "label": "Limit"}},
+                {{"mark": "line", "name": "Zigzag", "markers": false, "points": [{points}]}}
+            ]}}]}}"#
+    )
+}
+
 #[test]
-fn overlapping_annotation_labels_are_reported_not_dropped() {
+fn labels_of_reference_lines_at_one_value_stand_side_by_side() {
     let spec = with_rules(
         r#"{"mark": "annotation", "value": 12, "label": "First"},
                {"mark": "annotation", "value": 12, "label": "Second"}"#,
     );
     let output = render_ok(&spec);
-    assert!(output.content.contains(">First</text>"));
-    assert!(output.content.contains(">Second</text>"));
-    assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
-    assert_eq!(output.warnings[0].code, "label_overlap");
-    assert_eq!(output.warnings[0].path, "/panes/0/layers/1");
+    assert_eq!(output.warnings, []);
+    let labels = rule_labels(&output.content);
+    assert_eq!(labels[0].2, "First");
+    assert_eq!(labels[1].2, "Second");
+    // On the same line of text, the second after the first.
+    assert!((labels[0].1 - labels[1].1).abs() < 1e-9, "{labels:?}");
+    assert!(labels[1].0 > labels[0].0 + 30.0, "{labels:?}");
 }
 
 #[test]
-fn a_reference_line_label_across_a_data_line_is_reported() {
+fn labels_of_neighbouring_vertical_lines_step_down_like_a_staircase() {
+    let days = ["03-01", "03-01T01:00", "03-01T02:00", "03-01T03:00"];
+    let rules = days
+        .iter()
+        .enumerate()
+        .map(|(index, day)| {
+            format!(r#"{{"mark": "annotation", "time": "2026-{day}", "label": "Phase {index}"}}"#)
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let output = render_ok(&with_rules(&rules));
+    assert_eq!(output.warnings, []);
+    let labels = rule_labels(&output.content);
+    // Each label right of its own line, a line of text below the one before it.
+    for pair in labels.windows(2) {
+        assert!(pair[1].0 > pair[0].0, "{labels:?}");
+        assert!((pair[1].1 - pair[0].1 - 14.0).abs() < 1e-9, "{labels:?}");
+    }
+}
+
+#[test]
+fn labels_without_a_free_place_are_reported_not_dropped() {
+    // Four lines of text on either side of the line; the ninth label finds none free.
+    let rules = (0..9)
+        .map(|index| {
+            format!(r#"{{"mark": "annotation", "time": "2026-03-02", "label": "Event {index}"}}"#)
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let output = render_ok(&with_rules(&rules));
+    assert_eq!(rule_labels(&output.content).len(), 9);
+    let paths: Vec<&str> = output
+        .warnings
+        .iter()
+        .map(|warning| {
+            assert_eq!(warning.code, "label_overlap");
+            warning.path.as_str()
+        })
+        .collect();
+    assert_eq!(paths, ["/panes/0/layers/8"]);
+}
+
+#[test]
+fn a_reference_line_label_moves_off_a_data_line() {
+    // The line runs along the rule on the left and falls away on the right: the label takes
+    // the right end.
     let spec = TIME
         .replace("\"value\": 10}", "\"value\": 10.4}")
         .replace("\"value\": 15}", "\"value\": 10.4}")
@@ -309,16 +382,33 @@ fn a_reference_line_label_across_a_data_line_is_reported() {
             r#""layers": [{"mark": "annotation", "value": 10, "label": "Limit"},"#,
         );
     let output = render_ok(&spec);
+    assert_eq!(output.warnings, []);
+    assert!(
+        output
+            .content
+            .contains("text-anchor=\"end\" class=\"chartlet-rule-label\">Limit</text>")
+    );
+}
+
+#[test]
+fn a_reference_line_label_across_a_data_line_is_reported() {
+    let output = render_ok(&zigzag());
     assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
     assert_eq!(output.warnings[0].code, "label_overlap");
     assert_eq!(output.warnings[0].path, "/panes/0/layers/0");
     assert!(output.warnings[0].message.contains("data line"));
+    // It stays where a label of a horizontal line stands first: above its left end.
+    assert!(
+        output
+            .content
+            .contains("text-anchor=\"start\" class=\"chartlet-rule-label\">Limit</text>")
+    );
 }
 
 #[test]
-fn a_label_outside_the_plot_is_reported() {
+fn a_label_that_would_leave_the_plot_goes_below_its_line() {
     // An area starts the axis at zero without padding, so 20 is the top edge of the plot and
-    // the label of a reference line there sits above it.
+    // a label above a reference line there would sit outside it.
     let spec = TIME
         .replace("\"mark\": \"line\"", "\"mark\": \"area\"")
         .replace(
@@ -326,15 +416,47 @@ fn a_label_outside_the_plot_is_reported() {
             r#""layers": [{"mark": "annotation", "value": 20, "label": "Ceiling"},"#,
         );
     let output = render_ok(&spec);
-    assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
-    assert_eq!(output.warnings[0].code, "label_overlap");
-    assert_eq!(output.warnings[0].path, "/panes/0/layers/0");
-    assert!(output.warnings[0].message.contains("outside"));
+    assert_eq!(output.warnings, []);
+    let svg = &output.content;
+    let line = svg
+        .split("class=\"chartlet-rule\"")
+        .next()
+        .and_then(|head| head.rsplit("<polyline points=\"").next())
+        .and_then(|points| points.split([',', ' ']).nth(1))
+        .and_then(|y| y.parse::<f64>().ok())
+        .expect("the reference line");
+    assert!(
+        (rule_labels(svg)[0].1 - (line + 14.0)).abs() < 1e-9,
+        "{svg}"
+    );
+}
+
+#[test]
+fn a_zone_label_moves_to_the_bottom_where_the_data_crosses_its_top() {
+    // The line starts just below the top of the plot, where the label of the zone would stand.
+    let spec = TIME
+        .replace("\"value\": 10}", "\"value\": 19.5}")
+        .replace("\"value\": 15}", "\"value\": 19.5}")
+        .replace(
+            r#"{"title": "Orders"}"#,
+            r#"{"title": "Orders", "min": 0, "max": 20, "exact": true}"#,
+        )
+        .replace(
+            "\"layers\": [",
+            r#""layers": [{"mark": "band", "label": "First day", "from": "2026-03-01", "to": "2026-03-02"},"#,
+        );
+    let output = render_ok(&spec);
+    assert_eq!(output.warnings, []);
+    let label = &rule_labels(&output.content)[0];
+    assert_eq!(label.2, "First day");
+    // The plot of this chart ends at 394; the label stands 6 pixels above its bottom edge.
+    assert!(label.1 > 300.0, "{label:?}");
 }
 
 #[test]
 fn label_collisions_are_measured_with_the_injected_metrics() {
-    // Wide metrics stretch the label of the horizontal line into that of the vertical one.
+    // Wide metrics stretch the label of the horizontal line into the place of the vertical
+    // one's, which steps down a line.
     struct Wide;
     impl TextMetrics for Wide {
         fn width(&self, text: &str, font_size: f64) -> f64 {
@@ -350,13 +472,15 @@ fn label_collisions_are_measured_with_the_injected_metrics() {
     assert!(narrow.warnings.is_empty(), "{:?}", narrow.warnings);
     let wide =
         render_with_metrics(&spec, RenderFormat::Svg, &RenderOptions::default(), &Wide).unwrap();
-    assert!(
-        wide.warnings
-            .iter()
-            .any(|warning| warning.code == "label_overlap"),
-        "{:?}",
-        wide.warnings
-    );
+    assert!(wide.warnings.is_empty(), "{:?}", wide.warnings);
+    let deploy = |svg: &str| {
+        rule_labels(svg)
+            .into_iter()
+            .find(|(_, _, content)| content == "Deploy")
+            .map(|(_, y, _)| y)
+            .expect("the label of the vertical line")
+    };
+    assert!((deploy(&wide.content) - deploy(&narrow.content) - 14.0).abs() < 1e-9);
 }
 
 #[test]

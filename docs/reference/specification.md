@@ -275,8 +275,9 @@ Rules:
   `from` at or after `to`, is `invalid_band` (among candles `from` may equal `to`); a zone, reference line or point marker without
   `label` is `missing_label`. A field that belongs to another mark — `name`, `points`, `value` or
   `shape` on a zone, `shape` on a reference line — is `option_not_supported` with its path. A
-  label that overlaps another annotation label, crosses a data line, or leaves the plot is
-  reported as a `label_overlap` warning.
+  label that would overlap another annotation label, cross a data line, or leave the plot takes
+  another place where one is free; where none is, it stays and is reported as a `label_overlap`
+  warning.
 - With `"gaps": "collapse"`, a reference line or point marker outside the observed range and a
   zone that encloses no observation are `time_out_of_range`.
 - `timeAxis`: `max` at or before `min` is `invalid_axis_range`; a `step` that is no whole number of

@@ -276,7 +276,8 @@ window, and `bottom` and `top` alone a range across the whole time axis, such as
 
 A zone is filled at low opacity in its `color`, or in the neutral gray, and drawn before every
 line, so the data stays on top. Its `label` is required and sits in the zone's top left corner when
-the zone is tall enough, otherwise just above or below it. Given edges widen the axes. A zone has
+the zone is tall enough, otherwise just above or below it; see [Label collisions](#label-collisions)
+for where it goes when that place is taken. Given edges widen the axes. A zone has
 no legend entry and no table column; the description lists it under “Zones” with its extent, and
 its tooltip says the same.
 
@@ -328,11 +329,26 @@ required (`missing_position`) and in that order (`invalid_band`); a measure take
 
 ## Label collisions
 
-chartlet measures every annotation label with the same text metrics as the rest of the layout.
-When the label of a zone, reference line, measure or point marker overlaps another annotation
-label, when the label of a zone, reference line or measure crosses a data line, or when a label
-reaches outside the plot, the render reports a `label_overlap` warning with the path of the annotation layer. The
-label is never dropped; move the annotation or shorten its label.
+chartlet measures every annotation label with the same text metrics as the rest of the layout and
+gives it the first place that is clear of the plot's edges, of the labels placed before it — in
+the order of the layers, zones first — and of the data lines:
+
+- A **vertical reference line** writes its label beside its top end: on the right, or on the left
+  in the right part of the plot. A label that would overlap steps down a line of text at a time, up
+  to four and no further than the middle of the pane, so the labels of neighbouring lines form a
+  staircase, each beside its own line. A label that finds no line free there tries the other side
+  of its line.
+- A **horizontal reference line** writes its label above its left end; then right of the label in
+  its way, above its right end, and below the line at either end.
+- A **zone** writes its label inside its top corner, then inside its bottom corner, then a line
+  further in from either; a zone too low for a line of text, just above it or below.
+- A **point marker** tries the right of its symbol, then the left, above and below.
+
+Two labels on one line of text keep six pixels between them where there is a choice. When no place
+is free — the label overlaps another one, crosses a data line or reaches outside the plot wherever
+it goes — it takes the first place where it at least stays inside the plot and off the other
+labels, or else its first place, and the render reports a `label_overlap` warning with the path of
+the annotation layer. The label is never dropped; move the annotation or shorten its label.
 
 A pane takes up to twelve annotation layers. The count only bounds the drawing: six wave labels of
 one character and three levels read well in one pane, three long labels side by side may not, and

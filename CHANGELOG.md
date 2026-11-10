@@ -23,6 +23,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   markers together) instead of six, so that six marked points and a few levels fit one pane;
   `too_many_annotations` starts at the thirteenth. Whether the labels stay readable is measured
   as before and reported as `label_overlap`. Example `wave-count`.
+- **Time charts:** the labels of reference lines and zones move out of each other's way and off
+  the data instead of only reporting the collision. Beside neighbouring vertical lines they step
+  down line by line, then try the other side; along a horizontal line they stand beside the label
+  in their way, at the right end or below; a zone's label goes to its bottom. `label_overlap` is
+  reported when no place is free. Example `stepped-labels`; in `emission-pathways` one label now
+  stands below its line.
 - **Time charts:** candles with two to three pixels each keep a body: a thin filled bar over its
   wick at half strength, where they were drawn as wicks only. Rising and falling candles then
   differ by color only, and `dense_chart` says so; wicks alone start below two pixels per candle.

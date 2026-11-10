@@ -56,8 +56,9 @@ remedies. Advice is off by default, and a response that did not ask for it is un
 
 - **Which warnings:** `canvas_too_small` (raise `width` or `height` to what the render asked for) and
   `text_truncated` (widen the canvas to the first of 1.25, 1.5 and 2 times the width, up to 2400,
-  at which the text fits). `label_overlap` and `dense_chart` come with guidance only, because
-  chartlet cannot move labels or thin data without changing what they say. Other warnings have no
+  at which the text fits). `label_overlap` and `dense_chart` come with guidance only: a
+  label that is reported has already tried every place it may take, and chartlet cannot thin data
+  without changing what it says. Other warnings have no
   help.
 - **Checked, not guessed:** a `patch` is only offered after the compiler rendered the patched
   specification. `validated` says that happened; `resolves` says the render no longer had the
@@ -96,7 +97,7 @@ Warnings are written to standard error, and the chart is still produced:
 | `package_orientation_ignored` | A class diagram package with an `orientation` of its own cannot be laid out as a block: a relation from outside would have to cross another class, relation or label of the package to reach its class, in every orientation the diagram may take. The package follows the diagram's orientation. |
 | `port_side_ignored` | A `fromSide` or `toSide` of a flow chart edge or an architecture connection lies along the flow but against the edge, such as `start` on an edge that leads on to a later step, and would turn it back over its own step; the edge meets the step where the flow leads instead. |
 | `unreachable_state` | A state diagram names an `initial` state, and no transition leads to this state. |
-| `label_overlap` | The label of a zone, reference line or point marker overlaps the label of another annotation, the label of a zone or reference line crosses a data line, or a label reaches outside the plot. The path names the annotation layer; the label is still drawn. A point marker first tries its other sides before this is reported. On a scatter plot: every corner of a quadrant holds points or their names, so the quadrant's name is drawn over them. |
+| `label_overlap` | The label of a zone, reference line, measure or point marker overlaps the label of another annotation, the label of a zone, reference line or measure crosses a data line, or a label reaches outside the plot. The path names the annotation layer; the label is still drawn. Every label first tries its other places before this is reported: a point marker its other sides, a vertical reference line the lines of text below its first and then the other side of the line, a horizontal one the room beside the label in its way, its right end and the space below the line, a zone its bottom. On a scatter plot: every corner of a quadrant holds points or their names, so the quadrant's name is drawn over them. |
 | `quadrant_without_room` | A dividing line of a scatter plot's `quadrants` falls on the end of an axis, so two areas have no room (path `/scatter/quadrants/x` or `y`; fix the range with `xRange` or `yRange`), or an area is too small for its name, which is left out of the drawing (path of the label). The description and the table still name every area. |
 
 A chart with a [mobile variant](../responsive/) is laid out twice in the HTML profile. A warning
