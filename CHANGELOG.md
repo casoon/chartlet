@@ -7,8 +7,20 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **Rendering:** with `styles: "external"`, the HTML figure of a chart has no `<style>` element
+  outside its SVGs any more: the rules that switch to a mobile variant and between zoom steps are
+  part of the shared stylesheet, which covers the default breakpoint of 640. A page that renders
+  with `styles: "external"` and another `mobile.breakpoint` has to add that rule to the stylesheet
+  it serves, or the chart keeps its full-size layout. The default, `styles: "inline"`, is unchanged.
+
 ### Added
 
+- **Rendering:** `stylesheet({ breakpoints: [420] })`, `chartlet stylesheet --breakpoints 420` and
+  `stylesheet_breakpoints` in Rust give the rules that switch a chart to its mobile variant at a
+  `mobile.breakpoint` other than the default. Details:
+  [Where the rules live](https://casoon.github.io/chartlet/docs/guides/responsive/#where-the-rules-live).
 - **Time charts:** an `annotation` with `time`, `bottom` and `top` draws a measure, a line between
   two values with its label beside it; tooltip and description give both values and their
   difference. Details: [Measures](https://casoon.github.io/chartlet/docs/guides/time-series/#measures).
@@ -33,6 +45,22 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 - **Time charts:** the legend writes “hollow: rising, filled: falling” once for all candlestick
   layers, and without their names where each pane titles its own candles. Example `candle-panes`.
 - **Pages:** the project site uses the current shared theme (0.12.6).
+- **Time charts:** the description calls a chart with a candlestick layer a candlestick chart and
+  counts its candles, on a calendar and on a numeric axis. With stacked panes, reference lines,
+  zones and point markers are listed per pane (“Price – Reference lines: …”) instead of in one
+  list for all panes.
+- **Time charts:** on a numeric axis the description writes a position with the axis title before
+  it and “at” instead of “on” (“open 100 at Bar 0”, “Target at Bar 12”), and stacked panes share
+  “one shared axis (Bar)” instead of a time axis. Details:
+  [Numbers instead of dates](https://casoon.github.io/chartlet/docs/guides/time-series/#numbers-instead-of-dates).
+
+### Fixed
+
+- **Time charts:** the data table leaves a cell empty where a layer has no observation at that
+  position — an average during its warm-up, a line through a few turning points across candles —
+  instead of writing “Missing”, which now stands only for `"value": null`. The crosshair readout
+  of the interactive module skips such a layer. Details:
+  [Missing values](https://casoon.github.io/chartlet/docs/guides/time-series/#missing-values).
 
 
 ## [0.23.0] - 2026-10-28

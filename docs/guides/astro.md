@@ -38,8 +38,9 @@ import revenue from '../data/monthly-revenue.json';
   [Optional JavaScript](../interaction/#optional-javascript).
 - The HTML table uses a native disclosure by default; set `table="visible"` to show it permanently.
 - A specification with `mobile` needs nothing extra: the component passes the HTML through, and
-  the figure switches to the mobile variant by the width of its container. See
-  [Responsive charts](../responsive/).
+  the figure switches to the mobile variant by the width of its container. With
+  `styles="external"` the rule for a `mobile.breakpoint` other than 640 belongs in the stylesheet
+  the layout loads. See [Responsive charts](../responsive/#where-the-rules-live).
 
 ## The render API
 

@@ -7,7 +7,7 @@ use std::{
 
 use chartlet::{
     ChartType, ChartWarning, RenderFormat, RenderOptions, Styles, TableMode, Variant, render_json,
-    stylesheet, stylesheet_common, stylesheet_for, stylesheet_types,
+    stylesheet, stylesheet_breakpoints, stylesheet_common, stylesheet_for, stylesheet_types,
 };
 use serde_json::{Value, json};
 
@@ -528,15 +528,30 @@ fn path_after(
         .ok_or_else(|| format!("{option} requires a path"))
 }
 
-/// `chartlet stylesheet [--types bar,time] [--no-common] | --common`: the shared stylesheet, for
-/// every chart type or for the listed ones; `--no-common` leaves out the common part and
-/// `--common` writes only that part.
+/// `chartlet stylesheet [--types bar,time] [--no-common] [--breakpoints 420,560] | --common`:
+/// the shared stylesheet, for every chart type or for the listed ones; `--no-common` leaves out
+/// the common part and `--common` writes only that part. `--breakpoints` adds the rules that
+/// switch to the mobile variant below container widths other than the default.
 fn shared_stylesheet(mut arguments: impl Iterator<Item = String>) -> Result<String, String> {
     let mut types = None;
     let mut common = true;
     let mut common_only = false;
+    let mut breakpoints = Vec::new();
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
+            "--breakpoints" => {
+                let widths = arguments
+                    .next()
+                    .ok_or_else(|| "--breakpoints requires a list such as 420,560".to_owned())?;
+                breakpoints = widths
+                    .split(',')
+                    .map(|width| {
+                        width.trim().parse::<u32>().map_err(|_| {
+                            format!("--breakpoints takes widths in pixels, not {width:?}")
+                        })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+            }
             "--types" => {
                 let names = arguments
                     .next()
@@ -564,7 +579,10 @@ fn shared_stylesheet(mut arguments: impl Iterator<Item = String>) -> Result<Stri
         (Some(types), false, false) => stylesheet_types(&types),
     };
     // The file lands in a project's source tree, where formatters would treat it as hand-written.
-    Ok(format!("{STYLESHEET_HEADER}\n{css}"))
+    Ok(format!(
+        "{STYLESHEET_HEADER}\n{css}{}",
+        stylesheet_breakpoints(&breakpoints)
+    ))
 }
 
 /// The first line of the stylesheet the CLI prints; `stylesheet()` of the libraries has none.
@@ -614,7 +632,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 fn usage() -> String {
     "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|classic|editorial|theme.json>] [--size <preset>] [--manifest <path>] [--font <file.ttf> [--embed-font]] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json [--advice]] [--watch] [--preview [--port <port>]]
        chartlet inspect <spec.json|-> [--disable <code>]... [--strict] [--format text|json] [--diagnostics text|json]
-       chartlet stylesheet [--types bar,time,...] [--no-common] | --common".to_owned()
+       chartlet stylesheet [--types bar,time,...] [--no-common] [--breakpoints 420,...] | --common [--breakpoints 420,...]".to_owned()
 }
 
 /// Writes binary content, such as a PNG, to stdout as it is.

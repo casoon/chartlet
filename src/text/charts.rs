@@ -13,6 +13,15 @@ pub(crate) fn series_at(locale: Locale, name: &str, category: &str) -> String {
     }
 }
 
+/// Where a value lies along a numeric axis, for the extremes of a description: `Peaks at Bar 3`
+/// or `Peaks, Bar 3`. A position is not a category a value is "in".
+pub(crate) fn series_at_position(locale: Locale, name: &str, position: &str) -> String {
+    match locale {
+        Locale::En => format!("{name} at {position}"),
+        Locale::De => format!("{name}, {position}"),
+    }
+}
+
 /// The span of time a zone covers: both ends, or the one that is given.
 pub(crate) fn zone_times(locale: Locale, from: Option<&str>, to: Option<&str>) -> Option<String> {
     match (locale, from, to) {
@@ -53,57 +62,78 @@ pub(crate) fn measure(locale: Locale, bottom: &str, top: &str, difference: &str)
     }
 }
 
+/// What the opening sentence of a time chart calls the chart, and what it counts along the axis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TimeForm {
+    /// Lines and areas over a calendar axis.
+    Time,
+    /// The same along a numeric axis, which holds no times: a line chart.
+    Line,
+    /// A chart with a candlestick layer, on either axis. With `counted`, every position carries
+    /// a candle, and the positions are counted as candles instead of points.
+    Candles { counted: bool },
+}
+
+impl TimeForm {
+    const fn chart(self, locale: Locale) -> &'static str {
+        match (self, locale) {
+            (Self::Time, Locale::En) => "Time chart",
+            (Self::Time, Locale::De) => "Zeitreihe",
+            (Self::Line, Locale::En) => "Line chart",
+            (Self::Line, Locale::De) => "Liniendiagramm",
+            (Self::Candles { .. }, Locale::En) => "Candlestick chart",
+            (Self::Candles { .. }, Locale::De) => "Kerzendiagramm",
+        }
+    }
+
+    /// The counted noun after "with" or „mit“.
+    fn counted(self, locale: Locale, count: usize) -> &'static str {
+        match (self, locale) {
+            (Self::Candles { counted: true }, Locale::En) => plural(count, "candle", "candles"),
+            (Self::Candles { counted: true }, Locale::De) => plural(count, "Kerze", "Kerzen"),
+            (_, Locale::En) => plural(count, "point", "points"),
+            (_, Locale::De) => plural(count, "Punkt", "Punkten"),
+        }
+    }
+}
+
 /// The opening sentence of a time chart.
 pub(crate) fn time_opening(
     locale: Locale,
+    form: TimeForm,
     points: usize,
     range: &str,
     names: &[String],
     modeled: bool,
 ) -> String {
-    let point = plural(points, "point", "points");
-    let punkt = plural(points, "Punkt", "Punkten");
+    let chart = form.chart(locale);
+    let counted = form.counted(locale, points);
     match (locale, names.len() > 1) {
         (Locale::En, true) => format!(
-            "Time chart with {points} {point} {range} and {} series ({}).",
+            "{chart} with {points} {counted} {range} and {} series ({}).",
             names.len(),
             names.join(", ")
         ),
         (Locale::De, true) => format!(
-            "Zeitreihe mit {points} {punkt} {range} und {} Reihen ({}).",
+            "{chart} mit {points} {counted} {range} und {} Reihen ({}).",
             names.len(),
             names.join(", ")
         ),
         (Locale::En, false) if modeled => {
-            format!("Time chart with {points} {point} {range}, modelled.")
+            format!("{chart} with {points} {counted} {range}, modelled.")
         }
         (Locale::De, false) if modeled => {
-            format!("Zeitreihe mit {points} {punkt} {range}, modelliert.")
+            format!("{chart} mit {points} {counted} {range}, modelliert.")
         }
-        (Locale::En, false) => format!("Time chart with {points} {point} {range}."),
-        (Locale::De, false) => format!("Zeitreihe mit {points} {punkt} {range}."),
-    }
-}
-
-/// An opening sentence for a chart along a numeric axis, which is a line chart rather than a time
-/// chart: the noun is replaced, the rest stays.
-pub(crate) fn axis_noun(locale: Locale, zone: crate::time::TimeZone, opening: String) -> String {
-    if !zone.is_numeric() {
-        return opening;
-    }
-    let (time, line) = match locale {
-        Locale::En => ("Time chart", "Line chart"),
-        Locale::De => ("Zeitreihe", "Liniendiagramm"),
-    };
-    match opening.strip_prefix(time) {
-        Some(rest) => format!("{line}{rest}"),
-        None => opening,
+        (Locale::En, false) => format!("{chart} with {points} {counted} {range}."),
+        (Locale::De, false) => format!("{chart} mit {points} {counted} {range}."),
     }
 }
 
 /// The opening sentence of small multiples: a time chart in panels, laid out in a grid.
 pub(crate) fn multiples_opening(
     locale: Locale,
+    form: TimeForm,
     panels: &[String],
     range: &str,
     names: &[String],
@@ -117,13 +147,15 @@ pub(crate) fn multiples_opening(
     };
     let mut text = match locale {
         Locale::En => format!(
-            "Time chart in {} {} ({}) with {axis}, each {range}",
+            "{} in {} {} ({}) with {axis}, each {range}",
+            form.chart(locale),
             panels.len(),
             plural(panels.len(), "panel", "panels"),
             panels.join(", ")
         ),
         Locale::De => format!(
-            "Zeitreihe in {} {} ({}) mit {axis}, jeweils {range}",
+            "{} in {} {} ({}) mit {axis}, jeweils {range}",
+            form.chart(locale),
             panels.len(),
             plural(panels.len(), "Feld", "Feldern"),
             panels.join(", ")
@@ -143,16 +175,34 @@ pub(crate) fn multiples_opening(
     text
 }
 
+/// The axis the stacked panes of a time chart share: the time axis, or a numeric axis with its
+/// title, if it has one.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum SharedAxis<'a> {
+    Time,
+    Numeric(Option<&'a str>),
+}
+
 /// The sentence that names the stacked panes of a time chart.
-pub(crate) fn panes(locale: Locale, labels: &[String]) -> String {
+pub(crate) fn panes(locale: Locale, labels: &[String], axis: SharedAxis) -> String {
+    let axis = match (locale, axis) {
+        (Locale::En, SharedAxis::Time) => "one time axis".to_owned(),
+        (Locale::De, SharedAxis::Time) => "einer Zeitachse".to_owned(),
+        (Locale::En, SharedAxis::Numeric(None)) => "one shared axis".to_owned(),
+        (Locale::De, SharedAxis::Numeric(None)) => "einer gemeinsamen Achse".to_owned(),
+        (Locale::En, SharedAxis::Numeric(Some(title))) => format!("one shared axis ({title})"),
+        (Locale::De, SharedAxis::Numeric(Some(title))) => {
+            format!("einer gemeinsamen Achse ({title})")
+        }
+    };
     match locale {
         Locale::En => format!(
-            " {} stacked panes on one time axis: {}.",
+            " {} stacked panes on {axis}: {}.",
             labels.len(),
             labels.join(", ")
         ),
         Locale::De => format!(
-            " {} übereinanderliegende Teildiagramme auf einer Zeitachse: {}.",
+            " {} übereinanderliegende Teildiagramme auf {axis}: {}.",
             labels.len(),
             labels.join(", ")
         ),
@@ -177,9 +227,11 @@ pub(crate) fn candle_values(locale: Locale, values: &[String; 4]) -> String {
 
 /// What a candlestick layer says in a description: where it opened and closed, how much it
 /// changed, and its highest high and lowest low. Every value comes written, each with its time;
-/// `percent` is missing when the first open is zero.
+/// `percent` is missing when the first open is zero. On a `numeric` axis the second of each pair
+/// is a position, not a date.
 pub(crate) struct CandleSummary<'a> {
     pub name: Option<&'a str>,
+    pub numeric: bool,
     pub open: (&'a str, &'a str),
     pub close: (&'a str, &'a str),
     pub change: &'a str,
@@ -205,6 +257,23 @@ pub(crate) fn candles(locale: Locale, summary: &CandleSummary) -> String {
         ..
     } = summary;
     match (locale, summary.name.is_some()) {
+        // A position takes "at" and „bei“, where a date takes "on" and „am“.
+        (Locale::En, named) if summary.numeric => format!(
+            " {name}{} {} at {}, close {} at {}, a change of {change}{percent}; high {} at {}, low {} at {}.",
+            if named { "open" } else { "Open" },
+            open.0,
+            open.1,
+            close.0,
+            close.1,
+            high.0,
+            high.1,
+            low.0,
+            low.1,
+        ),
+        (Locale::De, _) if summary.numeric => format!(
+            " {name}Eröffnung {} bei {}, Schluss {} bei {}, Veränderung {change}{percent}; Hoch {} bei {}, Tief {} bei {}.",
+            open.0, open.1, close.0, close.1, high.0, high.1, low.0, low.1,
+        ),
         (Locale::En, named) => format!(
             " {name}{} at {} on {} and closed at {} on {}, a change of {change}{percent}; high {} on {}, low {} on {}.",
             if named { "opened" } else { "Opened" },
@@ -988,28 +1057,164 @@ pub(crate) fn treemap_summary(
 
 #[cfg(test)]
 mod tests {
-    use super::{bands, multiples_opening, panel_bars_opening};
+    use super::{
+        CandleSummary, SharedAxis, TimeForm, bands, candles, multiples_opening, panel_bars_opening,
+        panes, time_opening,
+    };
     use crate::spec::Locale;
+
+    #[test]
+    fn a_chart_with_candles_is_a_candlestick_chart_and_counts_them() {
+        let names = ["Price".to_owned(), "Average".to_owned()];
+        assert_eq!(
+            time_opening(
+                Locale::En,
+                TimeForm::Candles { counted: true },
+                1,
+                "from Bar 0 to 0",
+                &[],
+                false
+            ),
+            "Candlestick chart with 1 candle from Bar 0 to 0."
+        );
+        assert_eq!(
+            time_opening(
+                Locale::De,
+                TimeForm::Candles { counted: true },
+                150,
+                "von Bar 0 bis 149",
+                &names,
+                false
+            ),
+            "Kerzendiagramm mit 150 Kerzen von Bar 0 bis 149 und 2 Reihen (Price, Average)."
+        );
+        // A line reaches beyond the candles: the positions are points again.
+        assert_eq!(
+            time_opening(
+                Locale::De,
+                TimeForm::Candles { counted: false },
+                160,
+                "von 0 bis 159",
+                &[],
+                false
+            ),
+            "Kerzendiagramm mit 160 Punkten von 0 bis 159."
+        );
+        assert_eq!(
+            time_opening(Locale::En, TimeForm::Line, 9, "from 0 to 8", &[], false),
+            "Line chart with 9 points from 0 to 8."
+        );
+        assert_eq!(
+            multiples_opening(
+                Locale::De,
+                TimeForm::Line,
+                &["A".to_owned()],
+                "von 0 bis 8",
+                &[],
+                true
+            ),
+            "Liniendiagramm in 1 Feld (A) mit gemeinsamer Werteachse, jeweils von 0 bis 8."
+        );
+    }
+
+    #[test]
+    fn stacked_panes_name_the_axis_they_share() {
+        let labels = ["Price".to_owned(), "Volume".to_owned()];
+        assert_eq!(
+            panes(Locale::En, &labels, SharedAxis::Time),
+            " 2 stacked panes on one time axis: Price, Volume."
+        );
+        assert_eq!(
+            panes(Locale::En, &labels, SharedAxis::Numeric(Some("Bar"))),
+            " 2 stacked panes on one shared axis (Bar): Price, Volume."
+        );
+        assert_eq!(
+            panes(Locale::De, &labels, SharedAxis::Numeric(Some("Bar"))),
+            " 2 übereinanderliegende Teildiagramme auf einer gemeinsamen Achse (Bar): Price, Volume."
+        );
+        assert_eq!(
+            panes(Locale::De, &labels, SharedAxis::Numeric(None)),
+            " 2 übereinanderliegende Teildiagramme auf einer gemeinsamen Achse: Price, Volume."
+        );
+    }
+
+    #[test]
+    fn candles_lie_on_a_date_or_at_a_position() {
+        let summary = |name, numeric| CandleSummary {
+            name,
+            numeric,
+            open: ("100", "Bar 0"),
+            close: ("105", "Bar 3"),
+            change: "+5",
+            percent: Some("+5.0%"),
+            high: ("106", "Bar 3"),
+            low: ("99", "Bar 0"),
+        };
+        assert_eq!(
+            candles(Locale::En, &summary(Some("Price"), true)),
+            " Price: open 100 at Bar 0, close 105 at Bar 3, a change of +5 (+5.0%); high 106 at Bar 3, low 99 at Bar 0."
+        );
+        assert!(candles(Locale::En, &summary(None, true)).starts_with(" Open 100 at Bar 0, "));
+        assert_eq!(
+            candles(Locale::De, &summary(Some("Kurs"), true)),
+            " Kurs: Eröffnung 100 bei Bar 0, Schluss 105 bei Bar 3, Veränderung +5 (+5.0%); Hoch 106 bei Bar 3, Tief 99 bei Bar 0."
+        );
+        assert!(
+            candles(Locale::En, &summary(Some("Price"), false))
+                .starts_with(" Price: opened at 100 on Bar 0 and closed at 105 on Bar 3")
+        );
+        assert!(
+            candles(Locale::De, &summary(None, false)).starts_with(" Eröffnung 100 am Bar 0, ")
+        );
+    }
 
     #[test]
     fn panels_are_named_in_plain_words() {
         let two = ["A".to_owned(), "B".to_owned()];
         assert_eq!(
-            multiples_opening(Locale::En, &two, "from 2000 to 2050", &[], true),
+            multiples_opening(
+                Locale::En,
+                TimeForm::Time,
+                &two,
+                "from 2000 to 2050",
+                &[],
+                true
+            ),
             "Time chart in 2 panels (A, B) with a shared value axis, each from 2000 to 2050."
         );
         assert_eq!(
-            multiples_opening(Locale::De, &two, "von 2000 bis 2050", &[], false),
+            multiples_opening(
+                Locale::De,
+                TimeForm::Time,
+                &two,
+                "von 2000 bis 2050",
+                &[],
+                false
+            ),
             "Zeitreihe in 2 Feldern (A, B) mit je eigener Werteachse, jeweils von 2000 bis 2050."
         );
         let one = ["A".to_owned()];
         assert!(
-            multiples_opening(Locale::En, &one, "from 2000 to 2050", &[], true)
-                .starts_with("Time chart in 1 panel (A)")
+            multiples_opening(
+                Locale::En,
+                TimeForm::Time,
+                &one,
+                "from 2000 to 2050",
+                &[],
+                true
+            )
+            .starts_with("Time chart in 1 panel (A)")
         );
         assert!(
-            multiples_opening(Locale::De, &one, "von 2000 bis 2050", &[], true)
-                .starts_with("Zeitreihe in 1 Feld (A)")
+            multiples_opening(
+                Locale::De,
+                TimeForm::Time,
+                &one,
+                "von 2000 bis 2050",
+                &[],
+                true
+            )
+            .starts_with("Zeitreihe in 1 Feld (A)")
         );
         assert_eq!(
             panel_bars_opening(Locale::En, 2, 3),

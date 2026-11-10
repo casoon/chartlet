@@ -346,3 +346,96 @@ fn the_mobile_variant_is_checked_for_density_at_its_own_width() {
 }
 
 // --- Collapsed gaps ---
+
+/// `content` without its SVGs: what the HTML figure itself is made of.
+fn outside_the_svgs(content: &str) -> String {
+    let mut rest = content;
+    let mut outside = String::new();
+    while let Some(start) = rest.find("<svg") {
+        outside.push_str(&rest[..start]);
+        let end = rest[start..].find("</svg>").expect("an SVG is closed") + start;
+        rest = &rest[end + "</svg>".len()..];
+    }
+    outside + rest
+}
+
+#[test]
+fn with_the_shared_stylesheet_the_figure_of_a_chart_has_no_style_of_its_own() {
+    let external = |specification: &str| {
+        render_json(
+            specification,
+            RenderFormat::Html,
+            &RenderOptions {
+                id_prefix: Some("chart".to_owned()),
+                styles: crate::Styles::External,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap()
+        .content
+    };
+    // A mobile variant, with the default breakpoint and with one of its own.
+    for (mobile, class) in [
+        (r#"{"width": 360}"#, "chartlet-bp-640"),
+        (r#"{"width": 280, "breakpoint": 420}"#, "chartlet-bp-420"),
+    ] {
+        let html = external(&with_mobile(TIME, mobile));
+        assert!(
+            html.starts_with(&format!(
+                "<div class=\"chartlet-wrapper chartlet-responsive {class}\"><figure "
+            )),
+            "{html}"
+        );
+        let figure = outside_the_svgs(&html);
+        assert!(!figure.contains("<style"), "{figure}");
+        assert!(!figure.contains(" style=\""), "{figure}");
+        // A chart without colors of its own carries no style inside its SVGs either.
+        assert!(!html.contains("<style"), "{html}");
+        assert!(!html.contains(" style=\""));
+        assert!(html.contains("<div class=\"chartlet-variant-desktop\"><svg "));
+        assert!(html.contains("<div class=\"chartlet-variant-mobile\"><svg "));
+    }
+    // Zoom steps beside a mobile variant.
+    let zoomed = external(
+        r#"{"schemaVersion": 1, "type": "bar", "title": "Quarterly revenue",
+            "mobile": {"width": 360},
+            "data": [{"label": "Q1", "value": 320}, {"label": "Q2", "value": 345},
+                     {"label": "Q3", "value": 380}, {"label": "Q4", "value": 410}],
+            "zoomSteps": [{"label": "First half", "from": 0, "to": 1},
+                          {"label": "All", "from": 0, "to": 3}]}"#,
+    );
+    assert!(zoomed.contains("<fieldset class=\"chartlet-zoom\">"));
+    assert!(!zoomed.contains("<style"), "{zoomed}");
+
+    // The rules live in the common part of the shared stylesheet instead: the switch at the
+    // default breakpoint and the zoom steps.
+    let common = crate::stylesheet_common();
+    assert!(common.contains(
+        ".chartlet-wrapper.chartlet-responsive{display:block;width:100%;container-type:inline-size}.chartlet-variant-mobile{display:none}@container (max-width:639px){.chartlet-bp-640 .chartlet-variant-desktop{display:none}.chartlet-bp-640 .chartlet-variant-mobile{display:block}}"
+    ));
+    assert!(common.contains(".chartlet-panel{display:none}"));
+    assert!(common.contains(
+        ".chartlet-wrapper:has(.chartlet-zoom input.zoom-0:checked) .chartlet-panel-0{display:block}"
+    ));
+    assert!(!common.contains("chartlet-bp-420"));
+    // Any other breakpoint is a rule of its own, once per breakpoint and in the order asked for.
+    assert_eq!(
+        crate::stylesheet_breakpoints(&[420, 900, 420]),
+        "@container (max-width:419px){.chartlet-bp-420 .chartlet-variant-desktop{display:none}.chartlet-bp-420 .chartlet-variant-mobile{display:block}}@container (max-width:899px){.chartlet-bp-900 .chartlet-variant-desktop{display:none}.chartlet-bp-900 .chartlet-variant-mobile{display:block}}"
+    );
+    assert_eq!(crate::stylesheet_breakpoints(&[]), "");
+
+    // The chart that carries its whole stylesheet keeps the rules in its wrapper, and they are
+    // the same rules.
+    let inline = render_json(
+        &with_mobile(TIME, r#"{"width": 280, "breakpoint": 420}"#),
+        RenderFormat::Html,
+        &RenderOptions::default(),
+    )
+    .unwrap()
+    .content;
+    assert!(inline.starts_with(&format!(
+        "<div class=\"chartlet-wrapper chartlet-responsive chartlet-bp-420\"><style>.chartlet-wrapper.chartlet-responsive{{display:block;width:100%;container-type:inline-size}}.chartlet-variant-mobile{{display:none}}{}</style>",
+        crate::stylesheet_breakpoints(&[420])
+    )));
+}

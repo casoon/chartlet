@@ -201,7 +201,7 @@ Rules:
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `timeAxis.kind` | `calendar`, `number` | no | `calendar` (default) reads every `time` as a timestamp. `number` reads it as a plain number — a distance along a profile, a depth, an age in millions of years — with ticks at round numbers, values written in the chart's `locale`, and the axis `title` as the head of the table's first column. No `timezone`, `gaps: "collapse"` or `zoomSteps` with it. |
+| `timeAxis.kind` | `calendar`, `number` | no | `calendar` (default) reads every `time` as a timestamp. `number` reads it as a plain number — a distance along a profile, a depth, an age in millions of years — with ticks at round numbers, values written in the chart's `locale`, and the axis `title` as the head of the table's first column and, in the description, before every position (“Bar 12”). No `timezone`, `gaps: "collapse"` or `zoomSteps` with it. |
 | `timeAxis.timezone` | string | no | Fixed UTC offset such as `"+02:00"`, or `UTC` (default). Timestamps without their own offset are read as wall-clock time in this zone. |
 | `timeAxis.title` | string, up to 100 characters | no | Title of the time axis. |
 | `timeAxis.gaps` | `show`, `collapse` | no | `show` (default) keeps the distances in time; `collapse` places every observed timestamp at the same distance from the next, so weekends and holidays take no space. Reference lines, point markers and zones then take the slot of an observation and must lie within the observed range. |

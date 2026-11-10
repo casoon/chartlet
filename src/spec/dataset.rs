@@ -80,6 +80,19 @@ impl ChartSpec {
         }
     }
 
+    /// [`Self::table_dataset`] and, for a time chart, the rows each of its series is observed in
+    /// (see [`Self::time_columns`]); every other chart has a value or a gap in every cell.
+    pub(crate) fn table_columns(&self) -> (Dataset, Option<Vec<Vec<bool>>>) {
+        match self.chart_type {
+            ChartType::Time | ChartType::Multiples if !self.is_bar_multiples() => {
+                let zone = self.time_zone().unwrap_or_default();
+                let (dataset, observed) = self.time_columns(zone, true);
+                (dataset, Some(observed))
+            }
+            _ => (self.table_dataset(), None),
+        }
+    }
+
     /// One row per year, `Missing` where the year has no value.
     fn stripes_dataset(&self) -> Dataset {
         let stripes = self
@@ -353,6 +366,18 @@ impl ChartSpec {
         }
     }
 
+    /// A position on the time axis as a description writes it. On a numeric axis with a title,
+    /// the title comes first, as it heads the first column of the data table ("Bar 12"):
+    /// positions and values are both plain numbers there, and only the name tells them apart.
+    pub(crate) fn position_text(&self, position: &str) -> String {
+        match &self.time_axis.title {
+            Some(title) if self.time_axis.kind == super::TimeAxisKind::Number => {
+                format!("{title} {position}")
+            }
+            _ => position.to_owned(),
+        }
+    }
+
     /// How finely the observations of all data layers need their times named, whatever the
     /// specification declares. The time axis spaces its ticks by it, so that a declared
     /// precision changes how times are named but not how many ticks there are.
@@ -514,6 +539,18 @@ impl ChartSpec {
     /// The table of a time chart: a row per time, labelled as finely as the finest layer with an
     /// observation at that time.
     pub(crate) fn time_dataset(&self, zone: crate::time::TimeZone, bounds: bool) -> Dataset {
+        self.time_columns(zone, bounds).0
+    }
+
+    /// [`Self::time_dataset`] and, for every one of its series, the rows its layer has an
+    /// observation in. A layer observed at fewer positions than the chart has rows — the turning
+    /// points of a line across candles, an average after its warm-up — leaves the other rows
+    /// empty; a value is missing only where an observation carries `null`.
+    pub(crate) fn time_columns(
+        &self,
+        zone: crate::time::TimeZone,
+        bounds: bool,
+    ) -> (Dataset, Vec<Vec<bool>>) {
         let mut categories: Vec<i64> = self
             .data_layers()
             .flat_map(|entry| entry.layer.resolved_times(zone))
@@ -546,8 +583,14 @@ impl ChartSpec {
         };
         let words = self.locale.words();
         let mut series = Vec::new();
+        let mut observed = Vec::new();
         for (entry, name) in self.data_layers().zip(self.layer_names()) {
             let layer = entry.layer;
+            let times = layer.resolved_times(zone);
+            let rows: Vec<bool> = categories
+                .iter()
+                .map(|epoch| times.contains(epoch))
+                .collect();
             let name = self.with_unit(name, entry.pane, bounds);
             // Every pane of a time chart writes its values by its own value axis.
             let style = (self.chart_type == ChartType::Time).then(|| self.pane_style(entry.pane));
@@ -567,6 +610,7 @@ impl ChartSpec {
                         ),
                         style,
                     });
+                    observed.push(rows.clone());
                 }
                 continue;
             }
@@ -575,6 +619,7 @@ impl ChartSpec {
                 values: column(layer.resolved_points(zone)),
                 style,
             });
+            observed.push(rows.clone());
             if bounds && layer.has_band() {
                 let band = layer.resolved_band(zone);
                 for (edge, pick) in [(words.lower, 0), (words.upper, 1)] {
@@ -589,10 +634,20 @@ impl ChartSpec {
                         ),
                         style,
                     });
+                    observed.push(rows.clone());
                 }
             }
         }
 
+        let dataset = Dataset {
+            categories: self.time_labels(&categories, zone),
+            series,
+        };
+        (dataset, observed)
+    }
+
+    /// Every time of `epochs` written as finely as the finest layer with an observation at it.
+    fn time_labels(&self, epochs: &[i64], zone: crate::time::TimeZone) -> Vec<String> {
         let layers: Vec<(Vec<i64>, crate::time::Precision)> = self
             .data_layers()
             .map(|entry| {
@@ -602,21 +657,18 @@ impl ChartSpec {
                 )
             })
             .collect();
-        Dataset {
-            categories: categories
-                .iter()
-                .map(|epoch| {
-                    layers
-                        .iter()
-                        .filter(|(times, _)| times.contains(epoch))
-                        .map(|(_, precision)| *precision)
-                        .reduce(crate::time::Precision::at_least)
-                        .expect("every row comes from a layer")
-                        .format(*epoch, zone)
-                })
-                .collect(),
-            series,
-        }
+        epochs
+            .iter()
+            .map(|epoch| {
+                layers
+                    .iter()
+                    .filter(|(times, _)| times.contains(epoch))
+                    .map(|(_, precision)| *precision)
+                    .reduce(crate::time::Precision::at_least)
+                    .expect("every row comes from a layer")
+                    .format(*epoch, zone)
+            })
+            .collect()
     }
 
     /// The name of every data layer, defaulting to `Value` for a single unnamed layer. In small

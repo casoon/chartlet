@@ -1239,3 +1239,39 @@ fn a_diagram_that_outgrows_its_size_is_reported_not_clipped() {
         "{w}x{h}: {stderr}"
     );
 }
+
+#[test]
+fn the_stylesheet_takes_the_breakpoints_of_mobile_variants() {
+    let stylesheet = |args: &[&str]| {
+        Command::new(env!("CARGO_BIN_EXE_chartlet"))
+            .arg("stylesheet")
+            .args(args)
+            .output()
+            .expect("chartlet CLI should start")
+    };
+    let text = |args: &[&str]| {
+        let output = stylesheet(args);
+        assert!(output.status.success(), "{args:?}");
+        String::from_utf8(output.stdout).expect("a stylesheet is UTF-8")
+    };
+    let rule = |breakpoint: u32| {
+        format!(
+            "@container (max-width:{}px){{.chartlet-bp-{breakpoint} .chartlet-variant-desktop{{display:none}}.chartlet-bp-{breakpoint} .chartlet-variant-mobile{{display:block}}}}",
+            breakpoint - 1
+        )
+    };
+    // The default breakpoint is part of the common rules; others are appended on request.
+    let common = text(&["--common"]);
+    assert!(common.contains(&rule(640)) && !common.contains("chartlet-bp-420"));
+    assert_eq!(
+        text(&["--common", "--breakpoints", "420, 560"]).trim_end(),
+        format!("{}{}{}", common.trim_end(), rule(420), rule(560))
+    );
+    assert_eq!(
+        text(&["--types", "time", "--breakpoints", "420"]).trim_end(),
+        format!("{}{}", text(&["--types", "time"]).trim_end(), rule(420))
+    );
+    let refused = stylesheet(&["--breakpoints", "420px"]);
+    assert!(!refused.status.success());
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("widths in pixels"));
+}
