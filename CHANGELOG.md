@@ -13,6 +13,9 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   markers together) instead of six, so that six marked points and a few levels fit one pane;
   `too_many_annotations` starts at the thirteenth. Whether the labels stay readable is measured
   as before and reported as `label_overlap`. Example `wave-count`.
+- **Time charts:** one candlestick layer no longer counts among the six data layers of its pane, so
+  a price takes six lines over it; `too_many_layers` starts at the seventh line, or at a second
+  candlestick layer beside six.
 - **Time charts:** in a chart with candles a zone covers the candles at `from` and `to` in full
   instead of ending at their middles, in every pane, and `from` equal to `to` marks a single candle
   where it was `invalid_band`. Tooltip and description name that one time. Example `candle-zones`.

@@ -49,7 +49,9 @@ Timestamps must increase within a layer and lie between 1700-01-01 and 2200-01-0
 ## Layers
 
 A pane holds up to six data layers (eight in a stacked pane), each a `line`, an `area`, a `point` or an `ohlc` candlestick layer, and up
-to twelve annotation layers: zones, reference lines and point markers together.
+to twelve annotation layers: zones, reference lines and point markers together. One candlestick
+layer does not count among the six: the other layers are drawn over the candles, so a price takes
+six lines on top of it, such as three bands and three averages.
 Four palette colors are available for the whole chart: at most four line and area layers go
 without a `color` of their own, and a fifth one has to bring one (`too_many_layers` otherwise).
 Candles take no palette color. A layer without a color takes the palette color of its position
@@ -417,7 +419,7 @@ chartlet reports that as a `dense_chart` warning.
 | Limit | Value |
 | --- | --- |
 | Observations or candles per layer | 2000 |
-| Data layers per pane | 6; at most 4 of the chart in palette colors |
+| Data layers per pane | 6, besides one candlestick layer; at most 4 of the chart in palette colors |
 | Zones, reference lines and point markers per pane | 12 together |
 | Panes | 1–4 (`time`), 2–12 (`multiples`) |
 | `heightRatio` | 1–10 |

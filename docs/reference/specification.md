@@ -213,7 +213,7 @@ Rules:
 | `panes[].heightRatio` | integer, 1–10 | no | The pane's share of the plot height against the other panes, default 1. |
 | `panes[].valueAxis` | object | no | `title`, `format`, `decimals`, `min`, `max`, `step`, `exact`, `thousandsSeparator`, `scale`, `reverse` and `unit` of the pane's own value axis. |
 | `panes[].stack` | `normal`, `stream` | no | Stacks the pane's `area` layers in layer order, each on top of the ones before it, so that the top edge shows their total; line and point layers in the pane stay as they are. Markers and the end labels sit on top of the stack; tooltips and the data table give each layer's own value. `stream` stacks them around a moving baseline instead of zero, so that the stack is centered (a streamgraph): the value axis becomes a scale bar for thickness, the areas are named at their right ends, and the pane takes area layers and reference lines of time only, with no `min`, `max`, `exact`, `reverse` or logarithmic scale on its axis (`option_not_supported`). |
-| `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane) and twelve annotation layers. |
+| `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane), not counting one candlestick layer, and twelve annotation layers. |
 | `sparkline` | boolean | no | `true` draws the lines and areas of one pane across the whole canvas, without axes, title, legend or value labels, with a dot at the end of each line; `width` 60–600 and `height` 16–200. The title and description remain the accessible name and description, and the HTML profile keeps its caption and table. Only line and area layers; no zoom steps or mobile variant. |
 | `tooltips` | `observations`, `markers` | no | `"observations"` (default) gives every observation a tooltip while observations stand at least 4 pixels apart, on an invisible target where no marker is drawn; `"markers"` gives tooltips only to drawn markers, so a line too dense for markers has none and its SVG stays small. |
 | `legend` | `top`, `end` (time charts); `auto`, `none` (diagrams) | no | Diagrams: see [Diagram fields](#diagram-fields). Time charts: `top` (default) names the series in a legend above the plot; `end` writes each name at the last observation of its line, right of the plot, which makes room for the widest name (at most a third of the chart). Names that would overlap move apart. Not with candles, whose legend explains hollow and filled bodies. |
@@ -250,8 +250,8 @@ Small multiples take the same layers, without `ohlc`.
 Rules:
 
 - One to four panes (`too_many_panes`), each with a `heightRatio` from 1 to 10
-  (`invalid_height_ratio`) and up to six data layers (eight in a stacked pane) of 2000
-  observations or candles each (`too_many_data_points`). At most four data layers of the whole
+  (`invalid_height_ratio`) and up to six data layers (eight in a stacked pane), not counting one
+  candlestick layer, of 2000 observations or candles each (`too_many_data_points`). At most four data layers of the whole
   chart take a palette color — candles take none — and a further layer needs its own `color`
   (`too_many_layers`). Layer names are unique across the panes (`duplicate_series`), and every
   data layer needs one once the chart has more than one (`missing_name`).

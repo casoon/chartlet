@@ -305,12 +305,15 @@ pub(super) fn validate_pane_layers(
     } else {
         MAX_TIME_LAYERS
     };
-    if data_layers > limit {
+    // Candles are what the other layers of their pane are drawn over, not one more line among
+    // them: one candlestick layer does not count against the limit.
+    let candles = usize::from(pane.layers.iter().any(|layer| layer.mark == Mark::Ohlc));
+    if data_layers - candles > limit {
         return Err(ChartError::new(
             "too_many_layers",
             format!("{pane_path}/layers"),
             format!(
-                "at most {MAX_TIME_LAYERS} data layers are supported, {MAX_STACKED_LAYERS} in a stacked pane"
+                "at most {MAX_TIME_LAYERS} data layers are supported besides one candlestick layer, {MAX_STACKED_LAYERS} in a stacked pane"
             ),
         ));
     }

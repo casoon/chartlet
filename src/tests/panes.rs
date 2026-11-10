@@ -244,6 +244,34 @@ fn a_zoom_window_keeps_the_zone_over_the_candle_at_its_edge() {
 }
 
 #[test]
+fn one_candlestick_layer_does_not_count_against_the_data_layers_of_its_pane() {
+    let lines = |count: usize| {
+        (0..count)
+            .map(|index| {
+                format!(
+                    r##", {{"mark": "line", "name": "L{index}", "color": "#2563eb", "points": [{{"time": "2026-03-02", "value": 9}}, {{"time": "2026-03-04", "value": 1{index}}}]}}"##
+                )
+            })
+            .collect::<String>()
+    };
+    // Candles with six lines over them, such as three bands and three averages.
+    render_ok(&stacked(&candle_pane(&lines(6)), ""));
+    assert_eq!(
+        render_err(&stacked(&candle_pane(&lines(7)), "")),
+        ("too_many_layers", "/panes/0/layers".to_owned())
+    );
+    // A second candlestick layer is one more data layer like any other.
+    let second = format!(
+        r#", {{"mark": "ohlc", "name": "Other", "data": {CANDLES}}}{}"#,
+        lines(6)
+    );
+    assert_eq!(
+        render_err(&stacked(&candle_pane(&second), "")),
+        ("too_many_layers", "/panes/0/layers".to_owned())
+    );
+}
+
+#[test]
 fn invalid_candles_are_refused_with_their_path() {
     let refuse = |data: &str, layer: &str| {
         render_err(&stacked(
