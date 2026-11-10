@@ -80,6 +80,12 @@ between two gaps keeps its marker but has no line to draw. The data table shows 
 “Missing”, and the description counts the missing values. A point without a value carries no
 `lower` or `upper` (`invalid_band`).
 
+A layer that simply has no observation at a position is not missing a value there. The data table
+has a row for every position any layer uses, and a layer with fewer observations — an average
+after its warm-up, a line through a few turning points across candles, a projection that starts
+where the measurements end — leaves its cell in the other rows empty. “Missing” stands only where
+an observation carries `null`.
+
 ## Gaps in time
 
 By default the time axis keeps the distances in time: a weekend between two trading days takes

@@ -11,6 +11,14 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 - **Pages:** the project site uses the current shared theme (0.12.6).
 
+### Fixed
+
+- **Time charts:** the data table leaves a cell empty where a layer has no observation at that
+  position — an average during its warm-up, a line through a few turning points across candles —
+  instead of writing “Missing”, which now stands only for `"value": null`. The crosshair readout
+  of the interactive module skips such a layer. Details:
+  [Missing values](https://casoon.github.io/chartlet/docs/guides/time-series/#missing-values).
+
 
 ## [0.23.0] - 2026-10-28
 

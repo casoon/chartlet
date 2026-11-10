@@ -204,6 +204,8 @@ export function crosshair(chart) {
       const multiples = svg.dataset.chartletType === "multiples";
       chart.columns.forEach((column, index) => {
         if (chart.hidden.has(column.series) || (multiples && column.pane !== current.pane)) return;
+        // A layer without an observation here has an empty cell and no line in the readout.
+        if (!row.text[index]) return;
         const line = element("div");
         line.textContent = `${column.name}: ${row.text[index]}`;
         overlay.append(line);
