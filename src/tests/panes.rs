@@ -98,6 +98,151 @@ fn dense_candles_are_drawn_as_wicks_only() {
     );
 }
 
+/// The left edge and the width of every zone of a rendering, in document order.
+fn zone_spans(svg: &str) -> Vec<(f64, f64)> {
+    svg.split("<rect ")
+        .skip(1)
+        .filter_map(|rest| rest.split('>').next())
+        .filter(|tag| tag.contains("class=\"chartlet-zone"))
+        .map(|tag| {
+            let attribute = |name: &str| -> f64 {
+                tag.split(&format!("{name}=\""))
+                    .nth(1)
+                    .and_then(|rest| rest.split('"').next())
+                    .and_then(|value| value.parse().ok())
+                    .expect("a numeric attribute")
+            };
+            (attribute("x"), attribute("width"))
+        })
+        .collect()
+}
+
+/// The horizontal position of every wick in the plot, in order; the legend sample comes first
+/// in the document and is left out.
+fn wick_xs(svg: &str) -> Vec<f64> {
+    svg.split("<line x1=\"")
+        .skip(1)
+        .filter(|rest| {
+            rest.split('>')
+                .next()
+                .is_some_and(|tag| tag.contains("chartlet-wick"))
+        })
+        .map(|rest| rest[..rest.find('"').unwrap()].parse().unwrap())
+        .skip(2)
+        .collect()
+}
+
+#[test]
+fn a_zone_covers_the_candles_at_its_edges_in_full() {
+    let zones = r#", {"mark": "band", "label": "Hammer", "from": "2026-03-03", "to": "2026-03-03"},
+        {"mark": "band", "label": "Two days", "from": "2026-03-03", "to": "2026-03-04"}"#;
+    let output = render_ok(&stacked(&candle_pane(zones), ""));
+    let svg = &output.content;
+    let xs = wick_xs(svg);
+    assert_eq!(xs.len(), 3);
+    let step = xs[1] - xs[0];
+    let spans = zone_spans(svg);
+    // One candle: half a candle's room on either side of its middle.
+    assert!(
+        (spans[0].0 - (xs[1] - step / 2.0)).abs() < 0.01,
+        "{spans:?}"
+    );
+    assert!((spans[0].1 - step).abs() < 0.01, "{spans:?}");
+    // Two candles, the second at the end of the axis: the zone stops at the edge of the plot,
+    // which lies 6 pixels beyond the last candle.
+    assert!(
+        (spans[1].0 - (xs[1] - step / 2.0)).abs() < 0.01,
+        "{spans:?}"
+    );
+    assert!(
+        (spans[1].0 + spans[1].1 - (xs[2] + 6.0)).abs() < 0.01,
+        "{spans:?}"
+    );
+    // Tooltip and description keep the times as given: one time for one candle.
+    assert!(svg.contains("<title>Hammer: 2026-03-03</title>"));
+    assert!(svg.contains("<title>Two days: 2026-03-03 to 2026-03-04</title>"));
+    assert!(svg.contains("Zones: Hammer, 2026-03-03; Two days, 2026-03-03 to 2026-03-04."));
+}
+
+#[test]
+fn a_zone_follows_the_candles_of_the_chart_in_every_pane() {
+    // The volume pane has no candles of its own; its zone still lines up with the one above.
+    let zone = r#"{"mark": "band", "label": "Day", "from": "2026-03-03", "to": "2026-03-03"}"#;
+    let volume = VOLUME_PANE.replace("\"layers\": [", &format!("\"layers\": [{zone}, "));
+    let svg = render_ok(&stacked(
+        &format!("{}, {volume}", candle_pane(&format!(", {zone}"))),
+        "",
+    ))
+    .content;
+    let spans = zone_spans(&svg);
+    assert_eq!(spans.len(), 2);
+    assert!((spans[0].0 - spans[1].0).abs() < 0.01, "{spans:?}");
+    assert!((spans[0].1 - spans[1].1).abs() < 0.01, "{spans:?}");
+    assert!(spans[0].1 > 1.0, "{spans:?}");
+}
+
+#[test]
+fn a_zone_over_one_candle_keeps_its_slot_with_collapsed_gaps() {
+    // Friday, then Monday and Tuesday: the weekend takes no room.
+    let data = r#"[
+        {"time": "2026-03-06", "open": 10, "high": 12, "low": 9, "close": 11},
+        {"time": "2026-03-09", "open": 11, "high": 11.5, "low": 8, "close": 9},
+        {"time": "2026-03-10", "open": 9, "high": 10, "low": 8.5, "close": 9.5}
+    ]"#;
+    let pane = format!(
+        r#"{{"layers": [{{"mark": "ohlc", "data": {data}}}, {{"mark": "band", "label": "Monday", "from": "2026-03-09", "to": "2026-03-09"}}]}}"#
+    );
+    let spec = stacked(&pane, "").replace(
+        r#""timeAxis": {"title": "Day"}"#,
+        r#""timeAxis": {"gaps": "collapse"}"#,
+    );
+    let svg = render_ok(&spec).content;
+    let xs = wick_xs(&svg);
+    let step = xs[1] - xs[0];
+    assert!((xs[2] - xs[1] - step).abs() < 0.01);
+    let spans = zone_spans(&svg);
+    assert!(
+        (spans[0].0 - (xs[1] - step / 2.0)).abs() < 0.01,
+        "{spans:?}"
+    );
+    assert!((spans[0].1 - step).abs() < 0.01, "{spans:?}");
+    // A zone that encloses no candle still has no slot.
+    assert_eq!(
+        render_err(&spec.replace(
+            r#""from": "2026-03-09", "to": "2026-03-09""#,
+            r#""from": "2026-03-07", "to": "2026-03-07""#
+        )),
+        ("time_out_of_range", "/panes/0/layers/1".to_owned())
+    );
+}
+
+#[test]
+fn a_zone_at_one_time_needs_candles() {
+    let zone = r#"{"mark": "band", "label": "Z", "from": "2026-03-02", "to": "2026-03-02"}"#;
+    assert_eq!(
+        render_err(&with_rules(zone)),
+        ("invalid_band", "/panes/0/layers/0/to".to_owned())
+    );
+    // The other way round is refused among candles too.
+    let reversed = r#", {"mark": "band", "label": "Z", "from": "2026-03-04", "to": "2026-03-03"}"#;
+    assert_eq!(
+        render_err(&stacked(&candle_pane(reversed), "")),
+        ("invalid_band", "/panes/0/layers/1/to".to_owned())
+    );
+}
+
+#[test]
+fn a_zoom_window_keeps_the_zone_over_the_candle_at_its_edge() {
+    let zone = r#", {"mark": "band", "label": "Middle", "from": "2026-03-03", "to": "2026-03-03"}"#;
+    let zoom = r#", "zoomSteps": [
+            {"label": "Early", "from": "2026-03-02", "to": "2026-03-03"},
+            {"label": "Late", "from": "2026-03-03", "to": "2026-03-04"}
+        ]"#;
+    let html = html_ok(&stacked(&candle_pane(zone), zoom));
+    // The marked candle is the last of one window and the first of the other.
+    assert_eq!(html.matches("class=\"chartlet-zone\"").count(), 2);
+}
+
 #[test]
 fn invalid_candles_are_refused_with_their_path() {
     let refuse = |data: &str, layer: &str| {

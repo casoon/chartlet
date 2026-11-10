@@ -9,6 +9,9 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Changed
 
+- **Time charts:** in a chart with candles a zone covers the candles at `from` and `to` in full
+  instead of ending at their middles, in every pane, and `from` equal to `to` marks a single candle
+  where it was `invalid_band`. Tooltip and description name that one time. Example `candle-zones`.
 - **Pages:** the project site uses the current shared theme (0.12.6).
 
 

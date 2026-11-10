@@ -2888,11 +2888,11 @@
           }
         },
         "from": {
-          "description": "Start of a zone; missing, the zone begins at the plot's left edge.",
+          "description": "Start of a zone; missing, the zone begins at the plot's left edge. In a chart with candles the zone covers the candles at from and to in full, half a candle's room beyond their middles.",
           "$ref": "#/$defs/timeValue"
         },
         "to": {
-          "description": "End of a zone, after from; missing, the zone ends at the plot's right edge.",
+          "description": "End of a zone, after from; missing, the zone ends at the plot's right edge. In a chart with candles to may equal from: the zone then covers that one candle.",
           "$ref": "#/$defs/timeValue"
         },
         "top": {

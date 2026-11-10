@@ -244,7 +244,7 @@ Small multiples take the same layers, without `ohlc`.
 | `value`, `time` | number, time | annotation | A horizontal reference line at `value`, a vertical one at `time`, or a point marker at both. Both widen the axes. |
 | `shape` | `circle`, `square`, `diamond`, `triangle-up`, `triangle-down` | no | Point markers only, `circle` by default. |
 | `bottom`, `top` | number | band | Value edges of a zone; `bottom` must lie below `top`. A missing edge is the edge of the plot. Given edges widen the value axis. |
-| `from`, `to` | time | band | Time edges of a zone; `from` must lie before `to`. A missing edge is the edge of the plot. At least `bottom` and `top`, or `from` and `to`, are required. |
+| `from`, `to` | time | band | Time edges of a zone; `from` must lie before `to`. A missing edge is the edge of the plot. At least `bottom` and `top`, or `from` and `to`, are required. In a chart with candles the zone covers the candles at both edges in full, and `from` may equal `to` for a zone over one candle. |
 | `label` | string, up to 100 characters | annotation, band | Required text of a reference line, point marker or zone. |
 
 Rules:
@@ -270,7 +270,7 @@ Rules:
 - A pane takes up to six annotation layers — zones, reference lines and point markers together
   (`too_many_annotations`). A zone needs `bottom` and `top`, `from` and `to`, or both, and a
   reference line `time`, `value` or both (`missing_position`); `bottom` at or above `top`, or
-  `from` at or after `to`, is `invalid_band`; a zone, reference line or point marker without
+  `from` at or after `to`, is `invalid_band` (among candles `from` may equal `to`); a zone, reference line or point marker without
   `label` is `missing_label`. A field that belongs to another mark — `name`, `points`, `value` or
   `shape` on a zone, `shape` on a reference line — is `option_not_supported` with its path. A
   label that overlaps another annotation label, crosses a data line, or leaves the plot is

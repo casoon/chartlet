@@ -16,6 +16,8 @@ pub(crate) fn series_at(locale: Locale, name: &str, category: &str) -> String {
 /// The span of time a zone covers: both ends, or the one that is given.
 pub(crate) fn zone_times(locale: Locale, from: Option<&str>, to: Option<&str>) -> Option<String> {
     match (locale, from, to) {
+        // A zone over a single candle starts and ends at the same time.
+        (_, Some(from), Some(to)) if from == to => Some(from.to_owned()),
         (Locale::En, Some(from), Some(to)) => Some(format!("{from} to {to}")),
         (Locale::De, Some(from), Some(to)) => Some(format!("{from} bis {to}")),
         (Locale::En, Some(from), None) => Some(format!("from {from}")),

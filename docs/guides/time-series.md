@@ -270,6 +270,16 @@ the zone is tall enough, otherwise just above or below it. Given edges widen the
 no legend entry and no table column; the description lists it under “Zones” with its extent, and
 its tooltip says the same.
 
+In a chart with candles a time on the axis is as wide as a candle, so a zone covers the candles at
+`from` and `to` in full: its edges lie half the distance between two candles beyond their middles,
+in every pane of the chart, and never outside the plot. `from` equal to `to` then marks a single
+candle — a hammer, a gap day — and tooltip and description name that one time. Without candles a
+time has no width, and `from` has to lie before `to` (`invalid_band`).
+
+```json
+{ "mark": "band", "label": "Hammer", "from": "2026-03-12", "to": "2026-03-12" }
+```
+
 ## Point markers
 
 An `"annotation"` with both `time` and `value` draws a marker symbol at that point, for an event

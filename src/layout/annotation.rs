@@ -72,7 +72,8 @@ pub(crate) fn marker_position(
 }
 
 /// A zone: a shaded rectangle behind the data between its edges, each missing edge taken from
-/// the plot. Its label sits inside the zone's top left corner when the zone is tall enough, and
+/// the plot. In a chart with candles its time edges lie at the outer edges of the candles' room
+/// instead of their middles, so `from` equal to `to` marks a single candle. Its label sits inside the zone's top left corner when the zone is tall enough, and
 /// just outside its upper or lower edge when it is not.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn push_zone(
@@ -95,8 +96,13 @@ pub(super) fn push_zone(
         time.as_ref().and_then(|time| time.resolve(frame.zone).ok())
     };
     let (start, end) = frame.edges();
-    let from = resolve(&layer.from).map_or(start, |epoch| frame.x(epoch));
-    let to = resolve(&layer.to).map_or(end, |epoch| frame.x_until(epoch));
+    // Among candles a time is as wide as a candle: the zone covers the candles at its edges in
+    // full, half the room of a candle beyond their middles, and stays inside the plot.
+    let reach = crate::ohlc::half_slot(spec, entry.pane, frame)
+        .map_or(0.0, |half| half.copysign(end - start));
+    let inside = |x: f64| x.clamp(plot.left, plot.left + plot.width);
+    let from = resolve(&layer.from).map_or(start, |epoch| inside(frame.x(epoch) - reach));
+    let to = resolve(&layer.to).map_or(end, |epoch| inside(frame.x_until(epoch) + reach));
     // On an axis that runs from right to left, the zone starts at its right edge.
     let (left, right) = (from.min(to), from.max(to));
     let top = layer.top.map_or(plot.top, |value| frame.y(value));

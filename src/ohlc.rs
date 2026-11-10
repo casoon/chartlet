@@ -10,7 +10,7 @@ use crate::{
     layout::{TimeFrame, format_value, plot_pixels, tooltip_name, tooltips_fit},
     scene::{Element, Line, Rect},
     spec::{
-        ChartSpec, LayerContext, LayerRef, LayerSpec, MAX_TIME_POINTS_PER_LAYER, NumberStyle,
+        ChartSpec, LayerContext, LayerRef, LayerSpec, MAX_TIME_POINTS_PER_LAYER, Mark, NumberStyle,
         Stroke, ValueFormat, validate_layer_name, validate_number,
     },
     text::{self, CandleSummary},
@@ -169,24 +169,49 @@ fn validate_candles(layer: &LayerSpec, path: &str, zone: TimeZone) -> Result<(),
     Ok(())
 }
 
-/// The width of every body: a share of the median distance between neighbouring candles, at
-/// least one pixel and at most [`MAX_BODY`].
-fn body_width(xs: &[f64]) -> f64 {
+/// The median distance between neighbouring candles at the horizontal positions `xs`; `None` for
+/// a single candle, which has no neighbour.
+fn median_distance(xs: &[f64]) -> Option<f64> {
     let mut distances: Vec<f64> = xs
         .windows(2)
         .map(|pair| (pair[1] - pair[0]).abs())
         .collect();
     if distances.is_empty() {
-        return MAX_BODY;
+        return None;
     }
     crate::sort::by(&mut distances, f64::total_cmp);
     let middle = distances.len() / 2;
-    let median = if distances.len().is_multiple_of(2) {
+    Some(if distances.len().is_multiple_of(2) {
         f64::midpoint(distances[middle - 1], distances[middle])
     } else {
         distances[middle]
-    };
-    (median * BODY_SHARE).clamp(1.0, MAX_BODY)
+    })
+}
+
+/// The width of every body: a share of the median distance between neighbouring candles, at
+/// least one pixel and at most [`MAX_BODY`].
+fn body_width(xs: &[f64]) -> f64 {
+    median_distance(xs).map_or(MAX_BODY, |median| {
+        (median * BODY_SHARE).clamp(1.0, MAX_BODY)
+    })
+}
+
+/// Half the room one candle takes on the time axis of `pane`: half the median distance between
+/// neighbouring candles. A zone reaches this far beyond the candles at its edges, so that it
+/// covers them in full. The candles are those of the pane, or of the first pane that has some,
+/// since all panes share the time axis; `None` in a chart without candles.
+pub(crate) fn half_slot(spec: &ChartSpec, pane: usize, frame: &TimeFrame) -> Option<f64> {
+    let candles = spec
+        .indexed_layers()
+        .filter(|entry| entry.layer.mark == Mark::Ohlc)
+        .min_by_key(|entry| (entry.pane != pane, entry.global))?;
+    let xs: Vec<f64> = candles
+        .layer
+        .resolved_candles(frame.zone)
+        .iter()
+        .map(|(epoch, _)| frame.x(*epoch))
+        .collect();
+    median_distance(&xs).map(|median| median / 2.0)
 }
 
 /// Draws the candles of one layer: every wick, and while there is room for them, the bodies with

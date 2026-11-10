@@ -651,6 +651,7 @@ impl ChartSpec {
             time.resolve(zone)
                 .is_ok_and(|epoch| (from..=to).contains(&epoch))
         };
+        let candles = self.layers().any(|layer| layer.mark == Mark::Ohlc);
         let mut spec = self.clone();
         // A window shows its own span: the declared ends and tick step of the whole axis do not
         // apply to it.
@@ -661,14 +662,17 @@ impl ChartSpec {
             pane.layers
                 .retain(|layer| layer.time.as_ref().is_none_or(inside));
             // A zone that misses the window is left out; one that reaches beyond it is cut at
-            // the window's edges, so it cannot widen the time axis.
+            // the window's edges, so it cannot widen the time axis. Among candles a zone that
+            // only touches the window still covers the candle at its edge.
             pane.layers.retain(|layer| {
                 let resolve = |time: &Option<TimeValue>| {
                     time.as_ref().and_then(|time| time.resolve(zone).ok())
                 };
                 layer.mark != Mark::Band
-                    || (resolve(&layer.from).is_none_or(|start| start < to)
-                        && resolve(&layer.to).is_none_or(|end| end > from))
+                    || (resolve(&layer.from)
+                        .is_none_or(|start| start < to || (candles && start == to))
+                        && resolve(&layer.to)
+                            .is_none_or(|end| end > from || (candles && end == from)))
             });
             for layer in &mut pane.layers {
                 // The last step ends at `stepEnd` only in a window that holds the last

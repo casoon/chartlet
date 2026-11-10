@@ -13,11 +13,13 @@ use crate::{
 };
 
 /// What the layers of a pane are checked against: the chart's time zone, the width of its plot
-/// in pixels, and whether every data layer needs a name.
+/// in pixels, whether every data layer needs a name, and whether the chart draws candles.
 pub(crate) struct LayerContext {
     pub zone: crate::time::TimeZone,
     pub plot_pixels: usize,
     pub named: bool,
+    /// Among candles a time has the width of a candle, so a zone may start and end on the same one.
+    pub candles: bool,
 }
 
 /// A layer's own color has to be one of the forms in the contract; anything else is replaced by
@@ -338,7 +340,7 @@ pub(super) fn validate_pane_layers(
         let layer_path = format!("{pane_path}/layers/{layer_index}");
         match layer.mark {
             Mark::Annotation => validate_annotation(layer, &layer_path, zone, warnings)?,
-            Mark::Band => validate_zone(layer, &layer_path, zone, warnings)?,
+            Mark::Band => validate_zone(layer, &layer_path, context, warnings)?,
             Mark::Ohlc => crate::ohlc::validate(layer, &layer_path, context, names, warnings)?,
             Mark::Line | Mark::Area | Mark::Point => {
                 validate_layer(layer, &layer_path, context, names, warnings)?;
@@ -429,11 +431,12 @@ fn validate_annotation(
 
 /// A zone: a shaded area between `bottom` and `top`, between `from` and `to`, or both. A missing
 /// edge is the edge of the plot, so a zone with only `bottom` covers every value above it; at
-/// least one edge has to be given, and the zone needs a label.
+/// least one edge has to be given, and the zone needs a label. `to` lies after `from`; in a chart
+/// with candles it may equal `from`, for a zone over a single candle.
 fn validate_zone(
     layer: &LayerSpec,
     path: &str,
-    zone: crate::time::TimeZone,
+    context: &LayerContext,
     warnings: &mut Vec<ChartWarning>,
 ) -> Result<(), ChartError> {
     check_layer_color(layer, path, warnings);
@@ -481,6 +484,25 @@ fn validate_zone(
             ));
         }
     }
+    validate_zone_edges(layer, path, context)?;
+    let Some(label) = &layer.label else {
+        return Err(ChartError::new(
+            "missing_label",
+            format!("{path}/label"),
+            "a zone needs a label that says what it marks",
+        ));
+    };
+    validate_text(label, &format!("{path}/label"), 100)
+}
+
+/// The edges of a zone: times that resolve, finite values, at least one edge, `top` above
+/// `bottom` and `to` after `from` — or, among candles, at `from`.
+fn validate_zone_edges(
+    layer: &LayerSpec,
+    path: &str,
+    context: &LayerContext,
+) -> Result<(), ChartError> {
+    let zone = context.zone;
     let resolve = |field: &str, time: Option<&TimeValue>| {
         time.map(|time| {
             time.resolve(zone).map_err(|message| {
@@ -520,22 +542,19 @@ fn validate_zone(
         ));
     }
     if let (Some(from), Some(to)) = (from, to)
-        && from >= to
+        && (from > to || (from == to && !context.candles))
     {
         return Err(ChartError::new(
             "invalid_band",
             format!("{path}/to"),
-            "to must lie after from",
+            if from == to {
+                "to must lie after from; only among candles a single time has a width, that of its candle"
+            } else {
+                "to must lie after from"
+            },
         ));
     }
-    let Some(label) = &layer.label else {
-        return Err(ChartError::new(
-            "missing_label",
-            format!("{path}/label"),
-            "a zone needs a label that says what it marks",
-        ));
-    };
-    validate_text(label, &format!("{path}/label"), 100)
+    Ok(())
 }
 
 /// The name of a data layer: required once the legend lists more than one layer, and unique
