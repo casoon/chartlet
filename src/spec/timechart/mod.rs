@@ -24,8 +24,11 @@ pub(crate) const MAX_STACKED_LAYERS: usize = 8;
 pub(crate) const MAX_TIME_PANES: usize = 4;
 /// The largest share one pane may claim against another.
 pub(crate) const MAX_HEIGHT_RATIO: u32 = 10;
-/// Reference lines per pane. They are drawn over the data, so more than a handful hide it.
-pub(crate) const MAX_ANNOTATIONS: usize = 6;
+/// Zones, reference lines and point markers per pane. A count cannot tell whether they stay
+/// readable — six wave labels of one character do, three long ones side by side may not — so
+/// this only bounds the drawing; the placement of their labels is measured and reported as
+/// `label_overlap`.
+pub(crate) const MAX_ANNOTATIONS: usize = 12;
 /// Small multiples: fewer than two panels is a time chart, more than twelve no longer fit a
 /// page width with readable axes.
 pub(crate) const MIN_PANELS: usize = 2;

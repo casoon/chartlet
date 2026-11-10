@@ -213,7 +213,7 @@ Rules:
 | `panes[].heightRatio` | integer, 1–10 | no | The pane's share of the plot height against the other panes, default 1. |
 | `panes[].valueAxis` | object | no | `title`, `format`, `decimals`, `min`, `max`, `step`, `exact`, `thousandsSeparator`, `scale`, `reverse` and `unit` of the pane's own value axis. |
 | `panes[].stack` | `normal`, `stream` | no | Stacks the pane's `area` layers in layer order, each on top of the ones before it, so that the top edge shows their total; line and point layers in the pane stay as they are. Markers and the end labels sit on top of the stack; tooltips and the data table give each layer's own value. `stream` stacks them around a moving baseline instead of zero, so that the stack is centered (a streamgraph): the value axis becomes a scale bar for thickness, the areas are named at their right ends, and the pane takes area layers and reference lines of time only, with no `min`, `max`, `exact`, `reverse` or logarithmic scale on its axis (`option_not_supported`). |
-| `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane) and six annotation layers. |
+| `panes[].layers` | array | yes | Up to six data layers (eight in a stacked pane) and twelve annotation layers. |
 | `sparkline` | boolean | no | `true` draws the lines and areas of one pane across the whole canvas, without axes, title, legend or value labels, with a dot at the end of each line; `width` 60–600 and `height` 16–200. The title and description remain the accessible name and description, and the HTML profile keeps its caption and table. Only line and area layers; no zoom steps or mobile variant. |
 | `tooltips` | `observations`, `markers` | no | `"observations"` (default) gives every observation a tooltip while observations stand at least 4 pixels apart, on an invisible target where no marker is drawn; `"markers"` gives tooltips only to drawn markers, so a line too dense for markers has none and its SVG stays small. |
 | `legend` | `top`, `end` (time charts); `auto`, `none` (diagrams) | no | Diagrams: see [Diagram fields](#diagram-fields). Time charts: `top` (default) names the series in a legend above the plot; `end` writes each name at the last observation of its line, right of the plot, which makes room for the widest name (at most a third of the chart). Names that would overlap move apart. Not with candles, whose legend explains hollow and filled bodies. |
@@ -267,7 +267,7 @@ Rules:
   only and reported as `dense_chart`.
 - A stacked pane needs area layers with the same times and `curve`, a value of zero or more at
   every time (`unaligned_stack`, `negative_in_stack`) and no `lower`/`upper`.
-- A pane takes up to six annotation layers — zones, reference lines and point markers together
+- A pane takes up to twelve annotation layers — zones, reference lines and point markers together
   (`too_many_annotations`). A zone needs `bottom` and `top`, `from` and `to`, or both, and a
   reference line `time`, `value` or both (`missing_position`); `bottom` at or above `top`, or
   `from` at or after `to`, is `invalid_band` (among candles `from` may equal `to`); a zone, reference line or point marker without
@@ -303,7 +303,7 @@ top-level `categories`, its own `values` — small multiples of bars.
 | `panes[].title` | string, up to 100 characters | yes | Heading of the panel. Panel titles take two lines before they are shortened; every panel keeps the same head height, so the plots stay aligned. |
 | `panes[].note` | string, up to 160 characters | no | A short finding under the panel title, such as a verdict, on up to two lines. The notes are part of the description. |
 | `panes[].noteEmphasis` | boolean | no | `true` draws the panel's note in the text color and semibold instead of muted, to set one finding apart from the others by weight, not by color alone. Needs a `note`. |
-| `panes[].layers` | array | one of | Up to six data layers and six annotation layers. |
+| `panes[].layers` | array | one of | Up to six data layers and twelve annotation layers. |
 | `panes[].values` | array of numbers or `null`, up to 100 | one of | With `categories`: one value per category, `null` for none. |
 | `panes[].valueAxis` | object | no | With `categories`: the panel's own value axis. |
 | `categories` | array of strings, 1–20 | no | The categories of small multiples of bars. |

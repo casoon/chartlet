@@ -57,7 +57,7 @@ chartlet is before 1.0; screen reader and user testing are still pending. Status
 | Uncertainty band and modeled layers | Verified | `lower`/`upper` per point draw a band in the line's color; `"modeled": true` dashes the line, hatches the band and says “modelled” in legend, description and table. Covered by unit and golden-file tests. |
 | Reference lines (`annotation`) | Verified | Horizontal at `value` or vertical at `time`. A label that overlaps another annotation label, crosses a data line or leaves the plot is reported as `label_overlap`; it is not moved. |
 | Zones (`band`) | Verified | A shaded range between `bottom` and `top`, `from` and `to`, or both, behind the data, with its label; described, no legend entry or table column. Covered by unit and golden-file tests. |
-| Point markers (`annotation` with `time` and `value`) | Verified | Five shapes, a label beside the symbol that tries all four sides before `label_overlap` is reported, and a native tooltip. Zones, reference lines and markers share the limit of six per pane. |
+| Point markers (`annotation` with `time` and `value`) | Verified | Five shapes, a label beside the symbol that tries all four sides before `label_overlap` is reported, and a native tooltip. Zones, reference lines and markers share the limit of twelve per pane. |
 | Small multiples | Verified | `"type": "multiples"`: 2–12 panes with a shared value axis and one legend. |
 | German texts and numbers (`"locale": "de"`) | Verified | Every chart type. |
 | `area` mark | Verified | Filled down to zero in the layer's color; the value axis includes zero. Covered by unit and golden-file tests. |

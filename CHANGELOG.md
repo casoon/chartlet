@@ -9,6 +9,10 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Changed
 
+- **Time charts:** a pane takes up to twelve annotation layers (zones, reference lines and point
+  markers together) instead of six, so that six marked points and a few levels fit one pane;
+  `too_many_annotations` starts at the thirteenth. Whether the labels stay readable is measured
+  as before and reported as `label_overlap`. Example `wave-count`.
 - **Time charts:** in a chart with candles a zone covers the candles at `from` and `to` in full
   instead of ending at their middles, in every pane, and `from` equal to `to` marks a single candle
   where it was `invalid_band`. Tooltip and description name that one time. Example `candle-zones`.

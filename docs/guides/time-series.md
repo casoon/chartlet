@@ -49,7 +49,7 @@ Timestamps must increase within a layer and lie between 1700-01-01 and 2200-01-0
 ## Layers
 
 A pane holds up to six data layers (eight in a stacked pane), each a `line`, an `area`, a `point` or an `ohlc` candlestick layer, and up
-to six annotation layers: zones, reference lines and point markers together.
+to twelve annotation layers: zones, reference lines and point markers together.
 Four palette colors are available for the whole chart: at most four line and area layers go
 without a `color` of their own, and a fifth one has to bring one (`too_many_layers` otherwise).
 Candles take no palette color. A layer without a color takes the palette color of its position
@@ -304,6 +304,10 @@ the label of a zone or reference line crosses a data line, or when a label reach
 plot, the render reports a `label_overlap` warning with the path of the annotation layer. The
 label is never dropped; move the annotation or shorten its label.
 
+A pane takes up to twelve annotation layers. The count only bounds the drawing: six wave labels of
+one character and three levels read well in one pane, three long labels side by side may not, and
+that is what the measurement above reports.
+
 ## Sparklines
 
 `"sparkline": true` turns a one-pane time chart into a word-sized graphic for a table cell or a
@@ -414,7 +418,7 @@ chartlet reports that as a `dense_chart` warning.
 | --- | --- |
 | Observations or candles per layer | 2000 |
 | Data layers per pane | 6; at most 4 of the chart in palette colors |
-| Zones, reference lines and point markers per pane | 6 together |
+| Zones, reference lines and point markers per pane | 12 together |
 | Panes | 1–4 (`time`), 2–12 (`multiples`) |
 | `heightRatio` | 1–10 |
 | Candles with bodies | a third of the plot's horizontal pixels per layer |

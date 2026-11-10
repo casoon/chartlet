@@ -91,12 +91,17 @@ fn reference_lines_are_validated_by_name() {
         render_err(only_rules),
         ("empty_data", "/panes/0/layers".to_owned())
     );
-    let seven = (0..7)
-        .map(|index| format!(r#"{{"mark": "annotation", "value": {index}, "label": "L{index}"}}"#))
-        .collect::<Vec<_>>()
-        .join(",");
+    let rules = |count: usize| {
+        (0..count)
+            .map(|index| {
+                format!(r#"{{"mark": "annotation", "value": {index}, "label": "L{index}"}}"#)
+            })
+            .collect::<Vec<_>>()
+            .join(",")
+    };
+    render_ok(&with_rules(&rules(12)));
     assert_eq!(
-        render_err(&with_rules(&seven)),
+        render_err(&with_rules(&rules(13))),
         ("too_many_annotations", "/panes/0/layers".to_owned())
     );
 }
@@ -196,7 +201,7 @@ fn zones_are_validated_by_name() {
         );
     }
     // Zones, reference lines and point markers share one limit.
-    let seven = (0..7)
+    let thirteen = (0..13)
         .map(|index| match index % 3 {
             0 => format!(r#"{{"mark": "band", "bottom": {index}, "top": 50, "label": "Z{index}"}}"#),
             1 => format!(r#"{{"mark": "annotation", "value": {index}, "label": "R{index}"}}"#),
@@ -207,7 +212,7 @@ fn zones_are_validated_by_name() {
         .collect::<Vec<_>>()
         .join(",");
     assert_eq!(
-        render_err(&with_rules(&seven)),
+        render_err(&with_rules(&thirteen)),
         ("too_many_annotations", "/panes/0/layers".to_owned())
     );
 }
