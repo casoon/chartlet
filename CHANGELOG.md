@@ -44,7 +44,7 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   and `emission-pathways`; details: [Label collisions](https://casoon.github.io/chartlet/docs/guides/time-series/#label-collisions).
 - **Time charts:** the legend writes “hollow: rising, filled: falling” once for all candlestick
   layers, and without their names where each pane titles its own candles. Example `candle-panes`.
-- **Pages:** the project site uses the current shared theme (0.12.11).
+- **Pages:** the project site uses the current shared theme (0.12.12).
 - **Time charts:** the description calls a chart with a candlestick layer a candlestick chart and
   counts its candles, on a calendar and on a numeric axis. With stacked panes, reference lines,
   zones and point markers are listed per pane (“Price – Reference lines: …”) instead of in one
