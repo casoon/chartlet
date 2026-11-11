@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@casoon/chartlet": "link:../packages/chartlet",
-    "@casoon/pages-theme": "^0.12.6",
+    "@casoon/pages-theme": "^0.12.8",
     "astro": "^7.3.2"
   },
   "devDependencies": {
