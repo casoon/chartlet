@@ -1,0 +1,14 @@
+# Size of the WebAssembly module chartlet ships. `peakmark check` fails when it grows over the budget.
+[[module]]
+name     = "chartlet"
+artifact = "packages/chartlet/src/chartlet.wasm"
+
+[module.budget]
+brotli         = "653800 B"
+peak_memory    = "1.6 MiB"
+growth_per_run = "0"
+
+[[scenario]]
+module = "chartlet"
+file   = "scripts/peakmark/render.mjs"
+repeat = 20
