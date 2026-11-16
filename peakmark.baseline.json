@@ -2,12 +2,12 @@
   "version": 2,
   "modules": {
     "chartlet": {
-      "accepted": "2026-11-13",
-      "reason": "First memory scenario (monthly-revenue as SVG and HTML): 1.4 MiB peak, no growth per run",
+      "accepted": "2026-11-16",
+      "reason": "The baseline was taken from a stale chartlet.wasm (2026-10-28, 2.43 MB); a fresh build of the current source is 2.46 MB and CI builds the same size. Budget raised to match",
       "values": {
-        "raw": 2425288,
-        "gzip": 916610,
-        "brotli": 647232,
+        "raw": 2464951,
+        "gzip": 931950,
+        "brotli": 658583,
         "peak_memory": 1441792,
         "growth_per_run": 0
       },
@@ -16,7 +16,7 @@
         "warmup_runs": 1,
         "compression": "gzip-9 brotli-11-w22",
         "node": "v24.22.1",
-        "artifact_sha256": "0c1f000681f86ee5819b4a4b4790e4260b9e8d0deed68ba2ee6554c20c0a66c3"
+        "artifact_sha256": "8dcc9dcf45ed8c85ef9555cc8b0c64041db63f39b70a540906b92b86e3755156"
       },
       "scenarios": {
         "scripts/peakmark/render.mjs": {
@@ -90,97 +90,97 @@
           "saturating_float_to_int"
         ],
         "sections": {
-          "code": 2149548,
-          "data": 269656,
+          "code": 2186849,
+          "data": 271877,
           "names": 0,
           "debug": 0,
           "custom": 0,
-          "structure": 6048,
+          "structure": 6189,
           "overhead": 36
         },
         "functions": {
-          "count": 3800,
-          "body_bytes": 2144087,
+          "count": 3888,
+          "body_bytes": 2181255,
           "largest": [
             {
-              "id": 2727,
-              "size": 179437
+              "id": 2816,
+              "size": 179619
             },
             {
-              "id": 2377,
+              "id": 2454,
               "size": 168507
             },
             {
-              "id": 2610,
+              "id": 2698,
               "size": 167892
             },
             {
-              "id": 277,
-              "size": 103462
+              "id": 282,
+              "size": 104264
             },
             {
-              "id": 389,
+              "id": 394,
               "size": 52393
             },
             {
-              "id": 370,
-              "size": 44574
+              "id": 375,
+              "size": 44998
             },
             {
-              "id": 142,
+              "id": 148,
               "size": 33038
             },
             {
-              "size": 26315,
+              "size": 27240,
               "export": "render"
             },
             {
-              "id": 290,
+              "id": 295,
               "size": 18662
             },
             {
-              "id": 349,
-              "size": 14543
+              "id": 354,
+              "size": 14547
             },
             {
-              "id": 2809,
-              "size": 12728
+              "id": 2896,
+              "size": 13817
             },
             {
-              "id": 179,
+              "id": 185,
               "size": 11100
             },
             {
-              "id": 985,
+              "id": 2462,
+              "size": 10812
+            },
+            {
+              "id": 2702,
+              "size": 10780
+            },
+            {
+              "id": 997,
               "size": 10667
             },
             {
-              "id": 2545,
+              "id": 2633,
               "size": 9611
             },
             {
-              "id": 2689,
+              "id": 2778,
               "size": 9599
             },
             {
-              "id": 1832,
+              "id": 1881,
               "size": 8010
             },
             {
-              "id": 1250,
-              "size": 7633
+              "id": 1261,
+              "size": 7634
             },
             {
-              "id": 800,
+              "id": 812,
               "size": 7577
-            },
-            {
-              "id": 3411,
-              "size": 7213
-            },
-            {
-              "id": 2385,
-              "size": 6813
             }
           ]
         }
