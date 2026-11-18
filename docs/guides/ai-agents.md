@@ -42,11 +42,33 @@ The server speaks the [Model Context Protocol](https://modelcontextprotocol.io) 
 Claude Code:
 
 ```sh
-claude mcp add --env CHARTLET_MCP_ROOT="$PWD" chartlet -- npx -y @casoon/chartlet-mcp
+claude mcp add chartlet --env CHARTLET_MCP_ROOT="$PWD" -- npx -y @casoon/chartlet-mcp
 ```
+
+Put the server name `chartlet` before `--env`: with the name after it, Claude Code reads the name
+as another environment variable and refuses the command ("Invalid environment variable format").
 
 For Claude Desktop and project configuration, see the
 [package README](https://github.com/casoon/chartlet/blob/main/packages/chartlet-mcp/README.md).
+
+### Check your setup
+
+Run these after installing and note which fail; each step has a clear expected result.
+
+1. `claude mcp list` shows `chartlet` as connected (a server added to the project's `.mcp.json`
+   first waits for your approval).
+2. In a session, ask for the available chartlet tools: `chartlet_validate_spec`, `chartlet_render`
+   and the others of the [package README](https://github.com/casoon/chartlet/blob/main/packages/chartlet-mcp/README.md#tools) are listed.
+3. Ask for a chart of two small numbers: it validates and returns the chart.
+4. Ask the assistant to validate a spec with a missing field: the error names the field, and the
+   assistant corrects the spec and validates again.
+5. With `CHARTLET_MCP_ROOT` set, ask for the file `smoke.svg`: it appears in that directory. Ask for
+   `../smoke.svg`: it is refused. Without `CHARTLET_MCP_ROOT`, any `outputPath` is refused and the
+   chart is returned instead.
+6. Restart the client: the tools are listed again.
+
+If step 1 fails, run `npx -y @casoon/chartlet-mcp` in a terminal: it needs Node.js 22.12 or newer and
+waits for a client on stdin when it starts.
 
 ## Agent skill
 

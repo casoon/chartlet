@@ -19,7 +19,7 @@ It needs Node.js 22.12 or newer and talks over stdio.
 ### Claude Code
 
 ```sh
-claude mcp add --env CHARTLET_MCP_ROOT="$PWD" chartlet -- npx -y @casoon/chartlet-mcp
+claude mcp add chartlet --env CHARTLET_MCP_ROOT="$PWD" -- npx -y @casoon/chartlet-mcp
 ```
 
 or in a project's `.mcp.json`:
