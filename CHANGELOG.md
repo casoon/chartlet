@@ -56,6 +56,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Fixed
 
+- **Documentation:** the Claude Code install command for `@casoon/chartlet-mcp` failed with "Invalid
+  environment variable format" on Claude Code 2.1.316, because the server name stood after `--env`
+  and was read as another variable. The name now comes first. The AI agents guide also has a short
+  checklist for verifying a setup.
+
 - **Time charts:** the data table leaves a cell empty where a layer has no observation at that
   position — an average during its warm-up, a line through a few turning points across candles —
   instead of writing “Missing”, which now stands only for `"value": null`. The crosshair readout
