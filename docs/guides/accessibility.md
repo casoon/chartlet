@@ -34,8 +34,9 @@ order: 4
 ## What is verified
 
 Every page of this site, including all showcase charts, is checked with axe (WCAG 2.2 AA) in CI.
-Testing with VoiceOver and NVDA is still pending. Until then, treat the output as designed for
-accessibility, not as verified. The [support matrix](../../reference/support/) lists the details.
+Testing with VoiceOver and NVDA is still pending; the [task matrix](../../reference/screen-reader-tasks/)
+is the plan for it. Until then, treat the output as designed for accessibility, not as verified. The
+[support matrix](../../reference/support/) lists the details.
 
 The default palette is designed for light backgrounds; `"theme": "dark"` switches to a dark
 palette that paints its own background. This site places light charts on a light surface in its

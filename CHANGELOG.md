@@ -17,6 +17,10 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Documentation:** a task matrix for testing chartlet output with VoiceOver and NVDA, with the
+  expected result of each task and a place to record versions and findings. Nothing in it has been
+  run yet. [Screen reader test tasks](https://casoon.github.io/chartlet/docs/reference/screen-reader-tasks/) (#50).
+
 - **Rendering:** `stylesheet({ breakpoints: [420] })`, `chartlet stylesheet --breakpoints 420` and
   `stylesheet_breakpoints` in Rust give the rules that switch a chart to its mobile variant at a
   `mobile.breakpoint` other than the default. Details:
