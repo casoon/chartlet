@@ -7,6 +7,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-11-20
+
 ### Breaking
 
 - **Rendering:** with `styles: "external"`, the HTML figure of a chart has no `<style>` element
