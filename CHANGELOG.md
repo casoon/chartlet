@@ -17,6 +17,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Time charts:** `candleStyle` on a candlestick layer picks the look of the candles: `hollow`
+  (default, unchanged), `soft` with rounded, tinted rising and filled falling bodies over thin
+  wicks, or `solid` with every body filled. The two new styles use their own brighter colors,
+  the theme tokens `rise-bright` and `fall-bright`. [Time series](https://casoon.github.io/chartlet/docs/guides/time-series/).
+
 - **Documentation:** a task matrix for testing chartlet output with VoiceOver and NVDA, with the
   expected result of each task and a place to record versions and findings. Nothing in it has been
   run yet. [Screen reader test tasks](https://casoon.github.io/chartlet/docs/reference/screen-reader-tasks/) (#50).

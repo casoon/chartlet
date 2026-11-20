@@ -8,7 +8,8 @@ mod validate;
 
 pub use axis::{Gaps, TimeAxisKind, TimeAxisSpec, TimePrecision};
 pub use layers::{
-    Curve, Dash, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimePoint, Tooltips,
+    CandleStyle, Curve, Dash, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimePoint,
+    Tooltips,
 };
 pub(crate) use validate::{LayerContext, validate_layer_name};
 

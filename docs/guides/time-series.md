@@ -180,6 +180,27 @@ candlestick layer therefore takes no `color`, and no `modeled`, `stroke` or `das
 least one pixel and at most 16; a candle whose open and close are equal keeps a body one pixel
 high.
 
+`candleStyle` picks the look of the candles. `hollow`, the default, is the one above. `soft` and
+`solid` draw bodies with rounded corners over one-pixel wicks, in a brighter pair of colors of
+their own, `--chartlet-rise-bright` and `--chartlet-fall-bright` (at least 3:1 against the
+background in both themes, the threshold for graphics):
+
+| `candleStyle` | Rising body | Falling body | Direction without color |
+| --- | --- | --- | --- |
+| `hollow` (default) | hollow, outlined | filled | yes |
+| `soft` | tinted, outlined; the wick stops at the body | filled | yes |
+| `solid` | filled | filled | no |
+
+```json
+{ "mark": "ohlc", "name": "KSTL", "candleStyle": "soft", "data": [ … ] }
+```
+
+With `solid`, rising and falling candles differ by color only, so choose it where that is
+acceptable, for example next to a table of the values. The legend follows the style: “tinted:
+rising, filled: falling” for `soft`, “green: rising, red: falling” for `solid`. Rounded corners
+come from the CSS property `rx`; renderers without it, such as the PNG export, draw square
+corners. `candleStyle` belongs to candlestick layers only (`option_not_supported` elsewhere).
+
 Every candle needs `low` at or below its open and close and `high` at or above them
 (`invalid_candle` with the path of the field), finite numbers, and a later `time` than the candle
 before it (`unordered_time`); a layer takes 1 to 2000 candles. The legend draws a hollow and a

@@ -147,6 +147,7 @@ A layer of a time chart names its own color, `"color": "#0f766e"`, or one of the
 | `heat-0` … `heat-5` | The scale of node values in diagrams |
 | `diverging-0` … `diverging-16` | Warming stripes and calendar heatmaps |
 | `rise`, `fall` | Candlesticks |
+| `rise-bright`, `fall-bright` | Candlesticks with `candleStyle` `soft` or `solid` |
 | `net-5` … `net-8`, `parl-5` … `parl-8`, `part-5` … `part-8` | Further groups of networks, parliaments and architecture perspectives |
 
 A token a chart does not use has no effect. The JSON Schemas list the names:

@@ -10,7 +10,7 @@ use serde_json::Value;
 use crate::error::ChartError;
 
 /// The names that are not numbered.
-const NAMES: [&str; 22] = [
+const NAMES: [&str; 24] = [
     "text",
     "muted",
     "grid",
@@ -23,6 +23,8 @@ const NAMES: [&str; 22] = [
     "shadow",
     "rise",
     "fall",
+    "rise-bright",
+    "fall-bright",
     "role-blue",
     "role-blue-fill",
     "role-green",

@@ -14,6 +14,8 @@
     "color-4": "#111827",
     "rise": "#0a4f49",
     "fall": "#d03a0f",
+    "rise-bright": "#089981",
+    "fall-bright": "#f23645",
     "diverging-0": "#033761",
     "diverging-1": "#064f89",
     "diverging-2": "#0f66ac",

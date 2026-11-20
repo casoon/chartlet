@@ -134,6 +134,26 @@ pub struct LayerSpec {
     /// which is no observation of its own — no marker, tooltip or table row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step_end: Option<TimeValue>,
+    /// How an `ohlc` layer draws its candles; absent, rising candles are hollow and falling ones
+    /// filled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub candle_style: Option<CandleStyle>,
+}
+
+/// The look of the candles of an `ohlc` layer.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CandleStyle {
+    /// Rising candles hollow, falling ones filled, in the theme's rise and fall colors: the
+    /// direction reads without color.
+    #[default]
+    Hollow,
+    /// Rounded bodies in brighter colors: rising ones tinted under a full outline, falling ones
+    /// filled, over thin wicks. The direction still reads without color.
+    Soft,
+    /// Rounded, filled bodies in brighter colors over thin wicks. Rising and falling candles
+    /// differ by color only.
+    Solid,
 }
 
 /// Which observations of a `type: "time"` chart carry a tooltip.

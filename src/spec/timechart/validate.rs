@@ -419,6 +419,11 @@ fn validate_annotation(
             "belongs to a line layer",
         ),
         ("data", !layer.data.is_empty(), "belongs to an ohlc layer"),
+        (
+            "candleStyle",
+            layer.candle_style.is_some(),
+            "belongs to an ohlc layer",
+        ),
         ("from", layer.from.is_some(), "belongs to a band layer"),
         ("to", layer.to.is_some(), "belongs to a band layer"),
         ("modeled", layer.modeled, "belongs to a line layer"),
@@ -501,6 +506,11 @@ fn validate_zone(
             "belongs to a line layer; for an uncertainty band around a line, give its points lower and upper",
         ),
         ("data", !layer.data.is_empty(), "belongs to an ohlc layer"),
+        (
+            "candleStyle",
+            layer.candle_style.is_some(),
+            "belongs to an ohlc layer",
+        ),
         (
             "time",
             layer.time.is_some(),
@@ -669,6 +679,7 @@ fn validate_layer(
         ("value", layer.value.is_some(), "annotation"),
         ("label", layer.label.is_some(), "annotation"),
         ("shape", layer.shape.is_some(), "annotation"),
+        ("candleStyle", layer.candle_style.is_some(), "ohlc"),
     ] {
         if present {
             return Err(ChartError::new(

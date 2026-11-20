@@ -65,6 +65,77 @@ fn candles_differ_in_shape_and_color_by_direction() {
     assert!(!render_ok(TIME).content.contains("chartlet-rise"));
 }
 
+/// The candle pane with `candleStyle` set on its candles.
+fn styled_candle_pane(style: &str) -> String {
+    candle_pane("").replace(
+        r#""name": "Price","#,
+        &format!(r#""name": "Price", "candleStyle": "{style}","#),
+    )
+}
+
+#[test]
+fn soft_candles_tint_rising_bodies_and_keep_their_wicks_out_of_them() {
+    let svg = render_ok(&stacked(&styled_candle_pane("soft"), "")).content;
+    assert_eq!(
+        svg.matches("class=\"chartlet-candle chartlet-candle-rise chartlet-candle-soft\"")
+            .count(),
+        3,
+        "two rising or level candles and the legend sample"
+    );
+    assert_eq!(
+        svg.matches("class=\"chartlet-candle chartlet-candle-fall chartlet-candle-soft\"")
+            .count(),
+        2
+    );
+    // Above and below each body, twice per candle of the plot and of the legend sample.
+    assert_eq!(svg.matches("chartlet-wick-bright\"").count(), 2 * (3 + 2));
+    assert!(svg.contains("fill-opacity:.22"));
+    assert!(svg.contains(".chartlet-theme-dark{--chartlet-rise-bright:"));
+    assert!(svg.contains("Price (tinted: rising, filled: falling)</text>"));
+    let german = render_ok(&german(&stacked(&styled_candle_pane("soft"), ""), "time")).content;
+    assert!(german.contains("Price (getönt: steigend, gefüllt: fallend)</text>"));
+}
+
+#[test]
+fn solid_candles_fill_every_body_and_say_so_in_the_legend() {
+    let svg = render_ok(&stacked(&styled_candle_pane("solid"), "")).content;
+    assert_eq!(
+        svg.matches("class=\"chartlet-candle chartlet-candle-rise chartlet-candle-solid\"")
+            .count(),
+        3
+    );
+    // One wick per candle: a filled body hides the wick behind it.
+    assert_eq!(svg.matches("chartlet-wick-bright\"").count(), 3 + 2);
+    assert!(
+        svg.contains(
+            ".chartlet-candle-rise.chartlet-candle-solid{fill:var(--chartlet-rise-bright)"
+        )
+    );
+    assert!(svg.contains("Price (green: rising, red: falling)</text>"));
+}
+
+#[test]
+fn the_default_candle_style_brings_no_bright_colors() {
+    let hollow = render_ok(&stacked(&styled_candle_pane("hollow"), "")).content;
+    assert!(hollow.contains("Price (hollow: rising, filled: falling)</text>"));
+    assert!(!hollow.contains("rise-bright"));
+    assert!(!hollow.contains("chartlet-candle-soft"));
+}
+
+#[test]
+fn a_candle_style_belongs_to_candles() {
+    let spec = stacked(
+        r#"{"layers": [{"mark": "line", "name": "Close", "candleStyle": "soft", "points": [{"time": "2026-03-02", "value": 1}, {"time": "2026-03-03", "value": 2}]}]}"#,
+        "",
+    );
+    let error = render_json(&spec, RenderFormat::Svg, &RenderOptions::default())
+        .expect_err("a line has no candles");
+    assert_eq!(
+        (error.code, error.path.as_str()),
+        ("option_not_supported", "/panes/0/layers/0/candleStyle")
+    );
+}
+
 /// A chart of `count` level candles, one a day.
 fn many_candles(count: usize) -> String {
     let data = (0..count)

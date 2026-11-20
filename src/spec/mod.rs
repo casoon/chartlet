@@ -97,8 +97,8 @@ pub use stripes::StripesSpec;
 pub(crate) use survival::{KmCurve, KmStep};
 pub use survival::{SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec};
 pub use timechart::{
-    Curve, Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke, TimeAxisKind,
-    TimeAxisSpec, TimePoint, TimePrecision, Tooltips,
+    CandleStyle, Curve, Dash, Gaps, LayerSpec, Mark, OhlcPoint, PaneSpec, Shape, Stroke,
+    TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, Tooltips,
 };
 pub(crate) use timechart::{LayerContext, MAX_TIME_POINTS_PER_LAYER, validate_layer_name};
 pub(crate) use timeline::Span;

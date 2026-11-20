@@ -110,6 +110,16 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/share-price.svg"),
     ),
     (
+        "candle-soft",
+        include_str!("../examples/candle-soft.json"),
+        include_str!("../examples/candle-soft.svg"),
+    ),
+    (
+        "candle-solid",
+        include_str!("../examples/candle-solid.json"),
+        include_str!("../examples/candle-solid.svg"),
+    ),
+    (
         "candle-zones",
         include_str!("../examples/candle-zones.json"),
         include_str!("../examples/candle-zones.svg"),

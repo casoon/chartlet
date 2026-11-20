@@ -11,8 +11,8 @@ use crate::{
     layout::{TimeFrame, format_value, plot_pixels, tooltip_name, tooltips_fit},
     scene::{Element, Line, Rect},
     spec::{
-        ChartSpec, LayerContext, LayerRef, LayerSpec, MAX_TIME_POINTS_PER_LAYER, Mark, NumberStyle,
-        Stroke, ValueFormat, validate_layer_name, validate_number,
+        CandleStyle, ChartSpec, LayerContext, LayerRef, LayerSpec, MAX_TIME_POINTS_PER_LAYER, Mark,
+        NumberStyle, Stroke, ValueFormat, validate_layer_name, validate_number,
     },
     text::{self, CandleSummary},
     time::{Precision, TimeZone},
@@ -63,6 +63,18 @@ pub(crate) fn has_narrow_candles(spec: &ChartSpec) -> bool {
         usize::try_from(plot_pixels(spec.width)).expect("a usize is at least 32 bits wide");
     spec.layers()
         .any(|layer| Density::of(layer.data.len(), plot_pixels) != Density::Bodies)
+}
+
+/// Whether a candlestick layer of the chart draws in the `soft` or `solid` style, which bring
+/// their own colors.
+pub(crate) fn has_bright_candles(spec: &ChartSpec) -> bool {
+    spec.layers().any(|layer| {
+        layer.mark == Mark::Ohlc
+            && matches!(
+                layer.candle_style,
+                Some(CandleStyle::Soft | CandleStyle::Solid)
+            )
+    })
 }
 
 /// An `ohlc` layer: no field of another mark, a name by the rules of every data layer, and one to
@@ -301,25 +313,30 @@ pub(crate) fn push_candles(
     };
     let with_tooltips = tooltips_fit(&xs);
     let name = tooltip_name(spec, entry);
+    let style = entry.layer.candle_style.unwrap_or_default();
     for ((epoch, [open, high, low, close]), x) in candles.iter().zip(xs) {
         let rising = close >= open;
-        elements.push(Element::Line(Line {
-            x1: x,
-            y1: frame.y(*high),
-            x2: x,
-            y2: frame.y(*low),
-            class: match (rising, narrow) {
-                (true, false) => "chartlet-wick chartlet-wick-rise",
-                (false, false) => "chartlet-wick chartlet-wick-fall",
-                (true, true) => "chartlet-wick chartlet-wick-rise chartlet-wick-narrow",
-                (false, true) => "chartlet-wick chartlet-wick-fall chartlet-wick-narrow",
-            },
-        }));
+        let top = frame.y(open.max(*close));
+        let bottom = frame.y(open.min(*close));
+        let wick = wick_class(style, rising, narrow);
+        // A soft body is translucent: its wick stops at the body instead of running through it.
+        let segments = if style == CandleStyle::Soft && density == Density::Bodies {
+            vec![(frame.y(*high), top), (bottom, frame.y(*low))]
+        } else {
+            vec![(frame.y(*high), frame.y(*low))]
+        };
+        for (y1, y2) in segments {
+            elements.push(Element::Line(Line {
+                x1: x,
+                y1,
+                x2: x,
+                y2,
+                class: wick,
+            }));
+        }
         if density == Density::Wicks {
             continue;
         }
-        let top = frame.y(open.max(*close));
-        let bottom = frame.y(open.min(*close));
         // Open and close alike still leave a visible line.
         let (y, height) = if bottom - top < 1.0 {
             (f64::midpoint(top, bottom) - 0.5, 1.0)
@@ -334,12 +351,7 @@ pub(crate) fn push_candles(
             y,
             width,
             height,
-            class: match (rising, narrow) {
-                (true, false) => "chartlet-candle chartlet-candle-rise",
-                (false, false) => "chartlet-candle chartlet-candle-fall",
-                (true, true) => "chartlet-candle chartlet-candle-rise chartlet-candle-narrow",
-                (false, true) => "chartlet-candle chartlet-candle-fall chartlet-candle-narrow",
-            },
+            class: body_class(style, rising, narrow),
             series_index: None,
             style_index: None,
             tooltip: with_tooltips.then(|| match &name {
@@ -350,29 +362,29 @@ pub(crate) fn push_candles(
     }
 }
 
-/// The legend sample of a candlestick layer: a rising, hollow candle beside a falling, filled one.
-/// `y` is the top of the legend row.
-pub(crate) fn push_legend_sample(x: f64, y: f64, elements: &mut Vec<Element>) {
+/// The legend sample of a candlestick layer: a rising candle beside a falling one, in the layer's
+/// candle style. `y` is the top of the legend row.
+pub(crate) fn push_legend_sample(style: CandleStyle, x: f64, y: f64, elements: &mut Vec<Element>) {
     for (center, top, height, rising) in [(x + 6.0, y, 8.0, true), (x + 18.0, y + 2.0, 7.0, false)]
     {
-        let (wick, body) = if rising {
-            (
-                "chartlet-wick chartlet-wick-rise",
-                "chartlet-candle chartlet-candle-rise",
-            )
+        let (wick, body) = (
+            wick_class(style, rising, false),
+            body_class(style, rising, false),
+        );
+        let segments = if style == CandleStyle::Soft {
+            vec![(y - 3.0, top), (top + height, y + 12.0)]
         } else {
-            (
-                "chartlet-wick chartlet-wick-fall",
-                "chartlet-candle chartlet-candle-fall",
-            )
+            vec![(y - 3.0, y + 12.0)]
         };
-        elements.push(Element::Line(Line {
-            x1: center,
-            y1: y - 3.0,
-            x2: center,
-            y2: y + 12.0,
-            class: wick,
-        }));
+        for (y1, y2) in segments {
+            elements.push(Element::Line(Line {
+                x1: center,
+                y1,
+                x2: center,
+                y2,
+                class: wick,
+            }));
+        }
         elements.push(Element::Rect(Rect {
             x: center - 3.0,
             y: top,
@@ -383,6 +395,65 @@ pub(crate) fn push_legend_sample(x: f64, y: f64, elements: &mut Vec<Element>) {
             style_index: None,
             tooltip: None,
         }));
+    }
+}
+
+/// The classes of a wick: its direction, whether it stands under a thin body, and its style.
+fn wick_class(style: CandleStyle, rising: bool, narrow: bool) -> &'static str {
+    match (style, rising, narrow) {
+        (CandleStyle::Hollow, true, false) => "chartlet-wick chartlet-wick-rise",
+        (CandleStyle::Hollow, false, false) => "chartlet-wick chartlet-wick-fall",
+        (CandleStyle::Hollow, true, true) => {
+            "chartlet-wick chartlet-wick-rise chartlet-wick-narrow"
+        }
+        (CandleStyle::Hollow, false, true) => {
+            "chartlet-wick chartlet-wick-fall chartlet-wick-narrow"
+        }
+        (CandleStyle::Soft | CandleStyle::Solid, true, false) => {
+            "chartlet-wick chartlet-wick-rise chartlet-wick-bright"
+        }
+        (CandleStyle::Soft | CandleStyle::Solid, false, false) => {
+            "chartlet-wick chartlet-wick-fall chartlet-wick-bright"
+        }
+        (CandleStyle::Soft | CandleStyle::Solid, true, true) => {
+            "chartlet-wick chartlet-wick-rise chartlet-wick-narrow chartlet-wick-bright"
+        }
+        (CandleStyle::Soft | CandleStyle::Solid, false, true) => {
+            "chartlet-wick chartlet-wick-fall chartlet-wick-narrow chartlet-wick-bright"
+        }
+    }
+}
+
+/// The classes of a body: its direction, whether it is a thin bar, and its style.
+fn body_class(style: CandleStyle, rising: bool, narrow: bool) -> &'static str {
+    match (style, rising, narrow) {
+        (CandleStyle::Hollow, true, false) => "chartlet-candle chartlet-candle-rise",
+        (CandleStyle::Hollow, false, false) => "chartlet-candle chartlet-candle-fall",
+        (CandleStyle::Hollow, true, true) => {
+            "chartlet-candle chartlet-candle-rise chartlet-candle-narrow"
+        }
+        (CandleStyle::Hollow, false, true) => {
+            "chartlet-candle chartlet-candle-fall chartlet-candle-narrow"
+        }
+        (CandleStyle::Soft, true, false) => {
+            "chartlet-candle chartlet-candle-rise chartlet-candle-soft"
+        }
+        (CandleStyle::Soft, false, false) => {
+            "chartlet-candle chartlet-candle-fall chartlet-candle-soft"
+        }
+        (CandleStyle::Solid, true, false) => {
+            "chartlet-candle chartlet-candle-rise chartlet-candle-solid"
+        }
+        (CandleStyle::Solid, false, false) => {
+            "chartlet-candle chartlet-candle-fall chartlet-candle-solid"
+        }
+        // A thin bar is filled in every style; only its color follows the style.
+        (CandleStyle::Soft | CandleStyle::Solid, true, true) => {
+            "chartlet-candle chartlet-candle-rise chartlet-candle-narrow chartlet-candle-bright"
+        }
+        (CandleStyle::Soft | CandleStyle::Solid, false, true) => {
+            "chartlet-candle chartlet-candle-fall chartlet-candle-narrow chartlet-candle-bright"
+        }
     }
 }
 

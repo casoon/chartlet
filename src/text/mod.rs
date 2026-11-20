@@ -86,6 +86,10 @@ pub(crate) struct Words {
     pub low: &'static str,
     pub close: &'static str,
     pub candle_key: &'static str,
+    /// The key to the bodies of `candleStyle` `soft`.
+    pub candle_key_soft: &'static str,
+    /// The key to the bodies of `candleStyle` `solid`, which differ by color only.
+    pub candle_key_solid: &'static str,
     pub pane: &'static str,
     /// The columns of a sequence diagram's table.
     pub number: &'static str,
@@ -253,6 +257,8 @@ const EN: Words = Words {
     low: "low",
     close: "close",
     candle_key: "hollow: rising, filled: falling",
+    candle_key_soft: "tinted: rising, filled: falling",
+    candle_key_solid: "green: rising, red: falling",
     pane: "Pane",
     number: "No.",
     sender: "From",
@@ -393,6 +399,8 @@ const DE: Words = Words {
     low: "Tief",
     close: "Schluss",
     candle_key: "hohl: steigend, gefüllt: fallend",
+    candle_key_soft: "getönt: steigend, gefüllt: fallend",
+    candle_key_solid: "grün: steigend, rot: fallend",
     pane: "Teildiagramm",
     number: "Nr.",
     sender: "Von",

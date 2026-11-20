@@ -8,7 +8,7 @@ use crate::{
     error::ChartWarning,
     metrics::TextMetrics,
     scene::{Circle, Element, Polyline, Rect, Text, TextAnchor},
-    spec::{ChartSpec, Dataset, LayerRef, Mark},
+    spec::{CandleStyle, ChartSpec, Dataset, LayerRef, Mark},
 };
 
 /// Length of the line sample in a time chart's legend.
@@ -94,12 +94,15 @@ fn legend_entries<'a>(
         let name = if entry.layer.modeled {
             format!("{name} ({})", words.modeled)
         } else if entry.layer.mark == Mark::Ohlc {
+            let key = match entry.layer.candle_style.unwrap_or_default() {
+                CandleStyle::Hollow => words.candle_key,
+                CandleStyle::Soft => words.candle_key_soft,
+                CandleStyle::Solid => words.candle_key_solid,
+            };
             match (candles, std::mem::replace(&mut keyed, true)) {
-                (CandleKey::Alone, _) => words.candle_key.to_owned(),
+                (CandleKey::Alone, _) => key.to_owned(),
                 (CandleKey::Once, true) => name.to_owned(),
-                (CandleKey::Once | CandleKey::Each, _) => {
-                    format!("{name} ({})", words.candle_key)
-                }
+                (CandleKey::Once | CandleKey::Each, _) => format!("{name} ({key})"),
             }
         } else {
             name.to_owned()
@@ -166,7 +169,12 @@ pub(super) fn add_layer_legend(
         let y = row + count(line) * LEGEND_HEIGHT;
         let explicit = entry.layer.resolved_color().is_some();
         if entry.layer.mark == Mark::Ohlc {
-            crate::ohlc::push_legend_sample(x, y, elements);
+            crate::ohlc::push_legend_sample(
+                entry.layer.candle_style.unwrap_or_default(),
+                x,
+                y,
+                elements,
+            );
         } else if entry.layer.mark == Mark::Area {
             elements.push(Element::Rect(Rect {
                 x,

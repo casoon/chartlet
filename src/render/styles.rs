@@ -65,6 +65,10 @@ const ANNOTATION_EXTRA_STYLE: &str = ".chartlet-zone{fill:var(--chartlet-zero);f
 /// color-vision deficiencies keep. Only
 /// included when a chart draws candles, for the same reason as [`LAYER_EXTRA_STYLE`].
 const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall:#d03a0f}.chartlet-theme-dark{--chartlet-rise:#99f6e4;--chartlet-fall:#e5484d}.chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}";
+/// The brighter candles of `candleStyle` `soft` and `solid`: their own rise and fall colors, at
+/// least 3:1 against the background in both themes, rounded bodies and thin wicks. A soft rising
+/// body is tinted under its outline, so it stays apart from a filled falling one without color.
+const BRIGHT_CANDLE_STYLE: &str = ".chartlet-root{--chartlet-rise-bright:#089981;--chartlet-fall-bright:#f23645}.chartlet-theme-dark{--chartlet-rise-bright:#26c6a6;--chartlet-fall-bright:#f7525f}.chartlet-wick-bright{stroke-width:1}.chartlet-wick-rise.chartlet-wick-bright{stroke:var(--chartlet-rise-bright)}.chartlet-wick-fall.chartlet-wick-bright{stroke:var(--chartlet-fall-bright)}.chartlet-candle-soft,.chartlet-candle-solid{stroke-width:1;rx:1.5px}.chartlet-candle-rise.chartlet-candle-soft{fill:var(--chartlet-rise-bright);fill-opacity:.22;stroke:var(--chartlet-rise-bright)}.chartlet-candle-fall.chartlet-candle-soft,.chartlet-candle-fall.chartlet-candle-solid{fill:var(--chartlet-fall-bright);stroke:var(--chartlet-fall-bright)}.chartlet-candle-rise.chartlet-candle-solid{fill:var(--chartlet-rise-bright);stroke:var(--chartlet-rise-bright)}.chartlet-candle-rise.chartlet-candle-narrow.chartlet-candle-bright{fill:var(--chartlet-rise-bright)}.chartlet-candle-fall.chartlet-candle-narrow.chartlet-candle-bright{fill:var(--chartlet-fall-bright)}";
 /// Candles too narrow for an outline: filled bars over wicks at half strength, where the
 /// difference in lightness between the two colors is what is left of the direction. Only
 /// included when a layer holds more candles than have room for an outline.
@@ -387,6 +391,10 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
             is_time && crate::ohlc::has_narrow_candles(spec),
             NARROW_CANDLE_STYLE,
         ),
+        when(
+            is_time && crate::ohlc::has_bright_candles(spec),
+            BRIGHT_CANDLE_STYLE,
+        ),
     ]
     .concat()
 }
@@ -550,6 +558,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (SCATTER_BUBBLE_STYLE, &[Scatter]),
         (OHLC_STYLE, &[Time]),
         (NARROW_CANDLE_STYLE, &[Time]),
+        (BRIGHT_CANDLE_STYLE, &[Time]),
     ];
     let mut stylesheet = String::new();
     // An empty list of types: the group applies to every chart.
