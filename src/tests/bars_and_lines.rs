@@ -812,6 +812,117 @@ fn a_sparkline_draws_only_its_line_at_a_small_size() {
     assert_eq!(render_err(&bar).0, "option_not_supported");
 }
 
+/// A sparkline of `count` candles at bars 0, 1, 2 …, `width` pixels wide, with `layers` after them.
+fn candle_sparkline(count: usize, width: u32, layers: &str) -> String {
+    let candles: Vec<String> = (0..count)
+        .map(|bar| {
+            let open = 50.0 + f64::from(u8::try_from(bar % 7).expect("below 7"));
+            let close = if bar % 2 == 0 { open + 1.5 } else { open - 1.5 };
+            format!(
+                r#"{{"time": {bar}, "open": {open}, "high": {}, "low": {}, "close": {close}}}"#,
+                open.max(close) + 0.5,
+                open.min(close) - 0.5
+            )
+        })
+        .collect();
+    format!(
+        r#"{{"schemaVersion": 1, "type": "time", "title": "Pattern", "sparkline": true,
+            "width": {width}, "height": 140, "timeAxis": {{"kind": "number"}},
+            "panes": [{{"layers": [{{"mark": "ohlc", "name": "Price", "data": [{}]}}{layers}]}}]}}"#,
+        candles.join(",")
+    )
+}
+
+#[test]
+fn a_sparkline_draws_candles_and_annotations_without_text() {
+    let spec = candle_sparkline(
+        40,
+        280,
+        r##",{"mark": "band", "label": "Support", "bottom": 49, "top": 50.5, "color": "#2e8b74"},
+           {"mark": "band", "label": "Base", "from": 10, "to": 14},
+           {"mark": "annotation", "label": "Neckline", "value": 57},
+           {"mark": "annotation", "label": "Breakout", "time": 30},
+           {"mark": "annotation", "label": "Low", "time": 12, "value": 48.5, "shape": "triangle-up"},
+           {"mark": "line", "name": "Trend", "points": [{"time": 5, "value": 50}, {"time": 25, "value": 52}]}"##,
+    );
+    let output = render_ok(&spec);
+    let svg = &output.content;
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    // Nothing is written: no ticks, legend or labels; the labels name the annotations in their
+    // tooltips.
+    assert!(!svg.contains("<text"), "{svg}");
+    assert!(svg.contains("<title>Support: "), "{svg}");
+    assert!(svg.contains("<title>Neckline: "), "{svg}");
+    assert!(svg.contains("<title>Breakout: "), "{svg}");
+    assert!(svg.contains("chartlet-marker"), "{svg}");
+    assert_eq!(svg.matches("class=\"chartlet-candle ").count(), 40);
+    assert!(!svg.contains("chartlet-candle-narrow"));
+    // The candles are the series: the line over them ends without a dot.
+    assert!(
+        !svg.contains("chartlet-point chartlet-point-series"),
+        "{svg}"
+    );
+    // Every candle stays on the canvas.
+    for rect in svg.split("<rect").skip(1) {
+        let attribute = |name: &str| -> f64 {
+            rect.split(&format!(" {name}=\""))
+                .nth(1)
+                .and_then(|rest| rest.split('"').next())
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(0.0)
+        };
+        if rect.contains("chartlet-candle") {
+            assert!(attribute("x") >= 0.0 && attribute("x") + attribute("width") <= 280.0);
+        }
+    }
+}
+
+#[test]
+fn a_sparkline_measures_candle_room_on_its_own_width() {
+    // 80 candles on 280 pixels: a chart with axes keeps 212 of them, too few for outlined bodies;
+    // the sparkline has 272.
+    let output = render_ok(&candle_sparkline(80, 280, ""));
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    assert!(!output.content.contains("chartlet-candle-narrow"));
+    let narrow = render_ok(&candle_sparkline(120, 280, ""));
+    assert!(narrow.content.contains("chartlet-candle-narrow"));
+    assert_eq!(narrow.warnings[0].code, "dense_chart");
+    let wicks = render_ok(&candle_sparkline(200, 280, ""));
+    assert!(!wicks.content.contains("chartlet-candle "));
+    // Two candles at the narrowest width keep their wide bodies whole.
+    let two = render_ok(&candle_sparkline(2, 60, "")).content;
+    for rect in two.split("<rect x=\"").skip(1) {
+        let x: f64 = rect
+            .split('"')
+            .next()
+            .and_then(|x| x.parse().ok())
+            .expect("x");
+        assert!(x >= 0.0, "{two}");
+    }
+}
+
+#[test]
+fn a_sparkline_refuses_measures_and_point_layers() {
+    let measure = candle_sparkline(
+        5,
+        200,
+        r#",{"mark": "annotation", "label": "Body", "time": 2, "bottom": 50, "top": 51}"#,
+    );
+    assert_eq!(
+        render_err(&measure),
+        ("option_not_supported", "/panes/0/layers/1/mark".to_owned())
+    );
+    let points = candle_sparkline(
+        5,
+        200,
+        r#",{"mark": "point", "name": "Close", "points": [{"time": 1, "value": 50}]}"#,
+    );
+    assert_eq!(
+        render_err(&points),
+        ("option_not_supported", "/panes/0/layers/1/mark".to_owned())
+    );
+}
+
 #[test]
 fn names_at_the_end_of_the_lines_replace_the_legend() {
     let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Two lines", "legend": "end",

@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 
 use crate::{
     error::{ChartError, ChartWarning},
-    layout::{TimeFrame, format_value, plot_pixels, tooltip_name, tooltips_fit},
+    layout::{TimeFrame, format_value, time_plot_pixels, tooltip_name, tooltips_fit},
     scene::{Element, Line, Rect},
     spec::{
         CandleStyle, ChartSpec, LayerContext, LayerRef, LayerSpec, MAX_TIME_POINTS_PER_LAYER, Mark,
@@ -60,7 +60,7 @@ impl Density {
 /// or a zoom window into it, may draw thin bodies.
 pub(crate) fn has_narrow_candles(spec: &ChartSpec) -> bool {
     let plot_pixels =
-        usize::try_from(plot_pixels(spec.width)).expect("a usize is at least 32 bits wide");
+        usize::try_from(time_plot_pixels(spec)).expect("a usize is at least 32 bits wide");
     spec.layers()
         .any(|layer| Density::of(layer.data.len(), plot_pixels) != Density::Bodies)
 }
@@ -302,7 +302,7 @@ pub(crate) fn push_candles(
     let precision = spec.layer_precision(entry.layer, frame.zone);
     let xs: Vec<f64> = candles.iter().map(|(epoch, _)| frame.x(*epoch)).collect();
     let plot_pixels =
-        usize::try_from(plot_pixels(spec.width)).expect("a usize is at least 32 bits wide");
+        usize::try_from(time_plot_pixels(spec)).expect("a usize is at least 32 bits wide");
     let density = Density::of(candles.len(), plot_pixels);
     let narrow = density == Density::Narrow;
     // A narrow body leaves a pixel to the next one and is never wider than two.

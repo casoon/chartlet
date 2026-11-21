@@ -7,6 +7,19 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **Time charts:** a sparkline draws candles, and zones, reference lines and point markers whose
+  labels name them in tooltips and description only, for previews of chart patterns. Example
+  `sparkline-candles`; [Sparklines](https://casoon.github.io/chartlet/docs/guides/time-series/#sparklines).
+- **Tokens:** `hsl()` and `hsla()` of numbers are accepted beside hex and `rgb()`, and measured for
+  contrast like them. [Customize the look](https://casoon.github.io/chartlet/docs/guides/customize/).
+
+### Fixed
+
+- **Schema:** a sparkline's `width` (60–600) and `height` (16–200) validate against the JSON
+  schema, which asked for the sizes of a full chart.
+
 ## [0.25.0] - 2026-11-21
 
 ### Changed

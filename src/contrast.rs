@@ -225,8 +225,14 @@ fn ratio(palette: &BTreeMap<String, String>, front: &str, back: &str) -> Option<
 /// Red, green and blue from 0 to 255, and alpha from 0 to 1.
 type Rgba = [f64; 4];
 
-/// A token value: `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()` or `rgba()`.
+/// A token value: `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()`, `hsl()` or `hsla()`.
 fn color(value: &str) -> Option<Rgba> {
+    if let Some(inner) = value
+        .strip_prefix("hsla(")
+        .or_else(|| value.strip_prefix("hsl("))
+    {
+        return hsl(inner.strip_suffix(')')?);
+    }
     if let Some(hex) = value.strip_prefix('#') {
         let digit = |index: usize| {
             u8::from_str_radix(hex.get(index..=index)?, 16)
@@ -277,6 +283,31 @@ fn color(value: &str) -> Option<Rgba> {
         ]),
         _ => None,
     }
+}
+
+/// The numbers of `hsl()`: hue in degrees, saturation and lightness in percent, and an optional
+/// alpha, as red, green and blue by the conversion of CSS Color 4.
+fn hsl(inner: &str) -> Option<Rgba> {
+    let numbers: Vec<f64> = inner
+        .split([',', ' '])
+        .filter(|part| !part.is_empty())
+        .map(|part| part.trim_end_matches('%').parse::<f64>().ok())
+        .collect::<Option<_>>()?;
+    let (hue, saturation, lightness, alpha) = match numbers[..] {
+        [hue, saturation, lightness] => (hue, saturation, lightness, 1.0),
+        [hue, saturation, lightness, alpha] => (hue, saturation, lightness, alpha),
+        _ => return None,
+    };
+    let (saturation, lightness) = (
+        (saturation / 100.0).clamp(0.0, 1.0),
+        (lightness / 100.0).clamp(0.0, 1.0),
+    );
+    let channel = |offset: f64| {
+        let k = (offset + hue.rem_euclid(360.0) / 30.0).rem_euclid(12.0);
+        let amount = saturation * lightness.min(1.0 - lightness);
+        255.0 * (lightness - amount * (k - 3.0).min(9.0 - k).clamp(-1.0, 1.0))
+    };
+    Some([channel(0.0), channel(8.0), channel(4.0), alpha])
 }
 
 /// A translucent color as it looks over `back`; the ground itself is taken as opaque.
@@ -472,6 +503,28 @@ mod tests {
         let found = warnings(r#""tokens":{"text":"rgba(0, 0, 0, 0.2)"},"#);
         assert_eq!(found.len(), 1);
         assert_eq!(warnings(r#""tokens":{"text":"rgb(10 10 10)"},"#).len(), 0);
+        // hsl() is measured as the color it stands for.
+        assert_eq!(warnings(r#""tokens":{"text":"hsl(0, 0%, 85%)"},"#).len(), 1);
+        assert_eq!(
+            warnings(r#""tokens":{"text":"hsl(168 45% 20%)"},"#).len(),
+            0
+        );
+    }
+
+    #[test]
+    fn hsl_colors_are_converted_to_rgb() {
+        let close = |value: &str, expected: [f64; 4]| {
+            let found = color(value).expect("a color");
+            assert!(
+                found.iter().zip(expected).all(|(a, b)| (a - b).abs() < 0.5),
+                "{value}: {found:?}"
+            );
+        };
+        close("hsl(120, 100%, 50%)", [0.0, 255.0, 0.0, 1.0]);
+        close("hsl(0 0% 100%)", [255.0, 255.0, 255.0, 1.0]);
+        close("hsla(240, 100%, 25%, 0.5)", [0.0, 0.0, 127.5, 0.5]);
+        close("hsl(-120, 100%, 50%)", [0.0, 0.0, 255.0, 1.0]);
+        assert!(color("hsl(1, 2)").is_none());
     }
 
     #[test]

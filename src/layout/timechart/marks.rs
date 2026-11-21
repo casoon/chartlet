@@ -54,6 +54,8 @@ pub(super) fn draw_pane(
         .collect();
     let mut space = LabelSpace::new(frame, &entries);
     let mut rule_labels = Vec::new();
+    // A sparkline draws no text: its annotations are named in their tooltips.
+    let labelled = detail != Detail::Spark;
 
     for entry in entries
         .iter()
@@ -69,6 +71,7 @@ pub(super) fn draw_pane(
             &mut space,
             warnings,
             metrics,
+            labelled,
         );
         elements.push(Element::Hook(Hook::End));
     }
@@ -94,6 +97,7 @@ pub(super) fn draw_pane(
         push_rule(
             *entry,
             frame,
+            labelled,
             elements,
             &mut rule_labels,
             &mut space,
@@ -164,11 +168,18 @@ fn push_markers(
         .filter(|entry| entry.layer.is_marker())
         .copied()
         .collect();
-    let radius = if detail == Detail::Full { 6.0 } else { 4.5 };
+    let radius = match detail {
+        Detail::Full => 6.0,
+        Detail::Compact => 4.5,
+        Detail::Spark => 3.5,
+    };
     for entry in &markers {
         elements.push(Element::Hook(Hook::Layer(entry.global)));
         push_marker(*entry, frame, radius, elements, space);
         elements.push(Element::Hook(Hook::End));
+    }
+    if detail == Detail::Spark {
+        return;
     }
     for entry in &markers {
         push_marker_label(*entry, frame, radius, labels, space, warnings, metrics);
@@ -360,7 +371,13 @@ fn push_line(
     // for them to be readable. Beyond that, an invisible target keeps the tooltip of each
     // observation, as long as the targets stay far enough apart to point at and the chart does
     // not limit tooltips to markers.
+    // A sparkline marks where its line ends, unless its candles are the series and the line runs
+    // over them.
     let spark = detail == Detail::Spark;
+    let end_dot = spark
+        && !spec
+            .indexed_layers()
+            .any(|other| other.pane == entry.pane && other.layer.mark == Mark::Ohlc);
     let dense = points.len() > MAX_TIME_MARKERS;
     let markers = !spark && (!dense || is_point) && layer.markers != Some(false);
     let fits = || {
@@ -408,8 +425,7 @@ fn push_line(
             })
         };
         if !markers {
-            // A sparkline marks where its line ends.
-            if spark && index == last {
+            if end_dot && index == last {
                 elements.push(point(2.5, (!hits).then(|| text.clone())));
             }
             if hits {
