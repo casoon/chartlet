@@ -247,8 +247,9 @@ fn median_distance(xs: &[f64]) -> Option<f64> {
 }
 
 /// The width of every body: a share of the median distance between neighbouring candles, at
-/// least one pixel and at most [`MAX_BODY`]; a single candle takes [`LONE_BODY`].
-fn body_width(xs: &[f64]) -> f64 {
+/// least one pixel and at most [`MAX_BODY`]; a single candle takes [`LONE_BODY`]. The columns of a
+/// time chart take the same width, so a volume column stands under its candle.
+pub(crate) fn body_width(xs: &[f64]) -> f64 {
     median_distance(xs).map_or(LONE_BODY, |median| {
         (median * BODY_SHARE).clamp(1.0, MAX_BODY)
     })

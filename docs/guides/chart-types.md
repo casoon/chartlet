@@ -31,7 +31,7 @@ order: 1
 | Stacked areas | `"stack": "normal"` on a pane of `area` layers, `"legend": "end"` | [Generation by source](../../../showcase/generation-mix/) |
 | Streamgraph: stacked areas centered on a moving baseline | `"stack": "stream"` on a pane of `area` layers | [Tickets by topic](../../../showcase/topic-streams/) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [Checkout API error rate](../../../showcase/release-incidents/) |
-| Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio`; `"gaps": "collapse"` | [Daily share price](../../../showcase/share-price/) |
+| Candlesticks with a volume pane | `"mark": "ohlc"` with `data`; several `panes` with `heightRatio`; `"mark": "column"` for the volume; `"gaps": "collapse"` | [Daily share price](../../../showcase/share-price/) |
 | Profile or deep time on a numeric axis, reversed | `"timeAxis": { "kind": "number", "reverse": true }` | [Deep-sea oxygen isotopes](../../../showcase/deep-sea-isotopes/) |
 | Small multiples, each panel on its own value axis | `"independentAxes": true` | [Indicators of growth](../../../showcase/acceleration-indicators/) |
 | Small multiples of bars, one panel per measure with its own value axis | `"type": "multiples"` with `categories` and `values` per pane | [Web frameworks compared](../../../showcase/framework-benchmarks/) |

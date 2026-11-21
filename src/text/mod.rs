@@ -14,15 +14,16 @@ pub(crate) use architecture::{
 };
 pub(crate) use charts::{
     CandleSummary, SharedAxis, TimeForm, areas, bands, calendar_opening, candle_values, candles,
-    categories_opening, diverging_scale, dumbbell_note, equal_values, error_bars, funnel_note,
-    funnel_summary, gaps_collapsed, heatmap_categories, heatmap_values, measure, missing_values,
-    modeled_ranges, mosaic_summary, mosaic_tooltip, multiples_opening, of_previous_stage,
-    panel_bars_opening, panel_notes, panes, parliament_coalition, parliament_summary, percent_done,
-    polar_summary, pyramid_summary, radar_series, radar_summary, range_groups, rangebar_opening,
-    rank_summary, sankey_summary, scatter_sizes, series_at, series_at_position, slope_summary,
-    stacked_areas, stacked_shares, stacked_totals, stripes_opening, summary_ranges, time_opening,
-    timeline_item, timeline_markers, timeline_opening, treemap_summary, waffle_summary,
-    waterfall_summary, weighted_ranges, years_without_value, zone_times, zone_values,
+    categories_opening, columns, diverging_scale, dumbbell_note, equal_values, error_bars,
+    funnel_note, funnel_summary, gaps_collapsed, heatmap_categories, heatmap_values, measure,
+    missing_values, modeled_ranges, mosaic_summary, mosaic_tooltip, multiples_opening,
+    of_previous_stage, panel_bars_opening, panel_notes, panes, parliament_coalition,
+    parliament_summary, percent_done, polar_summary, pyramid_summary, radar_series, radar_summary,
+    range_groups, rangebar_opening, rank_summary, sankey_summary, scatter_sizes, series_at,
+    series_at_position, slope_summary, stacked_areas, stacked_shares, stacked_totals,
+    stripes_opening, summary_ranges, time_opening, timeline_item, timeline_markers,
+    timeline_opening, treemap_summary, waffle_summary, waterfall_summary, weighted_ranges,
+    years_without_value, zone_times, zone_values,
 };
 pub(crate) use diagrams::{
     DeltaField, DeltaKind, area_kind, bottlenecks, choices, closest_pair, composite, cycle_hub,

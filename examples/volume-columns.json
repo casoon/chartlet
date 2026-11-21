@@ -1,0 +1,395 @@
+{
+  "schemaVersion": 1,
+  "type": "time",
+  "title": "High volume on one bar, then little progress",
+  "source": "Illustrative values, chartlet",
+  "width": 640,
+  "height": 460,
+  "timeAxis": {
+    "kind": "number",
+    "title": "Bar"
+  },
+  "mobile": {
+    "width": 360,
+    "height": 440
+  },
+  "panes": [
+    {
+      "heightRatio": 3,
+      "valueAxis": {
+        "title": "Price",
+        "decimals": 2
+      },
+      "layers": [
+        {
+          "mark": "ohlc",
+          "name": "Price",
+          "data": [
+            {
+              "time": 0,
+              "open": 50.0,
+              "high": 50.45,
+              "low": 49.5,
+              "close": 50.15
+            },
+            {
+              "time": 1,
+              "open": 50.15,
+              "high": 50.82,
+              "low": 49.82,
+              "close": 50.35
+            },
+            {
+              "time": 2,
+              "open": 50.35,
+              "high": 50.94,
+              "low": 49.86,
+              "close": 50.47
+            },
+            {
+              "time": 3,
+              "open": 50.47,
+              "high": 50.88,
+              "low": 50.09,
+              "close": 50.58
+            },
+            {
+              "time": 4,
+              "open": 50.58,
+              "high": 51.2,
+              "low": 50.11,
+              "close": 50.73
+            },
+            {
+              "time": 5,
+              "open": 50.73,
+              "high": 51.27,
+              "low": 50.31,
+              "close": 50.79
+            },
+            {
+              "time": 6,
+              "open": 50.79,
+              "high": 51.1,
+              "low": 50.14,
+              "close": 50.58
+            },
+            {
+              "time": 7,
+              "open": 50.58,
+              "high": 51.05,
+              "low": 49.73,
+              "close": 50.19
+            },
+            {
+              "time": 8,
+              "open": 50.19,
+              "high": 50.67,
+              "low": 49.55,
+              "close": 49.95
+            },
+            {
+              "time": 9,
+              "open": 49.95,
+              "high": 50.36,
+              "low": 49.47,
+              "close": 50.05
+            },
+            {
+              "time": 10,
+              "open": 50.05,
+              "high": 50.82,
+              "low": 49.69,
+              "close": 50.35
+            },
+            {
+              "time": 11,
+              "open": 50.35,
+              "high": 51.05,
+              "low": 49.85,
+              "close": 50.57
+            },
+            {
+              "time": 12,
+              "open": 50.57,
+              "high": 50.94,
+              "low": 50.27,
+              "close": 50.63
+            },
+            {
+              "time": 13,
+              "open": 50.63,
+              "high": 51.12,
+              "low": 50.13,
+              "close": 50.65
+            },
+            {
+              "time": 14,
+              "open": 50.65,
+              "high": 51.16,
+              "low": 50.3,
+              "close": 50.68
+            },
+            {
+              "time": 15,
+              "open": 50.68,
+              "high": 51.0,
+              "low": 50.09,
+              "close": 50.58
+            },
+            {
+              "time": 16,
+              "open": 50.58,
+              "high": 51.04,
+              "low": 49.88,
+              "close": 50.28
+            },
+            {
+              "time": 17,
+              "open": 50.28,
+              "high": 50.76,
+              "low": 49.52,
+              "close": 49.98
+            },
+            {
+              "time": 18,
+              "open": 49.98,
+              "high": 52.7,
+              "low": 49.54,
+              "close": 52.38
+            },
+            {
+              "time": 19,
+              "open": 52.38,
+              "high": 52.84,
+              "low": 51.6,
+              "close": 52.03
+            },
+            {
+              "time": 20,
+              "open": 52.03,
+              "high": 52.51,
+              "low": 51.21,
+              "close": 51.68
+            },
+            {
+              "time": 21,
+              "open": 51.68,
+              "high": 52.13,
+              "low": 51.3,
+              "close": 51.81
+            },
+            {
+              "time": 22,
+              "open": 51.81,
+              "high": 52.27,
+              "low": 51.25,
+              "close": 51.74
+            },
+            {
+              "time": 23,
+              "open": 51.74,
+              "high": 52.22,
+              "low": 51.32,
+              "close": 51.65
+            },
+            {
+              "time": 24,
+              "open": 51.65,
+              "high": 51.98,
+              "low": 51.07,
+              "close": 51.57
+            },
+            {
+              "time": 25,
+              "open": 51.57,
+              "high": 52.03,
+              "low": 51.08,
+              "close": 51.4
+            },
+            {
+              "time": 26,
+              "open": 51.4,
+              "high": 51.89,
+              "low": 50.64,
+              "close": 51.14
+            },
+            {
+              "time": 27,
+              "open": 51.14,
+              "high": 51.47,
+              "low": 50.65,
+              "close": 51.02
+            },
+            {
+              "time": 28,
+              "open": 51.02,
+              "high": 51.69,
+              "low": 50.54,
+              "close": 51.23
+            },
+            {
+              "time": 29,
+              "open": 51.23,
+              "high": 52.12,
+              "low": 50.82,
+              "close": 51.63
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "heightRatio": 2,
+      "valueAxis": {
+        "title": "Volume (million)",
+        "decimals": 2
+      },
+      "layers": [
+        {
+          "mark": "column",
+          "name": "Volume",
+          "color": "#98a2b3",
+          "points": [
+            {
+              "time": 0,
+              "value": 1.2
+            },
+            {
+              "time": 1,
+              "value": 1.47
+            },
+            {
+              "time": 2,
+              "value": 1.21
+            },
+            {
+              "time": 3,
+              "value": 1.05
+            },
+            {
+              "time": 4,
+              "value": 1.14
+            },
+            {
+              "time": 5,
+              "value": 0.9
+            },
+            {
+              "time": 6,
+              "value": 1.34
+            },
+            {
+              "time": 7,
+              "value": 1.39
+            },
+            {
+              "time": 8,
+              "value": 1.37
+            },
+            {
+              "time": 9,
+              "value": 1.47
+            },
+            {
+              "time": 10,
+              "value": 1.02
+            },
+            {
+              "time": 11,
+              "value": 1.15
+            },
+            {
+              "time": 12,
+              "value": 1.06
+            },
+            {
+              "time": 13,
+              "value": 1.03
+            },
+            {
+              "time": 14,
+              "value": 1.39
+            },
+            {
+              "time": 15,
+              "value": 1.25
+            },
+            {
+              "time": 16,
+              "value": 1.49
+            },
+            {
+              "time": 17,
+              "value": 1.37
+            },
+            {
+              "time": 18,
+              "value": 3.1
+            },
+            {
+              "time": 19,
+              "value": 1.18
+            },
+            {
+              "time": 20,
+              "value": 0.91
+            },
+            {
+              "time": 21,
+              "value": 1.19
+            },
+            {
+              "time": 22,
+              "value": 1.35
+            },
+            {
+              "time": 23,
+              "value": 1.28
+            },
+            {
+              "time": 24,
+              "value": 1.54
+            },
+            {
+              "time": 25,
+              "value": 1.21
+            },
+            {
+              "time": 26,
+              "value": 1.19
+            },
+            {
+              "time": 27,
+              "value": 1.12
+            },
+            {
+              "time": 28,
+              "value": 0.89
+            },
+            {
+              "time": 29,
+              "value": 1.28
+            }
+          ]
+        },
+        {
+          "mark": "column",
+          "name": "Above 1.5 × mean",
+          "points": [
+            {
+              "time": 18,
+              "value": 3.1
+            }
+          ],
+          "color": "#2563eb"
+        },
+        {
+          "mark": "annotation",
+          "label": "1.5 × mean",
+          "value": 1.92
+        }
+      ]
+    }
+  ]
+}

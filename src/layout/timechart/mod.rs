@@ -77,6 +77,13 @@ const BAND_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-band chartlet-band-series-3",
     "chartlet-band chartlet-band-series-4",
 ];
+/// Columns of a layer in a palette color.
+pub(super) const COLUMN_CLASSES: [&str; MAX_SERIES] = [
+    "chartlet-column chartlet-band-series-1",
+    "chartlet-column chartlet-band-series-2",
+    "chartlet-column chartlet-band-series-3",
+    "chartlet-column chartlet-band-series-4",
+];
 /// Markers of a layer that takes a palette color other than the first.
 pub(super) const POINT_CLASSES: [&str; MAX_SERIES] = [
     "chartlet-point chartlet-point-series-1",

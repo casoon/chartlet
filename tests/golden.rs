@@ -125,6 +125,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/candle-zones.svg"),
     ),
     (
+        "volume-columns",
+        include_str!("../examples/volume-columns.json"),
+        include_str!("../examples/volume-columns.svg"),
+    ),
+    (
         "candle-anatomy",
         include_str!("../examples/candle-anatomy.json"),
         include_str!("../examples/candle-anatomy.svg"),
@@ -812,6 +817,11 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "growth-flywheel",
         include_str!("../examples/growth-flywheel.json"),
         include_str!("../examples/growth-flywheel.mobile.svg"),
+    ),
+    (
+        "volume-columns",
+        include_str!("../examples/volume-columns.json"),
+        include_str!("../examples/volume-columns.mobile.svg"),
     ),
     (
         "mobile-revenue",

@@ -482,6 +482,7 @@ fn describe_additions(spec: &ChartSpec, zone: time::TimeZone, description: &mut 
         .sum();
     description.push_str(&text::missing_values(spec.locale, missing));
     describe_areas(spec, description);
+    describe_columns(spec, description);
     describe_bands(spec, description);
     describe_rules(spec, zone, description);
     describe_zones_and_markers(spec, zone, description);
@@ -675,6 +676,18 @@ fn describe_areas(spec: &ChartSpec, description: &mut String) {
         }
     }
     description.push_str(&text::areas(spec.locale, &names));
+}
+
+/// The sentence about column layers, if any layer is one.
+fn describe_columns(spec: &ChartSpec, description: &mut String) {
+    let columns: Vec<String> = spec
+        .data_layers()
+        .filter(|entry| entry.layer.mark == spec::Mark::Column)
+        .filter_map(|entry| entry.layer.name.clone())
+        .collect();
+    if spec.layers().any(|layer| layer.mark == spec::Mark::Column) {
+        description.push_str(&text::columns(spec.locale, &columns));
+    }
 }
 
 /// The sentence about uncertainty bands, if any line has one.

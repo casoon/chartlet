@@ -7,6 +7,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **Time charts:** `"mark": "column"` draws a column from zero per observation, as wide as a candle
+  body, for volume under candles; a second column layer emphasizes single observations. Example
+  `volume-columns`; [Columns](https://casoon.github.io/chartlet/docs/guides/time-series/#columns).
+
 ## [0.25.0] - 2026-11-21
 
 ### Changed

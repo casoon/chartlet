@@ -4,7 +4,8 @@
 use std::fmt::Write as _;
 
 use super::{
-    BAND_CLASSES, LINE_CLASSES, LINE_DASHES, LINE_WEIGHTS, MAX_TIME_MARKERS, POINT_CLASSES,
+    BAND_CLASSES, COLUMN_CLASSES, LINE_CLASSES, LINE_DASHES, LINE_WEIGHTS, MAX_TIME_MARKERS,
+    POINT_CLASSES,
     frame::{Detail, TimeFrame},
 };
 use crate::{
@@ -17,7 +18,7 @@ use crate::{
         tooltip, tooltips_fit,
     },
     metrics::TextMetrics,
-    scene::{Circle, Element, Hook, Polyline, Text, TextAnchor},
+    scene::{Circle, Element, Hook, Polyline, Rect, Text, TextAnchor},
     spec::{ChartSpec, ChartType, Dash, LayerRef, LayerSpec, MAX_SERIES, Mark, Stroke, Tooltips},
     time::Precision,
 };
@@ -36,8 +37,8 @@ pub(crate) fn tooltip_name(spec: &ChartSpec, entry: LayerRef) -> Option<String> 
     }
 }
 
-/// Draws the layers of one pane: zones first, filled areas and uncertainty bands over them,
-/// reference lines over those, then the lines with their markers, the measures, the point
+/// Draws the layers of one pane: zones first, filled areas, columns and uncertainty bands over
+/// them, reference lines over those, then the lines with their markers, the measures, the point
 /// markers, and the labels of every annotation last so nothing covers them.
 pub(super) fn draw_pane(
     spec: &ChartSpec,
@@ -80,6 +81,15 @@ pub(super) fn draw_pane(
         push_area(spec, *entry, frame, elements);
         elements.push(Element::Hook(Hook::End));
     }
+    let columns = column_width(&entries, frame);
+    for entry in entries
+        .iter()
+        .filter(|entry| entry.layer.mark == Mark::Column)
+    {
+        elements.push(Element::Hook(Hook::Layer(entry.global)));
+        push_columns(spec, *entry, frame, columns, elements);
+        elements.push(Element::Hook(Hook::End));
+    }
     for entry in entries
         .iter()
         .filter(|entry| entry.layer.is_data() && entry.layer.has_band())
@@ -112,10 +122,9 @@ pub(super) fn draw_pane(
         crate::ohlc::push_candles(spec, *entry, frame, elements);
         elements.push(Element::Hook(Hook::End));
     }
-    for entry in entries
-        .iter()
-        .filter(|entry| entry.layer.is_data() && entry.layer.mark != Mark::Ohlc)
-    {
+    for entry in entries.iter().filter(|entry| {
+        entry.layer.is_data() && !matches!(entry.layer.mark, Mark::Ohlc | Mark::Column)
+    }) {
         elements.push(Element::Hook(Hook::Layer(entry.global)));
         push_line(spec, *entry, frame, detail, elements, warnings, metrics);
         elements.push(Element::Hook(Hook::End));
@@ -224,6 +233,68 @@ fn push_area(spec: &ChartSpec, entry: LayerRef, frame: &TimeFrame, elements: &mu
             series_index: None,
             style_index: explicit.then_some(entry.global),
             tooltip: None,
+        }));
+    }
+}
+
+/// The width of the columns of a pane: the width of a candle body at the distance between
+/// neighbouring observations of all its column layers together, so that a column layer that
+/// emphasizes a few observations of another takes the same width as that one.
+fn column_width(entries: &[LayerRef], frame: &TimeFrame) -> f64 {
+    let mut xs: Vec<f64> = entries
+        .iter()
+        .filter(|entry| entry.layer.mark == Mark::Column)
+        .flat_map(|entry| entry.layer.resolved_points(frame.zone))
+        .map(|(epoch, _)| frame.x(epoch))
+        .collect();
+    crate::sort::by(&mut xs, f64::total_cmp);
+    xs.dedup();
+    crate::ohlc::body_width(&xs)
+}
+
+/// One column from zero to every observation with a value, centered on its time, in the layer's
+/// color. Each column carries the tooltip of its observation while neighbouring columns stand
+/// far enough apart to point at.
+fn push_columns(
+    spec: &ChartSpec,
+    entry: LayerRef,
+    frame: &TimeFrame,
+    width: f64,
+    elements: &mut Vec<Element>,
+) {
+    let layer = entry.layer;
+    let points = layer.resolved_points(frame.zone);
+    let explicit = layer.resolved_color().is_some();
+    let palette = spec.palette_index(layer);
+    let name = tooltip_name(spec, entry);
+    let precision = spec.layer_precision(layer, frame.zone);
+    let xs: Vec<f64> = points.iter().map(|(epoch, _)| frame.x(*epoch)).collect();
+    let with_tooltips = tooltips_fit(&xs);
+    let zero = frame.y(0.0);
+    for ((epoch, value), x) in points.iter().zip(xs) {
+        let y = frame.y(*value);
+        elements.push(Element::Rect(Rect {
+            x: x - width / 2.0,
+            y: y.min(zero),
+            width,
+            height: (y - zero).abs(),
+            class: if explicit {
+                "chartlet-column"
+            } else {
+                COLUMN_CLASSES[palette]
+            },
+            series_index: None,
+            style_index: explicit.then_some(entry.global),
+            tooltip: with_tooltips.then(|| {
+                observation_tooltip(
+                    spec,
+                    frame,
+                    (*epoch, *value),
+                    None,
+                    name.as_deref(),
+                    precision,
+                )
+            }),
         }));
     }
 }
