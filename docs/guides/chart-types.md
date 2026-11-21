@@ -429,6 +429,52 @@ step, from revenue to profit, from a budget to its spending.
   fall; the table lists every step with its kind, its change and the total after it. 2–40 steps
   with unique labels.
 
+## Point-and-figure charts
+
+`"type": "pointfigure"` draws columns of X (rising) and O (falling) on a grid of boxes. The
+horizontal axis counts columns, not time: a new column starts only when the direction turns. The
+columns come computed, by whatever box size and reversal the caller chose; chartlet draws them and
+decides nothing about reversals.
+
+```json
+{
+  "schemaVersion": 1,
+  "type": "pointfigure",
+  "title": "A base between 100 and 104, counted along the 104 row",
+  "valueAxis": { "title": "Price" },
+  "categoryAxis": { "title": "Column" },
+  "pointfigure": {
+    "boxSize": 1,
+    "columns": [
+      { "direction": "down", "low": 100, "high": 104 },
+      { "direction": "up", "low": 101, "high": 104 },
+      { "direction": "down", "low": 101, "high": 103 },
+      { "direction": "up", "low": 102, "high": 108 }
+    ],
+    "highlights": [{ "from": 1, "to": 3, "label": "Counted: 3 columns" }]
+  },
+  "references": [
+    { "value": 104, "label": "Count line 104" },
+    { "value": 100, "label": "Low 100" }
+  ]
+}
+```
+
+- **Boxes.** Every column fills the boxes from `low` to `high`, one mark each, in steps of
+  `boxSize`; all columns share the grid of the first column's `low`. X takes the theme's rise
+  color and O its fall color (tokens `rise` and `fall`), both as thin strokes, so the direction
+  reads from the shape as well. A fine line runs between every two boxes while a box is at least
+  6 pixels tall.
+- **Axes.** The value axis is linear and takes `valueAxis` as on a bar chart; the horizontal axis
+  numbers the columns from 1, every second, fifth or tenth when they are narrow.
+- **Levels and counts.** `references` draw levels such as a count line across the chart, with
+  their labels right of the last column, where they cover no mark. `highlights` tint a range of
+  columns, numbered as on the axis, with a label at the top.
+- **Text alternative.** The description gives the number of columns and the box size, how many
+  rise and fall, the values they span, the last column, the highlights and the reference lines;
+  the table lists every column with its direction, its lowest and highest box and its boxes, and
+  the tooltip of a column says the same.
+
 ## Waffle charts
 
 `"type": "waffle"` shows parts of a whole as squares: a grid of 100 squares in which each square is
@@ -964,7 +1010,8 @@ related.
 
 ## Reference lines
 
-A bar chart takes up to four reference lines, such as an average or a target. Each runs across
+A bar chart takes up to four reference lines, such as an average or a target; so do range bar
+and point-and-figure charts. Each runs across
 the plot at its value, behind the bars, with its label on top; the value axis widens to reach it,
 and the description names it.
 

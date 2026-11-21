@@ -115,6 +115,7 @@ pub(super) fn table_hooks(spec: &ChartSpec) -> TableHooks {
             | ChartType::Treemap
             | ChartType::Parliament
             | ChartType::Waffle
+            | ChartType::PointFigure
             | ChartType::Funnel
             | ChartType::Radar
             | ChartType::Polar

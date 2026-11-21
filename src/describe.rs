@@ -36,6 +36,7 @@ fn chart_description(spec: &ChartSpec) -> String {
         ChartType::Treemap => return crate::treemap::description(spec),
         ChartType::Parliament => return crate::parliament::description(spec),
         ChartType::Waffle => return crate::waffle::description(spec),
+        ChartType::PointFigure => return crate::pointfigure::description(spec),
         ChartType::Funnel => return crate::funnel::description(spec),
         ChartType::Radar => return crate::radar::description(spec),
         ChartType::Polar => return crate::polar::description(spec),

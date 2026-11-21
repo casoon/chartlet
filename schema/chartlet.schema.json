@@ -8,7 +8,7 @@
   "properties": {
     "schemaVersion": { "const": 1 },
     "type": {
-      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "waffle", "funnel", "radar", "polar", "mosaic", "heatmap", "valuemap", "journey", "storymap", "kanban", "venn", "fishbone", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle", "layers", "plan"]
+      "enum": ["bar", "line", "time", "stripes", "calendar", "rangebar", "multiples", "sequence", "flow", "state", "architecture", "tree", "boxplot", "timeline", "waterfall", "pointfigure", "waffle", "funnel", "radar", "polar", "mosaic", "heatmap", "valuemap", "journey", "storymap", "kanban", "venn", "fishbone", "parliament", "treemap", "sankey", "survival", "scatter", "classes", "network", "cycle", "layers", "plan"]
     },
     "orientation": { "enum": ["vertical", "horizontal"], "default": "vertical" },
     "title": { "type": "string", "minLength": 1, "maxLength": 200 },
@@ -172,7 +172,7 @@
       "enum": ["normal", "percent"]
     },
     "references": {
-      "description": "Reference lines across a type: \"bar\" or \"rangebar\" chart, such as an average, a target or the line of no effect.",
+      "description": "Reference lines across a type: \"bar\", \"rangebar\" or \"pointfigure\" chart, such as an average, a target, the line of no effect or the count line of a point-and-figure chart.",
       "type": "array",
       "maxItems": 4,
       "items": {
@@ -283,6 +283,10 @@
     "waterfall": {
       "description": "The steps of a type: \"waterfall\" chart.",
       "$ref": "#/$defs/waterfall"
+    },
+    "pointfigure": {
+      "description": "The columns of a type: \"pointfigure\" chart.",
+      "$ref": "#/$defs/pointfigure"
     },
     "timeline": {
       "description": "The items and markers of a type: \"timeline\" chart.",
@@ -732,6 +736,17 @@
           }
         },
         {
+          "required": ["pointfigure"],
+          "not": {
+            "anyOf": [
+              { "required": ["data"] },
+              { "required": ["categories"] },
+              { "required": ["series"] },
+              { "required": ["panes"] }
+            ]
+          }
+        },
+        {
           "required": ["timeline"],
           "not": {
             "anyOf": [
@@ -948,6 +963,11 @@
       "if": { "properties": { "type": { "const": "waterfall" } } },
       "then": { "required": ["waterfall"] },
       "else": { "not": { "required": ["waterfall"] } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "pointfigure" } } },
+      "then": { "required": ["pointfigure"] },
+      "else": { "not": { "required": ["pointfigure"] } }
     },
     {
       "if": { "properties": { "type": { "const": "timeline" } } },
@@ -1804,6 +1824,52 @@
           }
         },
         "display": { "enum": ["funnel", "pyramid"], "default": "funnel" }
+      }
+    },
+    "pointfigure": {
+      "description": "A point-and-figure chart: columns of X (rising) and O (falling), one mark per filled box, on a grid of boxes. The horizontal axis counts columns from 1, not time. The columns come computed; chartlet draws them and decides nothing about reversals. Up to 200 columns and 5000 boxes; every low and high lies a whole number of boxes from the first column's low. Levels such as a count line are top-level references.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["boxSize", "columns"],
+      "properties": {
+        "boxSize": {
+          "description": "The height of one box, in the units of the value axis.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["direction", "low", "high"],
+            "properties": {
+              "direction": {
+                "description": "up: a rising column of X; down: a falling column of O.",
+                "enum": ["up", "down"]
+              },
+              "low": { "description": "The value of the lowest filled box.", "type": "number" },
+              "high": { "description": "The value of the highest filled box, a whole number of boxes above low.", "type": "number" }
+            }
+          }
+        },
+        "highlights": {
+          "description": "Ranges of columns tinted behind their marks, each with a label at the top.",
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["from", "to", "label"],
+            "properties": {
+              "from": { "description": "The first column, numbered from 1 as on the axis.", "type": "integer", "minimum": 1 },
+              "to": { "description": "The last column, numbered from 1 as on the axis; not before from.", "type": "integer", "minimum": 1 },
+              "label": { "type": "string", "minLength": 1, "maxLength": 60 }
+            }
+          }
+        }
       }
     },
     "waffle": {

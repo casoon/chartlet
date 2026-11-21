@@ -145,6 +145,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/wave-count.svg"),
     ),
     (
+        "point-figure-count",
+        include_str!("../examples/point-figure-count.json"),
+        include_str!("../examples/point-figure-count.svg"),
+    ),
+    (
         "stepped-labels",
         include_str!("../examples/stepped-labels.json"),
         include_str!("../examples/stepped-labels.svg"),
@@ -798,6 +803,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
 
 /// Examples with a mobile variant, and its reviewed SVG.
 const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
+    (
+        "point-figure-count",
+        include_str!("../examples/point-figure-count.json"),
+        include_str!("../examples/point-figure-count.mobile.svg"),
+    ),
     (
         "co-authors",
         include_str!("../examples/co-authors.json"),

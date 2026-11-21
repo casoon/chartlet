@@ -53,6 +53,7 @@ impl ChartSpec {
             | ChartType::Tree
             | ChartType::Timeline
             | ChartType::Waterfall
+            | ChartType::PointFigure
             | ChartType::Waffle
             | ChartType::Funnel
             | ChartType::Radar
@@ -399,6 +400,7 @@ impl ChartSpec {
             | ChartType::Rangebar
             | ChartType::Boxplot
             | ChartType::Waterfall
+            | ChartType::PointFigure
             | ChartType::Multiples => Some(&self.value_axis),
             ChartType::Stripes
             | ChartType::Calendar
@@ -512,6 +514,7 @@ impl ChartSpec {
             | ChartType::Rangebar
             | ChartType::Boxplot
             | ChartType::Waterfall
+            | ChartType::PointFigure
             | ChartType::Multiples => self.value_axis.format,
         }
     }

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "type": "pointfigure",
+  "title": "A base between 100 and 104, counted along the 104 row",
+  "description": "Point-and-figure columns with a box size of 1 and a three-box reversal. The base from column 3 to column 11 is counted along the 104 row.",
+  "source": "Illustrative values, chartlet",
+  "width": 760,
+  "height": 420,
+  "valueAxis": { "title": "Price" },
+  "categoryAxis": { "title": "Column" },
+  "pointfigure": {
+    "boxSize": 1,
+    "columns": [
+      { "direction": "down", "low": 101, "high": 109 },
+      { "direction": "up", "low": 102, "high": 105 },
+      { "direction": "down", "low": 100, "high": 104 },
+      { "direction": "up", "low": 101, "high": 104 },
+      { "direction": "down", "low": 101, "high": 103 },
+      { "direction": "up", "low": 102, "high": 104 },
+      { "direction": "down", "low": 100, "high": 103 },
+      { "direction": "up", "low": 101, "high": 104 },
+      { "direction": "down", "low": 101, "high": 103 },
+      { "direction": "up", "low": 102, "high": 104 },
+      { "direction": "down", "low": 101, "high": 103 },
+      { "direction": "up", "low": 102, "high": 108 },
+      { "direction": "down", "low": 105, "high": 107 },
+      { "direction": "up", "low": 106, "high": 112 }
+    ],
+    "highlights": [{ "from": 3, "to": 11, "label": "Counted: 9 columns" }]
+  },
+  "references": [
+    { "value": 104, "label": "Count line 104" },
+    { "value": 100, "label": "Low 100" }
+  ],
+  "mobile": { "width": 380, "height": 420 }
+}

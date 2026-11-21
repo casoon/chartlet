@@ -32,6 +32,7 @@ place in the specification as a JSON Pointer (`/flow/edges/2/to`); see
 | `mosaic` | [Mosaic charts](#mosaic-charts) | `mosaic` |
 | `heatmap` | [Heatmaps](#heatmaps) | `heatmap` |
 | `waterfall` | [Waterfalls](#waterfalls) | `waterfall` |
+| `pointfigure` | [Point-and-figure charts](#point-and-figure-charts) | `pointfigure` |
 | `sequence` | [Sequence diagrams](#sequence-diagrams) | `sequence` |
 | `flow` | [Flow charts](#flow-charts) | `flow` |
 | `state` | [State diagrams](#state-diagrams) | `state` |
@@ -96,14 +97,14 @@ Rules:
 - Numbers must be finite (`non_finite_value`) and zero or of a magnitude between `1e-100` and
   `1e100` (`unsupported_numeric_range`).
 - A block that belongs to another type (`stripes`, `calendar`, `ranges`, `boxes`, `timeline`,
-  `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `waterfall`,
+  `parliament`, `treemap`, `sankey`, `survival`, `scatter`, `classes`, `waffle`, `funnel`, `radar`, `polar`, `mosaic`, `heatmap`, `waterfall`, `pointfigure`,
   `sequence`, `flow`, `state`, `architecture`, `tree`, `network`, `cycle`, `fishbone`, `kanban`, `storymap`, `journey`, `valuemap`, `venn`, `layers`, `plan`, `columns`),
   and a type's own field on another type (`showMean`, `violinScale`, `boxDisplay`, `references`,
   `stack`, `patterns`, `slope`, `rank`, `legend` (`end` outside a time chart, `auto` and `none` outside a diagram), `emphasis` (outside a diagram), `sparkline`, `tooltips`, `independentAxes`, `mobile.columns`), is
   refused with `option_not_supported` rather than ignored.
 - A type whose block is absent is refused with the block's own code: `missing_stripes`,
   `missing_calendar`, `missing_timeline`, `missing_parliament`, `missing_treemap`,
-  `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_funnel`, `missing_radar`, `missing_polar`, `missing_mosaic`, `missing_heatmap`, `missing_waterfall`,
+  `missing_sankey`, `missing_survival`, `missing_scatter`, `missing_waffle`, `missing_funnel`, `missing_radar`, `missing_polar`, `missing_mosaic`, `missing_heatmap`, `missing_waterfall`, `missing_pointfigure`,
   `missing_sequence`, `missing_flow`, `missing_state`,
   `missing_classes`, `missing_architecture`, `missing_tree`, `missing_network`, `missing_cycle`, `missing_fishbone`, `missing_kanban`, `missing_storymap`, `missing_journey`, `missing_valuemap`, `missing_layers`, `missing_plan` and `missing_venn`. An empty list
   where a type needs at least one entry is `empty_data`.
@@ -113,7 +114,7 @@ Rules:
 
 ## Value axis
 
-Bar, line, range bar, box plot and waterfall charts take a top-level `valueAxis`, small multiples one shared
+Bar, line, range bar, box plot, waterfall and point-and-figure charts take a top-level `valueAxis`, small multiples one shared
 by every panel (or one per panel, see [Small multiples](#small-multiples)), and every pane of a
 `time` chart its own. Bar and line charts also take `categoryAxis`.
 
@@ -165,7 +166,7 @@ Rules:
 | `slope` | boolean | no | `line` with `categories` and `series` only: `true` draws a slope chart, one line per series from its first value to its second, with the name and value at both ends instead of a legend. Exactly two categories (`invalid_categories`), a value in every category (`missing_value`), no error bars or zoom steps; names that would overlap are spread apart. |
 | `rank` | boolean | no | `line` with `categories` and `series` only: `true` plots the rank of each series in every category, 1 for the largest value at the top, with the names and ranks at both ends instead of a legend. At least two categories and two series (`invalid_categories`), a value in every category (`missing_value`), no value axis; equal values keep the order of the series. Not together with `slope`. |
 | `patterns` | boolean | no | `bar` with `series` only: `true` draws every other series as an outline — the background inside, the series color around it — in the bars, the legend and stacks, so that series differ in form as well as in color. |
-| `references` | array, up to 4 | no | `bar` and `rangebar`: reference lines across the bars, `[{ "value": 48, "label": "EU average" }]`. A line widens the value axis to reach its value; the description names it. |
+| `references` | array, up to 4 | no | `bar`, `rangebar` and `pointfigure`: reference lines across the bars or columns, `[{ "value": 48, "label": "EU average" }]`. A line widens the value axis to reach its value; the description names it. |
 | `references[].value` | number | yes | Where the line stands. |
 | `references[].label` | string, up to 60 characters | yes | Its text. |
 | `zoomSteps` | array, 2–4 | no | Variants selectable in the HTML output, each `{ "label", "from", "to" }`: `from` and `to` are category indices. |
@@ -699,6 +700,32 @@ diverging scale.
 Rules: 2–40 steps (`too_many_data_points`) with unique labels (`duplicate_label`); a `delta` or
 `start` without value is `missing_value`; a `total` with a value other than the running total is
 `total_mismatch`.
+
+## Point-and-figure charts
+
+`"type": "pointfigure"`: columns of X (rising) and O (falling), one mark per filled box, on a grid
+of boxes. The horizontal axis counts columns, not time. [Value axis](#value-axis) (linear, not
+reversed), `categoryAxis.title` and `references` apply. See
+[Point-and-figure charts](../../guides/chart-types/#point-and-figure-charts).
+
+| Field | Type | Required | Meaning |
+| --- | --- | --- | --- |
+| `pointfigure.boxSize` | number above 0 | yes | The height of one box in the units of the value axis. |
+| `pointfigure.columns` | array, 1–200 | yes | `[{ "direction": "down", "low": 100, "high": 104 }, { "direction": "up", "low": 101, "high": 108 }]`, first column first. The columns come computed; chartlet decides nothing about reversals. |
+| `pointfigure.columns[].direction` | `up`, `down` | yes | `up` fills the column with X, `down` with O. |
+| `pointfigure.columns[].low` | number | yes | The value of the lowest filled box. |
+| `pointfigure.columns[].high` | number | yes | The value of the highest filled box; every box from `low` to `high` is filled. |
+| `pointfigure.highlights` | array, up to 4 | no | `[{ "from": 3, "to": 11, "label": "Counted: 9 columns" }]`: a tint behind the columns with its label at the top. |
+| `pointfigure.highlights[].from`, `.to` | integer from 1 | yes | The first and last column, numbered from 1 as on the axis. |
+| `pointfigure.highlights[].label` | string, up to 60 characters | yes | Its text. |
+
+Rules: a `boxSize` of zero or less is `invalid_box_size`; 1–200 columns (`empty_data`,
+`too_many_data_points`) that fill at most 5000 boxes (`too_many_data_points`); a `high` below its
+`low` is `invalid_range`; every `low` lies a whole number of boxes from the first column's `low`,
+and every `high` a whole number of boxes above its `low` (`off_grid`); more than four highlights
+are `too_many_highlights`, and a highlight outside the columns or with `to` before `from` is
+`invalid_highlight`. `valueAxis.scale: "log"` and `valueAxis.reverse` are `option_not_supported`.
+Columns too narrow or boxes too short to tell their marks apart warn with `dense_chart`.
 
 ## Fishbone diagrams
 

@@ -7,6 +7,13 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **Point-and-figure charts:** `"type": "pointfigure"` draws columns of X and O, one mark per
+  box, along an axis that counts columns instead of time, with `highlights` over counted columns
+  and `references` as levels. Example `point-figure-count`; details:
+  [Point-and-figure charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#point-and-figure-charts).
+
 ## [0.25.0] - 2026-11-21
 
 ### Changed

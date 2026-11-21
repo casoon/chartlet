@@ -36,6 +36,7 @@ mod parts;
 mod plan;
 #[cfg(feature = "png")]
 mod png;
+mod pointfigure;
 mod polar;
 pub mod qr;
 mod radar;
@@ -92,19 +93,20 @@ pub use spec::{
     MainPath, Mark, MarkerSpec, MessageKind, MessageSpec, MobileSpec, MosaicColumnSpec,
     MosaicSegmentSpec, MosaicSpec, NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder,
     NetworkSpec, NodeKind, NoteSpec, OhlcPoint, Orientation, PackageSpec, PaneSpec, ParliamentSpec,
-    PartSpec, ParticipantKind, ParticipantSpec, PartySpec, PerspectiveSpec, PlanSpec, PolarDisplay,
-    PolarPointSpec, PolarSpec, PortSide, RadarAxisSpec, RadarSeriesSpec, RadarSpec, RangeDisplay,
-    RangeSort, RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec,
-    SankeyNodeSpec, SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec,
-    ScatterQuadrantLabels, ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec,
-    SeriesSpec, Shape, SizePreset, Stack, StackLayerSpec, StateKind, StateNodeSpec, StateSpec,
-    StepKind, StepSpec, StorymapActivitySpec, StorymapSpec, StorymapStorySpec, StorymapTaskSpec,
-    StripesSpec, Stroke, StrokeStyle, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec,
-    Theme, TimeAxisKind, TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec,
-    Tooltips, TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec,
-    TreemapSpec, ValueAxisSpec, ValueFormat, ValuemapComponentSpec, ValuemapDependencySpec,
-    ValuemapMoveSpec, ValuemapSpec, VennRegionSpec, VennSpec, ViewSpec, ViewStepSpec, ViolinScale,
-    WafflePartSpec, WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
+    PartSpec, ParticipantKind, ParticipantSpec, PartySpec, PerspectiveSpec, PlanSpec,
+    PnfColumnSpec, PnfDirection, PnfHighlightSpec, PointFigureSpec, PolarDisplay, PolarPointSpec,
+    PolarSpec, PortSide, RadarAxisSpec, RadarSeriesSpec, RadarSpec, RangeDisplay, RangeSort,
+    RangeSpec, ReferenceSpec, RelationKind, RelationSpec, SankeyLinkSpec, SankeyNodeSpec,
+    SankeyOrder, SankeySpec, ScatterAxis, ScatterLineSpec, ScatterPointSpec, ScatterQuadrantLabels,
+    ScatterQuadrantsSpec, ScatterSpec, ScatterTickSpec, SequenceSpec, SeriesSpec, Shape,
+    SizePreset, Stack, StackLayerSpec, StateKind, StateNodeSpec, StateSpec, StepKind, StepSpec,
+    StorymapActivitySpec, StorymapSpec, StorymapStorySpec, StorymapTaskSpec, StripesSpec, Stroke,
+    StrokeStyle, SurvivalGroupSpec, SurvivalObservationSpec, SurvivalSpec, Theme, TimeAxisKind,
+    TimeAxisSpec, TimePoint, TimePrecision, TimelineItemSpec, TimelineSpec, Tooltips,
+    TransitionSpec, TreeLayout, TreeNodeKind, TreeNodeSpec, TreeSpec, TreemapItemSpec, TreemapSpec,
+    ValueAxisSpec, ValueFormat, ValuemapComponentSpec, ValuemapDependencySpec, ValuemapMoveSpec,
+    ValuemapSpec, VennRegionSpec, VennSpec, ViewSpec, ViewStepSpec, ViolinScale, WafflePartSpec,
+    WaffleSpec, WaterfallSpec, ZoomBound, ZoomStep,
 };
 pub use theme::{apply_theme, bundled_theme};
 pub use typography::{FontMetrics, TypographySpec, embed_font};

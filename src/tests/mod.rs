@@ -17,6 +17,7 @@ mod multiples;
 mod outlines;
 mod panes;
 mod part_of_whole;
+mod pointfigure;
 mod polar;
 mod radar;
 mod ranges;

@@ -125,6 +125,7 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Polar chart: one value per month, hour or direction as wedges or lollipops around a center | `"type": "polar"` with `polar.points`, `display` | [monthly-rainfall](examples/monthly-rainfall.json), [wind-directions](examples/wind-directions.json) |
 | Mosaic chart (Marimekko): column widths and segment shares at once | `"type": "mosaic"` with `mosaic.columns` | [market-by-region](examples/market-by-region.json) |
 | Heatmap: values in a grid of rows and columns, or categories with a symbol each | `"type": "heatmap"` with `heatmap.rows`, `columns` and `cells` | [weekly-response](examples/weekly-response.json), [permission-matrix](examples/permission-matrix.json) |
+| Point-and-figure chart: columns of X and O on a box grid, with count lines and counted columns | `"type": "pointfigure"` with `pointfigure.columns`, `highlights`, `references` | [point-figure-count](examples/point-figure-count.json) |
 | Waffle chart: shares of a whole as squares, with the rest | `"type": "waffle"` with `waffle.parts` and `total` | [energy-sources](examples/energy-sources.json) |
 | Venn diagram: two or three overlapping sets with a label and count per region | `"type": "venn"` with `venn.sets` and `regions` | [team-skills](examples/team-skills.json) |
 | Value chain map: components by visibility and evolution, dependencies, planned movement | `"type": "valuemap"` with `valuemap.components` and `dependencies` | [coffee-shop-chain](examples/coffee-shop-chain.json) |
