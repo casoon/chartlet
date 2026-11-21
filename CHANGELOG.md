@@ -9,6 +9,7 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Changed
 
+- **Pages:** the project site uses the current shared theme (0.16.2).
 - **Releases:** the crate is published by the Release workflow on the version tag as well, with
   crates.io Trusted Publishing (no stored token), after approval in the `crates-io` environment.
 
