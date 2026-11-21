@@ -62,9 +62,11 @@ const ANNOTATION_EXTRA_STYLE: &str = ".chartlet-zone{fill:var(--chartlet-zero);f
 /// Candlesticks. A rising candle is hollow and a falling one filled, so the direction does not
 /// rest on the two colors; both keep at least 4.5:1 against the background of their theme, and
 /// they differ in lightness too (about 1.9:1 light, 3.1:1 dark), which grayscale print and
-/// color-vision deficiencies keep. Only
+/// color-vision deficiencies keep. Lines in a chart with candles (`chartlet-has-candles` on the root)
+/// take finer weights, 2 / 1.5 / 1 / 3 px instead of 3 / 2 / 1 / 4.5 px, so an average or an
+/// oscillator does not outweigh the 1.5 px strokes of the candles. Only
 /// included when a chart draws candles, for the same reason as [`LAYER_EXTRA_STYLE`].
-const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall:#d03a0f}.chartlet-theme-dark{--chartlet-rise:#99f6e4;--chartlet-fall:#e5484d}.chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}";
+const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall:#d03a0f}.chartlet-theme-dark{--chartlet-rise:#99f6e4;--chartlet-fall:#e5484d}.chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}.chartlet-has-candles .chartlet-line{stroke-width:2}.chartlet-has-candles .chartlet-line-thin{stroke-width:1}.chartlet-has-candles .chartlet-line-medium{stroke-width:1.5}.chartlet-has-candles .chartlet-line-bold{stroke-width:3}";
 /// The brighter candles of `candleStyle` `soft` and `solid`: their own rise and fall colors, at
 /// least 3:1 against the background in both themes, rounded bodies and thin wicks. A soft rising
 /// body is tinted under its outline, so it stays apart from a filled falling one without color.
@@ -724,12 +726,13 @@ pub(super) fn scope_stylesheet(stylesheet: &str, scope: &str, print: bool) -> St
 }
 
 fn scope_selector(selector: &str, scope: &str, print: bool) -> String {
-    const ROOT_CLASSES: [&str; 5] = [
+    const ROOT_CLASSES: [&str; 6] = [
         ".chartlet-root",
         ".chartlet-theme-dark",
         ".chartlet-blueprint",
         ".chartlet-multiples",
         ".chartlet-look-editorial",
+        ".chartlet-has-candles",
     ];
     if selector.starts_with('#')
         || selector.starts_with(".chartlet-wrapper")

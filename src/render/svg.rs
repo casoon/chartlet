@@ -13,7 +13,7 @@ use super::{
 use crate::{
     Styles,
     scene::{Element, Scene, TextAnchor},
-    spec::{ChartSpec, ChartType, Look, StrokeStyle, Theme},
+    spec::{ChartSpec, ChartType, Look, Mark, StrokeStyle, Theme},
 };
 
 /// Where a chart's stylesheet goes: all of it inline, only its own declared colors inline with the
@@ -53,7 +53,7 @@ pub(crate) fn svg(
     let mut output = String::new();
     write!(
         output,
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}{}{}\"{}{}>",
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{}\" height=\"{}\" viewBox=\"0 0 {} {}\" id=\"{id_prefix}\" role=\"img\" aria-labelledby=\"{title_id} {description_id}\" class=\"chartlet-root{}{}{}{}\"{}{}>",
         scene.width,
         scene.height,
         scene.width,
@@ -67,6 +67,13 @@ pub(crate) fn svg(
         },
         if spec.look == Look::Editorial {
             " chartlet-look-editorial"
+        } else {
+            ""
+        },
+        // Lines drawn next to candles take finer weights, in every pane of the chart.
+        if spec.chart_type == ChartType::Time && spec.layers().any(|layer| layer.mark == Mark::Ohlc)
+        {
+            " chartlet-has-candles"
         } else {
             ""
         },

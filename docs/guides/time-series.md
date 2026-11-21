@@ -201,6 +201,10 @@ rising, filled: falling” for `soft`, “green: rising, red: falling” for `so
 come from the CSS property `rx`; renderers without it, such as the PNG export, draw square
 corners. `candleStyle` belongs to candlestick layers only (`option_not_supported` elsewhere).
 
+In a chart with candles, the lines of every pane — averages over the candles, oscillators below
+them — take finer weights, so they do not outweigh the candles: `regular` 2 px, `medium` 1.5 px,
+`thin` 1 px and `bold` 3 px.
+
 Every candle needs `low` at or below its open and close and `high` at or above them
 (`invalid_candle` with the path of the field), finite numbers, and a later `time` than the candle
 before it (`unordered_time`); a layer takes 1 to 2000 candles. The legend draws a hollow and a

@@ -123,6 +123,32 @@ fn the_default_candle_style_brings_no_bright_colors() {
 }
 
 #[test]
+fn lines_next_to_candles_are_finer_in_every_pane() {
+    let line = r#"{"mark": "line", "name": "Average", "stroke": "medium", "points": [{"time": "2026-03-02", "value": 10}, {"time": "2026-03-04", "value": 9}]}"#;
+    let svg = render_ok(&stacked(
+        &format!("{},{}", candle_pane(&format!(",{line}")), VOLUME_PANE),
+        "",
+    ))
+    .content;
+    assert!(svg.contains("class=\"chartlet-root chartlet-has-candles\""));
+    // Scoped to the root itself, so the rules reach the lines of every pane.
+    assert!(
+        svg.contains(".chartlet-has-candles .chartlet-line-medium{stroke-width:1.5}"),
+        "{svg}"
+    );
+    assert!(svg.contains(".chartlet-has-candles .chartlet-line{stroke-width:2}"));
+    assert!(!svg.contains(" .chartlet-has-candles"));
+
+    let lines_only = render_ok(&stacked(VOLUME_PANE, "")).content;
+    assert!(!lines_only.contains("chartlet-has-candles"));
+    // The shared stylesheet addresses the same root.
+    assert!(
+        crate::stylesheet()
+            .contains(".chartlet-type-time.chartlet-has-candles .chartlet-line{stroke-width:2}")
+    );
+}
+
+#[test]
 fn a_candle_style_belongs_to_candles() {
     let spec = stacked(
         r#"{"layers": [{"mark": "line", "name": "Close", "candleStyle": "soft", "points": [{"time": "2026-03-02", "value": 1}, {"time": "2026-03-03", "value": 2}]}]}"#,

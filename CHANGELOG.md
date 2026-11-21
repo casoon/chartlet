@@ -9,6 +9,9 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Changed
 
+- **Time charts:** in a chart with candles, lines take finer weights in every pane — `regular`
+  2 px instead of 3, `medium` 1.5 instead of 2, `bold` 3 instead of 4.5 — so averages and
+  oscillators do not outweigh the candles.
 - **Pages:** the project site uses the current shared theme (0.16.2).
 - **Releases:** the crate is published by the Release workflow on the version tag as well, with
   crates.io Trusted Publishing (no stored token), after approval in the `crates-io` environment.
