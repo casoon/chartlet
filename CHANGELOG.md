@@ -7,6 +7,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Releases:** the crate is published by the Release workflow on the version tag as well, with
+  crates.io Trusted Publishing (no stored token), after approval in the `crates-io` environment.
+
 ## [0.24.0] - 2026-11-20
 
 ### Breaking

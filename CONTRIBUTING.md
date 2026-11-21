@@ -150,10 +150,11 @@ Before a version is published, from a clean checkout:
 
 Publishing, once the version is committed and merged to `main`:
 
-- [ ] `cargo publish --locked` for the crate.
 - [ ] Tag the merge commit: `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag starts
       `.github/workflows/release.yml`: it checks that the tag matches the crate and both packages,
-      runs the smoke install, then waits for approval in the `npm` environment (Required Reviewer)
-      and publishes `@casoon/chartlet` and `@casoon/chartlet-mcp` through npm Trusted Publishing —
-      no token, provenance attached. Never run `npm publish` from a machine: a package published
-      there carries no provenance.
+      runs the smoke install and `cargo publish --dry-run`, then waits for approval in the
+      `crates-io` and `npm` environments (Required Reviewer; both can be approved in one dialog).
+      It publishes the crate through crates.io Trusted Publishing and `@casoon/chartlet` and
+      `@casoon/chartlet-mcp` through npm Trusted Publishing — no stored token, provenance attached
+      to the npm packages. A version already on a registry is skipped, so a failed job can be run
+      again. Never run `npm publish` or `cargo publish` from a machine.
