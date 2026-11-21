@@ -7,6 +7,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-11-21
+
 ### Changed
 
 - **Time charts:** in a chart with candles, lines take finer weights in every pane — `regular`
