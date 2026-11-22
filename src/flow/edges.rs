@@ -375,7 +375,7 @@ impl Plan {
                 let (from, to) = whole.ends[edge];
                 (&whole.labels[from], &whole.labels[to])
             }
-            None => (&diagram.nodes[from].label, &diagram.nodes[to].label),
+            None => (&model.names[from], &model.names[to]),
         };
         // The line to a note only points at it; the note carries its own text.
         let tooltip = match note {
@@ -590,7 +590,7 @@ impl Plan {
                 ),
             )
         };
-        let name = &model.diagram.nodes[node].label;
+        let name = &model.names[node];
         let tooltip = if label.is_empty() {
             format!("{name} → {name}")
         } else {

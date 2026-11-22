@@ -307,6 +307,7 @@ fn split(
                 all_ends: all_ends.clone(),
                 labels: labels.clone(),
             }),
+            distinct_names: false,
         });
     }
     let outer_edges: Vec<usize> = (0..edges.len())
@@ -384,6 +385,7 @@ fn split(
             all_ends,
             labels,
         }),
+        distinct_names: false,
     }
 }
 

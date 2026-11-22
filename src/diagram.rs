@@ -349,6 +349,31 @@ pub(crate) fn cylinder(
     )));
 }
 
+/// A node's label with its sublabel, as its tooltip writes it: `Label – sublabel`.
+pub(crate) fn full_name(label: &str, sublabel: Option<&str>) -> String {
+    match sublabel {
+        Some(sublabel) => format!("{label} – {sublabel}"),
+        None => label.to_owned(),
+    }
+}
+
+/// What the text alternative calls each node, given its label and sublabel: the label, and for a
+/// node that shares its label with another one the label with its sublabel, so that the two stay
+/// apart in words as they do in the picture.
+pub(crate) fn distinct_names(nodes: &[(&str, Option<&str>)]) -> Vec<String> {
+    nodes
+        .iter()
+        .enumerate()
+        .map(|(index, (label, sublabel))| {
+            let shared = nodes
+                .iter()
+                .enumerate()
+                .any(|(other, (name, _))| other != index && name == label);
+            full_name(label, sublabel.filter(|_| shared))
+        })
+        .collect()
+}
+
 /// A label on one or two lines that fit `max_width`; a longer second line, or a first word wider
 /// than that, is shortened.
 pub(crate) fn wrap(

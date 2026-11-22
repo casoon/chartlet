@@ -14,7 +14,7 @@ use super::{
 };
 use crate::{
     diagram::TECH_SIZE,
-    diagram::wrap,
+    diagram::{distinct_names, wrap},
     error::ChartWarning,
     layout::{NARROW, count},
     metrics::{MONO_ADVANCE, TextMetrics},
@@ -134,6 +134,9 @@ pub(super) struct Model<'a> {
     pub(super) spacing: Spacing,
     pub(super) ends: Vec<(usize, usize)>,
     pub(super) graph: Graph,
+    /// What tooltips and the focus list call each step: its label, with its sublabel where two
+    /// steps share a label.
+    pub(super) names: Vec<String>,
     /// Each step's label on one or two lines, and its box: width and height on the page.
     pub(super) labels: Vec<Vec<String>>,
     /// Each step's sublabel on one or two lines.
@@ -246,6 +249,19 @@ impl<'a> Model<'a> {
             spacing,
             ends,
             graph,
+            names: distinct_names(
+                &diagram
+                    .nodes
+                    .iter()
+                    .map(|node| {
+                        let sublabel = node.sublabel.as_deref();
+                        (
+                            node.label.as_str(),
+                            sublabel.filter(|_| diagram.distinct_names),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+            ),
             labels,
             sublabels,
             sizes,

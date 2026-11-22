@@ -945,7 +945,7 @@ Edges may form cycles; an edge back is drawn against the flow. See
 | --- | --- | --- | --- |
 | `flow.nodes` | array, 1–40 | yes | The steps: `[{ "id": "a", "label": "…", "sublabel": "…", "tag": "DB", "kind": "process", "lane": "x", "value": 3, "parts": [{ "label": "…", "value": 2 }], "role": "critical" }]`. |
 | `nodes[].id` | identifier | yes | Unique among steps and lanes. |
-| `nodes[].label`, `nodes[].sublabel` | string, up to 60 characters | label | Name and second line. |
+| `nodes[].label`, `nodes[].sublabel` | string, up to 60 characters | label | Name and second line. The data table has a column for the sublabels; the text alternative names two steps that share a label `Label – sublabel`. |
 | `nodes[].tag` | string, up to 8 characters | no | The type tag of the step in the editorial look, replacing the tag of its kind; `text_too_long` at `/flow/nodes/<i>/tag`. Architecture components take `tag` too. |
 | `nodes[].kind` | `process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external` | no | Each kind has its own shape; default `process`. |
 | `nodes[].lane` | identifier | with lanes | The lane the step lies in. |
@@ -984,7 +984,7 @@ See [State diagrams](../../guides/chart-types/#state-diagrams).
 | --- | --- | --- | --- |
 | `state.states` | array, 1–40 | yes | `[{ "id": "a", "label": "…", "sublabel": "…", "kind": "state", "final": false, "in": "c", "role": "critical" }]`. |
 | `states[].id` | identifier | yes | Unique. |
-| `states[].label`, `states[].sublabel` | string, up to 60 characters | label | Name and second line. |
+| `states[].label`, `states[].sublabel` | string, up to 60 characters | label | Name and second line. The data table names a state `Label – sublabel`, and so does the rest of the text alternative for two states that share a label. |
 | `states[].kind` | `state`, `choice`, `composite` | no | `state` (default); a `choice` is a diamond; a `composite` is a frame around the states that name it with `in`. |
 | `states[].final` | boolean | no | A final state, drawn with a double outline. |
 | `states[].in` | identifier | no | The composite state it lies in. |

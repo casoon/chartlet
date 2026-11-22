@@ -15,6 +15,13 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   focus control needs rules of its own and is left out of such a figure unless `focus: true`
   (`--focus`) asks for it. [Shared stylesheet](https://casoon.github.io/chartlet/docs/guides/javascript/#shared-stylesheet).
 
+### Changed
+
+- **Flow charts, state diagrams:** the text alternative carries the `sublabel` of a step or state.
+  The data table of a flow chart has a column for it and that of a state diagram names a state
+  `Label – sublabel`; two nodes that share a label are named that way in the description, the
+  tooltips and the focus list too. [Flow charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
+
 ### Added
 
 - **Diagrams:** the render option `focus` (`--focus`, `--no-focus`) says whether the HTML figure of

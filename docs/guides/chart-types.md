@@ -1131,7 +1131,9 @@ releases.
 - **Text alternative.** The description names the steps in reading order — layer by layer — and
   where each one leads, with the main path, the lanes and the groups. Before the steps it names
   the shape of the graph where there is one to tell (see [Graph structure](#graph-structure));
-  the data table has one row per step with its kind, lane, group and next steps.
+  the data table has one row per step with its sublabel, kind, lane, group and next steps. Two
+  steps with the same label are told apart by their sublabels: the description, the "Leads to"
+  column, the tooltips of the edges and the focus list name each of them `Label – sublabel`.
 
 **Focus.** In the HTML profile a diagram can be focused on one node — a step, a state, a
 component, a participant: a click on the node, or a choice in the "Focus" list above the figure,
@@ -1283,7 +1285,10 @@ flow, loops on a state, portrait and landscape — and is **experimental** like 
   characters, written `event [guard] / action`; `dash` works as on flow chart edges.
 - **Text alternative.** The description says where the machine starts and ends and lists every
   transition in reading order; the data table has one row per transition, with event, guard and
-  action in columns of their own.
+  action in columns of their own. The table names a state with its sublabel, `Label – sublabel`;
+  the description, the tooltips and the focus list do so for states that share a label, so that
+  two states `Phase C` with the sublabels `accumulation` and `distribution` stay apart in words
+  as in the picture.
 
 Limits: 1–40 states with unique `id`s and up to 80 transitions; an unknown `id` is
 `unknown_state`.

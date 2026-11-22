@@ -181,7 +181,7 @@ impl Plan {
                         .whole
                         .as_ref()
                         .map_or(node, |whole| whole.nodes[node]),
-                    label: spec.label.clone(),
+                    label: model.names[node].clone(),
                     x,
                     y,
                     width,

@@ -27,6 +27,9 @@ pub(crate) struct Diagram {
     pub blocks: Vec<Block>,
     /// For a diagram that draws part of a model, how its nodes and edges stand in the whole.
     pub whole: Option<Whole>,
+    /// Whether tooltips and the focus list tell nodes that share a label apart by their
+    /// sublabels, as the description of the diagram does.
+    pub distinct_names: bool,
 }
 
 pub(crate) struct Node {
@@ -310,6 +313,7 @@ impl Diagram {
                 .collect(),
             orientation: flow.orientation,
             spacing: flow.spacing,
+            distinct_names: true,
             ..Self::default()
         }
     }

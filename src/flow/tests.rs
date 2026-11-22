@@ -289,8 +289,10 @@ fn lanes_and_groups_appear_in_the_table_and_in_german() {
         text_alternative(&ChartSpec::from_json(&json).expect("parses")).expect("valid");
     assert_eq!(
         alternative.table.columns,
-        ["Schritt", "Art", "Bahn", "Gruppe", "Führt zu"]
+        ["Schritt", "Zusatz", "Art", "Bahn", "Gruppe", "Führt zu"]
     );
+    // The one step with a sublabel carries it in the column of its own.
+    assert_eq!(alternative.table.rows[2][..2], ["Build", "locked inputs"]);
     assert!(alternative.description.starts_with(
         "Ablaufdiagramm mit 10 Schritten und 11 Verbindungen in 3 Bahnen: Development, Continuous integration und Operations."
     ));
@@ -298,6 +300,63 @@ fn lanes_and_groups_appear_in_the_table_and_in_german() {
         alternative
             .description
             .ends_with("Gruppe „Quality gates“: Build, Run tests, All green?.")
+    );
+}
+
+#[test]
+fn steps_that_share_a_label_are_told_apart_by_their_sublabels() {
+    let json = r#"{"schemaVersion": 1, "type": "flow", "title": "Appeals",
+        "flow": {"nodes": [
+                {"id": "first", "label": "District court", "sublabel": "first instance", "kind": "start"},
+                {"id": "appeal", "label": "District court", "sublabel": "appeal"},
+                {"id": "last", "label": "Supreme court", "sublabel": "revision", "kind": "end"}],
+            "edges": [{"from": "first", "to": "appeal", "label": "appeal"},
+                      {"from": "appeal", "to": "last"}],
+            "mainPath": ["first", "appeal", "last"]}}"#;
+    let alternative =
+        text_alternative(&ChartSpec::from_json(json).expect("parses")).expect("valid");
+    assert_eq!(
+        alternative.description,
+        "Flow chart with 3 steps and 2 connections. Main path: District court – first instance → District court – appeal → Supreme court. District court – first instance (start): leads to District court – appeal (appeal). District court – appeal: leads to Supreme court. Supreme court (end): no further step."
+    );
+    // The table names the step and carries every sublabel, also that of a label of its own.
+    assert_eq!(
+        alternative.table.columns,
+        ["Step", "Detail", "Kind", "Leads to"]
+    );
+    assert_eq!(
+        alternative.table.rows,
+        [
+            [
+                "District court",
+                "first instance",
+                "start",
+                "District court – appeal (appeal)"
+            ],
+            ["District court", "appeal", "step", "Supreme court"],
+            ["Supreme court", "revision", "end", ""],
+        ]
+    );
+    // The focus list and the tooltips of the edges use the same names.
+    let html = render_json(json, RenderFormat::Html, &RenderOptions::default())
+        .expect("renders")
+        .content;
+    assert!(
+        html.contains("> District court – first instance</label>"),
+        "{html}"
+    );
+    assert!(html.contains("> District court – appeal</label>"));
+    assert!(html.contains("> Supreme court</label>"));
+    assert!(html.contains(
+        "<title>District court – first instance → District court – appeal: appeal</title>"
+    ));
+    // Without a shared label nothing changes but the column.
+    assert!(
+        !text_alternative(&ChartSpec::from_json(SPEC).expect("parses"))
+            .expect("valid")
+            .table
+            .columns
+            .contains(&"Detail".to_owned())
     );
 }
 
