@@ -1139,7 +1139,10 @@ keeps that node, its neighbours and the edges between them as they are and fades
 all" brings everything back. There is no script: the list is a group of radio buttons with the
 usual keyboard, the nodes carry labels of those buttons laid over them, and CSS `:has()` does
 the rest. The SVG stays an image to assistive technology. A browser without `:has()` shows the
-diagram unchanged.
+diagram unchanged. The render option `focus: false` (CLI `--no-focus`) leaves the control out;
+with `styles: "external"` it is left out unless `focus: true` asks for it, because its rules are
+the diagram's own and need a `<style>` in the figure; see
+[Shared stylesheet](../javascript/#shared-stylesheet).
 
 **Narrow canvases.** Below 480 pixels — a mobile variant, say — diagrams turn compact: smaller
 margins and gaps, narrower steps whose labels wrap onto two lines, participant names of sequence

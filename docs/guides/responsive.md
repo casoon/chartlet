@@ -69,8 +69,8 @@ By default the figure brings them along in a `<style>` element at the start of i
 the rest of its stylesheet: the output stands alone. A `<style>` element inside the page body is
 not valid HTML, though, and a Content Security Policy without `'unsafe-inline'` blocks it unless
 it is named by hash. With [`styles: "external"`](../javascript/#shared-stylesheet) the figure
-carries no `<style>` outside its SVGs and no `style` attribute; the page loads the rules with the
-shared stylesheet:
+of a chart or a diagram carries no `<style>` outside its SVGs and no `style` attribute; the page
+loads the rules with the shared stylesheet:
 
 ```html
 <link rel="stylesheet" href="/chartlet.css" />

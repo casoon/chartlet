@@ -264,6 +264,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
     let mut variant = Variant::Desktop;
     let mut manifest = None;
     let mut styles = Styles::Inline;
+    let mut focus = None;
     let mut hooks = false;
     let mut png = false;
     let mut scale = None;
@@ -333,6 +334,8 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             "--embed-font" => embed_font = true,
             "--advice" => advice = true,
             "--styles" => styles = parse_styles(arguments.next().as_deref())?,
+            "--focus" => focus = Some(true),
+            "--no-focus" => focus = Some(false),
             "--hooks" => hooks = true,
             "--manifest" => manifest = Some(path_after(&mut arguments, "--manifest")?),
             "--diagnostics" => match arguments.next().as_deref() {
@@ -366,6 +369,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
             variant,
             manifest: manifest.is_some(),
             styles,
+            focus,
             hooks,
             view,
             perspective,
@@ -630,7 +634,7 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 }
 
 fn usage() -> String {
-    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|classic|editorial|theme.json>] [--size <preset>] [--manifest <path>] [--font <file.ttf> [--embed-font]] [--styles inline|external] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json [--advice]] [--watch] [--preview [--port <port>]]
+    "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|classic|editorial|theme.json>] [--size <preset>] [--manifest <path>] [--font <file.ttf> [--embed-font]] [--styles inline|external] [--focus | --no-focus] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json [--advice]] [--watch] [--preview [--port <port>]]
        chartlet inspect <spec.json|-> [--disable <code>]... [--strict] [--format text|json] [--diagnostics text|json]
        chartlet stylesheet [--types bar,time,...] [--no-common] [--breakpoints 420,...] | --common [--breakpoints 420,...]".to_owned()
 }

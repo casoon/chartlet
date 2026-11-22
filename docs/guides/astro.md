@@ -33,6 +33,8 @@ import revenue from '../data/monthly-revenue.json';
 - On a page with several charts, pass `styles="external"` and import
   `@casoon/chartlet/chartlet.css` once in the layout; each chart then carries only its own declared
   colors instead of the whole stylesheet. See [Shared stylesheet](../javascript/#shared-stylesheet).
+  The figure of a diagram then comes without its focus control; `focus` brings it back with a
+  `<style>` of its own, and `focus={false}` leaves it out with inline styles as well.
 - `hooks` adds the `data-*` hooks for the optional crosshair, series toggle, scroll stations and
   playback of `@casoon/chartlet/interactive`; see
   [Optional JavaScript](../interaction/#optional-javascript).

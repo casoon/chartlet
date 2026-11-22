@@ -33,7 +33,8 @@ chartlet render <spec.json | -> [options]
 | `--embed-font` | With `--font` and SVG output: carries the font in the SVG as a base64 `@font-face`. The license of the file decides whether you may. |
 | `--strict` | Fails on any warning. Useful in CI. |
 | `--allow-warning <code>` | With `--strict`, lets warnings with this code through; they are still reported. Repeatable, for example `--allow-warning dense_chart`. |
-| `--styles inline\|external` | `inline` (default): the chart carries its whole stylesheet. `external`: only its own declared colors; the page loads the output of `chartlet stylesheet` once, and the HTML figure of a chart has no `<style>` outside its SVGs. |
+| `--styles inline\|external` | `inline` (default): the chart carries its whole stylesheet. `external`: only its own declared colors; the page loads the output of `chartlet stylesheet` once, and the HTML figure of a chart or diagram has no `<style>` outside its SVGs. |
+| `--focus`, `--no-focus` | Whether the HTML figure of a diagram carries its focus control, with the `<style>` its rules need. Default: with `--styles inline` it does, with `--styles external` it does not. |
 | `--hooks` | Adds the `data-*` hooks that the optional `@casoon/chartlet/interactive` module reads; see [Interaction](../../guides/interaction/#optional-javascript). Without it the output is unchanged. |
 | `--diagnostics json` | Writes errors and warnings to standard error as one JSON document instead of text lines. |
 | `--watch` | Renders again whenever the specification file changes, until Ctrl-C; see [Watching](#watching-and-preview). |

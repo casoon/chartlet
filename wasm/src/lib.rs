@@ -6,7 +6,7 @@
 //!
 //! Request: `{ "spec": <JSON text or object>, "options": { "format", "table", "idPrefix",
 //! "variant", "view", "allViews", "perspective", "theme", "strict", "allowWarnings", "manifest",
-//! "alternative", "styles", "hooks", "advice" } }`, or
+//! "alternative", "styles", "focus", "hooks", "advice" } }`, or
 //! `{ "stylesheet": true, "types": ["bar", …], "common", "breakpoints": [420, …] }` for the
 //! shared stylesheet of `"styles": "external"`, for every chart type when `types` is absent,
 //! followed by the rules for the listed `mobile.breakpoint` widths, or
@@ -211,6 +211,7 @@ fn run(request: &[u8], warnings: &mut Vec<ChartWarning>) -> Result<Rendered, Val
         variant,
         manifest: options["manifest"].as_bool() == Some(true),
         styles,
+        focus: options["focus"].as_bool(),
         hooks: options["hooks"].as_bool() == Some(true),
         view: options["view"].as_str().map(str::to_owned),
         perspective: options["perspective"].as_str().map(str::to_owned),

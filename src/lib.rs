@@ -124,6 +124,12 @@ pub struct RenderOptions {
     pub manifest: bool,
     /// Where the chart's styles live. The print variant always carries its own.
     pub styles: Styles,
+    /// Whether the HTML figure of a diagram carries its focus control: the radio buttons above
+    /// the figure, the labels over the nodes and the `<style>` with the rules of both, which are
+    /// the diagram's own and cannot come from the shared stylesheet. `None` decides by `styles`:
+    /// with [`Styles::Inline`] the control is there, with [`Styles::External`] it is left out, so
+    /// that the figure carries no `<style>` outside its SVGs.
+    pub focus: Option<bool>,
     /// Adds the `data-*` hooks that the optional interactive module of the npm package reads:
     /// chart type and ID on the root, the plot geometry of every pane, a group around what each
     /// layer draws, the specification ID of every diagram node of a flow chart, state,
@@ -150,10 +156,11 @@ pub enum Styles {
     #[default]
     Inline,
     /// The page loads the shared [`stylesheet`] once; a chart carries only what is its own, such
-    /// as declared layer colors, and often no `<style>` at all. The HTML figure of a chart has no
-    /// `<style>` outside its SVGs: the switch to the mobile variant and the zoom steps are rules
-    /// of the shared stylesheet, see [`stylesheet_breakpoints`] for a breakpoint other than the
-    /// default. The focus of a diagram and the page of all views keep their own `<style>`.
+    /// as declared layer colors, and often no `<style>` at all. The HTML figure of a chart or a
+    /// diagram has no `<style>` outside its SVGs: the switch to the mobile variant, the zoom
+    /// steps and the page of all views are rules of the shared stylesheet, see
+    /// [`stylesheet_breakpoints`] for a breakpoint other than the default. The focus control of a
+    /// diagram needs rules of its own and is left out unless [`RenderOptions::focus`] asks for it.
     External,
 }
 
@@ -608,7 +615,7 @@ fn render_all_views(
     }
     dedupe_warnings(&mut warnings);
     let mut output = RenderOutput {
-        content: render::html_views(&sections, spec, &page_prefix),
+        content: render::html_views(&sections, spec, &page_prefix, options.styles),
         warnings,
         manifest: None,
     };
@@ -693,6 +700,7 @@ fn render_content_as(
         id_prefix: &id_prefix,
         hooks: options.hooks,
         styles: options.styles,
+        focus: options.focus.unwrap_or(options.styles == Styles::Inline),
     };
     // The HTML profile lays the chart out a second time at the mobile size; its warnings are
     // reported where they add to those of the chart itself.

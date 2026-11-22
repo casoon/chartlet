@@ -439,3 +439,102 @@ fn with_the_shared_stylesheet_the_figure_of_a_chart_has_no_style_of_its_own() {
         crate::stylesheet_breakpoints(&[420])
     )));
 }
+
+const STATES: &str = r#"{"schemaVersion": 1, "type": "state", "title": "Door",
+    "mobile": {"width": 300, "breakpoint": 480},
+    "state": {"initial": "closed",
+        "states": [{"id": "closed", "label": "Closed"}, {"id": "open", "label": "Open"}],
+        "transitions": [{"from": "closed", "to": "open", "event": "push"},
+                        {"from": "open", "to": "closed", "event": "release"}]}}"#;
+
+fn html_with(specification: &str, styles: crate::Styles, focus: Option<bool>) -> String {
+    render_json(
+        specification,
+        RenderFormat::Html,
+        &RenderOptions {
+            id_prefix: Some("chart".to_owned()),
+            styles,
+            focus,
+            ..RenderOptions::default()
+        },
+    )
+    .unwrap()
+    .content
+}
+
+#[test]
+fn with_the_shared_stylesheet_the_figure_of_a_diagram_has_no_style_of_its_own() {
+    let html = html_with(STATES, crate::Styles::External, None);
+    assert!(
+        html.starts_with(
+            "<div class=\"chartlet-wrapper chartlet-responsive chartlet-bp-480\"><figure "
+        ),
+        "{html}"
+    );
+    assert!(!html.contains("<style"), "{html}");
+    assert!(!html.contains(" style=\""), "{html}");
+    // Both variants are there, and neither stands on a stage for labels over its nodes.
+    assert!(html.contains("<div class=\"chartlet-variant-desktop\"><svg "));
+    assert!(html.contains("<div class=\"chartlet-variant-mobile\"><svg "));
+    assert!(!html.contains("chartlet-focus"), "{html}");
+    assert!(!html.contains("chartlet-stage"), "{html}");
+    assert!(!html.contains("chartlet-hotspot"), "{html}");
+    // The switch at its breakpoint is a rule the page asks the shared stylesheet for.
+    assert!(crate::stylesheet_breakpoints(&[480]).contains(".chartlet-bp-480 "));
+}
+
+#[test]
+fn the_focus_control_of_a_diagram_can_be_left_out_or_asked_for() {
+    // Inline styles: the control is there unless it is switched off.
+    let inline = html_with(STATES, crate::Styles::Inline, None);
+    assert!(inline.contains("<details class=\"chartlet-focus\">"));
+    assert_eq!(inline.matches("class=\"chartlet-hotspot\"").count(), 4);
+    let without = html_with(STATES, crate::Styles::Inline, Some(false));
+    assert!(!without.contains("chartlet-focus"), "{without}");
+    assert!(!without.contains("chartlet-stage"), "{without}");
+    assert!(!without.contains("chartlet-hotspot"), "{without}");
+    // Only the switch to the mobile variant is left in the wrapper's stylesheet.
+    assert_eq!(outside_the_svgs(&without).matches("<style").count(), 1);
+    assert_eq!(outside_the_svgs(&inline).matches("<style").count(), 2);
+    // The shared stylesheet: asked for, the control comes with the one `<style>` it needs.
+    let asked = html_with(STATES, crate::Styles::External, Some(true));
+    assert!(asked.contains("<details class=\"chartlet-focus\">"));
+    assert_eq!(outside_the_svgs(&asked).matches("<style").count(), 1);
+    // A chart without nodes has no control either way.
+    let chart = html_with(TIME, crate::Styles::Inline, Some(true));
+    assert!(!chart.contains("chartlet-focus"));
+}
+
+#[test]
+fn with_the_shared_stylesheet_the_page_of_all_views_has_no_style_of_its_own() {
+    let model = r#"{"schemaVersion": 1, "type": "architecture", "title": "Shop",
+        "architecture": {
+            "components": [{"id": "web", "label": "Web"}, {"id": "api", "label": "API"},
+                           {"id": "db", "label": "Database", "kind": "database"}],
+            "connections": [{"from": "web", "to": "api"}, {"from": "api", "to": "db"}],
+            "views": [{"key": "all", "title": "Everything", "components": ["web", "api", "db"]},
+                      {"key": "front", "title": "Front", "components": ["web", "api"]}]}}"#;
+    let page = |styles: crate::Styles| {
+        render_json(
+            model,
+            RenderFormat::Html,
+            &RenderOptions {
+                id_prefix: Some("shop".to_owned()),
+                styles,
+                all_views: true,
+                ..RenderOptions::default()
+            },
+        )
+        .unwrap()
+        .content
+    };
+    let external = page(crate::Styles::External);
+    assert!(external.starts_with("<div class=\"chartlet-views\" id=\"shop\"><h2 "));
+    assert!(!external.contains("<style"), "{external}");
+    assert!(page(crate::Styles::Inline).contains("<style>.chartlet-views-nav ul{"));
+    // The rules of the page are part of the architecture part of the shared stylesheet.
+    let rules = ".chartlet-views-nav ul{margin:0 0 16px 0;padding-left:20px}";
+    assert!(crate::stylesheet_types(&[crate::ChartType::Architecture]).contains(rules));
+    assert!(crate::stylesheet().contains(rules));
+    assert!(!crate::stylesheet_types(&[crate::ChartType::Flow]).contains(rules));
+}

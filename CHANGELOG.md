@@ -7,6 +7,20 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **Diagrams:** with `styles: "external"`, the HTML figure of a diagram has no `<style>` element
+  outside its SVGs any more, and neither has the page of all views of an architecture model: the
+  switch to the mobile variant and the rules of that page come from the shared stylesheet. The
+  focus control needs rules of its own and is left out of such a figure unless `focus: true`
+  (`--focus`) asks for it. [Shared stylesheet](https://casoon.github.io/chartlet/docs/guides/javascript/#shared-stylesheet).
+
+### Added
+
+- **Diagrams:** the render option `focus` (`--focus`, `--no-focus`) says whether the HTML figure of
+  a diagram carries its focus control; `focus: false` leaves it out of a figure with inline styles
+  too. [Focus](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
+
 ## [0.25.0] - 2026-11-21
 
 ### Changed

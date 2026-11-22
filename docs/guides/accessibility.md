@@ -27,7 +27,9 @@ order: 4
   background in both themes.
 - The focus of a diagram is a group of radio buttons in a disclosure above the figure, operated
   with the usual keyboard; the labels laid over the nodes only give a pointer a larger place to
-  choose them. The SVG stays a single image.
+  choose them. The SVG stays a single image. A figure rendered without the control
+  (`focus: false`, or `styles: "external"`) loses nothing but that view: the description and the
+  data table name every node and where it leads.
 - Text is never removed silently: shortened labels and omitted value labels produce warnings, and
   the full text stays in the specification and the data table.
 

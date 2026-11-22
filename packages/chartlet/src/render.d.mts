@@ -57,6 +57,13 @@ export interface RenderChartOptions {
    */
   styles?: "inline" | "external";
   /**
+   * Whether the HTML figure of a diagram carries its focus control: radio buttons above the
+   * figure, labels over the nodes and a `<style>` with the rules of both. Default: `true` with
+   * inline styles, `false` with `styles: "external"`, so that the figure then carries no
+   * `<style>` outside its SVGs.
+   */
+  focus?: boolean;
+  /**
    * Also return the chart's text alternative in `alternative`; with `allViews`, that of the
    * default view, and that of every view on the page in `alternatives`.
    */

@@ -359,6 +359,20 @@ test("hooks are written alike by the WebAssembly build and the CLI, and only on 
   }
 });
 
+test("the focus control of a diagram follows the styles and the focus option, alike from WebAssembly and the CLI", () => {
+  const spec = JSON.parse(readExample("ticket-states.json"));
+  const html = (options) => renderChart(spec, { format: "html", ...options }).content;
+  assert.ok(html({}).includes('<details class="chartlet-focus">'));
+  assert.ok(!html({ focus: false }).includes("chartlet-focus"));
+  const external = renderChartDetailed(spec, { format: "html", styles: "external" });
+  assert.ok(!external.content.includes("<style"));
+  assert.deepEqual(external.styleHashes, []);
+  assert.ok(html({ styles: "external", focus: true }).includes('<details class="chartlet-focus">'));
+  for (const options of [{ focus: false }, { styles: "external" }, { styles: "external", focus: true }]) {
+    assert.equal(html({ ...options, binary }), html(options));
+  }
+});
+
 test("inspects a model alike from WebAssembly and the CLI", () => {
   const spec = readExample("shop-architecture.json");
   const fromWasm = inspectChart(spec);

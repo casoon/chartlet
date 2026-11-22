@@ -21,7 +21,7 @@ The options are those of the CLI: `format`, `table`, `idPrefix`, `variant` (`des
 `print` or `social`), `view` (the key of a view of an architecture model), `perspective` (the key of a perspective
 to show in place of the one the model or the view selects), `theme` (a bundled theme by its name, or a theme
 file as an object; see [Customize the look](../customize/)), `strict`, `allowWarnings`,
-`manifest` and `hooks`. When
+`manifest`, `hooks` and `focus` (the focus control of a diagram, see below). When
 `options.binary` or the environment variable `CHARTLET_BIN` names a `chartlet` executable,
 `renderChart` calls that CLI instead.
 
@@ -143,9 +143,15 @@ The HTML figure of a chart then has no `<style>` element outside its SVGs and no
 attribute: the rules that switch to a [mobile variant](../responsive/#where-the-rules-live) and
 between zoom steps are part of the common rules. The stylesheet covers the default
 `mobile.breakpoint` of 640; `stylesheet({ breakpoints: [420] })` or
-`chartlet stylesheet --breakpoints 420` appends the rule for another one. The focus of a diagram
-and the page of all views of a model keep a `<style>` of their own, because their rules name the
-nodes of the one diagram.
+`chartlet stylesheet --breakpoints 420` appends the rule for another one. The same holds for the
+figure of a diagram and for the page of all views of a model, whose rules are part of the
+architecture rules.
+
+The [focus](../chart-types/#flow-charts) of a diagram is the one control whose rules are the
+diagram's own: they name its nodes and say where the labels over them lie. With
+`styles: 'external'` the figure therefore comes without it. `focus: true` (CLI `--focus`) brings
+it back together with its `<style>`, which a Content Security Policy then has to allow by hash;
+`focus: false` (`--no-focus`) leaves it out of a figure with inline styles too.
 
 The full file covers every chart type. A site that renders only some of them can serve just
 those: `stylesheet({ types: ['bar', 'time'] })` or `chartlet stylesheet --types bar,time` keeps
