@@ -22,8 +22,16 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   `Label – sublabel`; two nodes that share a label are named that way in the description, the
   tooltips and the focus list too. [Flow charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
 
+- **Flow charts, state diagrams, architecture diagrams:** the layout follows the `mainPath`. Its
+  nodes lie along the flow in the order of the path whatever the order of the edges, and an edge
+  back to an earlier node of the path is the one drawn against the flow; before, the order of the
+  edges decided. [State diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#state-diagrams).
+
 ### Added
 
+- **State diagrams:** `sameRank` puts states at one position along the flow, and `fromSide` and
+  `toSide` on a transition pin the sides it leaves and reaches, as in flow charts.
+  [State diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#state-diagrams).
 - **Diagrams:** the render option `focus` (`--focus`, `--no-focus`) says whether the HTML figure of
   a diagram carries its focus control; `focus: false` leaves it out of a figure with inline styles
   too. [Focus](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).

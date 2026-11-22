@@ -826,9 +826,9 @@ digits, hyphens or underscores (`invalid_id`).
 | --- | --- | --- | --- |
 | `orientation` | `auto`, `portrait`, `landscape` | sequence, flow, state, classes, architecture, tree | `auto` (default) takes portrait where that fits the canvas, landscape where only that fits, and otherwise the one that grows the canvas less. |
 | `spacing` | `compact`, `normal`, `roomy` | flow, state, classes, architecture | `compact`, `normal` (default) or `roomy` scales the gaps between layers and between neighbours in a layer — never steps, texts, margins or the distance between parallel lines; see [Spacing](../../guides/chart-types/#spacing). |
-| `mainPath` | array of ids, or `{ "from", "to" }` | flow, state (array only), architecture | The usual way through the diagram, as ids joined by edges, or the shortest way along the edges between `from` and `to` (at a tie the first in the order of the edges). Kept in line and drawn stronger. |
-| `sameRank` | array of id sets | flow, architecture | Sets of at least two ids that lie at one position along the flow; a layout hint that adds no edge. |
-| `fromSide`, `toSide` | `start`, `end`, `left`, `right` | flow edges, architecture connections | Pin the side of a node an edge leaves and reaches, named after the flow so that they hold in either orientation: `start` faces the nodes before, `end` the nodes after, `left` and `right` lie across the flow (left and right in portrait, top and bottom in landscape); see [Port sides](../../guides/chart-types/#port-sides). An edge with a side never joins a shared trunk. |
+| `mainPath` | array of ids, or `{ "from", "to" }` | flow, state (array only), architecture | The usual way through the diagram, as ids joined by edges, or the shortest way along the edges between `from` and `to` (at a tie the first in the order of the edges). The layout follows it: its nodes lie along the flow in the order of the path, whatever the order of the edges, and an edge back to an earlier node of the path runs against the flow. Kept in line and drawn stronger. |
+| `sameRank` | array of id sets | flow, state, architecture | Sets of at least two ids that lie at one position along the flow; a layout hint that adds no edge. |
+| `fromSide`, `toSide` | `start`, `end`, `left`, `right` | flow edges, state transitions, architecture connections | Pin the side of a node an edge leaves and reaches, named after the flow so that they hold in either orientation: `start` faces the nodes before, `end` the nodes after, `left` and `right` lie across the flow (left and right in portrait, top and bottom in landscape); see [Port sides](../../guides/chart-types/#port-sides). An edge with a side never joins a shared trunk. |
 | `notes` | array, up to 12 | flow, classes, architecture | `[{ "on": "a", "text": "…" }, { "text": "…" }]`. |
 | `notes[].on` | identifier | — | The step, class, package, component or boundary the note explains; flow charts take notes on steps only. |
 | `notes[].text` | string, up to 160 characters | — | Required; wraps onto as many lines as it needs. |
@@ -901,7 +901,7 @@ way round).
 fit its canvas is drawn larger and reported as `canvas_too_small` at `/width` or `/height`. A
 `fromSide` or `toSide` along the flow that would turn the edge back over its step, such as `start`
 on an edge that leads on to a later step, is ignored and reported as `port_side_ignored` at that
-field (flow charts and architecture diagrams); an edge from a node to itself takes no `fromSide`
+field (flow charts, state and architecture diagrams); an edge from a node to itself takes no `fromSide`
 or `toSide` (`option_not_supported`). A main path must follow edges (`main_path_gap`) or, given
 as `{ "from": "a", "to": "b" }`, have a way along them (`main_path_unreachable`). In a `sameRank`
 set, each id appears in one set at most, and no two of a set are joined by an edge
@@ -993,10 +993,10 @@ See [State diagrams](../../guides/chart-types/#state-diagrams).
 | `transitions[].from`, `transitions[].to` | identifier | yes | The states it joins. |
 | `transitions[].event`, `transitions[].guard`, `transitions[].action` | string, up to 40 characters | no | The parts of its label. |
 | `transitions[].dash` | `solid`, `dashed`, `dotted` | no | Default `solid`. |
-| `transitions[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `transitions[].role`, `transitions[].fromSide`, `transitions[].toSide` | | no | See [Diagram fields](#diagram-fields). |
 | `state.initial` | identifier | no | The state the machine starts in: a dot with an arrow into it. |
-| `state.mainPath` | array of ids | no | The usual way through the states, joined by transitions. |
-| `state.orientation`, `state.spacing` | | no | See [Diagram fields](#diagram-fields). |
+| `state.mainPath` | array of ids | no | The usual way through the states, joined by transitions; its states lie along the flow in this order. |
+| `state.sameRank`, `state.orientation`, `state.spacing` | | no | See [Diagram fields](#diagram-fields). A shared rank names states that are not composite (`unknown_state`, `composite_not_allowed`). |
 
 Rules: 1–40 states (`too_many_states`) and up to 80 transitions (`too_many_transitions`); ids are
 identifiers (`invalid_id`) and unique (`duplicate_id`); transitions, `initial` and the main path

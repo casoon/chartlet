@@ -1074,9 +1074,12 @@ releases.
   it. Say what an edge means in its label; the line pattern only repeats it.
 - **The main path** names the usual way through the flow as step ids joined by edges, or only its
   ends, `"mainPath": {"from": "draft", "to": "live"}`: chartlet then takes the shortest way along
-  the edges (at a tie the first in the order of the edges). It keeps the path in line where the
-  lanes leave room and draws it thicker in the accent color; `main_path_gap` reports two
-  consecutive steps no edge joins, `main_path_unreachable` two ends no way joins.
+  the edges (at a tie the first in the order of the edges). The layout follows the path: its
+  steps lie along the flow in the order of the path, whatever the order of the edges, and an edge
+  that leads back to an earlier step of the path is the one drawn against the flow. It keeps the
+  path in line where the lanes leave room and draws it thicker in the accent color;
+  `main_path_gap` reports two consecutive steps no edge joins, `main_path_unreachable` two ends
+  no way joins.
 - **Shared ranks.** chartlet puts every step one layer after the latest step that leads to it, so
   steps that belong side by side — parallel reviews, the ends of a flow — can land a layer
   apart. `"sameRank": [["legal", "finance", "security"]]` puts each set at one position along the
@@ -1283,6 +1286,13 @@ flow, loops on a state, portrait and landscape — and is **experimental** like 
   it is set, a state no transition leads to is reported as `unreachable_state`.
 - **Transitions** carry an `event`, a `guard` and an `action`, each optional and each up to 40
   characters, written `event [guard] / action`; `dash` works as on flow chart edges.
+- **Layout.** `mainPath` names the usual way through the states, as ids joined by transitions.
+  Its states lie top to bottom (left to right in landscape) in the order of the path, whatever
+  the order of the transitions; a transition back to an earlier state of the path runs against
+  the flow, and one that skips a state runs past it. Without a main path the layers follow the
+  order of the transitions. `"sameRank": [["won", "lost"]]` puts states at one position along
+  the flow, and `fromSide` and `toSide` on a transition pin the sides it leaves and reaches, as
+  in flow charts; see [Port sides](#port-sides).
 - **Text alternative.** The description says where the machine starts and ends and lists every
   transition in reading order; the data table has one row per transition, with event, guard and
   action in columns of their own. The table names a state with its sublabel, `Label – sublabel`;

@@ -1249,15 +1249,21 @@
               "guard": { "type": "string", "minLength": 1, "maxLength": 40 },
               "action": { "type": "string", "minLength": 1, "maxLength": 40 },
               "dash": { "enum": ["solid", "dashed", "dotted"], "default": "solid" },
-              "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" }
+              "role": { "description": "planned and deprecated draw the line in a pattern of their own and take no dash.", "$ref": "#/$defs/diagramRole" },
+              "fromSide": { "description": "The side of `from` the transition leaves.", "$ref": "#/$defs/portSide" },
+              "toSide": { "description": "The side of `to` the transition reaches.", "$ref": "#/$defs/portSide" }
             }
           }
         },
         "initial": { "$ref": "#/$defs/identifier" },
         "mainPath": {
-          "description": "The usual way through the states, as ids joined by transitions: kept in line and drawn stronger.",
+          "description": "The usual way through the states, as ids joined by transitions. The layout follows it: its states lie along the flow in the order of the path, whatever the order of the transitions, and a transition back to an earlier state of the path runs against the flow. Kept in line and drawn stronger.",
           "type": "array",
           "items": { "$ref": "#/$defs/identifier" }
+        },
+        "sameRank": {
+          "description": "Sets of state ids that lie at one position along the flow, such as the states a machine can end in. A layout hint: it adds no transition. A state lies in at most one set, no transition joins two states of one set, and a composite state is in none.",
+          "$ref": "#/$defs/sameRank"
         },
         "orientation": { "enum": ["auto", "portrait", "landscape"], "default": "auto" },
         "spacing": { "$ref": "#/$defs/diagramSpacing" }
