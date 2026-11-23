@@ -7,6 +7,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Pages:** the project site uses the current shared theme (0.17.0).
+
+
 ## [0.26.0] - 2026-11-23
 
 ### Breaking
