@@ -47,6 +47,8 @@ pub enum Mark {
     Area,
     /// A dot for every observation and no line between them, as in a scatter plot.
     Point,
+    /// A column from zero to every observation, as wide as the room between observations allows.
+    Column,
     Ohlc,
     Band,
     Annotation,

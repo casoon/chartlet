@@ -380,6 +380,18 @@ pub(crate) fn areas(locale: Locale, names: &[String]) -> String {
     }
 }
 
+/// The sentence about column layers; `names` lists them, empty for a single unnamed one.
+pub(crate) fn columns(locale: Locale, names: &[String]) -> String {
+    match (locale, names.len()) {
+        (Locale::En, 0) => " Every value is drawn as a column from zero.".to_owned(),
+        (Locale::En, 1) => format!(" {} is drawn as columns from zero.", names[0]),
+        (Locale::En, _) => format!(" {} are drawn as columns from zero.", names.join(", ")),
+        (Locale::De, 0) => " Jeder Wert ist als Säule ab null gezeichnet.".to_owned(),
+        (Locale::De, 1) => format!(" {} ist als Säulen ab null gezeichnet.", names[0]),
+        (Locale::De, _) => format!(" {} sind als Säulen ab null gezeichnet.", names.join(", ")),
+    }
+}
+
 /// The name of a bar or a line chart.
 const fn chart_name(locale: Locale, line: bool) -> &'static str {
     match (locale, line) {

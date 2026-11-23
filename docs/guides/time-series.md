@@ -48,7 +48,7 @@ Timestamps must increase within a layer and lie between 1700-01-01 and 2200-01-0
 
 ## Layers
 
-A pane holds up to six data layers (eight in a stacked pane), each a `line`, an `area`, a `point` or an `ohlc` candlestick layer, and up
+A pane holds up to six data layers (eight in a stacked pane), each a `line`, an `area`, a `point`, a `column` or an `ohlc` candlestick layer, and up
 to twelve annotation layers: zones, reference lines and point markers together. One candlestick
 layer does not count among the six: the other layers are drawn over the candles, so a price takes
 six lines on top of it, such as three bands and three averages.
@@ -159,6 +159,47 @@ takes no line options — `dash`, `stroke`, `curve`, `modeled` — and no `lower
 ]
 ```
 
+## Columns
+
+`"mark": "column"` draws a column from zero to every observation, centered on its time: trading
+volume, daily rainfall, a histogram of differences. A line between such values would suggest values
+between the observations that do not exist; a column stands for its own time only.
+
+```json
+{ "mark": "column", "name": "Volume", "color": "#98a2b3", "points": [
+  { "time": "2026-03-02", "value": 1.42 },
+  { "time": "2026-03-03", "value": 0.97 }
+] }
+```
+
+A column is as wide as the body of a candle at the same distance: 70 % of the median distance
+between the column observations of its pane, at least one pixel and at most 16, and 32 for a single
+one. A volume pane under a candle pane therefore lines its columns up with the bodies. The value
+axis of the pane always includes zero, and a negative value draws its column downwards. The columns
+are filled in the layer's palette color or its `color`, without an outline; the legend shows three
+small columns. Each column carries the tooltip of its observation while neighbouring columns stand
+at least 4 pixels apart, the data table has a column for the layer, and the description says that
+the layer is drawn as columns from zero. A `null` value draws no column and counts as missing.
+
+Column layers of one pane overlap instead of standing side by side, the later one on top. A second
+column layer that repeats a few observations of the first, in another color and with a name of its
+own, emphasizes them; its legend entry and table column say why, so the emphasis does not rest on
+color alone. A column layer takes one observation or more, so it can hold the one column that
+crosses a threshold:
+
+```json
+"layers": [
+  { "mark": "column", "name": "Volume", "color": "#98a2b3", "points": [ … ] },
+  { "mark": "column", "name": "Above 1.5 × mean", "points": [{ "time": 18, "value": 3.1 }] },
+  { "mark": "annotation", "label": "1.5 × mean", "value": 1.92 }
+]
+```
+
+Volume colored by the direction of its candle works the same way: one layer with the observations
+of rising candles and one with those of falling candles. A column layer takes no `dash`, `stroke`,
+`curve`, `modeled`, `markers`, `stepEnd` or `lower`/`upper` (`option_not_supported`), is not
+stacked, and is refused in a streamgraph.
+
 ## Candlesticks
 
 `"mark": "ohlc"` draws one candle per observation in `data`: a wick from `low` to `high` and a body
@@ -248,12 +289,12 @@ height a pane takes against the others: `3` and `1` give the upper pane three qu
 "panes": [
   { "heightRatio": 3, "valueAxis": { "title": "Price (USD)", "decimals": 2 }, "layers": [ … ] },
   { "heightRatio": 1, "valueAxis": { "title": "Volume (million shares)" }, "layers": [
-    { "mark": "area", "name": "Volume", "stroke": "thin", "points": [ … ] }
+    { "mark": "column", "name": "Volume", "points": [ … ] }
   ] }
 ]
 ```
 
-There is no volume mark: trading volume is an `area` layer (or a `line`) in a pane of its own.
+Trading volume is a [`column`](#columns) layer in a pane of its own.
 All panes share one legend at the top, which is why layer names are unique across the whole chart;
 candles in several panes take [one entry](#candlesticks) between them.
 Reference lines, zones and point markers belong to their pane and stay inside it. Zoom steps

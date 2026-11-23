@@ -774,8 +774,10 @@ fn scope_selector(selector: &str, scope: &str, print: bool) -> String {
 fn needs_layer_extras(spec: &ChartSpec) -> bool {
     spec.chart_type == ChartType::Multiples
         || spec.layers().any(|layer| {
-            matches!(layer.mark, Mark::Annotation | Mark::Area | Mark::Band)
-                || layer.modeled
+            matches!(
+                layer.mark,
+                Mark::Annotation | Mark::Area | Mark::Band | Mark::Column
+            ) || layer.modeled
                 || layer.has_band()
         })
         || spec.data_layers().any(|entry| {

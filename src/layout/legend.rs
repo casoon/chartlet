@@ -1,7 +1,7 @@
 use super::{
     AREA_CLASSES, LABEL_LINE, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PlotArea, count, fit_text,
     series_bar_class,
-    timechart::{POINT_CLASSES, line_class},
+    timechart::{COLUMN_CLASSES, POINT_CLASSES, line_class},
     title::two_lines,
 };
 use crate::{
@@ -148,7 +148,8 @@ pub(super) fn legend_rows(
 }
 
 /// Draws the legend of a time chart or of small multiples, see [`legend_entries`]. Every sample is
-/// a short piece of the line itself, over a swatch of its fill for an area.
+/// a short piece of the line itself, over a swatch of its fill for an area; a column layer shows
+/// three of its columns.
 pub(super) fn add_layer_legend(
     spec: &ChartSpec,
     row: f64,
@@ -175,6 +176,24 @@ pub(super) fn add_layer_legend(
                 y,
                 elements,
             );
+        } else if entry.layer.mark == Mark::Column {
+            // Three columns of the layer's color, rising from a shared baseline.
+            for (offset, height) in [(2.0, 7.0), (9.5, 12.0), (17.0, 9.0)] {
+                elements.push(Element::Rect(Rect {
+                    x: x + offset,
+                    y: y + 12.0 - height,
+                    width: 5.0,
+                    height,
+                    class: if explicit {
+                        "chartlet-column"
+                    } else {
+                        COLUMN_CLASSES[spec.palette_index(entry.layer)]
+                    },
+                    series_index: None,
+                    style_index: explicit.then_some(entry.global),
+                    tooltip: None,
+                }));
+            }
         } else if entry.layer.mark == Mark::Area {
             elements.push(Element::Rect(Rect {
                 x,
@@ -207,7 +226,7 @@ pub(super) fn add_layer_legend(
                 style_index: explicit.then_some(entry.global),
                 tooltip: None,
             }));
-        } else if entry.layer.mark != Mark::Ohlc {
+        } else if !matches!(entry.layer.mark, Mark::Ohlc | Mark::Column) {
             elements.push(Element::Polyline(Polyline {
                 points: vec![(x, y + 5.0), (x + LEGEND_LINE, y + 5.0)],
                 class: line_class(spec, entry),

@@ -173,7 +173,7 @@ pub(super) fn time_gutter(
 /// The value scale of one pane of a time chart, or of all small multiples when `pane` is `None`:
 /// every observation, every candle's high and low, every band edge, every horizontal reference
 /// line, every point marker and every zone edge, so that none of them falls outside the plot. An
-/// area is filled down to zero, so a pane with one always shows zero.
+/// area is filled down to zero and a column stands on it, so a pane with either always shows zero.
 pub(super) fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) -> NumericScale {
     let inside = |pane_index: usize| pane.is_none_or(|pane| pane == pane_index);
     let layers = || {
@@ -213,7 +213,7 @@ pub(super) fn time_scale(spec: &ChartSpec, zone: TimeZone, pane: Option<usize>) 
             .flat_map(|layer| [layer.bottom, layer.top])
             .flatten(),
     );
-    let area = layers().any(|layer| layer.mark == Mark::Area);
+    let area = layers().any(|layer| matches!(layer.mark, Mark::Area | Mark::Column));
     // Small multiples share the top-level value axis, even when every panel gets its own scale.
     let axis = match pane {
         Some(pane) if spec.chart_type != ChartType::Multiples => &spec.panes[pane].value_axis,

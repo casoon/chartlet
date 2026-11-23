@@ -16,6 +16,9 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 - **Time charts:** a sparkline draws candles, and zones, reference lines and point markers whose
   labels name them in tooltips and description only, for previews of chart patterns. Example
   `sparkline-candles`; [Sparklines](https://casoon.github.io/chartlet/docs/guides/time-series/#sparklines).
+- **Time charts:** `"mark": "column"` draws a column from zero per observation, as wide as a candle
+  body, for volume under candles; a second column layer emphasizes single observations. Example
+  `volume-columns`; [Columns](https://casoon.github.io/chartlet/docs/guides/time-series/#columns).
 - **Tokens:** `hsl()` and `hsla()` of numbers are accepted beside hex and `rgb()`, and measured for
   contrast like them. [Customize the look](https://casoon.github.io/chartlet/docs/guides/customize/).
 

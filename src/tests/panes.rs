@@ -1017,3 +1017,162 @@ fn a_chart_with_candles_is_a_candlestick_chart_on_a_calendar_axis_too() {
         "{panes}"
     );
 }
+
+/// A volume pane of columns: three observations, and a second layer that emphasizes one of them.
+const COLUMN_PANE: &str = r##"{"valueAxis": {"title": "Volume"}, "layers": [
+    {"mark": "column", "name": "Volume", "color": "#98a2b3", "points": [{"time": "2026-03-02", "value": 1.2}, {"time": "2026-03-03", "value": 3.4}, {"time": "2026-03-04", "value": 0.8}]},
+    {"mark": "column", "name": "Above the threshold", "points": [{"time": "2026-03-03", "value": 3.4}]},
+    {"mark": "annotation", "label": "Threshold", "value": 2}]}"##;
+
+/// The `(x, y, width, height)` of every rect whose class starts with `class`.
+fn rects(svg: &str, class: &str) -> Vec<[f64; 4]> {
+    svg.split("<rect x=\"")
+        .skip(1)
+        .filter(|rect| rect.contains(&format!("class=\"{class}")))
+        .map(|rect| {
+            let number = |name: &str| -> f64 {
+                format!(" x=\"{rect}")
+                    .split(&format!(" {name}=\""))
+                    .nth(1)
+                    .and_then(|rest| rest.split('"').next())
+                    .and_then(|value| value.parse().ok())
+                    .expect("a number")
+            };
+            [number("x"), number("y"), number("width"), number("height")]
+        })
+        .collect()
+}
+
+#[test]
+fn columns_stand_on_zero_under_their_candles() {
+    let output = render_ok(&stacked(&format!("{},{COLUMN_PANE}", candle_pane("")), ""));
+    assert!(output.warnings.is_empty(), "{:?}", output.warnings);
+    let svg = &output.content;
+    let columns = rects(svg, "chartlet-column");
+    // Three of the volume, one emphasized, and three in each of the two legend samples.
+    assert_eq!(columns.len(), 3 + 1 + 6, "{svg}");
+    let drawn = &columns[columns.len() - 4..];
+    // The first two are the legend sample.
+    let candles = rects(svg, "chartlet-candle ")[2..].to_vec();
+    // As wide as the bodies above them, centered on the same times, from one baseline.
+    for (column, candle) in drawn.iter().zip(&candles) {
+        assert!(
+            (column[2] - candle[2]).abs() < 1e-9,
+            "{column:?} {candle:?}"
+        );
+        assert!((column[0] - candle[0]).abs() < 1e-9);
+    }
+    let base = drawn[0][1] + drawn[0][3];
+    assert!(
+        drawn
+            .iter()
+            .all(|column| (column[1] + column[3] - base).abs() < 1e-6)
+    );
+    // The emphasis covers its column exactly and is drawn after it.
+    assert_eq!(drawn[3], drawn[1]);
+    assert!(svg.contains("class=\"chartlet-column chartlet-band-series-2\""));
+    assert!(svg.contains("chartlet-column chartlet-style-"));
+    assert!(
+        svg.contains("<title>2026-03-03 – Above the threshold: 3.4</title>"),
+        "{svg}"
+    );
+
+    let html = html_ok(&stacked(&format!("{},{COLUMN_PANE}", candle_pane("")), ""));
+    assert!(html.contains(">Above the threshold</th>"), "{html}");
+    assert!(html.contains("Volume, Above the threshold are drawn as columns from zero."));
+}
+
+#[test]
+fn a_column_pane_works_in_every_variant() {
+    let spec = stacked(
+        &format!("{},{COLUMN_PANE}", candle_pane("")),
+        r#", "theme": "dark", "mobile": {"width": 360}"#,
+    );
+    for options in [
+        RenderOptions::default(),
+        RenderOptions {
+            variant: Variant::Mobile,
+            ..RenderOptions::default()
+        },
+        RenderOptions {
+            variant: Variant::Print,
+            ..RenderOptions::default()
+        },
+        RenderOptions {
+            styles: crate::Styles::External,
+            hooks: true,
+            ..RenderOptions::default()
+        },
+    ] {
+        let svg = render_json(&spec, RenderFormat::Svg, &options)
+            .expect("renders")
+            .content;
+        assert_eq!(rects(&svg, "chartlet-column").len(), 10, "{svg}");
+    }
+    // The palette class of a column is part of the shared stylesheet.
+    assert!(crate::stylesheet().contains(".chartlet-band-series-1{fill:var(--chartlet-color-1)}"));
+    let german = stacked(
+        &format!("{},{COLUMN_PANE}", candle_pane("")),
+        r#", "locale": "de""#,
+    );
+    assert!(
+        html_ok(&german)
+            .contains("Volume, Above the threshold sind als Säulen ab null gezeichnet.")
+    );
+}
+
+#[test]
+fn a_negative_column_hangs_below_zero() {
+    let svg = render_ok(&stacked(
+        r#"{"layers": [{"mark": "column", "points": [{"time": "2026-03-02", "value": -2}, {"time": "2026-03-03", "value": 3}, {"time": "2026-03-04", "value": null}]}]}"#,
+        "",
+    ))
+    .content;
+    let columns = rects(&svg, "chartlet-column");
+    assert_eq!(columns.len(), 2, "{svg}");
+    // The negative one starts at zero, where the positive one ends.
+    assert!((columns[0][1] - (columns[1][1] + columns[1][3])).abs() < 1e-6);
+}
+
+#[test]
+fn a_column_layer_takes_no_line_fields() {
+    let layer = |extra: &str| {
+        stacked(
+            &format!(
+                r#"{{"layers": [{{"mark": "column", "name": "Volume"{extra}, "points": [{{"time": "2026-03-02", "value": 1}}]}}]}}"#
+            ),
+            "",
+        )
+    };
+    render_ok(&layer(""));
+    for (extra, path) in [
+        (r#", "stroke": "thin""#, "/panes/0/layers/0/stroke"),
+        (r#", "dash": "dotted""#, "/panes/0/layers/0/dash"),
+        (r#", "curve": "step""#, "/panes/0/layers/0/curve"),
+        (r#", "markers": false"#, "/panes/0/layers/0/markers"),
+    ] {
+        assert_eq!(
+            render_err(&layer(extra)),
+            ("option_not_supported", path.to_owned())
+        );
+    }
+    let empty = stacked(
+        r#"{"layers": [{"mark": "column", "points": [{"time": "2026-03-02", "value": null}]}]}"#,
+        "",
+    );
+    assert_eq!(
+        render_err(&empty),
+        ("empty_series", "/panes/0/layers/0/points".to_owned())
+    );
+    let stream = stacked(
+        r#"{"stack": "stream", "layers": [
+            {"mark": "area", "name": "A", "points": [{"time": "2026-03-02", "value": 1}, {"time": "2026-03-03", "value": 2}]},
+            {"mark": "area", "name": "B", "points": [{"time": "2026-03-02", "value": 1}, {"time": "2026-03-03", "value": 2}]},
+            {"mark": "column", "name": "C", "points": [{"time": "2026-03-02", "value": 1}]}]}"#,
+        "",
+    );
+    assert_eq!(
+        render_err(&stream),
+        ("option_not_supported", "/panes/0/layers/2/mark".to_owned())
+    );
+}

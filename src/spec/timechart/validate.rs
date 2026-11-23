@@ -268,7 +268,7 @@ fn validate_stream(pane: &PaneSpec, path: &str) -> Result<(), ChartError> {
         let allowed = match layer.mark {
             Mark::Area => true,
             Mark::Annotation => layer.value.is_none() && !layer.is_measure(),
-            Mark::Line | Mark::Point | Mark::Ohlc | Mark::Band => false,
+            Mark::Line | Mark::Point | Mark::Column | Mark::Ohlc | Mark::Band => false,
         };
         if !allowed {
             return refuse(
@@ -345,7 +345,7 @@ pub(super) fn validate_pane_layers(
             Mark::Annotation => validate_annotation(layer, &layer_path, zone, warnings)?,
             Mark::Band => validate_zone(layer, &layer_path, context, warnings)?,
             Mark::Ohlc => crate::ohlc::validate(layer, &layer_path, context, names, warnings)?,
-            Mark::Line | Mark::Area | Mark::Point => {
+            Mark::Line | Mark::Area | Mark::Point | Mark::Column => {
                 validate_layer(layer, &layer_path, context, names, warnings)?;
             }
         }
@@ -652,6 +652,29 @@ pub(crate) fn validate_layer_name(
     Ok(())
 }
 
+/// A line or a point layer needs two observations with a value; a column stands on its own, such
+/// as the one observation another column layer emphasizes.
+fn validate_enough_values(
+    layer: &LayerSpec,
+    path: &str,
+    zone: crate::time::TimeZone,
+) -> Result<(), ChartError> {
+    let message = match layer.mark {
+        Mark::Column if layer.resolved_points(zone).is_empty() => {
+            "a column layer needs at least one observation with a value"
+        }
+        Mark::Column => return Ok(()),
+        _ if layer.has_two_points(zone) => return Ok(()),
+        Mark::Point => "a point layer needs at least two observations",
+        _ => "a line needs at least two observations",
+    };
+    Err(ChartError::new(
+        "empty_series",
+        format!("{path}/points"),
+        message,
+    ))
+}
+
 fn validate_layer(
     layer: &LayerSpec,
     path: &str,
@@ -663,6 +686,7 @@ fn validate_layer(
     let mark = match layer.mark {
         Mark::Area => "an area",
         Mark::Point => "a point",
+        Mark::Column => "a column",
         _ => "a line",
     };
 
@@ -689,8 +713,8 @@ fn validate_layer(
             ));
         }
     }
-    // Points draw no line, so nothing that shapes a line applies to them.
-    if layer.mark == Mark::Point {
+    // Points and columns draw no line, so nothing that shapes a line applies to them.
+    if matches!(layer.mark, Mark::Point | Mark::Column) {
         for (field, present) in [
             ("dash", layer.dash.is_some()),
             ("stroke", layer.stroke != Stroke::Regular),
@@ -701,7 +725,7 @@ fn validate_layer(
                 return Err(ChartError::new(
                     "option_not_supported",
                     format!("{path}/{field}"),
-                    format!("{field} shapes a line; a point layer draws none"),
+                    format!("{field} shapes a line; {mark} layer draws none"),
                 ));
             }
         }
@@ -713,7 +737,7 @@ fn validate_layer(
             return Err(ChartError::new(
                 "option_not_supported",
                 format!("{path}/points/{index}"),
-                "lower and upper draw a band along a line; a point layer draws none",
+                format!("lower and upper draw a band along a line; {mark} layer draws none"),
             ));
         }
     }
@@ -738,17 +762,7 @@ fn validate_layer(
     validate_points(layer, path, zone, warnings)?;
     validate_step_end(layer, path, zone)?;
 
-    if !layer.has_two_points(zone) {
-        return Err(ChartError::new(
-            "empty_series",
-            format!("{path}/points"),
-            if layer.mark == Mark::Point {
-                "a point layer needs at least two observations"
-            } else {
-                "a line needs at least two observations"
-            },
-        ));
-    }
+    validate_enough_values(layer, path, zone)?;
     // A time axis is meant to carry many observations, so the density warning starts where the
     // drawing stops resolving them instead of at a fixed count.
     if layer.points.len() > plot_pixels {
