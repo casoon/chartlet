@@ -312,7 +312,8 @@ fn layered(
         .iter()
         .map(|&(from, to)| (rank[from], rank[to]))
         .collect();
-    let reversed = feedback_edges(ranks, &rank_ends);
+    let main: Vec<bool> = diagram.edges.iter().map(|edge| edge.main).collect();
+    let reversed = feedback_edges(ranks, &rank_ends, &main);
     let directed: Vec<Option<(usize, usize)>> = ends
         .iter()
         .zip(&reversed)
@@ -430,18 +431,27 @@ fn ranks_of(nodes: usize, sets: &[Vec<usize>]) -> (Vec<usize>, usize) {
 }
 
 /// The edges a depth-first search from every step in turn finds leading back to a step still on
-/// its path: turning them around leaves no cycle.
-fn feedback_edges(nodes: usize, ends: &[(usize, usize)]) -> Vec<bool> {
+/// its path: turning them around leaves no cycle. The search follows the main path first: it
+/// begins where the main path begins and takes the edges of the main path (`main`) before the
+/// others of a step, so that the main path runs along the flow whatever the order of the edges,
+/// and it is the ways back to it that are turned around.
+fn feedback_edges(nodes: usize, ends: &[(usize, usize)], main: &[bool]) -> Vec<bool> {
     let mut outgoing = vec![Vec::new(); nodes];
-    for (index, (from, to)) in ends.iter().enumerate() {
-        if from != to {
-            outgoing[*from].push(index);
+    for on_path in [true, false] {
+        for (index, (from, to)) in ends.iter().enumerate() {
+            if from != to && main[index] == on_path {
+                outgoing[*from].push(index);
+            }
         }
     }
+    // A step the main path leaves but does not reach is where it begins.
+    let leaves = |node: usize| (0..ends.len()).any(|edge| main[edge] && ends[edge].0 == node);
+    let reaches = |node: usize| (0..ends.len()).any(|edge| main[edge] && ends[edge].1 == node);
+    let heads = (0..nodes).filter(|node| leaves(*node) && !reaches(*node));
     // 0: not yet visited, 1: on the current path, 2: done.
     let mut state = vec![0_u8; nodes];
     let mut reversed = vec![false; ends.len()];
-    for root in 0..nodes {
+    for root in heads.chain(0..nodes) {
         if state[root] != 0 {
             continue;
         }
@@ -632,10 +642,38 @@ mod tests {
     #[test]
     fn a_cycle_loses_the_edge_that_closes_it() {
         assert_eq!(
-            feedback_edges(3, &[(0, 1), (1, 2), (2, 0)]),
+            feedback_edges(3, &[(0, 1), (1, 2), (2, 0)], &[false; 3]),
             [false, false, true]
         );
-        assert_eq!(feedback_edges(2, &[(0, 1), (1, 1)]), [false, false]);
+        assert_eq!(
+            feedback_edges(2, &[(0, 1), (1, 1)], &[false; 2]),
+            [false, false]
+        );
+    }
+
+    #[test]
+    fn the_main_path_runs_along_the_flow_whatever_the_order_of_the_edges() {
+        // 0 → 1 → 2 → 3 is the main path; 0 → 2 skips a step and 3 → 1 leads back. Listed with
+        // the skip first, a search in the order of the edges reaches 2 before 1, then 3 and from
+        // there 1, and turns the main edge 1 → 2 around.
+        let ends = [(0, 2), (3, 1), (0, 1), (1, 2), (2, 3)];
+        assert_eq!(
+            feedback_edges(4, &ends, &[false; 5]),
+            [false, false, false, true, false]
+        );
+        // Following the main path first, only the way back is turned around.
+        let main = [false, false, true, true, true];
+        assert_eq!(
+            feedback_edges(4, &ends, &main),
+            [false, true, false, false, false]
+        );
+        // The search begins where the main path begins, not at the first step: step 0 leads into
+        // the middle of the path 1 → 2 → 3, from whose end a way leads back to its start.
+        let ends = [(0, 2), (3, 1), (1, 2), (2, 3)];
+        assert_eq!(
+            feedback_edges(4, &ends, &[false, false, true, true]),
+            [false, true, false, false]
+        );
     }
 
     #[test]

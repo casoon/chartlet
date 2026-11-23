@@ -22,7 +22,7 @@ composed for it rather than a smaller copy.
 | Field | Default | Description |
 | --- | --- | --- |
 | `mobile.width` | required | Width of the mobile layout in pixels, 200–600. |
-| `mobile.height` | 360 | Height in pixels, 160–1600. It does not follow the aspect ratio of the chart: a narrow chart usually needs to be taller, not shorter. |
+| `mobile.height` | 360 | Height in pixels, 160–1600; flow, state, architecture and class diagrams take the height their layout needs when it is left out. It does not follow the aspect ratio of the chart: a narrow chart usually needs to be taller, not shorter. |
 | `mobile.breakpoint` | 640 | Container width in CSS pixels below which the mobile variant is shown, 320–1600. |
 
 The mobile variant is available for every chart type. It is laid out by the same rules as the chart
@@ -69,8 +69,8 @@ By default the figure brings them along in a `<style>` element at the start of i
 the rest of its stylesheet: the output stands alone. A `<style>` element inside the page body is
 not valid HTML, though, and a Content Security Policy without `'unsafe-inline'` blocks it unless
 it is named by hash. With [`styles: "external"`](../javascript/#shared-stylesheet) the figure
-carries no `<style>` outside its SVGs and no `style` attribute; the page loads the rules with the
-shared stylesheet:
+of a chart or a diagram carries no `<style>` outside its SVGs and no `style` attribute; the page
+loads the rules with the shared stylesheet:
 
 ```html
 <link rel="stylesheet" href="/chartlet.css" />

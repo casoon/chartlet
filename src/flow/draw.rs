@@ -139,7 +139,7 @@ impl Plan {
             self.draw_loop(model, node, elements, &mut labels);
             elements.push(Element::GroupEnd);
         }
-        let reach = self.draw_labels(model, labels, metrics, elements);
+        let reach = self.draw_labels(model, labels, metrics, (warnings, elements));
         let heat = heat::steps(
             &model
                 .diagram
@@ -181,7 +181,7 @@ impl Plan {
                         .whole
                         .as_ref()
                         .map_or(node, |whole| whole.nodes[node]),
-                    label: spec.label.clone(),
+                    label: model.names[node].clone(),
                     x,
                     y,
                     width,

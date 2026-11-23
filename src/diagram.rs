@@ -349,6 +349,31 @@ pub(crate) fn cylinder(
     )));
 }
 
+/// A node's label with its sublabel, as its tooltip writes it: `Label – sublabel`.
+pub(crate) fn full_name(label: &str, sublabel: Option<&str>) -> String {
+    match sublabel {
+        Some(sublabel) => format!("{label} – {sublabel}"),
+        None => label.to_owned(),
+    }
+}
+
+/// What the text alternative calls each node, given its label and sublabel: the label, and for a
+/// node that shares its label with another one the label with its sublabel, so that the two stay
+/// apart in words as they do in the picture.
+pub(crate) fn distinct_names(nodes: &[(&str, Option<&str>)]) -> Vec<String> {
+    nodes
+        .iter()
+        .enumerate()
+        .map(|(index, (label, sublabel))| {
+            let shared = nodes
+                .iter()
+                .enumerate()
+                .any(|(other, (name, _))| other != index && name == label);
+            full_name(label, sublabel.filter(|_| shared))
+        })
+        .collect()
+}
+
 /// A label on one or two lines that fit `max_width`; a longer second line, or a first word wider
 /// than that, is shortened.
 pub(crate) fn wrap(
@@ -368,6 +393,31 @@ pub(crate) fn wrap(
     }
 }
 
+/// A label on up to `max_lines` lines that fit `max_width`, broken at spaces; only what does not
+/// fit on the last line, or a word wider than a line, is shortened.
+pub(crate) fn wrap_lines(
+    label: &str,
+    max_width: f64,
+    size: f64,
+    max_lines: usize,
+    (metrics, warnings): (&impl TextMetrics, &mut Vec<ChartWarning>),
+    path: &str,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut rest = label;
+    while lines.len() + 1 < max_lines {
+        match two_lines(rest, max_width, size, metrics) {
+            Some((first, more)) => {
+                lines.push(first.to_owned());
+                rest = more;
+            }
+            None => break,
+        }
+    }
+    lines.push(fit_text(rest, max_width, size, metrics, warnings, path));
+    lines
+}
+
 /// Which orientation `auto` takes, from the size each needs: portrait where it fits the canvas,
 /// landscape where only that fits, and otherwise the one that has to grow the canvas less.
 pub(crate) fn prefers_landscape(
@@ -376,8 +426,13 @@ pub(crate) fn prefers_landscape(
     landscape: (f64, f64),
 ) -> bool {
     let (width, height) = (f64::from(spec.width), f64::from(spec.height));
+    // Without a `height` the canvas takes the height the layout needs: only the width counts.
     let growth = |(needed_width, needed_height): (f64, f64)| {
-        (needed_width / width).max(needed_height / height)
+        if spec.auto_height {
+            needed_width / width
+        } else {
+            (needed_width / width).max(needed_height / height)
+        }
     };
     growth(portrait) > 1.0 && growth(landscape) < growth(portrait)
 }
@@ -403,7 +458,8 @@ pub(crate) fn warn_growth_advising(
         ("/width", pixels(width), spec.width),
         ("/height", pixels(height), spec.height),
     ] {
-        if needed > given {
+        // A canvas without a `height` is as tall as the layout needs, which is no shortfall.
+        if needed > given && !(spec.auto_height && path == "/height") {
             warnings.push(ChartWarning::new(
                 "canvas_too_small",
                 path,

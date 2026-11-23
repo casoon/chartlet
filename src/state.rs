@@ -7,6 +7,7 @@ use std::fmt::Write as _;
 
 use crate::{
     DataTable,
+    diagram::{distinct_names, full_name},
     error::ChartWarning,
     flow::{Diagram, Edge, Ends, Group, MARGIN, Node, Shape, Sides, layout_diagram, reading_order},
     metrics::TextMetrics,
@@ -166,15 +167,26 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             weight: None,
             role: transition.role,
             category: None,
-            sides: Sides::default(),
+            sides: Sides {
+                from: transition.from_side,
+                to: transition.to_side,
+                path: format!("/state/transitions/{index}"),
+            },
         });
     }
+    let ranks = machine
+        .same_rank
+        .iter()
+        .map(|set| set.iter().map(|id| node(id)).collect())
+        .collect();
     Diagram {
         nodes,
         edges,
         groups,
+        ranks,
         orientation: machine.orientation,
         spacing: machine.spacing,
+        distinct_names: true,
         ..Diagram::default()
     }
 }
@@ -206,22 +218,32 @@ fn transitions_in_order(spec: &ChartSpec) -> Vec<usize> {
         .collect()
 }
 
+/// What the text alternative calls each state: its label, with its sublabel where two states
+/// share a label.
+fn names(machine: &StateSpec) -> Vec<String> {
+    distinct_names(
+        &machine
+            .states
+            .iter()
+            .map(|state| (state.label.as_str(), state.sublabel.as_deref()))
+            .collect::<Vec<_>>(),
+    )
+}
+
 /// The diagram in sentences: its states, where it starts and ends, the main path, and every
 /// transition in reading order.
 pub(crate) fn description(spec: &ChartSpec) -> String {
     let machine = machine(spec);
     let locale = spec.locale;
-    let label = |id: &str| {
-        machine.states[machine.state(id).expect("validated")]
-            .label
-            .as_str()
-    };
+    let names = names(machine);
+    let label = |id: &str| names[machine.state(id).expect("validated")].as_str();
     let initial = machine.initial.as_deref().map(label);
     let finals: Vec<String> = machine
         .states
         .iter()
-        .filter(|state| state.is_final)
-        .map(|state| state.label.clone())
+        .zip(&names)
+        .filter(|(state, _)| state.is_final)
+        .map(|(_, name)| name.clone())
         .collect();
     let mut description = text::state_opening(
         locale,
@@ -257,17 +279,19 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         let members: Vec<&str> = machine
             .states
             .iter()
-            .filter(|state| state.parent.as_deref() == Some(composite.id.as_str()))
-            .map(|state| state.label.as_str())
+            .zip(&names)
+            .filter(|(state, _)| state.parent.as_deref() == Some(composite.id.as_str()))
+            .map(|(_, name)| name.as_str())
             .collect();
         description.push(' ');
-        description.push_str(&text::composite(locale, &composite.label, &members));
+        description.push_str(&text::composite(locale, &names[index], &members));
     }
     let choices: Vec<&str> = machine
         .states
         .iter()
-        .filter(|state| state.kind == StateKind::Choice)
-        .map(|state| state.label.as_str())
+        .zip(&names)
+        .filter(|(state, _)| state.kind == StateKind::Choice)
+        .map(|(_, name)| name.as_str())
         .collect();
     if !choices.is_empty() {
         description.push(' ');
@@ -284,16 +308,14 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
 /// reading order too.
 fn with_roles(spec: &ChartSpec) -> Vec<(DiagramRole, String)> {
     let machine = machine(spec);
-    let label = |id: &str| {
-        machine.states[machine.state(id).expect("validated")]
-            .label
-            .as_str()
-    };
+    let names = names(machine);
+    let label = |id: &str| names[machine.state(id).expect("validated")].as_str();
     states_in_order(spec)
         .into_iter()
         .filter_map(|index| {
-            let state = &machine.states[index];
-            state.role.map(|role| (role, state.label.clone()))
+            machine.states[index]
+                .role
+                .map(|role| (role, names[index].clone()))
         })
         .chain(transitions_in_order(spec).into_iter().filter_map(|index| {
             let transition = &machine.transitions[index];
@@ -312,13 +334,15 @@ fn with_roles(spec: &ChartSpec) -> Vec<(DiagramRole, String)> {
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let machine = machine(spec);
     let words = spec.locale.words();
-    // A state with a role is named with it, `Locked (critical)`; the role of a transition has a
-    // column of its own.
+    // The table has no row per state, so a state is named in full: with its sublabel,
+    // `Phase C – accumulation`, and with its role, `Locked (critical)`; the role of a transition
+    // has a column of its own.
     let label = |id: &str| {
         let state = &machine.states[machine.state(id).expect("validated")];
+        let name = full_name(&state.label, state.sublabel.as_deref());
         match state.role {
-            Some(role) => format!("{} ({})", state.label, text::role(spec.locale, role)),
-            None => state.label.clone(),
+            Some(role) => format!("{name} ({})", text::role(spec.locale, role)),
+            None => name,
         }
     };
     let with_roles = machine
@@ -462,6 +486,190 @@ mod tests {
             "beep".to_owned(),
             "Locked".to_owned(),
         ]));
+    }
+
+    /// The top of every state drawn as a box, by its tooltip.
+    fn tops(svg: &str) -> std::collections::BTreeMap<String, f64> {
+        svg.split("<rect ")
+            .filter(|rect| rect.contains("class=\"chartlet-flow-node"))
+            .filter_map(|rect| {
+                let y = rect
+                    .split(" y=\"")
+                    .nth(1)?
+                    .split('"')
+                    .next()?
+                    .parse()
+                    .ok()?;
+                let title = rect.split("<title>").nth(1)?.split('<').next()?;
+                Some((title.to_owned(), y))
+            })
+            .collect()
+    }
+
+    /// A machine whose transitions are listed as its table has them, by the state they leave: the
+    /// way that skips a state and the ways back come before the main path reaches their ends.
+    const PHASES: &str = r#"{"schemaVersion": 1, "type": "state", "title": "Phases",
+        "width": 720, "height": 900,
+        "state": {"initial": "none", "orientation": "portrait",
+            "states": [{"id": "none", "label": "None"}, {"id": "a", "label": "A"},
+                {"id": "b", "label": "B"}, {"id": "c", "label": "C"}, {"id": "d", "label": "D"},
+                {"id": "x", "label": "X"}, {"id": "y", "label": "Y"}],
+            "transitions": [
+                {"from": "none", "to": "a", "event": "start"},
+                {"from": "a", "to": "c", "event": "skip"},
+                {"from": "a", "to": "none", "event": "drop"},
+                {"from": "a", "to": "b", "event": "next"},
+                {"from": "b", "to": "c", "event": "next"},
+                {"from": "b", "to": "b", "event": "again"},
+                {"from": "c", "to": "d", "event": "next"},
+                {"from": "d", "to": "b", "event": "back"},
+                {"from": "d", "to": "x", "event": "left"},
+                {"from": "c", "to": "y", "event": "right"}],
+            "mainPath": ["none", "a", "b", "c", "d"]}}"#;
+
+    #[test]
+    fn the_main_path_runs_top_to_bottom_whatever_the_order_of_the_transitions() {
+        let in_order = |json: &str| {
+            let tops = tops(&svg(json).content);
+            let path: Vec<f64> = ["None", "A", "B", "C", "D"]
+                .iter()
+                .map(|state| tops[*state])
+                .collect();
+            assert!(path.windows(2).all(|pair| pair[0] < pair[1]), "{path:?}");
+            tops
+        };
+        let natural = in_order(PHASES);
+        // The same machine with the transitions of the main path first is drawn the same.
+        let spec: serde_json::Value = serde_json::from_str(PHASES).expect("JSON");
+        let mut sorted = spec.clone();
+        let transitions = spec["state"]["transitions"]
+            .as_array()
+            .expect("transitions");
+        let on_path = |transition: &&serde_json::Value| {
+            ["start", "next"].contains(&transition["event"].as_str().expect("an event"))
+        };
+        sorted["state"]["transitions"] = transitions
+            .iter()
+            .filter(on_path)
+            .chain(transitions.iter().filter(|transition| !on_path(transition)))
+            .cloned()
+            .collect();
+        assert_eq!(in_order(&sorted.to_string()), natural);
+        // Without the main path the order of the transitions decides: the way that skips B is
+        // followed first, and B ends up below D.
+        let without = PHASES.replace(
+            r#""mainPath": ["none", "a", "b", "c", "d"]"#,
+            r#""mainPath": []"#,
+        );
+        let tops = tops(&svg(&without).content);
+        assert!(tops["B"] > tops["D"], "{tops:?}");
+    }
+
+    #[test]
+    fn states_share_a_rank_and_transitions_take_sides() {
+        // X hangs off D and Y off C, a layer apart; a shared rank puts them side by side.
+        let apart = tops(&svg(PHASES).content);
+        assert!(apart["Y"] < apart["X"], "{apart:?}");
+        let ranked = PHASES.replace(
+            r#""mainPath": ["none""#,
+            r#""sameRank": [["x", "y"]], "mainPath": ["none""#,
+        );
+        let output = svg(&ranked);
+        let together = tops(&output.content);
+        assert!((together["X"] - together["Y"]).abs() < 0.5, "{together:?}");
+        // The way back leaves and reaches the right side of its states instead of their ends.
+        let plain = svg(PHASES).content;
+        let sided = svg(&PHASES.replace(
+            r#""event": "back""#,
+            r#""event": "back", "fromSide": "right", "toSide": "right""#,
+        ));
+        assert_ne!(sided.content, plain);
+        assert!(
+            !sided
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "port_side_ignored"),
+            "{:?}",
+            sided.warnings
+        );
+        for (from, to, code, path) in [
+            (
+                r#""mainPath": ["none""#,
+                r#""sameRank": [["x", "nowhere"]], "mainPath": ["none""#,
+                "unknown_state",
+                "/state/sameRank/0/1",
+            ),
+            (
+                r#""mainPath": ["none""#,
+                r#""sameRank": [["c", "d"]], "mainPath": ["none""#,
+                "same_rank_edge",
+                "/state/sameRank/0/1",
+            ),
+            (
+                r#""mainPath": ["none""#,
+                r#""sameRank": [["x"]], "mainPath": ["none""#,
+                "empty_data",
+                "/state/sameRank/0",
+            ),
+            (
+                r#""event": "again""#,
+                r#""event": "again", "toSide": "left""#,
+                "option_not_supported",
+                "/state/transitions/5/toSide",
+            ),
+        ] {
+            assert!(PHASES.contains(from), "{from}");
+            assert_eq!(
+                error(&PHASES.replace(from, to)),
+                (code, path.to_owned()),
+                "{to}"
+            );
+        }
+    }
+
+    #[test]
+    fn states_that_share_a_label_are_told_apart_by_their_sublabels() {
+        let json = r#"{"schemaVersion": 1, "type": "state", "title": "Range",
+            "state": {"initial": "a",
+                "states": [
+                    {"id": "a", "label": "Phase A"},
+                    {"id": "up", "label": "Phase C", "sublabel": "accumulation"},
+                    {"id": "down", "label": "Phase C", "sublabel": "distribution", "final": true},
+                    {"id": "e", "label": "Phase E", "sublabel": "either side", "role": "planned"}],
+                "transitions": [
+                    {"from": "a", "to": "up", "event": "spring"},
+                    {"from": "a", "to": "down", "event": "upthrust"},
+                    {"from": "up", "to": "e", "event": "breakout"}],
+                "mainPath": ["a", "up", "e"]}}"#;
+        let alternative =
+            text_alternative(&ChartSpec::from_json(json).expect("parses")).expect("valid");
+        assert_eq!(
+            alternative.description,
+            "State diagram with 4 states and 3 transitions. It starts in Phase A. Final state: Phase C – distribution. Main path: Phase A → Phase C – accumulation → Phase E. Phase A to Phase C – accumulation on spring. Phase A to Phase C – distribution on upthrust. Phase C – accumulation to Phase E on breakout. Roles: planned: Phase E."
+        );
+        // The table has no row per state: it names every state with its sublabel.
+        assert_eq!(
+            alternative.table.rows,
+            [
+                ["Start", "", "", "", "Phase A"],
+                ["Phase A", "spring", "", "", "Phase C – accumulation"],
+                ["Phase A", "upthrust", "", "", "Phase C – distribution"],
+                [
+                    "Phase C – accumulation",
+                    "breakout",
+                    "",
+                    "",
+                    "Phase E – either side (planned)"
+                ],
+            ]
+        );
+        let html = render_json(json, RenderFormat::Html, &RenderOptions::default())
+            .expect("renders")
+            .content;
+        assert!(html.contains("> Phase C – accumulation</label>"), "{html}");
+        assert!(html.contains("> Phase C – distribution</label>"));
+        assert!(html.contains("> Phase E</label>"));
+        assert!(html.contains("<title>Phase A → Phase C – distribution: upthrust</title>"));
     }
 
     #[test]

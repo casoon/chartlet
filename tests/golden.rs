@@ -809,6 +809,16 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/dependencies-focus.json"),
         include_str!("../examples/dependencies-focus.svg"),
     ),
+    (
+        "manuscript-states",
+        include_str!("../examples/manuscript-states.json"),
+        include_str!("../examples/manuscript-states.svg"),
+    ),
+    (
+        "checkout-exits",
+        include_str!("../examples/checkout-exits.json"),
+        include_str!("../examples/checkout-exits.svg"),
+    ),
 ];
 
 /// Examples with a mobile variant, and its reviewed SVG.
@@ -1182,6 +1192,16 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "dependencies-focus",
         include_str!("../examples/dependencies-focus.json"),
         include_str!("../examples/dependencies-focus.mobile.svg"),
+    ),
+    (
+        "manuscript-states",
+        include_str!("../examples/manuscript-states.json"),
+        include_str!("../examples/manuscript-states.mobile.svg"),
+    ),
+    (
+        "checkout-exits",
+        include_str!("../examples/checkout-exits.json"),
+        include_str!("../examples/checkout-exits.mobile.svg"),
     ),
 ];
 

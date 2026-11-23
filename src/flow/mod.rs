@@ -14,6 +14,7 @@ mod edges;
 mod frames;
 mod gaps;
 mod graph;
+mod labels;
 mod measure;
 mod model;
 mod nodes;
@@ -193,14 +194,19 @@ pub(crate) fn layout_with_trunks(
     if shared_trunks {
         model.trunks = Trunks::of(diagram, &model.graph);
     }
+    // Without a `height` the canvas starts at the least height and grows to what the layout needs.
+    let mut canvas = spec.clone();
+    if spec.auto_height {
+        canvas.height = LEAST_HEIGHT;
+    }
     let landscape = match diagram.orientation {
         DiagramOrientation::Portrait => false,
         DiagramOrientation::Landscape => true,
         DiagramOrientation::Auto => {
-            let portrait = Plan::new(spec, &model, false, top, metrics);
-            let landscape = Plan::new(spec, &model, true, top, metrics);
+            let portrait = Plan::new(&canvas, &model, false, top, metrics);
+            let landscape = Plan::new(&canvas, &model, true, top, metrics);
             diagram::prefers_landscape(
-                spec,
+                &canvas,
                 (portrait.width, portrait.height),
                 (landscape.width, landscape.height),
             )
@@ -210,7 +216,6 @@ pub(crate) fn layout_with_trunks(
     // grows to hold them, and the layers spread over the wider canvas, which moves the labels
     // again: so the layout is repeated at the larger size until the labels fit. The size it ends
     // at is the size the warning names, and laying the diagram out at that size changes nothing.
-    let mut canvas = spec.clone();
     for round in 1..=GROWTH_ROUNDS {
         let plan = Plan::new(&canvas, &model, landscape, top, metrics);
         let mut elements = Vec::new();
@@ -243,6 +248,9 @@ pub(crate) fn layout_with_trunks(
     }
     unreachable!("the last round returns")
 }
+
+/// The least height of a canvas, and the height a diagram without `height` starts from.
+const LEAST_HEIGHT: u32 = 160;
 
 /// How often a diagram is laid out again on a canvas grown to hold its edge labels.
 const GROWTH_ROUNDS: usize = 24;

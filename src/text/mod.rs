@@ -101,6 +101,8 @@ pub(crate) struct Words {
     pub fragment: &'static str,
     /// The columns of a flow chart's table.
     pub step: &'static str,
+    /// The column of a diagram's data table that holds the sublabels.
+    pub sublabel: &'static str,
     pub lane: &'static str,
     pub group: &'static str,
     pub leads_to: &'static str,
@@ -275,6 +277,7 @@ const EN: Words = Words {
     message_kind: "Kind",
     fragment: "Fragment",
     step: "Step",
+    sublabel: "Detail",
     lane: "Lane",
     group: "Group",
     leads_to: "Leads to",
@@ -423,6 +426,7 @@ const DE: Words = Words {
     message_kind: "Art",
     fragment: "Abschnitt",
     step: "Schritt",
+    sublabel: "Zusatz",
     lane: "Bahn",
     group: "Gruppe",
     leads_to: "Führt zu",

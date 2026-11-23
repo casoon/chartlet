@@ -31,13 +31,15 @@ pub(crate) struct Stage {
 }
 
 /// How the HTML figure is written: the table, the ID prefix, whether it carries the hooks of the
-/// interactive module, and where the rules of its controls live.
+/// interactive module, where the rules of its controls live, and whether a diagram gets its focus
+/// control.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct Figure<'a> {
     pub table_mode: TableMode,
     pub id_prefix: &'a str,
     pub hooks: bool,
     pub styles: Styles,
+    pub focus: bool,
 }
 
 pub(crate) fn html(panel: Panel, spec: &ChartSpec, figure: Figure) -> String {
@@ -58,17 +60,26 @@ pub(crate) struct ViewSection {
 
 /// The page of all views: links stay visible and large enough to hit, a link target keeps a
 /// margin above it, and in print every view after the first starts a page of its own.
-const VIEWS_STYLE: &str = ".chartlet-views-nav ul{margin:0 0 16px 0;padding-left:20px}.chartlet-views-nav li{margin:4px 0}.chartlet-views-nav a{display:inline-block;min-height:24px;padding:2px 0}.chartlet-views-nav a:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-view{margin:0 0 32px 0;scroll-margin-top:16px}@media print{.chartlet-view+.chartlet-view{break-before:page}}";
+pub(super) const VIEWS_STYLE: &str = ".chartlet-views-nav ul{margin:0 0 16px 0;padding-left:20px}.chartlet-views-nav li{margin:4px 0}.chartlet-views-nav a{display:inline-block;min-height:24px;padding:2px 0}.chartlet-views-nav a:focus-visible{outline:2px solid #2563eb;outline-offset:2px}.chartlet-view{margin:0 0 32px 0;scroll-margin-top:16px}@media print{.chartlet-view+.chartlet-view{break-before:page}}";
 
 /// Every view of a model on one page, without a script: the model's title, a navigation of links
 /// to the views in the order of the page, and each view as a section headed by its title, with
-/// its figure.
-pub(crate) fn html_views(sections: &[ViewSection], spec: &ChartSpec, id_prefix: &str) -> String {
+/// its figure. With the shared stylesheet the rules of the page come from it.
+pub(crate) fn html_views(
+    sections: &[ViewSection],
+    spec: &ChartSpec,
+    id_prefix: &str,
+    styles: Styles,
+) -> String {
     let words = spec.locale.words();
     let mut output = String::new();
+    let style = match styles {
+        Styles::Inline => format!("<style>{VIEWS_STYLE}</style>"),
+        Styles::External => String::new(),
+    };
     write!(
         output,
-        "<div class=\"chartlet-views\" id=\"{id_prefix}\"><style>{VIEWS_STYLE}</style><h2 id=\"{id_prefix}-title\">{}</h2><nav class=\"chartlet-views-nav\" aria-label=\"{}\"><ul>",
+        "<div class=\"chartlet-views\" id=\"{id_prefix}\">{style}<h2 id=\"{id_prefix}-title\">{}</h2><nav class=\"chartlet-views-nav\" aria-label=\"{}\"><ul>",
         escape(&spec.title),
         words.views
     )
@@ -121,16 +132,17 @@ fn html_document(panels: &[Panel], spec: &ChartSpec, figure: Figure, zoomable: b
         id_prefix,
         hooks,
         styles,
+        focus,
     } = figure;
     // With the shared stylesheet, the rules that switch variants and zoom steps come from it:
-    // the figure of a chart then carries no `<style>` outside its SVGs.
+    // the figure then carries no `<style>` outside its SVGs.
     let inline = styles == Styles::Inline;
     let mut output = String::new();
     // A stack shows every series as part of a whole; hiding one would leave a gap in it.
     let has_series = spec.series.len() > 1 && spec.stack.is_none();
     let zoom = zoomable && panels.len() > 1;
     let breakpoint = spec.mobile.as_ref().map(|mobile| mobile.breakpoint);
-    let focus = !zoom && panels.first().is_some_and(|panel| !panel.stages.is_empty());
+    let focus = focus && !zoom && panels.first().is_some_and(|panel| !panel.stages.is_empty());
     let wrapped = has_series || zoom || breakpoint.is_some() || focus;
     if let Some(breakpoint) = breakpoint {
         write!(
@@ -194,7 +206,7 @@ fn html_document(panels: &[Panel], spec: &ChartSpec, figure: Figure, zoomable: b
     // figure whose text layer is its data table.
     output.push_str("<figure class=\"chartlet-figure\" data-viz=\"chart\">");
     write!(output, "<figcaption>{}</figcaption>", escape(&spec.title)).expect("write");
-    emit_panels(panels, zoom, id_prefix, &mut output);
+    emit_panels(panels, (zoom, focus), id_prefix, &mut output);
     if let Some(source) = &spec.source {
         write!(
             output,
@@ -212,14 +224,21 @@ fn html_document(panels: &[Panel], spec: &ChartSpec, figure: Figure, zoomable: b
     output
 }
 
-/// The charts of the figure: one per zoom step, each with its mobile variant beside it.
-fn emit_panels(panels: &[Panel], zoom: bool, id_prefix: &str, output: &mut String) {
+/// The charts of the figure: one per zoom step, each with its mobile variant beside it. With the
+/// `focus` of a diagram, every SVG stands on a stage with the labels over its nodes.
+fn emit_panels(
+    panels: &[Panel],
+    (zoom, focus): (bool, bool),
+    id_prefix: &str,
+    output: &mut String,
+) {
     for (i, panel) in panels.iter().enumerate() {
-        let desktop = staged(&panel.svg, panel.stages.first(), id_prefix);
+        let stage = |index: usize| panel.stages.get(index).filter(|_| focus);
+        let desktop = staged(&panel.svg, stage(0), id_prefix);
         let variants = match &panel.mobile {
             Some(mobile) => format!(
                 "<div class=\"chartlet-variant-desktop\">{desktop}</div><div class=\"chartlet-variant-mobile\">{}</div>",
-                staged(mobile, panel.stages.get(1), id_prefix)
+                staged(mobile, stage(1), id_prefix)
             ),
             None => desktop,
         };

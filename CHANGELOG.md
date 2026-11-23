@@ -7,6 +7,14 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **Diagrams:** with `styles: "external"`, the HTML figure of a diagram has no `<style>` element
+  outside its SVGs any more, and neither has the page of all views of an architecture model: the
+  switch to the mobile variant and the rules of that page come from the shared stylesheet. The
+  focus control needs rules of its own and is left out of such a figure unless `focus: true`
+  (`--focus`) asks for it. [Shared stylesheet](https://casoon.github.io/chartlet/docs/guides/javascript/#shared-stylesheet).
+
 ### Added
 
 - **Point-and-figure charts:** `"type": "pointfigure"` draws columns of X and O, one mark per
@@ -21,10 +29,39 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   `volume-columns`; [Columns](https://casoon.github.io/chartlet/docs/guides/time-series/#columns).
 - **Tokens:** `hsl()` and `hsla()` of numbers are accepted beside hex and `rgb()`, and measured for
   contrast like them. [Customize the look](https://casoon.github.io/chartlet/docs/guides/customize/).
+- **Flow charts, state, architecture and class diagrams:** `height` (and `mobile.height`) can be left
+  out: the canvas then takes the height the layout needs, in the SVG and the HTML profile and in the
+  mobile variant, and no `canvas_too_small` is reported for it. The `canvas_too_small` of the
+  mobile variant in the HTML profile now names `/mobile/width` or `/mobile/height`, so that the one
+  of the full-size layout no longer hides it. [Specification](https://casoon.github.io/chartlet/docs/reference/specification/).
+- **Examples:** `manuscript-states` (a state diagram with a main path, back edges, a self-loop and
+  two states that differ only in their `sublabel`) and `checkout-exits` (a flow chart with several
+  dashed exits to one end step), both without `height`.
+- **State diagrams:** `sameRank` puts states at one position along the flow, and `fromSide` and
+  `toSide` on a transition pin the sides it leaves and reaches, as in flow charts.
+  [State diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#state-diagrams).
+- **Diagrams:** the render option `focus` (`--focus`, `--no-focus`) says whether the HTML figure of
+  a diagram carries its focus control; `focus: false` leaves it out of a figure with inline styles
+  too. [Focus](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
 
 ### Changed
 
+- **Flow charts, state diagrams:** the text alternative carries the `sublabel` of a step or state.
+  The data table of a flow chart has a column for it and that of a state diagram names a state
+  `Label – sublabel`; two nodes that share a label are named that way in the description, the
+  tooltips and the focus list too. [Flow charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
+- **Flow charts, state diagrams, architecture diagrams:** the layout follows the `mainPath`. Its
+  nodes lie along the flow in the order of the path whatever the order of the edges, and an edge
+  back to an earlier node of the path is the one drawn against the flow; before, the order of the
+  edges decided. [State diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#state-diagrams).
+- **Flow charts, state diagrams, architecture diagrams, class diagrams:** an edge label no longer
+  covers another edge or stands nearer to one than to its own: it moves along its own edge to a
+  stretch that no other edge crosses, beside the line or on it, and `label_overlap` reports the
+  labels for which no such stretch has room. [Flow charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
 - **Pages:** the project site uses the current shared theme (0.16.4).
+- **Flow charts, state, architecture and class diagrams:** in a narrow canvas, such as the mobile
+  variant, the name and the second line of a step wrap onto up to three lines instead of two before
+  they are shortened; `text_truncated` still names what is cut. [Narrow canvases](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
 
 ### Fixed
 

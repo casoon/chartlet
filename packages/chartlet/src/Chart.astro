@@ -11,6 +11,8 @@ export interface Props {
   strict?: boolean;
   allowWarnings?: string[];
   styles?: 'inline' | 'external';
+  /** The focus control of a diagram's HTML figure; see `RenderChartOptions.focus`. */
+  focus?: boolean;
   /** Add the `data-*` hooks for `@casoon/chartlet/interactive`. */
   hooks?: boolean;
   /** The key of the view of an architecture model; without it, its default view. */
@@ -30,6 +32,7 @@ const {
   strict = false,
   allowWarnings,
   styles,
+  focus,
   hooks = false,
   view,
   allViews = false,
@@ -47,6 +50,7 @@ const rendered = renderChart(spec, {
   strict,
   allowWarnings,
   styles,
+  focus,
   hooks,
   view,
   allViews,

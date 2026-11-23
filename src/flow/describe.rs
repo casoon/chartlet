@@ -4,7 +4,9 @@ use std::fmt::Write as _;
 
 use super::{flow, graph::Graph, model::Diagram, notes};
 use crate::{
-    DataTable, heat,
+    DataTable,
+    diagram::distinct_names,
+    heat,
     layout::format_value,
     parts, roles,
     spec::{ChartSpec, DiagramRole, FlowSpec, NodeKind, PartSpec},
@@ -23,10 +25,22 @@ pub(crate) fn reading_order(diagram: &Diagram) -> Vec<usize> {
         .collect()
 }
 
-/// Where each step leads, as `label` or `label (edge label, weight)`, in the order of the edges.
+/// What the text alternative calls each step: its label, with its sublabel where two steps share
+/// a label.
+fn names(flow: &FlowSpec) -> Vec<String> {
+    distinct_names(
+        &flow
+            .nodes
+            .iter()
+            .map(|node| (node.label.as_str(), node.sublabel.as_deref()))
+            .collect::<Vec<_>>(),
+    )
+}
+
+/// Where each step leads, as `name` or `name (edge label, weight)`, in the order of the edges.
 fn next_steps(
     spec: &ChartSpec,
-    ends: &[(usize, usize)],
+    (ends, names): (&[(usize, usize)], &[String]),
     node: usize,
     with_roles: bool,
 ) -> Vec<String> {
@@ -49,7 +63,7 @@ fn next_steps(
                         .map(|role| text::role(spec.locale, role).to_owned()),
                 )
                 .collect();
-            let target = &flow.nodes[*to].label;
+            let target = &names[*to];
             if notes.is_empty() {
                 target.clone()
             } else {
@@ -93,14 +107,13 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let flow = flow(spec);
     let locale = spec.locale;
     let ends = flow.ends();
+    let names = names(flow);
+    let name = |id: &str| names[flow.node(id).expect("validated")].as_str();
     let lanes: Vec<String> = flow.lanes.iter().map(|lane| lane.label.clone()).collect();
     let mut description = text::flow_opening(locale, flow.nodes.len(), flow.edges.len(), &lanes);
     let main_path = flow.main_path_steps();
     if !main_path.is_empty() {
-        let path: Vec<&str> = main_path
-            .iter()
-            .map(|id| flow.nodes[flow.node(id).expect("validated")].label.as_str())
-            .collect();
+        let path: Vec<&str> = main_path.iter().map(|id| name(id)).collect();
         description.push(' ');
         description.push_str(&text::main_path(locale, &path));
     }
@@ -110,7 +123,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
         .map(|node| matches!(node.kind, NodeKind::Start | NodeKind::End))
         .collect();
     let structure = Structure::of(flow.nodes.len(), &ends, &marked, Facts { directed: true })
-        .sentences(locale, |node| flow.nodes[node].label.clone());
+        .sentences(locale, |node| names[node].clone());
     if !structure.is_empty() {
         description.push(' ');
         description.push_str(&structure);
@@ -118,7 +131,7 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let weights: Vec<Option<f64>> = flow.edges.iter().map(|edge| edge.weight).collect();
     if let Some(heaviest) = heaviest_edge(spec, &weights, |edge| {
         let (from, to) = ends[edge];
-        format!("{} → {}", flow.nodes[from].label, flow.nodes[to].label)
+        format!("{} → {}", names[from], names[to])
     }) {
         description.push(' ');
         description.push_str(&heaviest);
@@ -133,10 +146,10 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
             " {}",
             text::flow_step(
                 locale,
-                &step.label,
+                &names[node],
                 step.kind,
                 lane,
-                &next_steps(spec, &ends, node, false)
+                &next_steps(spec, (&ends, &names), node, false)
             )
         )
         .expect("writing to String cannot fail");
@@ -144,8 +157,9 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     let valued: Vec<(&str, f64)> = reading_order(&Diagram::from_flow(flow))
         .into_iter()
         .filter_map(|node| {
-            let step = &flow.nodes[node];
-            step.value.map(|value| (step.label.as_str(), value))
+            flow.nodes[node]
+                .value
+                .map(|value| (names[node].as_str(), value))
         })
         .collect();
     if !valued.is_empty() {
@@ -158,65 +172,66 @@ pub(crate) fn description(spec: &ChartSpec) -> String {
     }
     let with_parts: Vec<(&str, &[PartSpec])> = reading_order(&Diagram::from_flow(flow))
         .into_iter()
-        .map(|node| &flow.nodes[node])
-        .filter(|step| !step.parts.is_empty())
-        .map(|step| (step.label.as_str(), step.parts.as_slice()))
+        .filter(|node| !flow.nodes[*node].parts.is_empty())
+        .map(|node| (names[node].as_str(), flow.nodes[node].parts.as_slice()))
         .collect();
     if !with_parts.is_empty() {
         description.push(' ');
         description.push_str(&parts::sentence(spec, &with_parts));
     }
     for group in &flow.groups {
-        let members: Vec<&str> = group
-            .nodes
-            .iter()
-            .map(|id| flow.nodes[flow.node(id).expect("validated")].label.as_str())
-            .collect();
+        let members: Vec<&str> = group.nodes.iter().map(|id| name(id)).collect();
         description.push(' ');
         description.push_str(&text::flow_group(locale, &group.label, &members));
     }
-    if let Some(sentence) = roles::sentence(locale, &with_roles(flow, &ends)) {
+    if let Some(sentence) = roles::sentence(locale, &with_roles(flow, &ends, &names)) {
         description.push(' ');
         description.push_str(&sentence);
     }
-    description.push_str(&notes::sentences(locale, &flow.notes, |id| {
-        &flow.nodes[flow.node(id).expect("validated")].label
-    }));
+    description.push_str(&notes::sentences(locale, &flow.notes, name));
     description
 }
 
 /// Every step with a role, in reading order, then every edge with one, as `From → To`.
-fn with_roles(flow: &FlowSpec, ends: &[(usize, usize)]) -> Vec<(DiagramRole, String)> {
+fn with_roles(
+    flow: &FlowSpec,
+    ends: &[(usize, usize)],
+    names: &[String],
+) -> Vec<(DiagramRole, String)> {
     reading_order(&Diagram::from_flow(flow))
         .into_iter()
         .filter_map(|node| {
-            let step = &flow.nodes[node];
-            step.role.map(|role| (role, step.label.clone()))
+            flow.nodes[node]
+                .role
+                .map(|role| (role, names[node].clone()))
         })
         .chain(
             flow.edges
                 .iter()
                 .zip(ends)
                 .filter_map(|(edge, (from, to))| {
-                    edge.role.map(|role| {
-                        (
-                            role,
-                            format!("{} → {}", flow.nodes[*from].label, flow.nodes[*to].label),
-                        )
-                    })
+                    edge.role
+                        .map(|role| (role, format!("{} → {}", names[*from], names[*to])))
                 }),
         )
         .collect()
 }
 
-/// One row per step in reading order: its label, kind, lane and group where the chart has them,
-/// and where it leads.
+/// One row per step in reading order: its label, its sublabel where the chart has any, its kind,
+/// lane and group where the chart has them, and where it leads.
 pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     let flow = flow(spec);
     let words = spec.locale.words();
     let ends = flow.ends();
+    let names = names(flow);
+    let name = |id: &str| names[flow.node(id).expect("validated")].as_str();
     let (lanes, groups) = (!flow.lanes.is_empty(), !flow.groups.is_empty());
-    let mut columns = vec![words.step.to_owned(), words.message_kind.to_owned()];
+    let sublabels = flow.nodes.iter().any(|node| node.sublabel.is_some());
+    let mut columns = vec![words.step.to_owned()];
+    if sublabels {
+        columns.push(words.sublabel.to_owned());
+    }
+    columns.push(words.message_kind.to_owned());
     if lanes {
         columns.push(words.lane.to_owned());
     }
@@ -244,10 +259,11 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
         .into_iter()
         .map(|node| {
             let step = &flow.nodes[node];
-            let mut row = vec![
-                step.label.clone(),
-                text::node_kind(spec.locale, step.kind).to_owned(),
-            ];
+            let mut row = vec![step.label.clone()];
+            if sublabels {
+                row.push(step.sublabel.clone().unwrap_or_default());
+            }
+            row.push(text::node_kind(spec.locale, step.kind).to_owned());
             if lanes {
                 row.push(
                     flow.lane_of(node)
@@ -274,7 +290,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
                         .map_or_else(String::new, |role| text::role(spec.locale, role).to_owned()),
                 );
             }
-            row.push(next_steps(spec, &ends, node, true).join(", "));
+            row.push(next_steps(spec, (&ends, &names), node, true).join(", "));
             if with_notes {
                 row.push(notes::of(&flow.notes, &step.id));
             }
@@ -287,7 +303,7 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             spec.locale,
             &flow.notes,
             |_| true,
-            |id| &flow.nodes[flow.node(id).expect("validated")].label,
+            name,
         ),
         columns,
         rows,

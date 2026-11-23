@@ -40,6 +40,7 @@ export function createRenderer(module) {
         manifest: options.manifest ?? false,
         alternative: options.alternative ?? false,
         styles: options.styles ?? "inline",
+        focus: options.focus,
         hooks: options.hooks ?? false,
         advice: options.advice ?? false,
       },

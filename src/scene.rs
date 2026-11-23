@@ -127,7 +127,7 @@ pub(crate) struct Polyline {
     pub tooltip: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TextAnchor {
     Start,
     Middle,

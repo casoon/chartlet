@@ -89,7 +89,7 @@ export function viewPayload(input, result) {
   const rule =
     typeof breakpoint === "number" ? stylesheet({ types: [], common: false, breakpoints: [breakpoint] }) : "";
   const figure = (/** @type {Record<string, unknown>} */ themed) =>
-    render(themed, { ...html, styles: "external" }) + (rule === "" ? "" : `<style>${rule}</style>`);
+    render(themed, { ...html, styles: "external", focus: true }) + (rule === "" ? "" : `<style>${rule}</style>`);
   const figures =
     spec.theme === undefined
       ? { light: figure(spec), dark: figure({ ...spec, theme: "dark" }) }

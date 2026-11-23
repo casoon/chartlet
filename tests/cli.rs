@@ -1275,3 +1275,22 @@ fn the_stylesheet_takes_the_breakpoints_of_mobile_variants() {
     assert!(!refused.status.success());
     assert!(String::from_utf8_lossy(&refused.stderr).contains("widths in pixels"));
 }
+
+#[test]
+fn the_focus_control_of_a_diagram_follows_the_styles_and_its_own_flags() {
+    let html = |args: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_chartlet"))
+            .args(["render", "examples/ticket-states.json", "--format", "html"])
+            .args(args)
+            .output()
+            .expect("chartlet CLI should start");
+        assert!(output.status.success(), "{args:?}");
+        String::from_utf8(output.stdout).expect("HTML is UTF-8")
+    };
+    assert!(html(&[]).contains("<details class=\"chartlet-focus\">"));
+    assert!(!html(&["--no-focus"]).contains("chartlet-focus"));
+    let external = html(&["--styles", "external"]);
+    assert!(!external.contains("chartlet-focus") && !external.contains("<style"));
+    let asked = html(&["--styles", "external", "--focus"]);
+    assert!(asked.contains("<details class=\"chartlet-focus\">"));
+}

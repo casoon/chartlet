@@ -170,6 +170,9 @@ function runCli(binary, input, options, extraArgs) {
   if (options.styles) {
     args.push("--styles", options.styles);
   }
+  if (typeof options.focus === "boolean") {
+    args.push(options.focus ? "--focus" : "--no-focus");
+  }
   if (options.hooks) {
     args.push("--hooks");
   }

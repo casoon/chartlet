@@ -5,7 +5,7 @@ use std::{collections::BTreeMap, fmt::Write};
 
 use super::{
     editorial,
-    html::{RESPONSIVE_STYLE, ZOOM_STYLE, breakpoint_style},
+    html::{RESPONSIVE_STYLE, VIEWS_STYLE, ZOOM_STYLE, breakpoint_style},
 };
 use crate::spec::{ChartSpec, ChartType, Dash, LayerSpec, Look, Mark, RangeDisplay, Stroke, Theme};
 
@@ -600,6 +600,11 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
             .filter(|(_, types)| types.contains(chart_type))
         {
             stylesheet.push_str(&scope_stylesheet(group, &scope, false));
+        }
+        // The page of all views of an architecture model: its rules address the page around the
+        // figures and are not scoped to a chart.
+        if *chart_type == Architecture {
+            stylesheet.push_str(VIEWS_STYLE);
         }
     }
     stylesheet

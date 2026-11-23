@@ -491,10 +491,12 @@ impl ViewSpec {
         }
         if let Some(height) = self.height {
             spec.height = height;
+            spec.auto_height = false;
             own.push("height");
         }
         if let Some(mobile) = &self.mobile {
             spec.mobile = Some(mobile.clone());
+            spec.mobile_auto_height = false;
             own.push("mobile");
         }
         own

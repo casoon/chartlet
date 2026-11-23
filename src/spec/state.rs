@@ -1,8 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 use super::{
-    ChartSpec, Dash, DiagramOrientation, DiagramRole, DiagramSpacing, flow::validate_role,
-    is_false, sequence::is_identifier, validate_text,
+    ChartSpec, Dash, DiagramOrientation, DiagramRole, DiagramSpacing, PortSide,
+    flow::{validate_role, validate_same_rank, validate_sides},
+    is_false,
+    sequence::is_identifier,
+    validate_text,
 };
 use crate::error::{ChartError, ChartWarning};
 
@@ -21,10 +24,14 @@ pub struct StateSpec {
     /// The `id` of the state the machine starts in; it gets the initial dot and its arrow.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub initial: Option<String>,
-    /// The usual way through the states, as ids joined by transitions: kept in line and drawn
-    /// stronger.
+    /// The usual way through the states, as ids joined by transitions: laid out along the flow in
+    /// its order whatever the order of the transitions, kept in line and drawn stronger.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub main_path: Vec<String>,
+    /// Sets of state ids that share one rank: each set lies at one position along the flow. A
+    /// layout hint only; it adds no transition.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub same_rank: Vec<Vec<String>>,
     #[serde(default, skip_serializing_if = "DiagramOrientation::is_auto")]
     pub orientation: DiagramOrientation,
     #[serde(default, skip_serializing_if = "DiagramSpacing::is_normal")]
@@ -90,6 +97,12 @@ pub struct TransitionSpec {
     pub dash: Option<Dash>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub role: Option<DiagramRole>,
+    /// The side of `from` the transition leaves, and the side of `to` it reaches; where the
+    /// layout chooses when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub from_side: Option<PortSide>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub to_side: Option<PortSide>,
 }
 
 impl TransitionSpec {
@@ -165,6 +178,7 @@ impl ChartSpec {
         machine.validate_states()?;
         machine.validate_transitions()?;
         machine.validate_initial_and_path()?;
+        machine.validate_ranks()?;
         let mut warnings = Vec::new();
         if let Some(initial) = &machine.initial {
             for (index, state) in machine.states.iter().enumerate() {
@@ -356,8 +370,41 @@ impl StateSpec {
                 }
             }
             validate_role(transition.role, transition.dash, &path)?;
+            validate_sides(
+                (&transition.from, &transition.to),
+                (transition.from_side, transition.to_side),
+                &path,
+            )?;
         }
         Ok(())
+    }
+
+    /// Shared ranks: sets of at least two states that are not composite, each state in at most
+    /// one set, and no transition between two states of a set.
+    fn validate_ranks(&self) -> Result<(), ChartError> {
+        for (index, set) in self.same_rank.iter().enumerate() {
+            for (member, id) in set.iter().enumerate() {
+                let path = format!("/state/sameRank/{index}/{member}");
+                if self.state(id).is_none() {
+                    return Err(ChartError::new(
+                        "unknown_state",
+                        path,
+                        format!("no state has the id \"{id}\""),
+                    ));
+                }
+                self.reject_composite(id, path)?;
+            }
+        }
+        validate_same_rank(
+            &self.same_rank,
+            "state",
+            |_| true,
+            &self
+                .transitions
+                .iter()
+                .map(|transition| (transition.from.as_str(), transition.to.as_str())),
+            "state",
+        )
     }
 
     fn validate_initial_and_path(&self) -> Result<(), ChartError> {

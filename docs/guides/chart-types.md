@@ -1118,12 +1118,20 @@ releases.
   `sublabel` adds a smaller second line; a long label wraps onto two.
 - **Edges** may carry a `label` and a `dash` (`solid`, `dashed`, `dotted`). They may form cycles —
   a retry, a loop back for changes — and an edge from a step to itself is drawn as a loop beside
-  it. Say what an edge means in its label; the line pattern only repeats it.
+  it. Say what an edge means in its label; the line pattern only repeats it. A label stands where
+  its edge leaves its step; where another edge crosses it there, or runs nearer to it than the
+  edge it belongs to, it moves along its own edge to a stretch that no other edge crosses, beside
+  the line or on it. Where no stretch has room, it keeps its first place and the render reports
+  `label_overlap` at the label. The same holds for state diagrams, architecture diagrams and class
+  diagrams.
 - **The main path** names the usual way through the flow as step ids joined by edges, or only its
   ends, `"mainPath": {"from": "draft", "to": "live"}`: chartlet then takes the shortest way along
-  the edges (at a tie the first in the order of the edges). It keeps the path in line where the
-  lanes leave room and draws it thicker in the accent color; `main_path_gap` reports two
-  consecutive steps no edge joins, `main_path_unreachable` two ends no way joins.
+  the edges (at a tie the first in the order of the edges). The layout follows the path: its
+  steps lie along the flow in the order of the path, whatever the order of the edges, and an edge
+  that leads back to an earlier step of the path is the one drawn against the flow. It keeps the
+  path in line where the lanes leave room and draws it thicker in the accent color;
+  `main_path_gap` reports two consecutive steps no edge joins, `main_path_unreachable` two ends
+  no way joins.
 - **Shared ranks.** chartlet puts every step one layer after the latest step that leads to it, so
   steps that belong side by side — parallel reviews, the ends of a flow — can land a layer
   apart. `"sameRank": [["legal", "finance", "security"]]` puts each set at one position along the
@@ -1178,7 +1186,9 @@ releases.
 - **Text alternative.** The description names the steps in reading order — layer by layer — and
   where each one leads, with the main path, the lanes and the groups. Before the steps it names
   the shape of the graph where there is one to tell (see [Graph structure](#graph-structure));
-  the data table has one row per step with its kind, lane, group and next steps.
+  the data table has one row per step with its sublabel, kind, lane, group and next steps. Two
+  steps with the same label are told apart by their sublabels: the description, the "Leads to"
+  column, the tooltips of the edges and the focus list name each of them `Label – sublabel`.
 
 **Focus.** In the HTML profile a diagram can be focused on one node — a step, a state, a
 component, a participant: a click on the node, or a choice in the "Focus" list above the figure,
@@ -1186,10 +1196,14 @@ keeps that node, its neighbours and the edges between them as they are and fades
 all" brings everything back. There is no script: the list is a group of radio buttons with the
 usual keyboard, the nodes carry labels of those buttons laid over them, and CSS `:has()` does
 the rest. The SVG stays an image to assistive technology. A browser without `:has()` shows the
-diagram unchanged.
+diagram unchanged. The render option `focus: false` (CLI `--no-focus`) leaves the control out;
+with `styles: "external"` it is left out unless `focus: true` asks for it, because its rules are
+the diagram's own and need a `<style>` in the figure; see
+[Shared stylesheet](../javascript/#shared-stylesheet).
 
 **Narrow canvases.** Below 480 pixels — a mobile variant, say — diagrams turn compact: smaller
-margins and gaps, narrower steps whose labels wrap onto two lines, participant names of sequence
+margins and gaps, narrower steps whose names and second lines wrap onto up to three lines before they are
+shortened (`text_truncated` names what is still cut), participant names of sequence
 diagrams on two lines instead of shortened, and labels kept on the page by moving them to the
 other side of their edge. A diagram still wider than its canvas grows and is scaled down by the
 page; `canvas_too_small` names the width it needs.
@@ -1325,9 +1339,19 @@ flow, loops on a state, portrait and landscape — and is **experimental** like 
   it is set, a state no transition leads to is reported as `unreachable_state`.
 - **Transitions** carry an `event`, a `guard` and an `action`, each optional and each up to 40
   characters, written `event [guard] / action`; `dash` works as on flow chart edges.
+- **Layout.** `mainPath` names the usual way through the states, as ids joined by transitions.
+  Its states lie top to bottom (left to right in landscape) in the order of the path, whatever
+  the order of the transitions; a transition back to an earlier state of the path runs against
+  the flow, and one that skips a state runs past it. Without a main path the layers follow the
+  order of the transitions. `"sameRank": [["won", "lost"]]` puts states at one position along
+  the flow, and `fromSide` and `toSide` on a transition pin the sides it leaves and reaches, as
+  in flow charts; see [Port sides](#port-sides).
 - **Text alternative.** The description says where the machine starts and ends and lists every
   transition in reading order; the data table has one row per transition, with event, guard and
-  action in columns of their own.
+  action in columns of their own. The table names a state with its sublabel, `Label – sublabel`;
+  the description, the tooltips and the focus list do so for states that share a label, so that
+  two states `Phase C` with the sublabels `accumulation` and `distribution` stay apart in words
+  as in the picture.
 
 Limits: 1–40 states with unique `id`s and up to 80 transitions; an unknown `id` is
 `unknown_state`.
@@ -1337,7 +1361,8 @@ Limits: 1–40 states with unique `id`s and up to 80 transitions; an unknown `id
 An architecture diagram (`"type": "architecture"`) shows the components of a system, how they
 connect and where they run. It uses the layout of flow charts.
 
-The canvas size is yours: a diagram that needs more room grows the canvas and says so with
+The canvas size is yours: leave `height` out and the canvas takes the height the layout needs. A
+diagram that needs more room than a `height` you give grows the canvas and says so with
 `canvas_too_small`, but one that needs less is not shrunk, so a landscape diagram on a tall canvas
 leaves space above and below. With `orientation` left at `auto`, chartlet takes the orientation that
 grows the canvas least; set `orientation` to pin it, and `width` and `height` to what you want.

@@ -307,6 +307,7 @@ fn split(
                 all_ends: all_ends.clone(),
                 labels: labels.clone(),
             }),
+            distinct_names: false,
         });
     }
     let outer_edges: Vec<usize> = (0..edges.len())
@@ -384,6 +385,7 @@ fn split(
             all_ends,
             labels,
         }),
+        distinct_names: false,
     }
 }
 
@@ -859,7 +861,7 @@ mod tests {
         let warnings: Vec<(&str, &str)> = output
             .warnings
             .iter()
-            .filter(|warning| warning.code != "canvas_too_small")
+            .filter(|warning| !matches!(warning.code, "canvas_too_small" | "label_overlap"))
             .map(|warning| (warning.code, warning.path.as_str()))
             .collect();
         assert_eq!(

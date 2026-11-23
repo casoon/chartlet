@@ -72,10 +72,10 @@ have one in [Value axis](#value-axis), and what the diagrams share in
 | `typography` | object | no | `family` (titles and labels), `technicalFamily` (technical sublabels such as the technology of a node) and `widthScale` (0.7 to 1.5, the measured width of the family relative to the built-in metrics). The families come first in the font stack, before Inter; the output names them but does not carry them (`font_not_embedded`). `invalid_typography` at `/typography/<field>` for a value that is not a plain family name or scale. See [Typography](../../guides/customize/#typography). |
 | `locale` | `en`, `de` | no | `en` (default) or `de`: language of the generated texts (description, legend additions, tooltips, calendar month and weekday names, HTML caption and table) the number format (`1,5`) and dates: ISO 8601 (`2026-08-31`) in English, `31.08.2026` and `08.2026` in German. Available for every chart type. Negative numbers always use the true minus sign `−`. |
 | `size` | `doc`, `doc-wide`, `slide-16x9`, `slide-4x3`, `social-og`, `social-square`, `print-a4-landscape`, `print-a3-landscape`, `print-letter-landscape` | no | A named canvas for a destination, see [Size presets](../../guides/size-presets/). It sets `width` and `height` in CSS pixels (800 × 450, 1200 × 500, 1920 × 1080, 1600 × 1200, 1200 × 630, 1080 × 1080, 1123 × 794, 1587 × 1123, 1056 × 816; the paper sizes at 96 dpi) and a type scale: the chart is laid out at the canvas divided by the scale and drawn that much larger (slides 1.6, `social-og` 1.25, `social-square` 1.2, the others 1), so type, strokes, margins, label wrapping and legend rows follow the destination. A `width` or `height` in the specification overrides that side of the canvas. The print presets draw SVG with literal colors, as the `print` variant does. The `mobile` and `social` variants ignore `size`. Without `size`, or with `doc` or `doc-wide`, nothing changes. `chartlet render --size <preset>` and the `size` option of `chartlet_render` set it. A diagram that needs more room than the canvas keeps it and is reported as `size_exceeded` at `/size`. An unknown name is `invalid_spec` at `/size`, and the message lists the valid names. |
-| `width`, `height` | integer | no | Size in pixels: 200–2400 × 160–1600, default 800 × 450. Below 320 pixels a chart is compact, for a panel in a grid of columns: a narrower value-axis gutter and margin keep room for the plot, and the text keeps its size when the chart is shown at the width it was rendered for. Text shrinks with the chart when a page scales it down, so render at the width of its place. |
+| `width`, `height` | integer | no | Size in pixels: 200–2400 × 160–1600, default 800 × 450; flow, state, architecture and class diagrams take the height their layout needs when `height` is left out (and no `size` is named). Below 320 pixels a chart is compact, for a panel in a grid of columns: a narrower value-axis gutter and margin keep room for the plot, and the text keeps its size when the chart is shown at the width it was rendered for. Text shrinks with the chart when a page scales it down, so render at the width of its place. |
 | `mobile` | object | no | A second layout for narrow containers: `{ "width": 360, "height": 360, "breakpoint": 640 }`. Available for every chart type. The SVG profile is unchanged; `--variant mobile` renders the mobile variant alone. See [Responsive charts](../../guides/responsive/). |
 | `mobile.width` | integer, 200–600 | with `mobile` | Width of the mobile variant. |
-| `mobile.height` | integer, 160–1600 | no | Height of the mobile variant, default 360. |
+| `mobile.height` | integer, 160–1600 | no | Height of the mobile variant, default 360; flow, state, architecture and class diagrams take the height their layout needs when it is left out. |
 | `mobile.breakpoint` | integer, 320–1600 | no | The container width in CSS pixels below which the HTML profile shows the mobile variant, default 640. |
 | `mobile.columns` | integer, 1–6 | no | Small multiples only: the grid columns of the mobile variant, usually 1. |
 | `showValues` | boolean | no | Value labels on bars and points, default `true`. On a time pane with several layers the labels can overlap; the values stay in the tooltips and the data table. |
@@ -88,7 +88,8 @@ Rules:
   `invalid_spec` at `/mobile`.
 - A mobile variant is laid out from the same specification at `mobile.width` × `mobile.height`.
   Warnings that only the mobile layout raises are reported with the same code and path and a
-  message that begins with `mobile variant: `. Asking for the mobile variant of a specification
+  message that begins with `mobile variant: `; the `canvas_too_small` of the mobile layout names
+  `/mobile/width` or `/mobile/height`, so it is told from the one of the full-size layout. Asking for the mobile variant of a specification
   without `mobile` is `missing_mobile` at `/mobile`.
 - `"theme": "blueprint"` is for sequence, flow, state, architecture, tree, class, network, cycle, layers and plan
   diagrams; any other type refuses it (`option_not_supported` at `/theme`).
@@ -853,9 +854,9 @@ digits, hyphens or underscores (`invalid_id`).
 | --- | --- | --- | --- |
 | `orientation` | `auto`, `portrait`, `landscape` | sequence, flow, state, classes, architecture, tree | `auto` (default) takes portrait where that fits the canvas, landscape where only that fits, and otherwise the one that grows the canvas less. |
 | `spacing` | `compact`, `normal`, `roomy` | flow, state, classes, architecture | `compact`, `normal` (default) or `roomy` scales the gaps between layers and between neighbours in a layer — never steps, texts, margins or the distance between parallel lines; see [Spacing](../../guides/chart-types/#spacing). |
-| `mainPath` | array of ids, or `{ "from", "to" }` | flow, state (array only), architecture | The usual way through the diagram, as ids joined by edges, or the shortest way along the edges between `from` and `to` (at a tie the first in the order of the edges). Kept in line and drawn stronger. |
-| `sameRank` | array of id sets | flow, architecture | Sets of at least two ids that lie at one position along the flow; a layout hint that adds no edge. |
-| `fromSide`, `toSide` | `start`, `end`, `left`, `right` | flow edges, architecture connections | Pin the side of a node an edge leaves and reaches, named after the flow so that they hold in either orientation: `start` faces the nodes before, `end` the nodes after, `left` and `right` lie across the flow (left and right in portrait, top and bottom in landscape); see [Port sides](../../guides/chart-types/#port-sides). An edge with a side never joins a shared trunk. |
+| `mainPath` | array of ids, or `{ "from", "to" }` | flow, state (array only), architecture | The usual way through the diagram, as ids joined by edges, or the shortest way along the edges between `from` and `to` (at a tie the first in the order of the edges). The layout follows it: its nodes lie along the flow in the order of the path, whatever the order of the edges, and an edge back to an earlier node of the path runs against the flow. Kept in line and drawn stronger. |
+| `sameRank` | array of id sets | flow, state, architecture | Sets of at least two ids that lie at one position along the flow; a layout hint that adds no edge. |
+| `fromSide`, `toSide` | `start`, `end`, `left`, `right` | flow edges, state transitions, architecture connections | Pin the side of a node an edge leaves and reaches, named after the flow so that they hold in either orientation: `start` faces the nodes before, `end` the nodes after, `left` and `right` lie across the flow (left and right in portrait, top and bottom in landscape); see [Port sides](../../guides/chart-types/#port-sides). An edge with a side never joins a shared trunk. |
 | `notes` | array, up to 12 | flow, classes, architecture | `[{ "on": "a", "text": "…" }, { "text": "…" }]`. |
 | `notes[].on` | identifier | — | The step, class, package, component or boundary the note explains; flow charts take notes on steps only. |
 | `notes[].text` | string, up to 160 characters | — | Required; wraps onto as many lines as it needs. |
@@ -925,10 +926,10 @@ the diagram. A time chart takes `top` and `end` for its series (`option_not_supp
 way round).
 
 **Layout.** A sequence diagram or flow chart — and every diagram laid out like one — that does not
-fit its canvas is drawn larger and reported as `canvas_too_small` at `/width` or `/height`. A
+fit its canvas is drawn larger and reported as `canvas_too_small` at `/width` or `/height`; a flow, state, architecture or class diagram without `height` takes the height its layout needs, in the SVG and the HTML profile and in the mobile variant, and reports no `/height` at all. The SVG profile draws the title and is taller by its line than the HTML profile, which captions the figure instead; each takes the height its own drawing needs. A
 `fromSide` or `toSide` along the flow that would turn the edge back over its step, such as `start`
 on an edge that leads on to a later step, is ignored and reported as `port_side_ignored` at that
-field (flow charts and architecture diagrams); an edge from a node to itself takes no `fromSide`
+field (flow charts, state and architecture diagrams); an edge from a node to itself takes no `fromSide`
 or `toSide` (`option_not_supported`). A main path must follow edges (`main_path_gap`) or, given
 as `{ "from": "a", "to": "b" }`, have a way along them (`main_path_unreachable`). In a `sameRank`
 set, each id appears in one set at most, and no two of a set are joined by an edge
@@ -972,7 +973,7 @@ Edges may form cycles; an edge back is drawn against the flow. See
 | --- | --- | --- | --- |
 | `flow.nodes` | array, 1–40 | yes | The steps: `[{ "id": "a", "label": "…", "sublabel": "…", "tag": "DB", "kind": "process", "lane": "x", "value": 3, "parts": [{ "label": "…", "value": 2 }], "role": "critical" }]`. |
 | `nodes[].id` | identifier | yes | Unique among steps and lanes. |
-| `nodes[].label`, `nodes[].sublabel` | string, up to 60 characters | label | Name and second line. |
+| `nodes[].label`, `nodes[].sublabel` | string, up to 60 characters | label | Name and second line. The data table has a column for the sublabels; the text alternative names two steps that share a label `Label – sublabel`. |
 | `nodes[].tag` | string, up to 8 characters | no | The type tag of the step in the editorial look, replacing the tag of its kind; `text_too_long` at `/flow/nodes/<i>/tag`. Architecture components take `tag` too. |
 | `nodes[].kind` | `process`, `start`, `end`, `decision`, `io`, `subprocess`, `store`, `external` | no | Each kind has its own shape; default `process`. |
 | `nodes[].lane` | identifier | with lanes | The lane the step lies in. |
@@ -1011,7 +1012,7 @@ See [State diagrams](../../guides/chart-types/#state-diagrams).
 | --- | --- | --- | --- |
 | `state.states` | array, 1–40 | yes | `[{ "id": "a", "label": "…", "sublabel": "…", "kind": "state", "final": false, "in": "c", "role": "critical" }]`. |
 | `states[].id` | identifier | yes | Unique. |
-| `states[].label`, `states[].sublabel` | string, up to 60 characters | label | Name and second line. |
+| `states[].label`, `states[].sublabel` | string, up to 60 characters | label | Name and second line. The data table names a state `Label – sublabel`, and so does the rest of the text alternative for two states that share a label. |
 | `states[].kind` | `state`, `choice`, `composite` | no | `state` (default); a `choice` is a diamond; a `composite` is a frame around the states that name it with `in`. |
 | `states[].final` | boolean | no | A final state, drawn with a double outline. |
 | `states[].in` | identifier | no | The composite state it lies in. |
@@ -1020,10 +1021,10 @@ See [State diagrams](../../guides/chart-types/#state-diagrams).
 | `transitions[].from`, `transitions[].to` | identifier | yes | The states it joins. |
 | `transitions[].event`, `transitions[].guard`, `transitions[].action` | string, up to 40 characters | no | The parts of its label. |
 | `transitions[].dash` | `solid`, `dashed`, `dotted` | no | Default `solid`. |
-| `transitions[].role` | role | no | See [Diagram fields](#diagram-fields). |
+| `transitions[].role`, `transitions[].fromSide`, `transitions[].toSide` | | no | See [Diagram fields](#diagram-fields). |
 | `state.initial` | identifier | no | The state the machine starts in: a dot with an arrow into it. |
-| `state.mainPath` | array of ids | no | The usual way through the states, joined by transitions. |
-| `state.orientation`, `state.spacing` | | no | See [Diagram fields](#diagram-fields). |
+| `state.mainPath` | array of ids | no | The usual way through the states, joined by transitions; its states lie along the flow in this order. |
+| `state.sameRank`, `state.orientation`, `state.spacing` | | no | See [Diagram fields](#diagram-fields). A shared rank names states that are not composite (`unknown_state`, `composite_not_allowed`). |
 
 Rules: 1–40 states (`too_many_states`) and up to 80 transitions (`too_many_transitions`); ids are
 identifiers (`invalid_id`) and unique (`duplicate_id`); transitions, `initial` and the main path
