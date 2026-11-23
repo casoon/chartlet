@@ -14,6 +14,10 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   and `references` as levels. Example `point-figure-count`; details:
   [Point-and-figure charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#point-and-figure-charts).
 
+### Changed
+
+- **Pages:** the project site uses the current shared theme (0.16.4).
+
 ## [0.25.0] - 2026-11-21
 
 ### Changed
