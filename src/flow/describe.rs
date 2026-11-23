@@ -255,6 +255,10 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
     if with_notes {
         columns.push(words.notes.to_owned());
     }
+    let with_details = flow.nodes.iter().any(|node| node.detail.is_some());
+    if with_details {
+        columns.push(words.details.to_owned());
+    }
     let rows = reading_order(&Diagram::from_flow(flow))
         .into_iter()
         .map(|node| {
@@ -293,6 +297,9 @@ pub(crate) fn data_table(spec: &ChartSpec) -> DataTable {
             row.push(next_steps(spec, (&ends, &names), node, true).join(", "));
             if with_notes {
                 row.push(notes::of(&flow.notes, &step.id));
+            }
+            if with_details {
+                row.push(step.detail.clone().unwrap_or_default());
             }
             row
         })

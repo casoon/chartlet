@@ -20,9 +20,13 @@ impl Plan {
     pub(super) fn draw_node(&self, model: &Model, node: usize, elements: &mut Vec<Element>) {
         let spec = &model.diagram.nodes[node];
         let (x, y, width, height) = self.node_box(model, node);
-        let tooltip = Some(match &spec.sublabel {
+        let name = match &spec.sublabel {
             Some(sublabel) => format!("{} – {sublabel}", spec.label),
             None => spec.label.clone(),
+        };
+        let tooltip = Some(match &spec.detail {
+            Some(detail) => format!("{name}\n{detail}"),
+            None => name,
         });
         shape(spec.shape, (x, y, width, height), tooltip, elements);
         if let Some(tag) = &model.tags[node] {

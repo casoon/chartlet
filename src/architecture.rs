@@ -190,6 +190,7 @@ fn model_diagram(architecture: &ArchitectureSpec, locale: Locale) -> Diagram {
             .iter()
             .enumerate()
             .map(|(index, component)| Node {
+                detail: None,
                 label: component.label.clone(),
                 sublabel: match (&component.sublabel, category(index)) {
                     (Some(sublabel), Some((_, name))) => Some(format!("{sublabel} · {name}")),
@@ -310,6 +311,7 @@ fn push_interfaces(architecture: &ArchitectureSpec, diagram: &mut Diagram) {
                 category: None,
             });
             diagram.nodes.push(Node {
+                detail: None,
                 label: interface.label.clone(),
                 sublabel: None,
                 shape: Shape::Interface,

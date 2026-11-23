@@ -236,7 +236,10 @@ const KINDS = {
       dotted: "dash",
       sharedTrunks: "on flow: true draws edges that leave or reach one step together on one branching line; only unlabeled ones with the same dash, weight and role whose other ends share lane and group, never out of a decision",
     },
-    note: { note: "on a step id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no edge; without on, it explains the whole chart and stands in a band below it; up to 12" },
+    note: {
+      note: "on a step id, text up to 160 characters: a pale box with a folded corner beside it, joined by a dotted line that is no edge; without on, it explains the whole chart and stands in a band below it; up to 12",
+      detail: "a step's detail, text up to 1200 characters: shown on hover below the step's name and in a Details column of the table; takes no room in the drawing",
+    },
   },
   state: {
     state: {

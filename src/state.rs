@@ -88,6 +88,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
     let mut edges = Vec::with_capacity(machine.transitions.len() + 1);
     if let Some(initial) = &machine.initial {
         nodes.push(Node {
+            detail: None,
             label: words.start.to_owned(),
             sublabel: None,
             shape: Shape::Initial,
@@ -132,6 +133,7 @@ fn diagram(spec: &ChartSpec) -> Diagram {
             continue;
         }
         nodes.push(Node {
+            detail: None,
             label: state.label.clone(),
             sublabel: state.sublabel.clone(),
             shape: match (state.kind, state.is_final) {

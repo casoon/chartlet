@@ -335,6 +335,7 @@ fn split(
                 Some(block) => {
                     let package = oriented[block];
                     Node {
+                        detail: None,
                         label: classes.packages[package].label.clone(),
                         sublabel: None,
                         shape: Shape::Block,
@@ -401,6 +402,7 @@ fn model_diagram(spec: &ChartSpec) -> Diagram {
         .iter()
         .enumerate()
         .map(|(index, class)| Node {
+            detail: None,
             label: class.label.clone(),
             sublabel: class.kind.stereotype().map(str::to_owned),
             shape: Shape::Class,

@@ -1115,7 +1115,9 @@ releases.
 - **Steps** have a `kind`, each with its own shape: `process` (a box, the default), `start` and
   `end` (pills, the end with a strong outline), `decision` (a diamond), `io` (a slanted box),
   `subprocess` (a box with double sides), `store` (a cylinder) and `external` (a dashed box). A
-  `sublabel` adds a smaller second line; a long label wraps onto two.
+  `sublabel` adds a smaller second line; a long label wraps onto two. A `detail` explains a step
+  at more length without taking room: the step's tooltip shows it below the name, and a Details
+  column of the data table lists it, so it never lives on hover alone.
 - **Edges** may carry a `label` and a `dash` (`solid`, `dashed`, `dotted`). They may form cycles —
   a retry, a loop back for changes — and an edge from a step to itself is drawn as a loop beside
   it. Say what an edge means in its label; the line pattern only repeats it. A label stands where

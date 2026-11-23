@@ -2566,6 +2566,7 @@
         "label": { "type": "string", "minLength": 1, "maxLength": 60 },
         "sublabel": { "type": "string", "minLength": 1, "maxLength": 60 },
         "tag": { "description": "The small tag at the top left of the node in the editorial look, such as DB; replaces the tag its kind carries.", "type": "string", "minLength": 1, "maxLength": 8 },
+        "detail": { "description": "A longer explanation of the step, shown on hover as its tooltip below its name and listed in a Details column of the data table; it takes no room in the drawing. Line breaks are kept.", "type": "string", "minLength": 1, "maxLength": 1200 },
         "kind": {
           "enum": ["start", "end", "process", "decision", "io", "subprocess", "store", "external"],
           "default": "process"

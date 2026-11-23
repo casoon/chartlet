@@ -127,6 +127,8 @@ pub(crate) struct Words {
     pub package: &'static str,
     /// The notes column of a class or architecture diagram's table.
     pub notes: &'static str,
+    /// The column of a flow chart's table with the details of its steps.
+    pub details: &'static str,
     /// The column of an architecture diagram's table with the interfaces a component provides.
     pub provides: &'static str,
     /// The columns of a tree's table.
@@ -357,6 +359,7 @@ const EN: Words = Words {
     instance: "Instance",
     package: "Package",
     notes: "Notes",
+    details: "Details",
     provides: "Provides",
     focus: "Focus",
     show_all: "Show all",
@@ -506,6 +509,7 @@ const DE: Words = Words {
     instance: "Instanz",
     package: "Paket",
     notes: "Notizen",
+    details: "Einzelheiten",
     provides: "Stellt bereit",
     focus: "Fokus",
     show_all: "Alle zeigen",
