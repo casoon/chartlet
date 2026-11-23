@@ -3,7 +3,7 @@
 
 use super::{
     LINE, LOOP, SOCKET,
-    labels::{Lines, overlap},
+    labels::{Lines, Rect, overlap},
     measure::Model,
     model::{End, Ends, Shape},
     place::Plan,
@@ -533,41 +533,13 @@ impl Plan {
             if let Some(edge) = label
                 .edge
                 .filter(|edge| !ways.reads_as(*edge, label.plate(metrics)))
+                && !self.move_along_edge(&mut label, (&ways, edge), (&placed, &borders), metrics)
             {
-                let (_, _, width, height) = label.plate(metrics);
-                let free = |rect: (f64, f64, f64, f64)| {
-                    rect.0 >= 2.0
-                        && rect.1 >= 2.0
-                        && rect.0 + rect.2 <= self.width - 2.0
-                        && rect.1 + rect.3 <= self.height - 2.0
-                        && !placed
-                            .iter()
-                            .chain(&borders)
-                            .any(|other| overlap(rect, *other, AIR))
-                        && ways.reads_as(edge, rect)
-                };
-                let place = ways
-                    .candidates(edge, (width, height), label.gap)
-                    .into_iter()
-                    .find(|(at, anchor)| {
-                        free(chip_box_tech(
-                            &label.lines,
-                            label.tech.as_deref(),
-                            *at,
-                            *anchor,
-                            metrics,
-                        ))
-                    });
-                match place {
-                    Some((at, anchor)) => (label.at, label.anchor) = (at, anchor),
-                    None => {
-                        warnings.push(ChartWarning::new(
-                        "label_overlap",
-                        model.diagram.edges[edge].label_path.clone(),
-                        "the label covers another edge or stands closer to one than to its own, and no stretch of its own edge has room for it; shorten the label, give the diagram more room, or remove an edge that runs beside this one",
-                    ))
-                    }
-                }
+                warnings.push(ChartWarning::new(
+                    "label_overlap",
+                    model.diagram.edges[edge].label_path.clone(),
+                    "the label covers another edge or stands closer to one than to its own, and no stretch of its own edge has room for it; shorten the label, give the diagram more room, or remove an edge that runs beside this one",
+                ));
             }
             let placed_at = label.plate(metrics);
             reach = (
@@ -587,6 +559,48 @@ impl Plan {
             elements.push(Element::GroupEnd);
         }
         reach
+    }
+
+    /// Moves `label` to the first stretch of its own `edge` that has room for it clear of the
+    /// steps, labels and frame borders in `avoid`, where it reads as the label of that edge.
+    /// Whether there is one.
+    fn move_along_edge(
+        &self,
+        label: &mut Label,
+        (ways, edge): (&Lines, usize),
+        avoid: (&[Rect], &[Rect]),
+        metrics: &impl TextMetrics,
+    ) -> bool {
+        const AIR: f64 = 3.0;
+        let (_, _, width, height) = label.plate(metrics);
+        let free = |rect: Rect| {
+            rect.0 >= 2.0
+                && rect.1 >= 2.0
+                && rect.0 + rect.2 <= self.width - 2.0
+                && rect.1 + rect.3 <= self.height - 2.0
+                && !avoid
+                    .0
+                    .iter()
+                    .chain(avoid.1)
+                    .any(|other| overlap(rect, *other, AIR))
+                && ways.reads_as(edge, rect)
+        };
+        let place = ways
+            .candidates(edge, (width, height), label.gap)
+            .into_iter()
+            .find(|(at, anchor)| {
+                free(chip_box_tech(
+                    &label.lines,
+                    label.tech.as_deref(),
+                    *at,
+                    *anchor,
+                    metrics,
+                ))
+            });
+        if let Some((at, anchor)) = place {
+            (label.at, label.anchor) = (at, anchor);
+        }
+        place.is_some()
     }
 
     /// An edge from a step to itself: a loop beside the step, right in portrait and below in
