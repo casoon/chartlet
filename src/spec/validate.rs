@@ -86,6 +86,13 @@ impl ChartSpec {
                 }
             }
         }
+        if let Some(chart) = &self.pointfigure {
+            for (index, column) in chart.columns.iter().enumerate() {
+                for (name, value) in [("low", column.low), ("high", column.high)] {
+                    values.push((None, value, format!("/pointfigure/columns/{index}/{name}")));
+                }
+            }
+        }
         for (pane_index, pane) in self.panes.iter().enumerate() {
             let axis = (self.chart_type != ChartType::Multiples || self.is_bar_multiples())
                 .then_some(pane_index);
@@ -535,6 +542,11 @@ impl ChartSpec {
             ("/kanban", self.kanban.is_some(), ChartType::Kanban),
             ("/fishbone", self.fishbone.is_some(), ChartType::Fishbone),
             ("/waterfall", self.waterfall.is_some(), ChartType::Waterfall),
+            (
+                "/pointfigure",
+                self.pointfigure.is_some(),
+                ChartType::PointFigure,
+            ),
             ("/sequence", self.sequence.is_some(), ChartType::Sequence),
             ("/flow", self.flow.is_some(), ChartType::Flow),
             ("/state", self.state.is_some(), ChartType::State),
@@ -547,7 +559,8 @@ impl ChartSpec {
             ("/columns", self.columns.is_some(), ChartType::Multiples),
             (
                 "/references",
-                !self.references.is_empty() && own != ChartType::Rangebar,
+                !self.references.is_empty()
+                    && !matches!(own, ChartType::Rangebar | ChartType::PointFigure),
                 ChartType::Bar,
             ),
             ("/stack", self.stack.is_some(), ChartType::Bar),

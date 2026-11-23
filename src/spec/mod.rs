@@ -18,6 +18,7 @@ mod mosaic;
 mod network;
 mod parliament;
 mod plan;
+mod pointfigure;
 mod polar;
 mod radar;
 mod rangebar;
@@ -75,6 +76,7 @@ pub use mosaic::{MosaicColumnSpec, MosaicSegmentSpec, MosaicSpec};
 pub use network::{NetworkEdgeSpec, NetworkLayout, NetworkNodeSpec, NetworkOrder, NetworkSpec};
 pub use parliament::{ParliamentSpec, PartySpec};
 pub use plan::{AreaKind, AreaSpec, ItemKind, ItemSpec, PlanSpec};
+pub use pointfigure::{PnfColumnSpec, PnfDirection, PnfHighlightSpec, PointFigureSpec};
 pub use polar::{PolarDisplay, PolarPointSpec, PolarSpec};
 pub(crate) use radar::RINGS;
 pub use radar::{RadarAxisSpec, RadarSeriesSpec, RadarSpec};
@@ -273,6 +275,9 @@ pub struct ChartSpec {
     /// A waterfall: a running total that rises and falls step by step. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waterfall: Option<WaterfallSpec>,
+    /// A point-and-figure chart: columns of X and O on a grid of boxes. Skipped while absent, like `stripes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pointfigure: Option<PointFigureSpec>,
     /// A waffle: squares that each stand for a share of a whole. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub waffle: Option<WaffleSpec>,
@@ -600,6 +605,10 @@ pub enum ChartType {
     Timeline,
     /// A waterfall: a running total that rises and falls step by step.
     Waterfall,
+    /// A point-and-figure chart: columns of X (rising) and O (falling) on a grid of boxes, along
+    /// an axis that counts columns instead of time.
+    #[serde(rename = "pointfigure")]
+    PointFigure,
     /// A waffle: squares that each stand for a share of a whole.
     Waffle,
     /// A funnel or pyramid: stages that narrow, or ranked levels.
@@ -648,7 +657,7 @@ pub enum ChartType {
 
 impl ChartType {
     /// Every chart type, in the order of the specification's documentation.
-    pub const ALL: [Self; 37] = [
+    pub const ALL: [Self; 38] = [
         Self::Bar,
         Self::Line,
         Self::Time,
@@ -664,6 +673,7 @@ impl ChartType {
         Self::Boxplot,
         Self::Timeline,
         Self::Waterfall,
+        Self::PointFigure,
         Self::Waffle,
         Self::Funnel,
         Self::Radar,
@@ -1054,6 +1064,7 @@ impl ChartSpec {
             ChartType::Kanban => self.validate_kanban(),
             ChartType::Fishbone => self.validate_fishbone(),
             ChartType::Waterfall => self.validate_waterfall(),
+            ChartType::PointFigure => self.validate_pointfigure(),
             ChartType::Network => self.validate_network(),
             ChartType::Cycle => self.validate_cycle(),
             ChartType::Layers => self.validate_layers(),
@@ -1103,6 +1114,7 @@ pub(crate) const fn type_name(chart_type: ChartType) -> &'static str {
         ChartType::Kanban => "kanban",
         ChartType::Fishbone => "fishbone",
         ChartType::Waterfall => "waterfall",
+        ChartType::PointFigure => "pointfigure",
         ChartType::Network => "network",
         ChartType::Cycle => "cycle",
         ChartType::Layers => "layers",

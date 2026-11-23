@@ -66,7 +66,9 @@ const ANNOTATION_EXTRA_STYLE: &str = ".chartlet-zone{fill:var(--chartlet-zero);f
 /// take finer weights, 2 / 1.5 / 1 / 3 px instead of 3 / 2 / 1 / 4.5 px, so an average or an
 /// oscillator does not outweigh the 1.5 px strokes of the candles. Only
 /// included when a chart draws candles, for the same reason as [`LAYER_EXTRA_STYLE`].
-const OHLC_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall:#d03a0f}.chartlet-theme-dark{--chartlet-rise:#99f6e4;--chartlet-fall:#e5484d}.chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}.chartlet-has-candles .chartlet-line{stroke-width:2}.chartlet-has-candles .chartlet-line-thin{stroke-width:1}.chartlet-has-candles .chartlet-line-medium{stroke-width:1.5}.chartlet-has-candles .chartlet-line-bold{stroke-width:3}";
+/// The rise and fall colors of candles and point-and-figure marks.
+const RISE_FALL_STYLE: &str = ".chartlet-root{--chartlet-rise:#0a4f49;--chartlet-fall:#d03a0f}.chartlet-theme-dark{--chartlet-rise:#99f6e4;--chartlet-fall:#e5484d}";
+const OHLC_STYLE: &str = ".chartlet-wick{stroke-width:1.5}.chartlet-wick-rise{stroke:var(--chartlet-rise)}.chartlet-wick-fall{stroke:var(--chartlet-fall)}.chartlet-candle{stroke-width:1.5}.chartlet-candle-rise{fill:var(--chartlet-background);stroke:var(--chartlet-rise)}.chartlet-candle-fall{fill:var(--chartlet-fall);stroke:var(--chartlet-fall)}.chartlet-has-candles .chartlet-line{stroke-width:2}.chartlet-has-candles .chartlet-line-thin{stroke-width:1}.chartlet-has-candles .chartlet-line-medium{stroke-width:1.5}.chartlet-has-candles .chartlet-line-bold{stroke-width:3}";
 /// The brighter candles of `candleStyle` `soft` and `solid`: their own rise and fall colors, at
 /// least 3:1 against the background in both themes, rounded bodies and thin wicks. A soft rising
 /// body is tinted under its outline, so it stays apart from a filled falling one without color.
@@ -119,6 +121,10 @@ const JOURNEY_STYLE: &str = ".chartlet-journey-stage{fill:var(--chartlet-role-bl
 const VMAP_STYLE: &str = ".chartlet-vmap-frame{fill:none;stroke:var(--chartlet-grid);stroke-width:1}.chartlet-vmap-stage-line{stroke:var(--chartlet-grid);stroke-width:1;stroke-dasharray:4 4}.chartlet-vmap-stage{font-size:12px;font-weight:600;fill:var(--chartlet-muted)}.chartlet-vmap-axis{font-size:12px;font-weight:700;fill:var(--chartlet-muted)}.chartlet-vmap-tick{font-size:11px;fill:var(--chartlet-muted)}.chartlet-vmap-link{stroke:var(--chartlet-zero);stroke-width:1.2}.chartlet-vmap-dot{fill:var(--chartlet-role-blue-fill);stroke:var(--chartlet-role-blue);stroke-width:2}.chartlet-vmap-ghost{fill:none;stroke:var(--chartlet-role-blue);stroke-width:1.5;stroke-dasharray:3 2}.chartlet-vmap-move{fill:none;stroke:var(--chartlet-role-blue);stroke-width:1.5;stroke-dasharray:5 3}.chartlet-vmap-head{fill:var(--chartlet-role-blue);stroke:var(--chartlet-role-blue);stroke-width:1}.chartlet-vmap-inertia{stroke:var(--chartlet-role-red);stroke-width:3}.chartlet-vmap-label{font-size:12px;fill:var(--chartlet-text);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}";
 /// Parliaments: seats by party, the majority line and the ring of a coalition.
 const PARLIAMENT_STYLE: &str = ".chartlet-root{--chartlet-parl-5:#0f766e;--chartlet-parl-6:#6d28d9;--chartlet-parl-7:#b45309;--chartlet-parl-8:#be185d}.chartlet-root.chartlet-theme-dark{--chartlet-parl-5:#2dd4bf;--chartlet-parl-6:#b69cff;--chartlet-parl-7:#fbbf24;--chartlet-parl-8:#f472b6}.chartlet-parl-1{fill:var(--chartlet-color-1)}.chartlet-parl-2{fill:var(--chartlet-color-2)}.chartlet-parl-3{fill:var(--chartlet-color-3)}.chartlet-parl-4{fill:var(--chartlet-color-4)}.chartlet-parl-5{fill:var(--chartlet-parl-5)}.chartlet-parl-6{fill:var(--chartlet-parl-6)}.chartlet-parl-7{fill:var(--chartlet-parl-7)}.chartlet-parl-8{fill:var(--chartlet-parl-8)}.chartlet-parl-seat{stroke:none}.chartlet-parl-coalition{fill:none;stroke:var(--chartlet-text);stroke-width:2}.chartlet-parl-majority{stroke:var(--chartlet-text);stroke-width:1.5;stroke-dasharray:4 3}.chartlet-parl-total{font-size:28px;font-weight:700;fill:var(--chartlet-text)}.chartlet-parl-note{font-size:12px;fill:var(--chartlet-muted)}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
+/// Point-and-figure charts: X in the rise color and O in the fall color, both as thin strokes,
+/// so the direction reads from the shape as well; a fine box grid, a tinted highlight with its
+/// label in the accent color, and the transparent target that carries a column's tooltip.
+const PNF_STYLE: &str = ".chartlet-pnf-x{stroke:var(--chartlet-rise);stroke-width:1.25;stroke-linecap:round}.chartlet-pnf-o{fill:none;stroke:var(--chartlet-fall);stroke-width:1.25}.chartlet-pnf-box{stroke:var(--chartlet-grid);stroke-width:.5}.chartlet-pnf-highlight{fill:var(--chartlet-accent);fill-opacity:.1;stroke:none}.chartlet-pnf-label{font-size:12px;font-weight:600;fill:var(--chartlet-accent);paint-order:stroke;stroke:var(--chartlet-background);stroke-width:3px;stroke-linejoin:round}.chartlet-pnf-hit{fill:transparent;stroke:none}";
 /// Treemaps: the rectangles in the palette colors.
 const TREEMAP_STYLE: &str = ".chartlet-tm-0{fill:var(--chartlet-color-1)}.chartlet-tm-1{fill:var(--chartlet-color-1)}.chartlet-tm-2{fill:var(--chartlet-color-2)}.chartlet-tm-3{fill:var(--chartlet-color-3)}.chartlet-tm-4{fill:var(--chartlet-color-4)}.chartlet-tm-cell{stroke:none}.chartlet-tm-frame{fill-opacity:.12;stroke-width:1.5}.chartlet-tm-frame.chartlet-tm-0,.chartlet-tm-frame.chartlet-tm-1{stroke:var(--chartlet-color-1)}.chartlet-tm-frame.chartlet-tm-2{stroke:var(--chartlet-color-2)}.chartlet-tm-frame.chartlet-tm-3{stroke:var(--chartlet-color-3)}.chartlet-tm-frame.chartlet-tm-4{stroke:var(--chartlet-color-4)}.chartlet-tm-head{font-size:12px;font-weight:600;fill:var(--chartlet-text)}.chartlet-tm-label{font-size:12px;font-weight:600;fill:var(--chartlet-background)}.chartlet-tm-value{font-size:11px;fill:var(--chartlet-background);opacity:.9}.chartlet-legend{font-size:12px;fill:var(--chartlet-muted)}";
 /// Sankey diagrams: the bands and nodes in the palette colors.
@@ -250,6 +256,7 @@ const fn type_style(chart_type: ChartType) -> &'static str {
         ChartType::Journey => JOURNEY_STYLE,
         ChartType::Valuemap => VMAP_STYLE,
         ChartType::Parliament => PARLIAMENT_STYLE,
+        ChartType::PointFigure => PNF_STYLE,
         ChartType::Treemap => TREEMAP_STYLE,
         ChartType::Sankey => SANKEY_STYLE,
         ChartType::Survival => SURVIVAL_STYLE,
@@ -341,6 +348,7 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
             is_rangebar && spec.display == RangeDisplay::Dumbbell,
             DUMBBELL_STYLE,
         ),
+        when(spec.chart_type == ChartType::PointFigure, RISE_FALL_STYLE),
         type_style(spec.chart_type),
         when(
             spec.scatter
@@ -387,6 +395,10 @@ pub(super) fn base_style(spec: &ChartSpec, print: bool) -> String {
         when(spec.theme == Theme::Blueprint, BLUEPRINT_STYLE),
         when(
             is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc),
+            RISE_FALL_STYLE,
+        ),
+        when(
+            is_time && spec.layers().any(|layer| layer.mark == Mark::Ohlc),
             OHLC_STYLE,
         ),
         when(
@@ -428,9 +440,9 @@ const DIAGRAM_TYPES: &[ChartType] = &[
 pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> String {
     use ChartType::{
         Architecture, Bar, Boxplot, Calendar, Classes, Cycle, Fishbone, Flow, Funnel, Heatmap,
-        Journey, Kanban, Layers, Line, Mosaic, Multiples, Network, Parliament, Plan, Polar, Radar,
-        Rangebar, Sankey, Scatter, Sequence, State, Storymap, Stripes, Survival, Time, Timeline,
-        Tree, Treemap, Valuemap, Venn, Waffle, Waterfall,
+        Journey, Kanban, Layers, Line, Mosaic, Multiples, Network, Parliament, Plan, PointFigure,
+        Polar, Radar, Rangebar, Sankey, Scatter, Sequence, State, Storymap, Stripes, Survival,
+        Time, Timeline, Tree, Treemap, Valuemap, Venn, Waffle, Waterfall,
     };
     let groups: &[(&str, &[ChartType])] = &[
         (STYLE, &[]),
@@ -455,7 +467,7 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (TIMELINE_STYLE, &[Timeline]),
         (ERROR_STYLE, &[Bar]),
         (RANGE_GROUP_STYLE, &[Rangebar]),
-        (REFERENCE_STYLE, &[Bar, Rangebar]),
+        (REFERENCE_STYLE, &[Bar, Rangebar, PointFigure]),
         (OUTLINE_STYLE, &[Bar]),
         (
             DIAGRAM_STYLE,
@@ -553,11 +565,14 @@ pub(crate) fn shared_stylesheet(chart_types: &[ChartType], common: bool) -> Stri
         (JOURNEY_STYLE, &[Journey]),
         (VMAP_STYLE, &[Valuemap]),
         (PARLIAMENT_STYLE, &[Parliament]),
+        (RISE_FALL_STYLE, &[PointFigure]),
+        (PNF_STYLE, &[PointFigure]),
         (TREEMAP_STYLE, &[Treemap]),
         (SANKEY_STYLE, &[Sankey]),
         (SURVIVAL_STYLE, &[Survival]),
         (SCATTER_STYLE, &[Scatter]),
         (SCATTER_BUBBLE_STYLE, &[Scatter]),
+        (RISE_FALL_STYLE, &[Time]),
         (OHLC_STYLE, &[Time]),
         (NARROW_CANDLE_STYLE, &[Time]),
         (BRIGHT_CANDLE_STYLE, &[Time]),

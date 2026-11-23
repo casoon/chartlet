@@ -964,6 +964,66 @@ pub(crate) fn waffle_summary(locale: Locale, (squares, each): (u32, &str), parts
     }
 }
 
+/// What a point-and-figure chart shows: its columns and box size, how many rise and fall, the
+/// values they span, and the last column.
+pub(crate) fn pointfigure_summary(
+    locale: Locale,
+    (columns, box_size): (usize, &str),
+    (rising, falling): (usize, usize),
+    (lowest, highest): (&str, &str),
+    (last_rises, last_low, last_high, last_boxes): (bool, &str, &str, usize),
+) -> String {
+    match locale {
+        Locale::En => {
+            let count = |count: usize, one: &str, many: &str| {
+                format!("{count} {}", if count == 1 { one } else { many })
+            };
+            format!(
+                "Point-and-figure chart of {}, box size {box_size}: {} of X (rising) and {} of O (falling), between {lowest} and {highest}. The last column is {} from {last_low} to {last_high} ({}).",
+                count(columns, "column", "columns"),
+                count(rising, "column", "columns"),
+                count(falling, "column", "columns"),
+                if last_rises { "X" } else { "O" },
+                count(last_boxes, "box", "boxes"),
+            )
+        }
+        Locale::De => {
+            let columns_word = |count: usize| {
+                if count == 1 {
+                    format!("{count} Spalte")
+                } else {
+                    format!("{count} Spalten")
+                }
+            };
+            format!(
+                "Point-and-Figure-Diagramm aus {}, Kästchengröße {box_size}: {} X (steigend) und {} O (fallend), zwischen {lowest} und {highest}. Die letzte Spalte ist {} von {last_low} bis {last_high} ({last_boxes} Kästchen).",
+                columns_word(columns),
+                columns_word(rising),
+                columns_word(falling),
+                if last_rises { "X" } else { "O" },
+            )
+        }
+    }
+}
+
+/// The highlighted ranges of columns of a point-and-figure chart, each as its columns and its
+/// label, after a heading.
+pub(crate) fn pointfigure_highlights(locale: Locale, ranges: &[(usize, usize, &str)]) -> String {
+    let list: Vec<String> = ranges
+        .iter()
+        .map(|(from, to, label)| match (locale, from == to) {
+            (Locale::En, true) => format!("column {from} ({label})"),
+            (Locale::En, false) => format!("columns {from} to {to} ({label})"),
+            (Locale::De, true) => format!("Spalte {from} ({label})"),
+            (Locale::De, false) => format!("Spalten {from} bis {to} ({label})"),
+        })
+        .collect();
+    match locale {
+        Locale::En => format!(" Highlighted: {}.", list.join("; ")),
+        Locale::De => format!(" Hervorgehoben: {}.", list.join("; ")),
+    }
+}
+
 /// What a parliament chart shows: its seats and parties, with every party, and the majority.
 pub(crate) fn parliament_summary(
     locale: Locale,

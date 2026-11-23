@@ -300,6 +300,7 @@ fn layout_chart(
         (ChartType::Treemap, _) => crate::treemap::layout(spec, warnings, metrics),
         (ChartType::Parliament, _) => crate::parliament::layout(spec, warnings, metrics),
         (ChartType::Waffle, _) => crate::waffle::layout(spec, warnings, metrics),
+        (ChartType::PointFigure, _) => crate::pointfigure::layout(spec, warnings, metrics),
         (ChartType::Funnel, _) => crate::funnel::layout(spec, warnings, metrics),
         (ChartType::Radar, _) => crate::radar::layout(spec, warnings, metrics),
         (ChartType::Polar, _) => crate::polar::layout(spec, warnings, metrics),

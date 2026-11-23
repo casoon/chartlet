@@ -123,6 +123,7 @@ fn chart_table(spec: &ChartSpec) -> DataTable {
         ChartType::Treemap => return crate::treemap::data_table(spec),
         ChartType::Parliament => return crate::parliament::data_table(spec),
         ChartType::Waffle => return crate::waffle::data_table(spec),
+        ChartType::PointFigure => return crate::pointfigure::data_table(spec),
         ChartType::Funnel => return crate::funnel::data_table(spec),
         ChartType::Radar => return crate::radar::data_table(spec),
         ChartType::Polar => return crate::polar::data_table(spec),
@@ -165,6 +166,7 @@ fn chart_table(spec: &ChartSpec) -> DataTable {
         | ChartType::Timeline
         | ChartType::Waterfall
         | ChartType::Waffle
+        | ChartType::PointFigure
         | ChartType::Funnel
         | ChartType::Radar
         | ChartType::Polar

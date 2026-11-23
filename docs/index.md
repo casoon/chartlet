@@ -9,7 +9,7 @@ diagram at build time: plain SVG, or an HTML figure with caption, source and dat
 browser – no chart JavaScript, no hydration, no layout shift.
 
 chartlet draws bar and line charts, time series with bands, areas, candlesticks and reference
-lines, small multiples, warming stripes, calendar heatmaps, range bars and forest plots, box and
+lines, point-and-figure charts, small multiples, warming stripes, calendar heatmaps, range bars and forest plots, box and
 violin plots, waterfalls, waffle and parliament charts, treemaps, Sankey diagrams, Kaplan-Meier
 curves, scatter plots and timelines, and
 sequence, flow, state, architecture, class, tree and network diagrams that it lays out itself.

@@ -22,6 +22,7 @@ export const SHOWING = /** @type {Record<string, string>} */ ({
   boxplot: "the spread of observations per group (box, violin, strip, beeswarm or ridgeline)",
   timeline: "phases, milestones and dependencies on a time axis, such as a roadmap",
   waterfall: "how a start value becomes an end value through additions and subtractions",
+  pointfigure: "price columns of X (rising) and O (falling) on a box grid, computed elsewhere, with count lines and counted columns",
   waffle: "a few shares of one whole, as squares",
   funnel: "stages that narrow (visits to orders) with the rate between them, or ranked levels as a pyramid",
   radar: "a few series compared on 3 to 8 measures, as one closed polygon each",

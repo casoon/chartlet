@@ -263,6 +263,14 @@ const catalogue = [
       'Daily candles with a 20-day average and a marker for quarterly results, above a volume pane filled down to zero. Both panes share one time axis, on which weekends and holidays take no space, and have their own value axis; a rising candle is hollow and a falling one filled, so the direction never rests on color alone. Illustrative values for a fictional company.',
   },
   {
+    slug: 'point-figure-count',
+    group: 'Time series',
+    chart: 'Point-and-figure chart',
+    useCase: 'Count a base in columns instead of days',
+    blurb:
+      'Fourteen columns of X and O on a box size of 1: the axis counts columns, not time, and a new column starts only when the direction turns. A tint marks the nine columns counted along the 104 row, and the count line and the low are reference lines with their labels clear of the marks. Every column has a tooltip, and the table lists each with its lowest and highest box. Illustrative values, with a phone variant.',
+  },
+  {
     slug: 'deep-sea-isotopes',
     group: 'Time series',
     chart: 'Time series (numeric axis)',
