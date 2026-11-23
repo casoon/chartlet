@@ -393,6 +393,31 @@ pub(crate) fn wrap(
     }
 }
 
+/// A label on up to `max_lines` lines that fit `max_width`, broken at spaces; only what does not
+/// fit on the last line, or a word wider than a line, is shortened.
+pub(crate) fn wrap_lines(
+    label: &str,
+    max_width: f64,
+    size: f64,
+    max_lines: usize,
+    (metrics, warnings): (&impl TextMetrics, &mut Vec<ChartWarning>),
+    path: &str,
+) -> Vec<String> {
+    let mut lines = Vec::new();
+    let mut rest = label;
+    while lines.len() + 1 < max_lines {
+        match two_lines(rest, max_width, size, metrics) {
+            Some((first, more)) => {
+                lines.push(first.to_owned());
+                rest = more;
+            }
+            None => break,
+        }
+    }
+    lines.push(fit_text(rest, max_width, size, metrics, warnings, path));
+    lines
+}
+
 /// Which orientation `auto` takes, from the size each needs: portrait where it fits the canvas,
 /// landscape where only that fits, and otherwise the one that has to grow the canvas less.
 pub(crate) fn prefers_landscape(

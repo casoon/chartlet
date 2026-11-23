@@ -1155,7 +1155,8 @@ the diagram's own and need a `<style>` in the figure; see
 [Shared stylesheet](../javascript/#shared-stylesheet).
 
 **Narrow canvases.** Below 480 pixels — a mobile variant, say — diagrams turn compact: smaller
-margins and gaps, narrower steps whose labels wrap onto two lines, participant names of sequence
+margins and gaps, narrower steps whose names and second lines wrap onto up to three lines before they are
+shortened (`text_truncated` names what is still cut), participant names of sequence
 diagrams on two lines instead of shortened, and labels kept on the page by moving them to the
 other side of their edge. A diagram still wider than its canvas grows and is scaled down by the
 page; `canvas_too_small` names the width it needs.

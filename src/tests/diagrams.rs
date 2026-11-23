@@ -741,3 +741,56 @@ fn a_height_that_is_given_is_still_grown_and_reported() {
         );
     }
 }
+
+#[test]
+fn the_mobile_variant_wraps_names_and_second_lines_before_it_shortens_them() {
+    let spec = |label: &str, sublabel: &str| {
+        format!(
+            r#"{{"schemaVersion": 1, "type": "state", "title": "S", "width": 800, "mobile": {{"width": 280}},
+                "state": {{"states": [{{"id": "a", "label": "{label}", "sublabel": "{sublabel}"}}, {{"id": "b", "label": "B"}}],
+                "transitions": [{{"from": "a", "to": "b"}}]}}}}"#
+        )
+    };
+    let mobile = |json: &str| {
+        render_json(
+            json,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: Variant::Mobile,
+                ..RenderOptions::default()
+            },
+        )
+        .expect("renders")
+    };
+    // Three lines each hold the name and the second line whole.
+    let output = mobile(&spec(
+        "Awaiting supplier confirmation",
+        "purchase order sent, goods not yet announced",
+    ));
+    assert!(
+        output
+            .warnings
+            .iter()
+            .all(|warning| warning.code != "text_truncated")
+    );
+    for line in ["Awaiting", "supplier", "confirmation", "yet announced"] {
+        assert!(
+            output.content.contains(&format!(">{line}</text>")),
+            "{line}"
+        );
+    }
+    // What does not fit on the third line is shortened and reported.
+    let output = mobile(&spec(
+        "Awaiting supplier confirmation of the delivery date today",
+        "short",
+    ));
+    assert!(
+        output
+            .warnings
+            .iter()
+            .any(|warning| warning.code == "text_truncated"
+                && warning.path == "/state/states/0/label"),
+        "{:?}",
+        output.warnings
+    );
+}

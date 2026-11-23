@@ -33,6 +33,10 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   labels for which no such stretch has room. [Flow charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
 - **Pages:** the project site uses the current shared theme (0.16.4).
 
+- **Flow charts, state, architecture and class diagrams:** in a narrow canvas, such as the mobile
+  variant, the name and the second line of a step wrap onto up to three lines instead of two before
+  they are shortened; `text_truncated` still names what is cut. [Narrow canvases](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
+
 ### Added
 
 - **Flow charts, state, architecture and class diagrams:** `height` (and `mobile.height`) can be left

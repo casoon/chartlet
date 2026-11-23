@@ -14,7 +14,7 @@ use super::{
 };
 use crate::{
     diagram::TECH_SIZE,
-    diagram::{distinct_names, wrap},
+    diagram::{distinct_names, wrap, wrap_lines},
     error::ChartWarning,
     layout::{NARROW, count},
     metrics::{MONO_ADVANCE, TextMetrics},
@@ -22,6 +22,9 @@ use crate::{
     spec::{DiagramSpacing, NumberStyle},
     symbols,
 };
+
+/// The most lines the name or second line of a step takes in a compact diagram.
+const COMPACT_LINES: usize = 3;
 
 /// The spacing of a diagram: roomy on a wide canvas, compact below [`NARROW`] pixels, such as a
 /// mobile variant, where steps get narrower and wrap their labels sooner, and the space around
@@ -343,10 +346,31 @@ fn node_boxes(
             .fold(0.0, f64::max);
         let room = (spacing.max_node - 2.0 * PAD).max(word);
         let path = format!("{}/label", node.path);
-        let lines = wrap(&node.label, room, LABEL_SIZE, metrics, warnings, &path);
+        // A compact diagram, such as the mobile variant, has narrow steps: a name and a second
+        // line wrap onto more lines before they are shortened.
+        let most = if spacing.is_compact() {
+            COMPACT_LINES
+        } else {
+            2
+        };
+        let lines = wrap_lines(
+            &node.label,
+            room,
+            LABEL_SIZE,
+            most,
+            (metrics, warnings),
+            &path,
+        );
         let sublines = node.sublabel.as_ref().map_or_else(Vec::new, |sublabel| {
             let path = format!("{}/sublabel", node.path);
-            wrap(sublabel, room, SUBLABEL_SIZE, metrics, warnings, &path)
+            wrap_lines(
+                sublabel,
+                room,
+                SUBLABEL_SIZE,
+                most,
+                (metrics, warnings),
+                &path,
+            )
         });
         let text = lines
             .iter()
