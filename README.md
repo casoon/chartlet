@@ -110,6 +110,8 @@ contexts, browsers and screen readers. It is built with Astro and renders every 
 | Readings as dots around a trend line | `"mark": "point"` next to a `line` layer | [resting-heart-rate](examples/resting-heart-rate.json) |
 | Zones and point markers | `"mark": "band"` with `from`/`to` or `bottom`/`top`; `"mark": "annotation"` with `time`, `value` and `shape` | [release-incidents](examples/release-incidents.json) |
 | Candlesticks with a volume pane on one time axis, weekends closed up | `"mark": "ohlc"` with `data`; up to four `panes` with `heightRatio`; `"gaps": "collapse"` | [share-price](examples/share-price.json) |
+| Volume as columns under candles, single days emphasized | `"mark": "column"` on a pane of its own | [volume-columns](examples/volume-columns.json) |
+| Sparkline: a word-sized time chart for a table cell or a card, with candles, zones and markers | `"sparkline": true` with `width` 60–600 and `height` 16–200 | [sparkline-candles](examples/sparkline-candles.json) |
 | Warming stripes on a diverging scale | `"type": "stripes"` with `stripes` | [warming-stripes](examples/warming-stripes.json) |
 | Calendar heatmap, by month or by week | `"type": "calendar"` with `calendar` | [daily-anomaly-calendar](examples/daily-anomaly-calendar.json) |
 | Range bars with central value, modeled hatched | `"type": "rangebar"` with `ranges` | [warming-contributions](examples/warming-contributions.json) |
@@ -235,17 +237,24 @@ In every diagram that has them:
   edge leaves and reaches (`fromSide`, `toSide`), `spacing`, `weight` for line width and
   `sharedTrunks` for fan-outs on one branching line —
   [data-tier](examples/data-tier.json), [request-volume](examples/request-volume.json),
-  [service-fan-out](examples/service-fan-out.json).
+  [service-fan-out](examples/service-fan-out.json),
+  [manuscript-states](examples/manuscript-states.json).
+- **Height:** flow, state, architecture and class diagrams take the height their layout needs
+  when `height` is left out — [checkout-exits](examples/checkout-exits.json).
+- **Edge labels** stand on a stretch of their own edge that no other edge crosses;
+  `label_overlap` names those that find no room.
 - **Values and parts** fill flow and tree boxes by value or with a stripe of shares —
   [department-budgets](examples/department-budgets.json),
   [claim-handling](examples/claim-handling.json).
 - **Portrait or landscape:** `orientation` runs a diagram down or right; `auto` picks what fits
-  the canvas, and a mobile variant decides again. Below 480 pixels diagrams turn compact.
+  the canvas, and a mobile variant decides again. Below 480 pixels diagrams turn compact, and
+  names and second lines wrap onto up to three lines before they are shortened.
 - **Text alternative:** the description lists every message, step, transition or component in
-  reading order, and names the shape of the graph where it says more; the table holds the whole
-  structure.
+  reading order, with the `sublabel` that tells nodes of the same name apart, and names the
+  shape of the graph where it says more; the table holds the whole structure.
 - **Focus:** in the HTML output, a click on a node or a choice in the "Focus" list keeps the node
-  and its neighbours and fades the rest — without a script.
+  and its neighbours and fades the rest — without a script. `focus: false` leaves the control
+  out; with the shared stylesheet (`styles: "external"`) it is there only on `focus: true`.
 - **Hooks:** with `hooks: true`, nodes, frames, lanes and architecture connections carry their
   specification id as `data-chartlet-*` attributes, so a page finds them by id, not by position.
 

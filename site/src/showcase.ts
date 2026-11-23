@@ -263,6 +263,22 @@ const catalogue = [
       'Daily candles with a 20-day average and a marker for quarterly results, above a volume pane filled down to zero. Both panes share one time axis, on which weekends and holidays take no space, and have their own value axis; a rising candle is hollow and a falling one filled, so the direction never rests on color alone. Illustrative values for a fictional company.',
   },
   {
+    slug: 'volume-columns',
+    group: 'Time series',
+    chart: 'Candles with volume columns',
+    useCase: 'Show where trading volume stood out',
+    blurb:
+      'Candles over numbered bars, with the volume as columns from zero in a pane of its own below. A second column layer emphasizes the one bar with unusually high volume, and the name of that layer says why, so the emphasis does not rest on color alone. Illustrative values, with a phone variant.',
+  },
+  {
+    slug: 'sparkline-candles',
+    group: 'Time series',
+    chart: 'Sparkline with candles',
+    useCase: 'Preview a chart pattern on a card',
+    blurb:
+      'A word-sized chart of candles with a zone for the neckline and markers at the two lows. The marks carry no text in the drawing; their labels name them in the tooltips and the description, which states the pattern in one sentence. Illustrative values.',
+  },
+  {
     slug: 'point-figure-count',
     group: 'Time series',
     chart: 'Point-and-figure chart',
@@ -644,6 +660,14 @@ const catalogue = [
       'The states of a support ticket: a dot marks where it starts, a diamond the choice by severity, double outlines the two ways it ends. Transitions read event [guard] / action, a reminder loops on its state, and reopening runs back against the flow. The table lists every transition with its parts in columns of their own.',
   },
   {
+    slug: 'manuscript-states',
+    group: 'Sequence and state diagrams',
+    chart: 'State diagram with a main path',
+    useCase: 'Keep the usual way through a lifecycle straight',
+    blurb:
+      'Five states from draft to published, laid out along the declared main path whatever the order of the transitions. Two states share the name Review and differ only in their second line, editor or legal, which the description and the table repeat; returns to an earlier state run against the flow, and a self-loop marks a further round. No height is given: the canvas takes what the layout needs.',
+  },
+  {
     slug: 'release-flow',
     group: 'Flow charts',
     chart: 'Flow chart (lanes)',
@@ -666,6 +690,14 @@ const catalogue = [
     useCase: 'Fit a process into a wide format',
     blurb:
       'Without lanes, on a wide and low canvas: auto orientation turns the flow to run right. Each kind of step has its own shape — start and end, decisions, input and output, a subprocess and a data store.',
+  },
+  {
+    slug: 'checkout-exits',
+    group: 'Flow charts',
+    chart: 'Flow chart with exits',
+    useCase: 'Show where a process can be left',
+    blurb:
+      'A checkout of five steps on a straight main path, with dashed exits from four of them to one end step. Each edge label stands on a stretch of its own edge that no other edge crosses. The canvas has no height in the specification and takes the height of the layout.',
   },
   {
     slug: 'contract-review',

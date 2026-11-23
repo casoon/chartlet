@@ -20,8 +20,8 @@
       { "from": "learner", "to": "web", "label": "books a course", "technology": "HTTPS" },
       { "from": "web", "to": "api", "label": "calls", "technology": "JSON/HTTPS" },
       { "from": "api", "to": "db", "label": "reads, writes", "technology": "SQL" },
-      { "from": "api", "to": "payment", "label": "takes payment", "technology": "HTTPS" },
-      { "from": "api", "to": "jobs", "label": "queues jobs" },
+      { "from": "api", "to": "payment", "label": "takes payment", "technology": "HTTPS", "fromSide": "right" },
+      { "from": "api", "to": "jobs", "label": "queues jobs", "fromSide": "left" },
       { "from": "jobs", "to": "worker", "label": "delivers" },
       { "from": "worker", "to": "files", "label": "stores certificates" },
       { "from": "worker", "to": "mail", "label": "sends confirmations", "technology": "SMTP" }

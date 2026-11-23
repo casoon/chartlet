@@ -13,7 +13,7 @@ use chartlet::{RenderFormat, RenderOptions, Variant, render_json};
 const BASELINE: &[(&str, &str, usize, u32, usize)] = &[
     ("api-environments", "desktop", 0, 464, 0),
     ("billing-migration", "desktop", 0, 1513, 0),
-    ("booking-containers", "desktop", 0, 1244, 0),
+    ("booking-containers", "desktop", 0, 1120, 0),
     ("booking-context", "desktop", 0, 1092, 0),
     ("booking-deployment", "desktop", 1, 4382, 0),
     ("brand-typography", "desktop", 0, 444, 0),

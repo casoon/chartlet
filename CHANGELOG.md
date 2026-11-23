@@ -59,6 +59,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   stretch that no other edge crosses, beside the line or on it, and `label_overlap` reports the
   labels for which no such stretch has room. [Flow charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
 - **Pages:** the project site uses the current shared theme (0.16.4).
+- **MCP:** the `containers` starter leads the job queue and the payment provider off the sides
+  of the API, so that every connection label stands clear of the other edges.
 - **Flow charts, state, architecture and class diagrams:** in a narrow canvas, such as the mobile
   variant, the name and the second line of a step wrap onto up to three lines instead of two before
   they are shortened; `text_truncated` still names what is cut. [Narrow canvases](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
