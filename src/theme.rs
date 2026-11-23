@@ -123,22 +123,22 @@ pub(crate) fn validate(tokens: &BTreeMap<String, String>) -> Result<(), ChartErr
             return Err(ChartError::new(
                 "invalid_token",
                 format!("/tokens/{name}"),
-                "a token is a hex color (#rgb, #rrggbb or #rrggbbaa) or an rgb()/rgba() color",
+                "a token is a hex color (#rgb, #rrggbb or #rrggbbaa) or an rgb()/rgba() or hsl()/hsla() color of numbers",
             ));
         }
     }
     Ok(())
 }
 
-/// A hex color, or `rgb()`/`rgba()` of numbers only: nothing that could end a declaration, and
-/// nothing the print variant would have to resolve.
+/// A hex color, or `rgb()`/`rgba()`/`hsl()`/`hsla()` of numbers only: nothing that could end a
+/// declaration, and nothing the print variant would have to resolve.
 fn is_color(value: &str) -> bool {
     if crate::color::sanitize(value).is_some_and(|color| color.starts_with('#')) {
         return true;
     }
-    value
-        .strip_prefix("rgba(")
-        .or_else(|| value.strip_prefix("rgb("))
+    ["rgba(", "rgb(", "hsla(", "hsl("]
+        .iter()
+        .find_map(|prefix| value.strip_prefix(prefix))
         .and_then(|rest| rest.strip_suffix(')'))
         .is_some_and(|numbers| {
             !numbers.is_empty()
@@ -327,11 +327,37 @@ mod tests {
     }
 
     #[test]
+    fn hsl_tokens_reach_the_chart_and_the_print_variant() {
+        let spec = BAR.replace(
+            r#""data""#,
+            r#""tokens":{"accent":"hsl(168, 45%, 40%)","grid":"hsla(8 58% 52% 0.2)"},"data""#,
+        );
+        let svg =
+            render_json(&spec, RenderFormat::Svg, &RenderOptions::default()).expect("renders");
+        assert!(svg.content.contains(
+            "{--chartlet-accent:hsl(168, 45%, 40%);--chartlet-grid:hsla(8 58% 52% 0.2)}"
+        ));
+        let print = render_json(
+            &spec,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: Variant::Print,
+                ..RenderOptions::default()
+            },
+        )
+        .expect("renders");
+        assert!(print.content.contains("hsl(168, 45%, 40%)"));
+    }
+
+    #[test]
     fn a_token_that_is_none_is_refused() {
         for (tokens, path) in [
             (r##"{"nope":"#fff"}"##, "/tokens/nope"),
             (r#"{"accent":"red"}"#, "/tokens/accent"),
             (r#"{"accent":"url(x);}"}"#, "/tokens/accent"),
+            // The slash of CSS Color 4 is left to hex: the PNG renderer does not read it.
+            (r#"{"accent":"hsl(168 45% 40% / 0.5)"}"#, "/tokens/accent"),
+            (r#"{"accent":"hsl(168deg 45% 40%)"}"#, "/tokens/accent"),
         ] {
             let spec = BAR.replace(r#""data""#, &format!(r#""tokens":{tokens},"data""#));
             let error = render_json(&spec, RenderFormat::Svg, &RenderOptions::default())

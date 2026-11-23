@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     error::{ChartError, ChartWarning},
-    layout::plot_pixels,
+    layout::time_plot_pixels,
     spec::{
         AxisScale, ChartSpec, ChartType, MAX_SERIES, Orientation, ValueFormat,
         validate_optional_text,
@@ -16,7 +16,8 @@ use crate::{
 };
 
 impl ChartSpec {
-    /// A sparkline draws one pane of lines and areas and nothing that needs a label or an axis.
+    /// A sparkline draws one pane of lines, areas and candles, with zones, reference lines and
+    /// point markers but without their labels, and nothing that needs an axis.
     fn validate_sparkline(&self) -> Result<(), ChartError> {
         if !self.sparkline {
             return Ok(());
@@ -60,10 +61,11 @@ impl ChartSpec {
                 }
             }
             for (index, layer) in pane.layers.iter().enumerate() {
-                if !matches!(layer.mark, Mark::Line | Mark::Area) {
+                // A point layer would draw no dots at this size, and a measure is its label.
+                if layer.mark == Mark::Point || layer.is_measure() {
                     return refuse(
                         format!("/panes/{pane_index}/layers/{index}/mark"),
-                        "draws lines and areas only",
+                        "draws lines, areas, candles, zones, reference lines and point markers only",
                     );
                 }
             }
@@ -170,7 +172,7 @@ impl ChartSpec {
         let mut warnings = Vec::new();
         // Observations beyond one per horizontal pixel cannot be told apart in the drawing.
         let plot_pixels =
-            usize::try_from(plot_pixels(self.width)).expect("a usize is at least 32 bits wide");
+            usize::try_from(time_plot_pixels(self)).expect("a usize is at least 32 bits wide");
         // The panes share one legend, so a name has to be unique across all of them, and every
         // layer needs one as soon as the chart has more than one.
         let data_layers = self.data_layers().count();

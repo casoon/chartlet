@@ -43,7 +43,7 @@ chartlet is before 1.0; screen reader and user testing are still pending. Status
 | --- | --- | --- |
 | Light (default) | Verified | The default palette keeps at least 4.5:1 contrast on white (lowest series color 5.17:1). |
 | Dark | Verified | `"theme": "dark"` sets the palette through the same CSS custom properties and paints its own background. Lowest series color 7.65:1 against `#0e131c`. |
-| Own colors (`tokens`, theme file) | Verified | Hex and `rgb()` values reach the stylesheet, the print and social variants and PNG. Pairs of colors that lie on top of each other are measured, and a ratio below WCAG 2.2's is reported as `low_contrast`; other chart types' scales are not measured. See [Customize the look](../../guides/customize/#contrast). Covered by unit tests. |
+| Own colors (`tokens`, theme file) | Verified | Hex, `rgb()` and `hsl()` values reach the stylesheet, the print and social variants and PNG. Pairs of colors that lie on top of each other are measured, and a ratio below WCAG 2.2's is reported as `low_contrast`; other chart types' scales are not measured. See [Customize the look](../../guides/customize/#contrast). Covered by unit tests. |
 | Forced colours / high contrast | Planned | Planned; not yet shipped. |
 | Host-page colors (`var(--name)` per layer) | Verified | A `var()` reference is passed through and falls back to the chart's text color when the page defines nothing. |
 
@@ -65,6 +65,7 @@ chartlet is before 1.0; screen reader and user testing are still pending. Status
 | Gaps (`null`) on a time chart | Verified | Break line, area and band; counted as missing in description and table. Also in small multiples. |
 | Gaps in time (`timeAxis.gaps: "collapse"`) | Verified | Every observed timestamp takes one evenly spaced slot, so weekends and holidays take no space; ticks sit on the first observation after each calendar boundary, annotations on the slot of an observation. Also in small multiples and zoom windows. Covered by unit and golden-file tests. |
 | `zoomSteps` on a time chart | Verified | Windows by timestamp, HTML profile only; same radio-and-CSS mechanism as category zoom. |
+| Sparklines (`sparkline: true`) | Verified | One pane without any text: lines and areas with a dot at their end, candles, and zones, reference lines and point markers named in their tooltips only. Candle density is measured on the sparkline's own width. Covered by unit and golden-file tests. |
 | `ohlc` mark (candlesticks) | Verified | Wick from low to high, body from open to close; rising hollow, falling filled, in `--chartlet-rise` and `--chartlet-fall`; `candleStyle` `soft` (tinted rising bodies) and `solid` (all filled) draw rounded bodies in `--chartlet-rise-bright` and `--chartlet-fall-bright`. Beyond one candle per three plot pixels the bodies are thin filled bars over paler wicks, beyond one per two pixels only the wicks are drawn; both report `dense_chart`. Tooltips, table columns and description per candle layer. Covered by unit and golden-file tests. |
 | Several panes on a `time` chart | Verified | Up to four panes stacked on one shared time axis, each with its own value axis and a share of the height by `heightRatio`; one legend with names unique across the chart. Covered by unit and golden-file tests. |
 | `zoomSteps` on small multiples | Planned | Refused with `option_not_supported`. |

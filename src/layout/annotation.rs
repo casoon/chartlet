@@ -76,7 +76,8 @@ pub(crate) fn marker_position(
 /// instead of their middles, so `from` equal to `to` marks a single candle. Its label sits inside
 /// the zone's top left corner when the zone is tall enough; where another label or a data line
 /// is in the way there, at its bottom, or a line further in from either. A zone too low for a
-/// line of text takes its label just outside its upper or lower edge.
+/// line of text takes its label just outside its upper or lower edge. Without `labelled`, as in
+/// a sparkline, the label names the zone in its tooltip only.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn push_zone(
     spec: &ChartSpec,
@@ -87,6 +88,7 @@ pub(super) fn push_zone(
     space: &mut LabelSpace,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
+    labelled: bool,
 ) {
     let layer = entry.layer;
     let label = layer
@@ -124,6 +126,9 @@ pub(super) fn push_zone(
             zone_extent(spec, layer, frame.zone, frame.style)
         )),
     }));
+    if !labelled {
+        return;
+    }
 
     let content = fit_text(
         label,
@@ -320,10 +325,13 @@ pub(super) fn push_marker_label(
 /// text free there tries the other side of its line.
 ///
 /// A horizontal line writes its label above its left end; then right of the labels in its way,
-/// above its right end, and below the line at either end.
+/// above its right end, and below the line at either end. Without `labelled`, as in a sparkline,
+/// the label names the line in its tooltip only.
+#[allow(clippy::too_many_arguments)]
 pub(super) fn push_rule(
     entry: LayerRef,
     frame: &TimeFrame,
+    labelled: bool,
     elements: &mut Vec<Element>,
     labels: &mut Vec<Element>,
     space: &mut LabelSpace,
@@ -335,9 +343,34 @@ pub(super) fn push_rule(
         .label
         .as_deref()
         .expect("validated annotations carry a label");
-    let path = format!("/panes/{}/layers/{}/label", entry.pane, entry.local);
     let plot = frame.plot;
     let bottom = plot.top + plot.height;
+    let (points, tooltip) = if let Some(value) = layer.value {
+        let y = frame.y(value);
+        (
+            vec![(plot.left, y), (plot.left + plot.width, y)],
+            format!("{label}: {}", format_value(value, frame.style)),
+        )
+    } else {
+        let epoch = rule_time(layer, frame);
+        let x = frame.x(epoch);
+        let precision = Precision::of(std::iter::once(epoch), frame.zone).at_least(frame.precision);
+        (
+            vec![(x, plot.top), (x, bottom)],
+            format!("{label}: {}", precision.format(epoch, frame.zone)),
+        )
+    };
+    elements.push(Element::Polyline(Polyline {
+        points,
+        class: "chartlet-rule",
+        series_index: None,
+        style_index: layer.resolved_color().is_some().then_some(entry.global),
+        tooltip: Some(tooltip),
+    }));
+    if !labelled {
+        return;
+    }
+    let path = format!("/panes/{}/layers/{}/label", entry.pane, entry.local);
     let text = |x: f64, y: f64, anchor: TextAnchor, content: &str| Text {
         x,
         y,
@@ -345,7 +378,7 @@ pub(super) fn push_rule(
         anchor,
         content: content.to_owned(),
     };
-    let (points, candidates, tooltip) = if let Some(value) = layer.value {
+    let candidates = if let Some(value) = layer.value {
         let y = frame.y(value);
         let content = fit_text(
             label,
@@ -368,18 +401,9 @@ pub(super) fn push_rule(
         candidates.push(text(end, y - 6.0, TextAnchor::End, &content));
         candidates.push(text(start, y + LINE, TextAnchor::Start, &content));
         candidates.push(text(end, y + LINE, TextAnchor::End, &content));
-        (
-            vec![(plot.left, y), (plot.left + plot.width, y)],
-            candidates,
-            format!("{label}: {}", format_value(value, frame.style)),
-        )
+        candidates
     } else {
-        let epoch = layer
-            .time
-            .as_ref()
-            .and_then(|time| time.resolve(frame.zone).ok())
-            .expect("validated annotations carry a value or a time");
-        let x = frame.x(epoch);
+        let x = frame.x(rule_time(layer, frame));
         let content = fit_text(
             label,
             plot.width * 0.4,
@@ -401,7 +425,7 @@ pub(super) fn push_rule(
         // head of its line. The other side of the line comes only after every line of text on
         // the first: side by side, two labels between two close lines could not be told apart.
         let rows = label_rows(plot.height / 2.0).clamp(1.0, count(STAGGER_ROWS));
-        let candidates = sides
+        sides
             .into_iter()
             .flat_map(|(label_x, anchor)| {
                 let content = &content;
@@ -410,27 +434,22 @@ pub(super) fn push_rule(
                     .take_while(move |row| *row < rows)
                     .map(move |row| text(label_x, plot.top + 12.0 + row * LINE, anchor, content))
             })
-            .collect();
-        let precision = Precision::of(std::iter::once(epoch), frame.zone).at_least(frame.precision);
-        (
-            vec![(x, plot.top), (x, bottom)],
-            candidates,
-            format!("{label}: {}", precision.format(epoch, frame.zone)),
-        )
+            .collect()
     };
-    elements.push(Element::Polyline(Polyline {
-        points,
-        class: "chartlet-rule",
-        series_index: None,
-        style_index: layer.resolved_color().is_some().then_some(entry.global),
-        tooltip: Some(tooltip),
-    }));
     labels.push(Element::Text(
         space.settle(candidates, entry, metrics, warnings),
     ));
 }
 
-/// What a measure spans, for its tooltip and the description: both values and their difference.
+/// The time of a vertical reference line.
+fn rule_time(layer: &LayerSpec, frame: &TimeFrame) -> i64 {
+    layer
+        .time
+        .as_ref()
+        .and_then(|time| time.resolve(frame.zone).ok())
+        .expect("validated annotations carry a value or a time")
+}
+
 pub(crate) fn measure_extent(spec: &ChartSpec, layer: &LayerSpec, style: NumberStyle) -> String {
     let (bottom, top) = (
         layer.bottom.expect("validated measures carry a bottom"),

@@ -49,8 +49,11 @@ repository and list every token with its value. Copy one as the start of your ow
 }
 ```
 
-A value is a hex color (`#rgb`, `#rrggbb`, `#rrggbbaa`) or `rgb()`/`rgba()` with numbers. An unknown
-name or another value is refused: `invalid_token` at `/tokens/<name>`.
+A value is a hex color (`#rgb`, `#rrggbb`, `#rrggbbaa`), or `rgb()`/`rgba()` or `hsl()`/`hsla()`
+with numbers, separated by commas or spaces: `hsl(168, 45%, 40%)`, `hsla(168, 45%, 40%, 0.18)`. The
+hue is a number of degrees without a unit, and an alpha is the fourth number, not written after a
+`/`, which the PNG renderer does not read. An unknown name or another value is refused:
+`invalid_token` at `/tokens/<name>`.
 
 A chart with a `background` token paints that background itself, as a dark chart does, so that the
 SVG stands alone on any page.

@@ -404,6 +404,37 @@ tooltips still carry the values, and the HTML profile keeps the caption and the 
   "sparkline": true, "width": 120, "height": 32, "panes": [{ "layers": [ … ] }] }
 ```
 
+A sparkline draws candles too, for the preview of a chart pattern on a card: an `ohlc` layer with
+lines over it, zones, reference lines and point markers. No text is drawn — the labels of zones,
+reference lines and markers are still required, and name them in their tooltips and in the
+description. The line over the candles ends without a dot, since the candles are the series. The
+candles follow the rules of [dense candles](#candlesticks) on the sparkline's own width: outlined
+bodies up to one candle per three pixels (90 at a width of 280), thin filled bars up to one per two
+pixels, wicks only beyond; the outermost candles keep their bodies whole on the canvas. A measure
+and a `point` layer are refused (`option_not_supported`).
+
+The value axis is still fitted with round ends, which can leave a margin above and below the
+candles. To use the full height, give the pane the exact range of the data:
+`"valueAxis": { "min": 45.5, "max": 59, "exact": true }`.
+
+```json
+{ "schemaVersion": 1, "type": "time", "title": "Double bottom",
+  "sparkline": true, "width": 280, "height": 140, "timeAxis": { "kind": "number" },
+  "tokens": { "rise": "hsl(168, 45%, 32%)", "fall": "hsl(8, 58%, 48%)", "zero": "#7f8984",
+              "background": "#ffffff00" },
+  "panes": [{ "valueAxis": { "min": 45.5, "max": 59, "exact": true }, "layers": [
+    { "mark": "ohlc", "name": "Price", "data": [ … ] },
+    { "mark": "band", "label": "Support", "bottom": 45.6, "top": 46.8, "color": "#2e8b74" },
+    { "mark": "annotation", "label": "Neckline", "value": 52.6 }
+  ] }] }
+```
+
+An SVG in `<img>` does not see the CSS of its page, so set its colors in `tokens`: `rise` and
+`fall` for the candles (`rise-bright` and `fall-bright` with `candleStyle` `soft` or `solid`),
+`color-1` to `color-4` for the lines, `zero` for zones and reference lines without a `color`, and
+`text` for point markers. A hollow rising body is filled with `background`; a transparent
+`background` such as `#ffffff00` lets the card show through it on light and dark pages alike.
+
 ## Names at the end of the lines
 
 With a few lines that end apart, a name beside each line reads faster than a legend: `"legend":

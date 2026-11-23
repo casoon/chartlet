@@ -192,6 +192,16 @@ pub(crate) const fn plot_pixels(width: u32) -> u32 {
     width.saturating_sub(axis_gutter(width) + plot_margin(width))
 }
 
+/// The horizontal pixels of a time chart's plot: [`plot_pixels`], or for a sparkline, which has
+/// no gutter, the canvas less its inset on either side.
+pub(crate) const fn time_plot_pixels(spec: &ChartSpec) -> u32 {
+    if spec.sparkline {
+        spec.width.saturating_sub(2 * timechart::SPARK_INSET)
+    } else {
+        plot_pixels(spec.width)
+    }
+}
+
 /// Gutter left of each panel's plot for its value ticks, and the margin right of it.
 const PANEL_GUTTER: u32 = 44;
 const PANEL_MARGIN: u32 = 12;

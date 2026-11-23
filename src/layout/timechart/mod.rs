@@ -46,6 +46,8 @@ const fn time_tick_spacing(precision: Precision) -> u32 {
 const END_LABEL_GAP: f64 = 8.0;
 /// Outer margin of a small-multiples grid, left and right.
 pub(super) const MULTIPLES_MARGIN: f64 = 16.0;
+/// Inset of a sparkline from the edges of its canvas: room for the dot at the end of a line.
+pub(super) const SPARK_INSET: u32 = 4;
 /// Inset that keeps the outermost points and their labels inside the plot.
 const TIME_INSET: f64 = 6.0;
 /// Above this many observations a layer is drawn as a line only. At the default width the
@@ -200,23 +202,28 @@ pub(super) fn layout_time(
 
 /// Lays out small multiples: a grid of small time plots that share the value scale and the time
 /// span, so that the panels can be compared by position alone.
-/// A sparkline: the lines and areas of the one pane across the whole canvas, inset by the dot at
-/// the end of each line.
+/// A sparkline: the one pane across the whole canvas, inset by the dot at the end of each line, or
+/// by half a candle where that is wider, so the outermost candles stay whole.
 fn layout_sparkline(
     spec: &ChartSpec,
     warnings: &mut Vec<ChartWarning>,
     metrics: &impl TextMetrics,
 ) -> Scene {
     let zone = spec.time_zone().unwrap_or_default();
-    let inset = 4.0;
-    let plot = PlotArea {
+    let plot = |inset: f64| PlotArea {
         left: inset - TIME_INSET,
-        top: inset,
+        top: f64::from(SPARK_INSET),
         width: f64::from(spec.width) - 2.0 * (inset - TIME_INSET),
-        height: f64::from(spec.height) - 2.0 * inset,
+        height: f64::from(spec.height - 2 * SPARK_INSET),
         vertical_bars: true,
     };
-    let frames = pane_frames(spec, zone, plot, warnings);
+    let inset = f64::from(SPARK_INSET);
+    let mut frames = pane_frames(spec, zone, plot(inset), warnings);
+    // Half a body and half its outline.
+    let candle = crate::ohlc::half_body(spec, 0, &frames[0]) + 1.0;
+    if candle > inset {
+        frames = pane_frames(spec, zone, plot(candle), warnings);
+    }
     let mut elements = Vec::new();
     for (pane_index, frame) in frames.iter().enumerate() {
         elements.push(frame.hook(pane_index));
