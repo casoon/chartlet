@@ -7,6 +7,10 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Pages:** the project site uses the current shared theme (0.17.0).
+
 ### Fixed
 
 - **Time charts:** a label that would overlap now tries more places before `label_overlap` is
@@ -14,13 +18,6 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   last bar; the label of a zone 20 px or taller also tries right-anchored places inside it and
   places just outside its upper and lower edge; the label of a horizontal reference line also tries
   free stretches along the line between its ends. Labels that are free today stay where they are.
-
-### Changed
-
-- **Pages:** the project site uses the current shared theme (0.17.0).
-
-### Fixed
-
 - **State diagrams:** an edge label that has no free place no longer stays where it started. It
   moves to the place with the least serious fault, never onto the main path, and its
   `label_overlap` warning says whether it would cover another edge, cover an arrowhead, cover the
