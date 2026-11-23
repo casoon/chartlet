@@ -44,6 +44,9 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   mobile variant, and no `canvas_too_small` is reported for it. The `canvas_too_small` of the
   mobile variant in the HTML profile now names `/mobile/width` or `/mobile/height`, so that the one
   of the full-size layout no longer hides it. [Specification](https://casoon.github.io/chartlet/docs/reference/specification/).
+- **Examples:** `manuscript-states` (a state diagram with a main path, back edges, a self-loop and
+  two states that differ only in their `sublabel`) and `checkout-exits` (a flow chart with several
+  dashed exits to one end step), both without `height`.
 - **State diagrams:** `sameRank` puts states at one position along the flow, and `fromSide` and
   `toSide` on a transition pin the sides it leaves and reaches, as in flow charts.
   [State diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#state-diagrams).

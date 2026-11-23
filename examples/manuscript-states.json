@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "type": "state",
+  "title": "Life of a manuscript",
+  "source": "Editorial handbook, manuscript states",
+  "width": 720,
+  "mobile": { "width": 360 },
+  "state": {
+    "initial": "draft",
+    "states": [
+      { "id": "draft", "label": "Draft" },
+      { "id": "editor", "label": "Review", "sublabel": "editor" },
+      { "id": "legal", "label": "Review", "sublabel": "legal" },
+      { "id": "approved", "label": "Approved" },
+      { "id": "published", "label": "Published", "final": true }
+    ],
+    "transitions": [
+      { "from": "draft", "to": "editor", "event": "submit" },
+      { "from": "editor", "to": "editor", "event": "comment", "action": "reply" },
+      { "from": "editor", "to": "draft", "event": "returned" },
+      { "from": "editor", "to": "legal", "event": "accept" },
+      { "from": "legal", "to": "editor", "event": "objection" },
+      { "from": "legal", "to": "approved", "event": "clear" },
+      { "from": "approved", "to": "published", "event": "release" }
+    ],
+    "mainPath": ["draft", "editor", "legal", "approved", "published"]
+  }
+}
