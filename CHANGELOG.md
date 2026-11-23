@@ -7,6 +7,14 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Time charts:** a label that would overlap now tries more places before `label_overlap` is
+  reported. The label of a measure also tries above and below it, up to the plot's edge at the
+  last bar; the label of a zone 20 px or taller also tries right-anchored places inside it and
+  places just outside its upper and lower edge; the label of a horizontal reference line also tries
+  free stretches along the line between its ends. Labels that are free today stay where they are.
+
 ### Changed
 
 - **Pages:** the project site uses the current shared theme (0.17.0).

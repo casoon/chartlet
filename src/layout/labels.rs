@@ -113,14 +113,19 @@ impl LabelSpace {
     /// reports the data line it crosses; failing that too, at the first candidate, with whatever
     /// it collides with. `candidates` holds at least one place, the one the label takes when
     /// nothing is in its way.
+    ///
+    /// `fallbacks` are tried only when that label would collide: first the one that keeps clear of
+    /// everything, else the first that collides with nothing. A label that has a free place among
+    /// `candidates` never moves to a fallback.
     pub(super) fn settle(
         &mut self,
-        candidates: Vec<Text>,
+        mut candidates: Vec<Text>,
+        fallbacks: Vec<Text>,
         entry: LayerRef,
         metrics: &impl TextMetrics,
         warnings: &mut Vec<ChartWarning>,
     ) -> Text {
-        let boxes: Vec<LabelBox> = candidates
+        let mut boxes: Vec<LabelBox> = candidates
             .iter()
             .map(|text| label_box(text, metrics))
             .collect();
@@ -139,6 +144,22 @@ impl LabelSpace {
             .or_else(|| free(true))
             .or_else(|| free(false))
             .unwrap_or(0);
+        let index = if self.collision(boxes[index], true).is_some() && !fallbacks.is_empty() {
+            let first = boxes.len();
+            boxes.extend(fallbacks.iter().map(|text| label_box(text, metrics)));
+            candidates.extend(fallbacks);
+            boxes[first..]
+                .iter()
+                .position(apart)
+                .or_else(|| {
+                    boxes[first..]
+                        .iter()
+                        .position(|label| self.collision(*label, true).is_none())
+                })
+                .map_or(index, |found| first + found)
+        } else {
+            index
+        };
         if let Some(collision) = self.collision(boxes[index], true) {
             warn_label_overlap(entry, collision, warnings);
         }
