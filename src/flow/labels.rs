@@ -25,6 +25,35 @@ const STEP: f64 = 8.0;
 /// The room a label leaves at both ends of the stretch it stands on or beside.
 const LEAD: f64 = 4.0;
 
+/// Why a label does not read as the label of its edge where it stands, from the least to the most
+/// serious.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub(super) enum Fault {
+    /// It stands too far from its own edge to belong to it.
+    Away,
+    /// Another edge lies closer to it than its own.
+    Nearer,
+    /// It covers another edge.
+    Edge,
+    /// It covers an arrowhead.
+    Head,
+    /// It covers an edge of the main path.
+    MainPath,
+}
+
+impl Fault {
+    /// What the warning says the label does, or whether it is merely out of place.
+    pub(super) fn reason(self) -> &'static str {
+        match self {
+            Self::Away => "the label stands too far from its own edge",
+            Self::Nearer => "the label stands closer to another edge than to its own",
+            Self::Edge => "the label would cover another edge",
+            Self::Head => "the label would cover an arrowhead",
+            Self::MainPath => "the label would cover the main path",
+        }
+    }
+}
+
 /// The ways of all edges on the page, and the arrowheads at their ends, against which the place
 /// of a label is checked.
 pub(super) struct Lines {
@@ -33,10 +62,12 @@ pub(super) struct Lines {
     ways: Vec<Vec<(f64, f64)>>,
     /// The box around the arrowhead of every edge that has a way.
     heads: Vec<Rect>,
+    /// Per edge, whether it belongs to the main path.
+    main: Vec<bool>,
 }
 
 impl Lines {
-    pub(super) fn new(plan: &Plan) -> Self {
+    pub(super) fn new(plan: &Plan, main: Vec<bool>) -> Self {
         let ways: Vec<Vec<(f64, f64)>> = plan
             .routes
             .iter()
@@ -62,32 +93,44 @@ impl Lines {
                 (left, top, right - left, bottom - top)
             })
             .collect();
-        Self { ways, heads }
+        Self { ways, heads, main }
     }
 
     fn segments(&self, edge: usize) -> impl Iterator<Item = Segment> + '_ {
         self.ways[edge].windows(2).map(|pair| (pair[0], pair[1]))
     }
 
-    /// Whether a label of `edge` in `rect` reads as that edge's: it stands at its own edge, covers
-    /// no other edge and no arrowhead, and no other edge lies closer to it than its own.
-    pub(super) fn reads_as(&self, edge: usize, rect: Rect) -> bool {
+    /// What keeps a label of `edge` in `rect` from reading as that edge's, the most serious first:
+    /// it stands at its own edge, covers no other edge and no arrowhead, and no other edge lies
+    /// closer to it than its own.
+    pub(super) fn fault(&self, edge: usize, rect: Rect) -> Option<Fault> {
         // A plate that only brushes the corner of an arrowhead does not cover it.
         if self.heads.iter().any(|head| overlap(rect, *head, -2.0)) {
-            return false;
+            return Some(Fault::Head);
         }
         let own = self
             .segments(edge)
             .map(|segment| distance(rect, segment))
             .fold(f64::INFINITY, f64::min);
-        own <= NEAR
-            && (0..self.ways.len())
-                .filter(|other| *other != edge)
-                .flat_map(|other| self.segments(other))
-                .all(|segment| {
-                    let away = distance(rect, segment);
-                    away >= CLEAR && away > own + 0.5
-                })
+        let mut fault = (own > NEAR).then_some(Fault::Away);
+        for other in (0..self.ways.len()).filter(|other| *other != edge) {
+            for segment in self.segments(other) {
+                let away = distance(rect, segment);
+                let found = if away < CLEAR {
+                    if self.main[other] {
+                        Fault::MainPath
+                    } else {
+                        Fault::Edge
+                    }
+                } else if away <= own + 0.5 {
+                    Fault::Nearer
+                } else {
+                    continue;
+                };
+                fault = fault.max(Some(found));
+            }
+        }
+        fault
     }
 
     /// The places a label of `edge` with a plate of `size` may take, best first: along its way
@@ -202,7 +245,7 @@ impl Label {
 
 #[cfg(test)]
 mod tests {
-    use super::{Lines, distance, overlap};
+    use super::{Fault, Lines, distance, overlap};
     use crate::scene::TextAnchor;
 
     /// Two edges: one down at x = 100 from 0 to 200, one that crosses it at y = 120.
@@ -213,6 +256,7 @@ mod tests {
                 vec![(40.0, 120.0), (160.0, 120.0), (160.0, 200.0)],
             ],
             heads: vec![(96.0, 188.0, 8.0, 16.0), (156.0, 188.0, 8.0, 16.0)],
+            main: vec![false, true],
         }
     }
 
@@ -230,18 +274,40 @@ mod tests {
     fn a_label_reads_as_its_edge_only_clear_of_the_others_and_nearest_to_its_own() {
         let lines = lines();
         // Beside its own line, far from the other.
-        assert!(lines.reads_as(0, (108.0, 20.0, 40.0, 20.0)));
+        assert!(lines.fault(0, (108.0, 20.0, 40.0, 20.0)).is_none());
         // Across the line of the other edge.
-        assert!(!lines.reads_as(0, (108.0, 110.0, 40.0, 20.0)));
+        assert!(lines.fault(0, (108.0, 110.0, 40.0, 20.0)).is_some());
         // Clear of both, but nearer to the other edge than to its own.
-        assert!(!lines.reads_as(0, (114.0, 96.0, 40.0, 20.0)));
+        assert!(lines.fault(0, (114.0, 96.0, 40.0, 20.0)).is_some());
         // Clear of both and nearer to its own, but too far from it to belong to it.
-        assert!(!lines.reads_as(0, (20.0, 20.0, 40.0, 20.0)));
+        assert!(lines.fault(0, (20.0, 20.0, 40.0, 20.0)).is_some());
         // On an arrowhead.
-        assert!(!lines.reads_as(0, (80.0, 180.0, 40.0, 20.0)));
+        assert!(lines.fault(0, (80.0, 180.0, 40.0, 20.0)).is_some());
         // On its own line, where the other edge does not cross.
-        assert!(lines.reads_as(1, (110.0, 110.0, 40.0, 20.0)));
-        assert!(!lines.reads_as(1, (80.0, 110.0, 40.0, 20.0)));
+        assert!(lines.fault(1, (110.0, 110.0, 40.0, 20.0)).is_none());
+        assert!(lines.fault(1, (80.0, 110.0, 40.0, 20.0)).is_some());
+    }
+
+    #[test]
+    fn a_fault_names_what_the_label_covers_and_the_main_path_weighs_most() {
+        let mut lines = lines();
+        lines.main = vec![false, false];
+        assert_eq!(
+            lines.fault(0, (108.0, 110.0, 40.0, 20.0)),
+            Some(Fault::Edge)
+        );
+        assert_eq!(lines.fault(0, (80.0, 180.0, 40.0, 20.0)), Some(Fault::Head));
+        assert_eq!(
+            lines.fault(0, (114.0, 96.0, 40.0, 20.0)),
+            Some(Fault::Nearer)
+        );
+        assert_eq!(lines.fault(0, (20.0, 20.0, 40.0, 20.0)), Some(Fault::Away));
+        lines.main = vec![false, true];
+        assert_eq!(
+            lines.fault(0, (108.0, 110.0, 40.0, 20.0)),
+            Some(Fault::MainPath)
+        );
+        assert!(Fault::MainPath > Fault::Head && Fault::Head > Fault::Edge);
     }
 
     #[test]

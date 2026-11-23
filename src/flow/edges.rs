@@ -3,7 +3,7 @@
 
 use super::{
     LINE, LOOP, SOCKET,
-    labels::{Lines, Rect, overlap},
+    labels::{Fault, Lines, Rect, overlap},
     measure::Model,
     model::{End, Ends, Shape},
     place::Plan,
@@ -460,8 +460,9 @@ impl Plan {
     /// Draws the edge labels over all edges. Each stands where its edge leaves its step, moved
     /// along the flow until it no longer covers a step or a label drawn before it. Where it would
     /// then cover another edge, or stand closer to one than to its own, it moves to the first
-    /// stretch of its own edge that takes it, beside the line or on it; where none does, it stays
-    /// and is reported as `label_overlap`.
+    /// stretch of its own edge that takes it, beside the line or on it; where none does, it moves to
+    /// the place with the least serious fault, never onto the main path, and is reported as
+    /// `label_overlap` with the reason.
     pub(super) fn draw_labels(
         &self,
         model: &Model,
@@ -470,7 +471,10 @@ impl Plan {
         (warnings, elements): (&mut Vec<ChartWarning>, &mut Vec<Element>),
     ) -> (f64, f64) {
         const AIR: f64 = 3.0;
-        let ways = Lines::new(self);
+        let ways = Lines::new(
+            self,
+            model.diagram.edges.iter().map(|edge| edge.main).collect(),
+        );
         let mut reach = (0.0_f64, 0.0_f64);
         // Labels keep clear of the steps as well as of each other.
         let mut placed: Vec<(f64, f64, f64, f64)> = (0..model.diagram.nodes.len())
@@ -530,15 +534,22 @@ impl Plan {
                     label.at.1 += other.1 + other.3 + AIR - y;
                 }
             }
-            if let Some(edge) = label
-                .edge
-                .filter(|edge| !ways.reads_as(*edge, label.plate(metrics)))
-                && !self.move_along_edge(&mut label, (&ways, edge), (&placed, &borders), metrics)
+            if let Some(edge) = label.edge
+                && let Some(fault) = ways.fault(edge, label.plate(metrics))
+                && let Some(fault) = self.move_along_edge(
+                    &mut label,
+                    (&ways, edge, fault),
+                    (&placed, &borders),
+                    metrics,
+                )
             {
                 warnings.push(ChartWarning::new(
                     "label_overlap",
                     model.diagram.edges[edge].label_path.clone(),
-                    "the label covers another edge or stands closer to one than to its own, and no stretch of its own edge has room for it; shorten the label, give the diagram more room, or remove an edge that runs beside this one",
+                    format!(
+                        "{}, and no stretch of its own edge has room for it; shorten the label, give the diagram more room, or remove an edge that runs beside this one",
+                        fault.reason()
+                    ),
                 ));
             }
             let placed_at = label.plate(metrics);
@@ -563,16 +574,17 @@ impl Plan {
 
     /// Moves `label` to the first stretch of its own `edge` that has room for it clear of the
     /// steps, labels and frame borders in `avoid`, where it reads as the label of that edge.
-    /// Whether there is one.
+    /// Where there is none, it moves to the first place with a less serious `fault` than where it
+    /// stands (never onto the main path, which only a label already there keeps). Returns the
+    /// fault the label is left with, `None` where it reads as the label of its edge.
     fn move_along_edge(
         &self,
         label: &mut Label,
-        (ways, edge): (&Lines, usize),
+        (ways, edge, fault): (&Lines, usize, Fault),
         avoid: (&[Rect], &[Rect]),
         metrics: &impl TextMetrics,
-    ) -> bool {
+    ) -> Option<Fault> {
         const AIR: f64 = 3.0;
-        let (_, _, width, height) = label.plate(metrics);
         let free = |rect: Rect| {
             rect.0 >= 2.0
                 && rect.1 >= 2.0
@@ -583,24 +595,39 @@ impl Plan {
                     .iter()
                     .chain(avoid.1)
                     .any(|other| overlap(rect, *other, AIR))
-                && ways.reads_as(edge, rect)
         };
-        let place = ways
-            .candidates(edge, (width, height), label.gap)
-            .into_iter()
-            .find(|(at, anchor)| {
-                free(chip_box_tech(
-                    &label.lines,
-                    label.tech.as_deref(),
-                    *at,
-                    *anchor,
-                    metrics,
-                ))
-            });
-        if let Some((at, anchor)) = place {
-            (label.at, label.anchor) = (at, anchor);
+        // The label as written first, then broken at its spaces onto two lines, a narrower plate.
+        let wrapped = wrap_lines(&label.lines);
+        let mut best: Option<Fallback> = None;
+        for lines in std::iter::once(label.lines.clone()).chain(wrapped) {
+            let plate = chip_box_tech(
+                &lines,
+                label.tech.as_deref(),
+                label.at,
+                label.anchor,
+                metrics,
+            );
+            for (at, anchor) in ways.candidates(edge, (plate.2, plate.3), label.gap) {
+                let rect = chip_box_tech(&lines, label.tech.as_deref(), at, anchor, metrics);
+                if !free(rect) {
+                    continue;
+                }
+                let Some(found) = ways.fault(edge, rect) else {
+                    (label.lines, label.at, label.anchor) = (lines, at, anchor);
+                    return None;
+                };
+                if found < fault && best.as_ref().is_none_or(|(least, ..)| found < *least) {
+                    best = Some((found, lines.clone(), at, anchor));
+                }
+            }
         }
-        place.is_some()
+        match best {
+            Some((found, lines, at, anchor)) => {
+                (label.lines, label.at, label.anchor) = (lines, at, anchor);
+                Some(found)
+            }
+            None => Some(fault),
+        }
     }
 
     /// An edge from a step to itself: a loop beside the step, right in portrait and below in
@@ -685,4 +712,31 @@ impl Plan {
             });
         }
     }
+}
+
+/// The place a label takes where none is free: its fault, its lines, its text and its anchor.
+type Fallback = (Fault, Vec<String>, (f64, f64), TextAnchor);
+
+/// The line of a label broken at the space nearest its middle, so that the plate
+/// gets narrower; `None` for a label of several lines or without a space.
+fn wrap_lines(lines: &[String]) -> Option<Vec<String>> {
+    if lines.len() != 1 || !lines[0].contains(' ') {
+        return None;
+    }
+    Some(
+        lines
+            .iter()
+            .flat_map(|line| {
+                let middle = line.chars().count() / 2;
+                let split = line
+                    .char_indices()
+                    .filter(|(_, c)| *c == ' ')
+                    .min_by_key(|(at, _)| line[..*at].chars().count().abs_diff(middle));
+                match split {
+                    Some((at, _)) => vec![line[..at].to_string(), line[at + 1..].to_string()],
+                    None => vec![line.clone()],
+                }
+            })
+            .collect(),
+    )
 }

@@ -1360,3 +1360,194 @@ fn note_lines_never_join_a_shared_trunk_in_a_flow_chart() {
     assert!(notes.iter().all(|note| *note != trunk));
     assert_eq!(svg(&json).content, output.content);
 }
+
+/// A state diagram on a phone with a main path of four states and a final state that every
+/// state can be dropped into, each drop labelled with its state, as in issue 72.
+fn drops(extra: &str) -> String {
+    format!(
+        r#"{{
+            "schemaVersion": 1,
+            "type": "state",
+            "title": "Candidate lifecycle",
+            "width": 720,
+            "mobile": {{"width": 360}},
+            "state": {{
+                "initial": "a",
+                "states": [
+                    {{"id": "a", "label": "A"}}, {{"id": "b", "label": "B"}},
+                    {{"id": "c", "label": "C"}}, {{"id": "d", "label": "D"}},
+                    {{"id": "none", "label": "None", "final": true}}
+                ],
+                "transitions": [
+                    {{"from": "a", "to": "b", "event": "check"}},
+                    {{"from": "b", "to": "c", "event": "approve"}},
+                    {{"from": "c", "to": "d", "event": "finish"}},
+                    {{"from": "a", "to": "none", "event": "dropped (A)"}},
+                    {{"from": "b", "to": "none", "event": "dropped (B)"{extra}}},
+                    {{"from": "c", "to": "none", "event": "dropped (C)"}},
+                    {{"from": "d", "to": "none", "event": "dropped (D)"}}
+                ],
+                "mainPath": ["a", "b", "c", "d"]
+            }}
+        }}"#
+    )
+}
+
+fn phone(json: &str) -> crate::RenderOutput {
+    let options = RenderOptions {
+        variant: crate::Variant::Mobile,
+        ..RenderOptions::default()
+    };
+    render_json(json, RenderFormat::Svg, &options).expect("the test specification renders")
+}
+
+/// The plate of every edge label by its text, and every straight piece of every edge by its
+/// title, in page coordinates.
+#[allow(clippy::type_complexity)]
+fn plates_and_ways(
+    svg: &str,
+) -> (
+    Vec<(String, (f64, f64, f64, f64))>,
+    Vec<(String, bool, ((f64, f64), (f64, f64)))>,
+) {
+    let number = |chunk: &str, name: &str| -> f64 {
+        let start = chunk.find(&format!(" {name}=\"")).expect("an attribute") + name.len() + 3;
+        chunk[start..]
+            .split('"')
+            .next()
+            .expect("a value")
+            .parse()
+            .expect("a number")
+    };
+    let mut plates = Vec::new();
+    let mut ways = Vec::new();
+    let chunks: Vec<&str> = svg.split('<').collect();
+    for (index, chunk) in chunks.iter().enumerate() {
+        if chunk.starts_with("rect ") && chunk.contains("chartlet-diagram-chip\"") {
+            let text = chunks[index + 1].split_once('>').expect("a text").1;
+            let rect = (
+                number(chunk, "x"),
+                number(chunk, "y"),
+                number(chunk, "width"),
+                number(chunk, "height"),
+            );
+            plates.push((text.to_string(), rect));
+        }
+        if chunk.starts_with("polyline ") && chunks[index + 1].starts_with("title>") {
+            let title = chunks[index + 1][6..].to_string();
+            let main = chunk.contains("chartlet-flow-main\"");
+            let points: Vec<(f64, f64)> = chunk
+                .split("points=\"")
+                .nth(1)
+                .and_then(|rest| rest.split('"').next())
+                .expect("points")
+                .split(' ')
+                .map(|pair| {
+                    let (x, y) = pair.split_once(',').expect("a point");
+                    (x.parse().expect("x"), y.parse().expect("y"))
+                })
+                .collect();
+            ways.extend(
+                points
+                    .windows(2)
+                    .map(|pair| (title.clone(), main, (pair[0], pair[1]))),
+            );
+        }
+    }
+    (plates, ways)
+}
+
+/// Whether a piece of a line runs through a box.
+fn crosses((x, y, width, height): (f64, f64, f64, f64), (a, b): ((f64, f64), (f64, f64))) -> bool {
+    a.0.max(b.0) >= x
+        && a.0.min(b.0) <= x + width
+        && a.1.max(b.1) >= y
+        && a.1.min(b.1) <= y + height
+}
+
+#[test]
+fn a_dropped_label_on_a_phone_never_covers_the_main_path_without_a_warning() {
+    let output = phone(&drops(""));
+    let (plates, ways) = plates_and_ways(&output.content);
+    let reported: Vec<&str> = output
+        .warnings
+        .iter()
+        .filter(|warning| warning.code == "label_overlap")
+        .map(|warning| warning.message.as_str())
+        .collect();
+    for (text, plate) in &plates {
+        let on_main = ways
+            .iter()
+            .any(|(_, main, piece)| *main && crosses(*plate, *piece));
+        assert!(!on_main, "{text} stands on the main path");
+    }
+    // Where no place is free, the warning says why.
+    for message in &reported {
+        assert!(message.contains("the label would cover") || message.contains("the label stands"));
+    }
+}
+
+#[test]
+fn a_dropped_label_beside_the_main_path_covers_no_other_edge() {
+    // B leaves on the left, so that its label has a place of its own.
+    let output = phone(&drops(r#", "fromSide": "left""#));
+    let (plates, ways) = plates_and_ways(&output.content);
+    assert!(
+        output
+            .warnings
+            .iter()
+            .all(|warning| warning.path != "/state/transitions/4"),
+        "{:?}",
+        output.warnings
+    );
+    let (_, plate) = plates
+        .iter()
+        .find(|(text, _)| text == "dropped (B)")
+        .expect("the label is drawn");
+    for (title, _, piece) in &ways {
+        assert!(
+            title.starts_with("B → None") || !crosses(*plate, *piece),
+            "the label of B covers {title}"
+        );
+    }
+}
+
+#[test]
+fn a_label_without_a_free_place_takes_the_least_serious_one_and_names_the_fault() {
+    let output = phone(&drops(""));
+    let message = output
+        .warnings
+        .iter()
+        .find(|warning| warning.code == "label_overlap")
+        .map(|warning| warning.message.as_str())
+        .expect("the label of C has no free place");
+    assert!(
+        message.starts_with("the label would cover another edge"),
+        "{message}"
+    );
+}
+
+/// The state diagram of issue 72 (case 4): on a phone the label "verworfen (B)" has no place of
+/// its own beside the dashed edge in one line, and stood on the main path.
+#[test]
+fn a_dropped_label_breaks_onto_two_lines_to_fit_beside_its_edge_on_a_phone() {
+    let output = phone(
+        r#"{"schemaVersion": 1, "type": "state", "locale": "de", "look": "editorial", "title": "Zust\u00e4nde und \u00dcberg\u00e4nge bei offener Ausrichtung", "state": {"states": [{"id": "none", "label": "Keine Spanne"}, {"id": "a", "label": "Phase A"}, {"id": "b", "label": "Phase B"}, {"id": "c-accumulation", "label": "Phase C", "sublabel": "Akkumulation"}, {"id": "c-distribution", "label": "Phase C", "sublabel": "Distribution"}, {"id": "e-accumulation-distribution", "label": "Phase E", "sublabel": "beide Seiten"}], "transitions": [{"from": "none", "to": "a", "event": "Fensterbreite"}, {"from": "a", "to": "c-accumulation", "event": "Spring", "action": "Akkumulation", "toSide": "left"}, {"from": "a", "to": "c-distribution", "event": "UTAD", "action": "Distribution"}, {"from": "a", "to": "none", "event": "verworfen (A)", "dash": "dashed", "fromSide": "right", "toSide": "left"}, {"from": "a", "to": "b", "event": "ST"}, {"from": "b", "to": "c-accumulation", "event": "Spring", "action": "Akkumulation", "fromSide": "left", "toSide": "right"}, {"from": "b", "to": "c-distribution", "event": "UTAD", "action": "Distribution"}, {"from": "b", "to": "none", "event": "verworfen (B)", "dash": "dashed"}, {"from": "b", "to": "b", "event": "ST"}, {"from": "e-accumulation-distribution", "to": "a", "event": "Fensterbreite"}], "mainPath": ["none", "a", "b"], "orientation": "portrait"}, "mobile": {"width": 360}}"#,
+    );
+    assert!(
+        output
+            .warnings
+            .iter()
+            .all(|warning| warning.code != "label_overlap"),
+        "{:?}",
+        output.warnings
+    );
+    let (plates, ways) = plates_and_ways(&output.content);
+    for (text, plate) in &plates {
+        let on_main = ways
+            .iter()
+            .any(|(_, main, piece)| *main && crosses(*plate, *piece));
+        assert!(!on_main, "{text} stands on the main path");
+    }
+    assert!(output.content.contains(">verworfen</text>"));
+}
