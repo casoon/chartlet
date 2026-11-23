@@ -7,6 +7,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Time charts:** the label of a zone lower than 20 px, whose places just above and below it are
+  both taken, now also tries the other end of the zone and places a line further out above and
+  below it before `label_overlap` is reported. Labels that are free today stay where they are.
+
 ## [0.26.1] - 2026-11-23
 
 ### Changed

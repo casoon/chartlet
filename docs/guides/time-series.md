@@ -423,7 +423,8 @@ the order of the layers, zones first — and of the data lines:
 - A **zone** writes its label inside its top corner, then inside its bottom corner, then a line
   further in from either; a zone too low for a line of text, just above it or below. Where none of
   these is free, a zone 20 px or taller also tries the same places at its right edge, and just
-  outside its upper and lower edge.
+  outside its upper and lower edge; a lower zone tries both of its ends, just above and below it
+  and then a line further out each time.
 - A **measure** writes its label beside its line, as described above. Where that place is not
   free, the label tries above and below the measure, centred on it and reaching to either side.
 - A **point marker** tries the right of its symbol, then the left, above and below.

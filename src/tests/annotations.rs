@@ -612,3 +612,62 @@ fn the_label_of_a_tall_zone_is_tried_right_anchored_and_outside() {
 fn the_label_of_a_reference_line_is_tried_along_the_line() {
     assert_eq!(label_places_warnings((0, 2)), Vec::<String>::new());
 }
+
+/// A zone too low for a line of text whose places just above and below are both taken: its label
+/// moves a line further out (the second gap of a gap chart, as the mobile variant draws it).
+#[test]
+fn the_label_of_a_low_zone_moves_further_out_when_both_near_places_are_taken() {
+    let spec = r#"{"schemaVersion": 1, "type": "time", "title": "Gaps", "height": 480,
+        "timeAxis": {"kind": "number", "title": "Bar"},
+        "mobile": {"width": 320, "breakpoint": 480, "height": 480},
+        "panes": [{"layers": [
+            {"mark": "ohlc", "name": "Price", "data": [
+                {"time":0,"open":93.6,"high":94.6,"low":92.6,"close":93.6},
+                {"time":1,"open":93.6,"high":95.2,"low":93.2,"close":94.2},
+                {"time":2,"open":94.2,"high":94.9,"low":92.9,"close":93.9},
+                {"time":3,"open":93.9,"high":95.6,"low":93.6,"close":94.6},
+                {"time":4,"open":94.6,"high":96.3,"low":94.3,"close":95.3},
+                {"time":5,"open":95.3,"high":96,"low":94,"close":95},
+                {"time":6,"open":95,"high":96.7,"low":94.7,"close":95.7},
+                {"time":7,"open":95.7,"high":97.4,"low":95.4,"close":96.4},
+                {"time":8,"open":96.4,"high":97.1,"low":95.1,"close":96.1},
+                {"time":9,"open":96.1,"high":97.8,"low":95.8,"close":96.8},
+                {"time":10,"open":96.8,"high":98.5,"low":96.5,"close":97.5},
+                {"time":11,"open":97.5,"high":98.2,"low":96.2,"close":97.2},
+                {"time":12,"open":97.2,"high":98.9,"low":96.9,"close":97.9},
+                {"time":13,"open":97.9,"high":99.6,"low":97.6,"close":98.6},
+                {"time":14,"open":98.6,"high":99.3,"low":97.3,"close":98.3},
+                {"time":15,"open":98.3,"high":100,"low":98,"close":99},
+                {"time":16,"open":99,"high":99.8,"low":97.8,"close":98.8},
+                {"time":17,"open":98.8,"high":100.4,"low":98.4,"close":99.4},
+                {"time":18,"open":99.4,"high":101,"low":99,"close":100},
+                {"time":19,"open":104,"high":105,"low":103.5,"close":104.5},
+                {"time":20,"open":104.5,"high":105.6,"low":104.2,"close":105.3},
+                {"time":21,"open":105.3,"high":106,"low":104.6,"close":104.9},
+                {"time":22,"open":104.9,"high":105.2,"low":103.4,"close":103.8},
+                {"time":23,"open":103.8,"high":104.1,"low":102.3,"close":102.6},
+                {"time":24,"open":102.6,"high":103,"low":101.4,"close":101.9},
+                {"time":25,"open":101.9,"high":102.2,"low":100.6,"close":101},
+                {"time":26,"open":101,"high":102,"low":100.4,"close":101.6},
+                {"time":27,"open":101.6,"high":102.8,"low":101.2,"close":102.5},
+                {"time":28,"open":102.5,"high":103.4,"low":102,"close":103},
+                {"time":29,"open":101.6,"high":101.9,"low":100.9,"close":101.2},
+                {"time":30,"open":101.2,"high":101.7,"low":100.8,"close":101.4},
+                {"time":31,"open":101.4,"high":101.9,"low":101,"close":101.6},
+                {"time":32,"open":101.6,"high":101.95,"low":101.2,"close":101.8}]},
+            {"mark": "band", "from": 29, "to": 32, "bottom": 101.6, "top": 102, "label": "0.21 ATR"},
+            {"mark": "annotation", "time": 29, "label": "Gap"}]}]}"#;
+    let options = RenderOptions {
+        variant: Variant::Mobile,
+        ..RenderOptions::default()
+    };
+    let warnings = render_json(spec, RenderFormat::Svg, &options)
+        .unwrap()
+        .warnings;
+    assert!(
+        warnings
+            .iter()
+            .all(|warning| warning.code != "label_overlap"),
+        "{warnings:?}"
+    );
+}
