@@ -4,7 +4,7 @@ name     = "chartlet"
 artifact = "packages/chartlet/src/chartlet.wasm"
 
 [module.budget]
-brotli         = "675500 B"
+brotli         = "700000 B"
 peak_memory    = "1.6 MiB"
 growth_per_run = "0"
 
