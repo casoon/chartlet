@@ -418,9 +418,14 @@ the order of the layers, zones first — and of the data lines:
   staircase, each beside its own line. A label that finds no line free there tries the other side
   of its line.
 - A **horizontal reference line** writes its label above its left end; then right of the label in
-  its way, above its right end, and below the line at either end.
+  its way, above its right end, and below the line at either end; where none of these is free,
+  along the line between its ends, above it and then below.
 - A **zone** writes its label inside its top corner, then inside its bottom corner, then a line
-  further in from either; a zone too low for a line of text, just above it or below.
+  further in from either; a zone too low for a line of text, just above it or below. Where none of
+  these is free, a zone 20 px or taller also tries the same places at its right edge, and just
+  outside its upper and lower edge.
+- A **measure** writes its label beside its line, as described above. Where that place is not
+  free, the label tries above and below the measure, centred on it and reaching to either side.
 - A **point marker** tries the right of its symbol, then the left, above and below.
 
 Two labels on one line of text keep six pixels between them where there is a choice. When no place

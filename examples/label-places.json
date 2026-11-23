@@ -1,0 +1,564 @@
+{
+  "schemaVersion": 1,
+  "type": "time",
+  "title": "Labels that find a free place",
+  "source": "Illustrative values, chartlet",
+  "width": 720,
+  "height": 520,
+  "mobile": {
+    "width": 380,
+    "height": 520
+  },
+  "timeAxis": {
+    "kind": "number",
+    "title": "Bar"
+  },
+  "panes": [
+    {
+      "valueAxis": {
+        "title": "Price",
+        "decimals": 0
+      },
+      "layers": [
+        {
+          "mark": "ohlc",
+          "name": "Price",
+          "data": [
+            {
+              "time": 0,
+              "open": 100.0,
+              "high": 100.44,
+              "low": 98.76,
+              "close": 99.65
+            },
+            {
+              "time": 1,
+              "open": 99.65,
+              "high": 100.74,
+              "low": 99.3,
+              "close": 100.12
+            },
+            {
+              "time": 2,
+              "open": 100.12,
+              "high": 100.81,
+              "low": 99.59,
+              "close": 99.96
+            },
+            {
+              "time": 3,
+              "open": 99.96,
+              "high": 101.94,
+              "low": 99.55,
+              "close": 100.9
+            },
+            {
+              "time": 4,
+              "open": 100.9,
+              "high": 103.65,
+              "low": 100.08,
+              "close": 102.5
+            },
+            {
+              "time": 5,
+              "open": 102.5,
+              "high": 105.31,
+              "low": 101.43,
+              "close": 104.97
+            },
+            {
+              "time": 6,
+              "open": 104.97,
+              "high": 106.26,
+              "low": 104.39,
+              "close": 105.85
+            },
+            {
+              "time": 7,
+              "open": 105.85,
+              "high": 107.61,
+              "low": 104.98,
+              "close": 106.79
+            },
+            {
+              "time": 8,
+              "open": 106.79,
+              "high": 108.7,
+              "low": 106.44,
+              "close": 108.34
+            },
+            {
+              "time": 9,
+              "open": 108.34,
+              "high": 110.63,
+              "low": 107.76,
+              "close": 109.95
+            },
+            {
+              "time": 10,
+              "open": 109.95,
+              "high": 111.38,
+              "low": 108.93,
+              "close": 110.81
+            },
+            {
+              "time": 11,
+              "open": 110.81,
+              "high": 111.73,
+              "low": 110.04,
+              "close": 110.91
+            },
+            {
+              "time": 12,
+              "open": 110.91,
+              "high": 112.15,
+              "low": 109.73,
+              "close": 111.59
+            },
+            {
+              "time": 13,
+              "open": 111.59,
+              "high": 112.57,
+              "low": 110.82,
+              "close": 111.26
+            },
+            {
+              "time": 14,
+              "open": 111.26,
+              "high": 112.16,
+              "low": 108.79,
+              "close": 109.77
+            },
+            {
+              "time": 15,
+              "open": 109.77,
+              "high": 110.36,
+              "low": 108.68,
+              "close": 109.61
+            },
+            {
+              "time": 16,
+              "open": 109.61,
+              "high": 110.32,
+              "low": 107.5,
+              "close": 108.56
+            },
+            {
+              "time": 17,
+              "open": 108.56,
+              "high": 109.46,
+              "low": 106.72,
+              "close": 107.07
+            },
+            {
+              "time": 18,
+              "open": 107.07,
+              "high": 108.27,
+              "low": 104.77,
+              "close": 105.81
+            },
+            {
+              "time": 19,
+              "open": 105.81,
+              "high": 106.71,
+              "low": 103.66,
+              "close": 103.98
+            },
+            {
+              "time": 20,
+              "open": 103.98,
+              "high": 104.38,
+              "low": 101.43,
+              "close": 101.78
+            },
+            {
+              "time": 21,
+              "open": 101.78,
+              "high": 102.3,
+              "low": 99.01,
+              "close": 99.66
+            },
+            {
+              "time": 22,
+              "open": 99.66,
+              "high": 100.37,
+              "low": 96.9,
+              "close": 97.7
+            },
+            {
+              "time": 23,
+              "open": 97.7,
+              "high": 98.77,
+              "low": 96.97,
+              "close": 97.52
+            },
+            {
+              "time": 24,
+              "open": 97.52,
+              "high": 98.62,
+              "low": 95.63,
+              "close": 96.79
+            },
+            {
+              "time": 25,
+              "open": 96.79,
+              "high": 97.3,
+              "low": 95.58,
+              "close": 96.09
+            },
+            {
+              "time": 26,
+              "open": 96.09,
+              "high": 97.15,
+              "low": 95.79,
+              "close": 96.61
+            },
+            {
+              "time": 27,
+              "open": 96.61,
+              "high": 97.88,
+              "low": 95.46,
+              "close": 97.07
+            },
+            {
+              "time": 28,
+              "open": 97.07,
+              "high": 99.01,
+              "low": 96.16,
+              "close": 98.15
+            },
+            {
+              "time": 29,
+              "open": 98.15,
+              "high": 101.27,
+              "low": 97.07,
+              "close": 100.27
+            },
+            {
+              "time": 30,
+              "open": 100.27,
+              "high": 102.22,
+              "low": 99.88,
+              "close": 101.56
+            },
+            {
+              "time": 31,
+              "open": 101.56,
+              "high": 102.63,
+              "low": 101.07,
+              "close": 102.27
+            },
+            {
+              "time": 32,
+              "open": 102.27,
+              "high": 103.88,
+              "low": 101.97,
+              "close": 103.54
+            },
+            {
+              "time": 33,
+              "open": 103.54,
+              "high": 104.84,
+              "low": 103.21,
+              "close": 104.21
+            },
+            {
+              "time": 34,
+              "open": 104.21,
+              "high": 106.15,
+              "low": 103.69,
+              "close": 105.72
+            },
+            {
+              "time": 35,
+              "open": 105.72,
+              "high": 106.86,
+              "low": 104.66,
+              "close": 106.45
+            },
+            {
+              "time": 36,
+              "open": 106.45,
+              "high": 107.77,
+              "low": 106.07,
+              "close": 107.04
+            },
+            {
+              "time": 37,
+              "open": 107.04,
+              "high": 107.58,
+              "low": 105.96,
+              "close": 107.0
+            },
+            {
+              "time": 38,
+              "open": 107.0,
+              "high": 108.16,
+              "low": 105.15,
+              "close": 105.93
+            },
+            {
+              "time": 39,
+              "open": 105.93,
+              "high": 106.25,
+              "low": 104.73,
+              "close": 105.5
+            },
+            {
+              "time": 40,
+              "open": 105.5,
+              "high": 106.43,
+              "low": 104.82,
+              "close": 105.36
+            },
+            {
+              "time": 41,
+              "open": 105.36,
+              "high": 106.35,
+              "low": 102.74,
+              "close": 103.52
+            },
+            {
+              "time": 42,
+              "open": 103.52,
+              "high": 104.02,
+              "low": 100.74,
+              "close": 101.77
+            },
+            {
+              "time": 43,
+              "open": 101.77,
+              "high": 102.8,
+              "low": 99.89,
+              "close": 100.92
+            },
+            {
+              "time": 44,
+              "open": 100.92,
+              "high": 101.69,
+              "low": 98.16,
+              "close": 98.78
+            }
+          ]
+        },
+        {
+          "mark": "band",
+          "label": "1,50 ATR",
+          "from": 19,
+          "to": 25,
+          "bottom": 100.5,
+          "top": 104.5
+        },
+        {
+          "mark": "annotation",
+          "value": 100,
+          "label": "Invalidation"
+        }
+      ]
+    },
+    {
+      "valueAxis": {
+        "title": "RSI",
+        "decimals": 0,
+        "min": 0,
+        "max": 100
+      },
+      "layers": [
+        {
+          "mark": "line",
+          "name": "RSI",
+          "points": [
+            {
+              "time": 0,
+              "value": 72.43
+            },
+            {
+              "time": 1,
+              "value": 79.08
+            },
+            {
+              "time": 2,
+              "value": 80.43
+            },
+            {
+              "time": 3,
+              "value": 84.74
+            },
+            {
+              "time": 4,
+              "value": 88.81
+            },
+            {
+              "time": 5,
+              "value": 90.56
+            },
+            {
+              "time": 6,
+              "value": 95.37
+            },
+            {
+              "time": 7,
+              "value": 93.54
+            },
+            {
+              "time": 8,
+              "value": 92.51
+            },
+            {
+              "time": 9,
+              "value": 93.89
+            },
+            {
+              "time": 10,
+              "value": 92.81
+            },
+            {
+              "time": 11,
+              "value": 91.31
+            },
+            {
+              "time": 12,
+              "value": 83.5
+            },
+            {
+              "time": 13,
+              "value": 81.87
+            },
+            {
+              "time": 14,
+              "value": 78.06
+            },
+            {
+              "time": 15,
+              "value": 73.59
+            },
+            {
+              "time": 16,
+              "value": 70.96
+            },
+            {
+              "time": 17,
+              "value": 64.82
+            },
+            {
+              "time": 18,
+              "value": 57.87
+            },
+            {
+              "time": 19,
+              "value": 54.87
+            },
+            {
+              "time": 20,
+              "value": 53.18
+            },
+            {
+              "time": 21,
+              "value": 50.94
+            },
+            {
+              "time": 22,
+              "value": 48.91
+            },
+            {
+              "time": 23,
+              "value": 44.83
+            },
+            {
+              "time": 24,
+              "value": 42.85
+            },
+            {
+              "time": 25,
+              "value": 45.34
+            },
+            {
+              "time": 26,
+              "value": 46.26
+            },
+            {
+              "time": 27,
+              "value": 49.99
+            },
+            {
+              "time": 28,
+              "value": 48.94
+            },
+            {
+              "time": 29,
+              "value": 56.74
+            },
+            {
+              "time": 30,
+              "value": 59.49
+            },
+            {
+              "time": 31,
+              "value": 60.64
+            },
+            {
+              "time": 32,
+              "value": 64.62
+            },
+            {
+              "time": 33,
+              "value": 60
+            },
+            {
+              "time": 34,
+              "value": 55
+            },
+            {
+              "time": 35,
+              "value": 50
+            },
+            {
+              "time": 36,
+              "value": 46
+            },
+            {
+              "time": 37,
+              "value": 42
+            },
+            {
+              "time": 38,
+              "value": 40
+            },
+            {
+              "time": 39,
+              "value": 38
+            },
+            {
+              "time": 40,
+              "value": 36
+            },
+            {
+              "time": 41,
+              "value": 35
+            },
+            {
+              "time": 42,
+              "value": 34
+            },
+            {
+              "time": 43,
+              "value": 33
+            },
+            {
+              "time": 44,
+              "value": 34
+            }
+          ]
+        },
+        {
+          "mark": "annotation",
+          "time": 44,
+          "bottom": 29.75,
+          "top": 39.15,
+          "label": "Span"
+        }
+      ]
+    }
+  ],
+  "showValues": false
+}

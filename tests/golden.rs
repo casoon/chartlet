@@ -125,6 +125,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/candle-zones.svg"),
     ),
     (
+        "label-places",
+        include_str!("../examples/label-places.json"),
+        include_str!("../examples/label-places.svg"),
+    ),
+    (
         "sparkline-candles",
         include_str!("../examples/sparkline-candles.json"),
         include_str!("../examples/sparkline-candles.svg"),
@@ -992,6 +997,11 @@ const MOBILE_EXAMPLES: &[(&str, &str, &str)] = &[
         "allometry",
         include_str!("../examples/allometry.json"),
         include_str!("../examples/allometry.mobile.svg"),
+    ),
+    (
+        "label-places",
+        include_str!("../examples/label-places.json"),
+        include_str!("../examples/label-places.mobile.svg"),
     ),
     (
         "genome-scan",

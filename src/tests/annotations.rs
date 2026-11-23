@@ -567,3 +567,48 @@ fn value_labels_keep_off_reference_lines_and_off_each_other() {
     );
     assert!(output.content.contains(">62.5</text>") && !output.content.contains(">63.5</text>"));
 }
+
+/// The `label-places` example with only the annotation at `keep` (pane, layer) left, rendered
+/// full-size and as the mobile variant: the warnings of both.
+fn label_places_warnings(keep: (usize, usize)) -> Vec<String> {
+    let mut spec: serde_json::Value =
+        serde_json::from_str(include_str!("../../examples/label-places.json")).unwrap();
+    for (pane, layers) in [(0, 3), (1, 2)] {
+        for layer in (1..layers).rev().filter(|layer| (pane, *layer) != keep) {
+            spec["panes"][pane]["layers"]
+                .as_array_mut()
+                .unwrap()
+                .remove(layer);
+        }
+    }
+    let spec = serde_json::to_string(&spec).unwrap();
+    [Variant::Desktop, Variant::Mobile]
+        .into_iter()
+        .flat_map(|variant| {
+            let options = RenderOptions {
+                variant,
+                ..RenderOptions::default()
+            };
+            render_json(&spec, RenderFormat::Svg, &options)
+                .unwrap()
+                .warnings
+        })
+        .filter(|warning| warning.code == "label_overlap")
+        .map(|warning| warning.path)
+        .collect()
+}
+
+#[test]
+fn the_label_of_a_measure_at_the_last_bar_goes_above_or_below_it() {
+    assert_eq!(label_places_warnings((1, 1)), Vec::<String>::new());
+}
+
+#[test]
+fn the_label_of_a_tall_zone_is_tried_right_anchored_and_outside() {
+    assert_eq!(label_places_warnings((0, 1)), Vec::<String>::new());
+}
+
+#[test]
+fn the_label_of_a_reference_line_is_tried_along_the_line() {
+    assert_eq!(label_places_warnings((0, 2)), Vec::<String>::new());
+}

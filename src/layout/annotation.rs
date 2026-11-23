@@ -169,9 +169,42 @@ pub(super) fn push_zone(
             .flat_map(|row| [at(top + 14.0 + row * LINE), at(bottom - 6.0 - row * LINE)])
             .collect()
     };
+    let fallbacks = zone_fallbacks((left, right), (top, bottom), &content);
     labels.push(Element::Text(
-        space.settle(candidates, entry, metrics, warnings),
+        space.settle(candidates, fallbacks, entry, metrics, warnings),
     ));
+}
+
+/// The places a zone's label tries only when it has no free one: for a zone 20 px or taller, the
+/// places inside at either edge, then just outside its upper and lower edge.
+fn zone_fallbacks(
+    (left, right): (f64, f64),
+    (top, bottom): (f64, f64),
+    content: &str,
+) -> Vec<Text> {
+    if bottom - top < 20.0 {
+        return Vec::new();
+    }
+    let ends = [
+        (left + 4.0, TextAnchor::Start),
+        (right - 4.0, TextAnchor::End),
+    ];
+    let rows = label_rows(bottom - top - 8.0).min(count(STAGGER_ROWS));
+    let inside = (0..STAGGER_ROWS)
+        .map(count)
+        .take_while(|row| *row < rows)
+        .flat_map(|row| [top + 14.0 + row * LINE, bottom - 6.0 - row * LINE]);
+    inside
+        .chain([top - 5.0, bottom + 13.0])
+        .flat_map(|y| ends.map(|(x, anchor)| (x, y, anchor)))
+        .map(|(x, y, anchor)| Text {
+            x,
+            y,
+            class: "chartlet-rule-label",
+            anchor,
+            content: content.to_owned(),
+        })
+        .collect()
 }
 
 /// How many lines of label text fit into `height` pixels.
@@ -378,6 +411,7 @@ pub(super) fn push_rule(
         anchor,
         content: content.to_owned(),
     };
+    let mut fallbacks = Vec::new();
     let candidates = if let Some(value) = layer.value {
         let y = frame.y(value);
         let content = fit_text(
@@ -401,6 +435,12 @@ pub(super) fn push_rule(
         candidates.push(text(end, y - 6.0, TextAnchor::End, &content));
         candidates.push(text(start, y + LINE, TextAnchor::Start, &content));
         candidates.push(text(end, y + LINE, TextAnchor::End, &content));
+        // Only for a label that has no free place so far: along the line between its ends,
+        // above it, then below.
+        let width = metrics.width(&content, LABEL_SIZE);
+        fallbacks = along_line((start, end), y, width)
+            .map(|(x, y)| text(x, y, TextAnchor::Start, &content))
+            .collect();
         candidates
     } else {
         let x = frame.x(rule_time(layer, frame));
@@ -437,8 +477,19 @@ pub(super) fn push_rule(
             .collect()
     };
     labels.push(Element::Text(
-        space.settle(candidates, entry, metrics, warnings),
+        space.settle(candidates, fallbacks, entry, metrics, warnings),
     ));
+}
+
+/// The places along a horizontal line at `y` from `start` to `end` for a label `width` wide:
+/// every [`RULE_STEP`] above the line, then below it.
+fn along_line((start, end): (f64, f64), y: f64, width: f64) -> impl Iterator<Item = (f64, f64)> {
+    [-6.0, LINE].into_iter().flat_map(move |dy| {
+        (0..)
+            .map(move |step| start + count(step) * RULE_STEP)
+            .take_while(move |x| x + width <= end)
+            .map(move |x| (x, y + dy))
+    })
 }
 
 /// The time of a vertical reference line.
@@ -472,6 +523,8 @@ const MEASURE_GAP: f64 = 8.0;
 const LINE: f64 = 14.0;
 /// How many lines a label steps away from its first place before it gives up.
 const STAGGER_ROWS: usize = 4;
+/// The distance between the places a reference line's label tries along the line.
+const RULE_STEP: f64 = 6.0;
 
 /// One measure as it is placed: its layer, the time and position it measures at, the pixels it
 /// spans, the column it stands in and, once its column is laid out, the width of its label.
@@ -640,12 +693,77 @@ pub(super) fn push_measures(
         if space.labels.iter().any(|other| boxes_overlap(line, *other)) {
             warn_label_overlap(entry, Collision::Label, warnings);
         }
+        let texts = measure_fallback(&texts, (x, top, bottom), right, frame, space, metrics)
+            .unwrap_or(texts);
         for text in texts {
             space.place(&text, entry, true, metrics, warnings);
             labels.push(Element::Text(text));
         }
         space.symbols.push(line);
     }
+}
+
+/// A better place for the label of the measure at `x` between `top` and `bottom`, when the place
+/// beside it collides with something: above or below the measure, centred on it, then reaching
+/// to its either side. `None` when the label is free where it is or no place is.
+fn measure_fallback(
+    texts: &[Text],
+    (x, top, bottom): (f64, f64, f64),
+    right: bool,
+    frame: &TimeFrame,
+    space: &LabelSpace,
+    metrics: &impl TextMetrics,
+) -> Option<Vec<Text>> {
+    let plot = frame.plot;
+    let line: LabelBox = (x - MEASURE_END, top, x + MEASURE_END, bottom);
+    let free = |texts: &[Text]| {
+        texts.iter().all(|text| {
+            let label = label_box(text, metrics);
+            space.collision(label, true).is_none() && !boxes_overlap(line, label)
+        })
+    };
+    if free(texts) {
+        return None;
+    }
+    let content = &texts.first()?.content;
+    let label = if texts.len() == 1 {
+        content.clone()
+    } else {
+        texts
+            .iter()
+            .map(|text| text.content.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    if metrics.width(&label, LABEL_SIZE) > plot.width / 2.0 {
+        return None;
+    }
+    let anchors = if right {
+        [TextAnchor::Middle, TextAnchor::Start, TextAnchor::End]
+    } else {
+        [TextAnchor::Middle, TextAnchor::End, TextAnchor::Start]
+    };
+    let (left, right_edge) = (plot.left, plot.left + plot.width);
+    (0..STAGGER_ROWS)
+        .map(count)
+        .flat_map(|row| [top - 5.0 - row * LINE, bottom + 13.0 + row * LINE])
+        .flat_map(|y| anchors.map(|anchor| (y, anchor)))
+        .map(|(y, anchor)| {
+            // A label reaching to a side starts at the measure's stroke, kept inside the plot.
+            let x = match anchor {
+                TextAnchor::Start => (x - MEASURE_END).max(left),
+                TextAnchor::End => (x + MEASURE_END).min(right_edge),
+                TextAnchor::Middle => x,
+            };
+            vec![Text {
+                x,
+                y,
+                class: "chartlet-rule-label",
+                anchor,
+                content: label.clone(),
+            }]
+        })
+        .find(|candidate| free(candidate))
 }
 
 /// What the columns nearer to its position take from the measure at `index`, on its side: their
