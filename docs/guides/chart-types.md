@@ -1313,7 +1313,8 @@ Limits: 1–40 states with unique `id`s and up to 80 transitions; an unknown `id
 An architecture diagram (`"type": "architecture"`) shows the components of a system, how they
 connect and where they run. It uses the layout of flow charts.
 
-The canvas size is yours: a diagram that needs more room grows the canvas and says so with
+The canvas size is yours: leave `height` out and the canvas takes the height the layout needs. A
+diagram that needs more room than a `height` you give grows the canvas and says so with
 `canvas_too_small`, but one that needs less is not shrunk, so a landscape diagram on a tall canvas
 leaves space above and below. With `orientation` left at `auto`, chartlet takes the orientation that
 grows the canvas least; set `orientation` to pin it, and `width` and `height` to what you want.

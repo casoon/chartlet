@@ -884,6 +884,7 @@ fn render_social(
         show_title: false,
         mobile: None,
         size: None,
+        auto_height: false,
         ..spec.clone()
     };
     let mut warnings = chart.validate_mobile_variant()?;
@@ -1215,6 +1216,18 @@ fn dedupe_warnings(warnings: &mut Vec<ChartWarning>) {
 /// Adds the warnings of the mobile variant that the chart itself does not already report, marked
 /// as coming from the mobile variant.
 fn merge_mobile_warnings(warnings: &mut Vec<ChartWarning>, mut mobile: Vec<ChartWarning>) {
+    // The mobile variant needs a size of its own: its `canvas_too_small` names `mobile.width` or
+    // `mobile.height`, so that the full-size layout does not hide it.
+    for warning in &mut mobile {
+        if warning.code == "canvas_too_small" {
+            let field = warning.path.trim_start_matches('/').to_owned();
+            warning.message = warning.message.replace(
+                &format!("raise {field} to"),
+                &format!("raise mobile.{field} to"),
+            );
+            warning.path = format!("/mobile{}", warning.path);
+        }
+    }
     dedupe_warnings(&mut mobile);
     let reported = warnings
         .iter()

@@ -381,6 +381,13 @@ pub struct ChartSpec {
     /// A second layout for narrow containers. Skipped while absent, like `stripes`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mobile: Option<MobileSpec>,
+    /// Whether the specification left out `height` (and a `size`) of a diagram: the canvas then
+    /// takes the height its layout needs. Set when the specification is read.
+    #[serde(skip)]
+    pub(crate) auto_height: bool,
+    /// The same for `mobile.height`, in the mobile variant.
+    #[serde(skip)]
+    pub(crate) mobile_auto_height: bool,
 }
 
 /// A named canvas size for a destination: documents, slides, print or social previews.
@@ -647,6 +654,15 @@ pub enum ChartType {
 }
 
 impl ChartType {
+    /// Whether a diagram of this type takes the height its layout needs when `height` is left
+    /// out: the types laid out like a flow chart.
+    pub(crate) const fn takes_its_height_from_layout(self) -> bool {
+        matches!(
+            self,
+            Self::Flow | Self::State | Self::Architecture | Self::Classes
+        )
+    }
+
     /// Every chart type, in the order of the specification's documentation.
     pub const ALL: [Self; 37] = [
         Self::Bar,
@@ -988,6 +1004,11 @@ impl ChartSpec {
             if given.get("height").is_none() {
                 spec.height = height;
             }
+        } else if spec.chart_type.takes_its_height_from_layout() {
+            let height_of = |value: &serde_json::Value| value.get("height").is_none();
+            let given: serde_json::Value = serde_json::from_str(input).unwrap_or_default();
+            spec.auto_height = height_of(&given);
+            spec.mobile_auto_height = given.get("mobile").is_some_and(height_of);
         }
         Ok(spec)
     }
@@ -1002,6 +1023,7 @@ impl ChartSpec {
         let mut spec = self.clone();
         spec.width = mobile.width;
         spec.height = mobile.height;
+        spec.auto_height = self.mobile_auto_height;
         if mobile.columns.is_some() {
             spec.columns = mobile.columns;
         }

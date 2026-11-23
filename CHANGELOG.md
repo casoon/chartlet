@@ -35,6 +35,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ### Added
 
+- **Flow charts, state, architecture and class diagrams:** `height` (and `mobile.height`) can be left
+  out: the canvas then takes the height the layout needs, in the SVG and the HTML profile and in the
+  mobile variant, and no `canvas_too_small` is reported for it. The `canvas_too_small` of the
+  mobile variant in the HTML profile now names `/mobile/width` or `/mobile/height`, so that the one
+  of the full-size layout no longer hides it. [Specification](https://casoon.github.io/chartlet/docs/reference/specification/).
 - **State diagrams:** `sameRank` puts states at one position along the flow, and `fromSide` and
   `toSide` on a transition pin the sides it leaves and reaches, as in flow charts.
   [State diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#state-diagrams).

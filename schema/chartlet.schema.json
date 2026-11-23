@@ -335,7 +335,7 @@
       "enum": ["doc", "doc-wide", "slide-16x9", "slide-4x3", "social-og", "social-square", "print-a4-landscape", "print-a3-landscape", "print-letter-landscape"]
     },
     "width": { "type": "integer", "minimum": 200, "maximum": 2400, "default": 800 },
-    "height": { "type": "integer", "minimum": 160, "maximum": 1600, "default": 450 },
+    "height": { "description": "Canvas height in pixels. Flow, state, architecture and class diagrams take the height their layout needs when it is left out and no size is named.", "type": "integer", "minimum": 160, "maximum": 1600, "default": 450 },
     "mobile": {
       "description": "A second layout for narrow containers. The HTML profile shows it below the breakpoint by a container query; the SVG profile renders it with the variant option.",
       "type": "object",
@@ -343,7 +343,7 @@
       "required": ["width"],
       "properties": {
         "width": { "type": "integer", "minimum": 200, "maximum": 600 },
-        "height": { "type": "integer", "minimum": 160, "maximum": 1600, "default": 360 },
+        "height": { "description": "Height of the mobile variant. Flow, state, architecture and class diagrams take the height their layout needs when it is left out.", "type": "integer", "minimum": 160, "maximum": 1600, "default": 360 },
         "breakpoint": {
           "description": "Container width in CSS pixels below which the mobile variant is shown.",
           "type": "integer",

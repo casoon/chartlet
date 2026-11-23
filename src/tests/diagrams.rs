@@ -599,3 +599,145 @@ fn sankey_diagrams_are_validated_by_name() {
         assert_eq!((error.code, error.path.as_str()), (code, path), "{from}");
     }
 }
+
+/// The height of the canvas an SVG is drawn at.
+fn svg_height(svg: &str) -> u32 {
+    let tag = &svg[..svg.find('>').expect("an svg tag")];
+    let after = tag.split(" height=\"").nth(1).expect("a height");
+    after.split('"').next().unwrap().parse().unwrap()
+}
+
+/// Specifications of the diagrams that take the height their layout needs.
+fn diagrams_without_height(extra: &str) -> Vec<String> {
+    let steps = (0..8)
+        .map(|index| format!(r#"{{"id": "s{index}", "label": "Step number {index}"}}"#))
+        .collect::<Vec<_>>()
+        .join(",");
+    let edges = (1..8)
+        .map(|index| {
+            format!(
+                r#"{{"from": "s{}", "to": "s{index}", "label": "next"}}"#,
+                index - 1
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let transitions = (1..8)
+        .map(|index| {
+            format!(
+                r#"{{"from": "s{}", "to": "s{index}", "event": "go"}}"#,
+                index - 1
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let components = (0..6)
+        .map(|index| format!(r#"{{"id": "s{index}", "label": "Part {index}"}}"#))
+        .collect::<Vec<_>>()
+        .join(",");
+    let connections = (1..6)
+        .map(|index| format!(r#"{{"from": "s{}", "to": "s{index}"}}"#, index - 1))
+        .collect::<Vec<_>>()
+        .join(",");
+    vec![
+        format!(
+            r#"{{"schemaVersion": 1, "type": "flow", "title": "F", "width": 600, {extra}
+                "flow": {{"orientation": "portrait", "nodes": [{steps}], "edges": [{edges}]}}}}"#
+        ),
+        format!(
+            r#"{{"schemaVersion": 1, "type": "state", "title": "S", "width": 600, {extra}
+                "state": {{"orientation": "portrait", "states": [{steps}], "transitions": [{transitions}]}}}}"#
+        ),
+        format!(
+            r#"{{"schemaVersion": 1, "type": "architecture", "title": "A", "width": 600, {extra}
+                "architecture": {{"orientation": "portrait", "components": [{components}], "connections": [{connections}]}}}}"#
+        ),
+    ]
+}
+
+#[test]
+fn a_diagram_without_height_takes_the_height_its_layout_needs() {
+    for json in diagrams_without_height(r#""mobile": {"width": 320},"#) {
+        let output = render_ok(&json);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .all(|warning| warning.code != "canvas_too_small"),
+            "{json}: {:?}",
+            output.warnings
+        );
+        let needed = svg_height(&output.content);
+        assert!(needed > 450, "{json}: {needed}");
+        // That height, given, is one the diagram fits and does not grow.
+        let given = json.replacen(
+            "\"mobile\"",
+            &format!("\"height\": {needed}, \"mobile\""),
+            1,
+        );
+        let again = render_ok(&given);
+        assert!(
+            again
+                .warnings
+                .iter()
+                .all(|warning| warning.code != "canvas_too_small")
+        );
+        assert_eq!(svg_height(&again.content), needed, "{json}");
+        // Both profiles and the mobile variant take theirs, without a warning for it.
+        let html =
+            render_json(&json, RenderFormat::Html, &RenderOptions::default()).expect("renders");
+        assert!(
+            html.warnings
+                .iter()
+                .all(|warning| warning.code != "canvas_too_small"),
+            "{json}: {:?}",
+            html.warnings
+        );
+        let mobile = render_json(
+            &json,
+            RenderFormat::Svg,
+            &RenderOptions {
+                variant: Variant::Mobile,
+                ..RenderOptions::default()
+            },
+        )
+        .expect("renders");
+        assert!(
+            mobile
+                .warnings
+                .iter()
+                .all(|warning| warning.code != "canvas_too_small")
+        );
+        assert!(svg_height(&mobile.content) > 360, "{json}");
+    }
+}
+
+#[test]
+fn a_height_that_is_given_is_still_grown_and_reported() {
+    for json in
+        diagrams_without_height(r#""height": 200, "mobile": {"width": 320, "height": 200},"#)
+    {
+        let output = render_ok(&json);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning.code == "canvas_too_small" && warning.path == "/height"),
+            "{json}"
+        );
+        // The HTML profile names the mobile variant's own shortfall, which the full-size
+        // layout's does not hide.
+        let html =
+            render_json(&json, RenderFormat::Html, &RenderOptions::default()).expect("renders");
+        let paths: Vec<&str> = html
+            .warnings
+            .iter()
+            .filter(|warning| warning.code == "canvas_too_small")
+            .map(|warning| warning.path.as_str())
+            .collect();
+        assert!(
+            paths.contains(&"/height") && paths.contains(&"/mobile/height"),
+            "{paths:?}"
+        );
+    }
+}

@@ -401,8 +401,13 @@ pub(crate) fn prefers_landscape(
     landscape: (f64, f64),
 ) -> bool {
     let (width, height) = (f64::from(spec.width), f64::from(spec.height));
+    // Without a `height` the canvas takes the height the layout needs: only the width counts.
     let growth = |(needed_width, needed_height): (f64, f64)| {
-        (needed_width / width).max(needed_height / height)
+        if spec.auto_height {
+            needed_width / width
+        } else {
+            (needed_width / width).max(needed_height / height)
+        }
     };
     growth(portrait) > 1.0 && growth(landscape) < growth(portrait)
 }
@@ -428,7 +433,8 @@ pub(crate) fn warn_growth_advising(
         ("/width", pixels(width), spec.width),
         ("/height", pixels(height), spec.height),
     ] {
-        if needed > given {
+        // A canvas without a `height` is as tall as the layout needs, which is no shortfall.
+        if needed > given && !(spec.auto_height && path == "/height") {
             warnings.push(ChartWarning::new(
                 "canvas_too_small",
                 path,
