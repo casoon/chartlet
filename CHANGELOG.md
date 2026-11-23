@@ -7,6 +7,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-23
+
 ### Breaking
 
 - **Diagrams:** with `styles: "external"`, the HTML figure of a diagram has no `<style>` element

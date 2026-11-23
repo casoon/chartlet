@@ -141,7 +141,7 @@ lists every change by release.
 **One release, one version.** The crate, the CLI, `@casoon/chartlet` and `@casoon/chartlet-mcp` of
 a release carry the same version number, and the schema in `schema/` belongs to it. The packages do
 not need identical versions at run time: `@casoon/chartlet-mcp` depends on `@casoon/chartlet` with a
-caret range, which before 1.0 means the same minor (`^0.25.0` accepts `0.25.x`). Its bundled schema
+caret range, which before 1.0 means the same minor (`^0.26.0` accepts `0.26.x`). Its bundled schema
 and the renderer are therefore always from the same minor, and a patch of the renderer never
 changes the specification.
 
@@ -191,9 +191,9 @@ diff when you move to a new minor; do not expect committed output to stay identi
 entity-relationship diagrams and the flow presets) may change its specification or its layout in any
 minor release, and says so in the changelog.
 
-**Before 1.0.** A minor release (0.25 to 0.26) may change the specification, remove a type or an
-option, and change output; a patch release (0.25.0 to 0.25.1) fixes defects only. Pin `0.25.x`
-(`~0.25.0`, or an exact version for reproducible output) and move between minors deliberately. The
+**Before 1.0.** A minor release (0.26 to 0.27) may change the specification, remove a type or an
+option, and change output; a patch release (0.26.0 to 0.26.1) fixes defects only. Pin `0.26.x`
+(`~0.26.0`, or an exact version for reproducible output) and move between minors deliberately. The
 `schemaVersion` of the specification stays `1` until a change cannot be expressed in it, and a
 different value is refused with `unsupported_schema_version`.
 
