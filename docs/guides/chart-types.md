@@ -1071,7 +1071,12 @@ releases.
   `sublabel` adds a smaller second line; a long label wraps onto two.
 - **Edges** may carry a `label` and a `dash` (`solid`, `dashed`, `dotted`). They may form cycles —
   a retry, a loop back for changes — and an edge from a step to itself is drawn as a loop beside
-  it. Say what an edge means in its label; the line pattern only repeats it.
+  it. Say what an edge means in its label; the line pattern only repeats it. A label stands where
+  its edge leaves its step; where another edge crosses it there, or runs nearer to it than the
+  edge it belongs to, it moves along its own edge to a stretch that no other edge crosses, beside
+  the line or on it. Where no stretch has room, it keeps its first place and the render reports
+  `label_overlap` at the label. The same holds for state diagrams, architecture diagrams and class
+  diagrams.
 - **The main path** names the usual way through the flow as step ids joined by edges, or only its
   ends, `"mainPath": {"from": "draft", "to": "live"}`: chartlet then takes the shortest way along
   the edges (at a tie the first in the order of the edges). The layout follows the path: its

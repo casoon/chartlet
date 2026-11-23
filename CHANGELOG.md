@@ -27,6 +27,11 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   back to an earlier node of the path is the one drawn against the flow; before, the order of the
   edges decided. [State diagrams](https://casoon.github.io/chartlet/docs/guides/chart-types/#state-diagrams).
 
+- **Flow charts, state diagrams, architecture diagrams, class diagrams:** an edge label no longer
+  covers another edge or stands nearer to one than to its own: it moves along its own edge to a
+  stretch that no other edge crosses, beside the line or on it, and `label_overlap` reports the
+  labels for which no such stretch has room. [Flow charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
+
 ### Added
 
 - **State diagrams:** `sameRank` puts states at one position along the flow, and `fromSide` and

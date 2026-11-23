@@ -3,6 +3,7 @@
 
 use super::{
     LINE, LOOP, SOCKET,
+    labels::{Lines, overlap},
     measure::Model,
     model::{End, Ends, Shape},
     place::Plan,
@@ -10,6 +11,7 @@ use super::{
 };
 use crate::{
     diagram::{self, CHIP_LINE, CHIP_REACH, HEAD, arrowhead, chip_box_tech, chip_tech, rounded},
+    error::ChartWarning,
     layout::count,
     metrics::TextMetrics,
     scene::{Element, Text, TextAnchor},
@@ -143,13 +145,15 @@ fn end_text(text: &str, end: End, at: (f64, f64), direction: (f64, f64)) -> Text
 
 /// An edge label waiting to be drawn: its lines, the first baseline and how it is anchored.
 pub(super) struct Label {
-    lines: Vec<String>,
+    /// The edge it labels; `None` for the label of a loop, which stands beside its loop.
+    edge: Option<usize>,
+    pub(super) lines: Vec<String>,
     /// The technology the last line ends in, set in monospace.
-    tech: Option<String>,
+    pub(super) tech: Option<String>,
     /// The focus classes of the edge it labels.
     classes: String,
-    at: (f64, f64),
-    anchor: TextAnchor,
+    pub(super) at: (f64, f64),
+    pub(super) anchor: TextAnchor,
     /// Where the line it labels runs across the page, when the label stands beside it and may
     /// move to its other side.
     beside: Option<f64>,
@@ -226,6 +230,7 @@ impl Plan {
             .filter(|pair| (pair[0].1 - pair[1].1).abs() < 0.5)
             .max_by(|a, b| (a[0].0 - a[1].0).abs().total_cmp(&(b[0].0 - b[1].0).abs()))?;
         Some(Label {
+            edge: Some(edge),
             lines: lines.to_vec(),
             tech: model.edge_tech[edge].clone(),
             classes: model.edge_classes(edge),
@@ -440,6 +445,7 @@ impl Plan {
         };
         let (line, _) = self.page(route.label_at);
         labels.push(Label {
+            edge: Some(edge),
             lines: lines.clone(),
             tech: model.edge_tech[edge].clone(),
             classes: model.edge_classes(edge),
@@ -451,16 +457,20 @@ impl Plan {
         });
     }
 
-    /// Draws the edge labels over all edges, each moved along the flow until it no longer covers
-    /// one drawn before it.
+    /// Draws the edge labels over all edges. Each stands where its edge leaves its step, moved
+    /// along the flow until it no longer covers a step or a label drawn before it. Where it would
+    /// then cover another edge, or stand closer to one than to its own, it moves to the first
+    /// stretch of its own edge that takes it, beside the line or on it; where none does, it stays
+    /// and is reported as `label_overlap`.
     pub(super) fn draw_labels(
         &self,
         model: &Model,
         labels: Vec<Label>,
         metrics: &impl TextMetrics,
-        elements: &mut Vec<Element>,
+        (warnings, elements): (&mut Vec<ChartWarning>, &mut Vec<Element>),
     ) -> (f64, f64) {
         const AIR: f64 = 3.0;
+        let ways = Lines::new(self);
         let mut reach = (0.0_f64, 0.0_f64);
         // Labels keep clear of the steps as well as of each other.
         let mut placed: Vec<(f64, f64, f64, f64)> = (0..model.diagram.nodes.len())
@@ -520,13 +530,46 @@ impl Plan {
                     label.at.1 += other.1 + other.3 + AIR - y;
                 }
             }
-            let placed_at = chip_box_tech(
-                &label.lines,
-                label.tech.as_deref(),
-                label.at,
-                label.anchor,
-                metrics,
-            );
+            if let Some(edge) = label
+                .edge
+                .filter(|edge| !ways.reads_as(*edge, label.plate(metrics)))
+            {
+                let (_, _, width, height) = label.plate(metrics);
+                let free = |rect: (f64, f64, f64, f64)| {
+                    rect.0 >= 2.0
+                        && rect.1 >= 2.0
+                        && rect.0 + rect.2 <= self.width - 2.0
+                        && rect.1 + rect.3 <= self.height - 2.0
+                        && !placed
+                            .iter()
+                            .chain(&borders)
+                            .any(|other| overlap(rect, *other, AIR))
+                        && ways.reads_as(edge, rect)
+                };
+                let place = ways
+                    .candidates(edge, (width, height), label.gap)
+                    .into_iter()
+                    .find(|(at, anchor)| {
+                        free(chip_box_tech(
+                            &label.lines,
+                            label.tech.as_deref(),
+                            *at,
+                            *anchor,
+                            metrics,
+                        ))
+                    });
+                match place {
+                    Some((at, anchor)) => (label.at, label.anchor) = (at, anchor),
+                    None => {
+                        warnings.push(ChartWarning::new(
+                        "label_overlap",
+                        model.diagram.edges[edge].label_path.clone(),
+                        "the label covers another edge or stands closer to one than to its own, and no stretch of its own edge has room for it; shorten the label, give the diagram more room, or remove an edge that runs beside this one",
+                    ))
+                    }
+                }
+            }
+            let placed_at = label.plate(metrics);
             reach = (
                 reach.0.max(placed_at.0 + placed_at.2),
                 reach.1.max(placed_at.1 + placed_at.3),
@@ -616,6 +659,7 @@ impl Plan {
                 CHIP_LINE * count(lines.len() - 1) / 2.0
             };
             labels.push(Label {
+                edge: None,
                 lines: lines.clone(),
                 tech: None,
                 classes: model.node_classes(node),

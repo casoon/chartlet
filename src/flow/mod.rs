@@ -14,6 +14,7 @@ mod edges;
 mod frames;
 mod gaps;
 mod graph;
+mod labels;
 mod measure;
 mod model;
 mod nodes;
