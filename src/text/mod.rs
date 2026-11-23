@@ -21,10 +21,9 @@ pub(crate) use charts::{
     parliament_summary, percent_done, pointfigure_highlights, pointfigure_summary, polar_summary,
     pyramid_summary, radar_series, radar_summary, range_groups, rangebar_opening, rank_summary,
     sankey_summary, scatter_sizes, series_at, series_at_position, slope_summary, stacked_areas,
-    stacked_shares, stacked_totals,
-    stripes_opening, summary_ranges, time_opening, timeline_item, timeline_markers,
-    timeline_opening, treemap_summary, waffle_summary, waterfall_summary, weighted_ranges,
-    years_without_value, zone_times, zone_values,
+    stacked_shares, stacked_totals, stripes_opening, summary_ranges, time_opening, timeline_item,
+    timeline_markers, timeline_opening, treemap_summary, waffle_summary, waterfall_summary,
+    weighted_ranges, years_without_value, zone_times, zone_values,
 };
 pub(crate) use diagrams::{
     DeltaField, DeltaKind, area_kind, bottlenecks, choices, closest_pair, composite, cycle_hub,
