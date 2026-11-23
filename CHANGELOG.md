@@ -31,6 +31,7 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   covers another edge or stands nearer to one than to its own: it moves along its own edge to a
   stretch that no other edge crosses, beside the line or on it, and `label_overlap` reports the
   labels for which no such stretch has room. [Flow charts](https://casoon.github.io/chartlet/docs/guides/chart-types/#flow-charts).
+- **Pages:** the project site uses the current shared theme (0.16.4).
 
 ### Added
 
