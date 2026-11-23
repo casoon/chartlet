@@ -175,27 +175,31 @@ pub(super) fn push_zone(
     ));
 }
 
-/// The places a zone's label tries only when it has no free one: for a zone 20 px or taller, the
-/// places inside at either edge, then just outside its upper and lower edge.
+/// The places a zone's label tries only when it has no free one, each at either edge: for a zone
+/// 20 px or taller, the places inside, then just outside its upper and lower edge; for a lower
+/// zone, just above and below it, then a line further out each time.
 fn zone_fallbacks(
     (left, right): (f64, f64),
     (top, bottom): (f64, f64),
     content: &str,
 ) -> Vec<Text> {
-    if bottom - top < 20.0 {
-        return Vec::new();
-    }
     let ends = [
         (left + 4.0, TextAnchor::Start),
         (right - 4.0, TextAnchor::End),
     ];
-    let rows = label_rows(bottom - top - 8.0).min(count(STAGGER_ROWS));
-    let inside = (0..STAGGER_ROWS)
-        .map(count)
-        .take_while(|row| *row < rows)
-        .flat_map(|row| [top + 14.0 + row * LINE, bottom - 6.0 - row * LINE]);
-    inside
-        .chain([top - 5.0, bottom + 13.0])
+    let rows = (0..STAGGER_ROWS).map(count);
+    let places: Vec<f64> = if bottom - top < 20.0 {
+        rows.flat_map(|row| [top - 5.0 - row * LINE, bottom + 13.0 + row * LINE])
+            .collect()
+    } else {
+        let inside = label_rows(bottom - top - 8.0).min(count(STAGGER_ROWS));
+        rows.take_while(|row| *row < inside)
+            .flat_map(|row| [top + 14.0 + row * LINE, bottom - 6.0 - row * LINE])
+            .chain([top - 5.0, bottom + 13.0])
+            .collect()
+    };
+    places
+        .into_iter()
         .flat_map(|y| ends.map(|(x, anchor)| (x, y, anchor)))
         .map(|(x, y, anchor)| Text {
             x,
