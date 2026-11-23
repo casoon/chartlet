@@ -585,7 +585,6 @@ impl Plan {
         metrics: &impl TextMetrics,
     ) -> Option<Fault> {
         const AIR: f64 = 3.0;
-        let (_, _, width, height) = label.plate(metrics);
         let free = |rect: Rect| {
             rect.0 >= 2.0
                 && rect.1 >= 2.0
@@ -597,23 +596,34 @@ impl Plan {
                     .chain(avoid.1)
                     .any(|other| overlap(rect, *other, AIR))
         };
-        let mut best: Option<(Fault, (f64, f64), TextAnchor)> = None;
-        for (at, anchor) in ways.candidates(edge, (width, height), label.gap) {
-            let rect = chip_box_tech(&label.lines, label.tech.as_deref(), at, anchor, metrics);
-            if !free(rect) {
-                continue;
-            }
-            let Some(found) = ways.fault(edge, rect) else {
-                (label.at, label.anchor) = (at, anchor);
-                return None;
-            };
-            if found < fault && best.is_none_or(|(least, ..)| found < least) {
-                best = Some((found, at, anchor));
+        // The label as written first, then broken at its spaces onto two lines, a narrower plate.
+        let wrapped = wrap_lines(&label.lines);
+        let mut best: Option<Fallback> = None;
+        for lines in std::iter::once(label.lines.clone()).chain(wrapped) {
+            let plate = chip_box_tech(
+                &lines,
+                label.tech.as_deref(),
+                label.at,
+                label.anchor,
+                metrics,
+            );
+            for (at, anchor) in ways.candidates(edge, (plate.2, plate.3), label.gap) {
+                let rect = chip_box_tech(&lines, label.tech.as_deref(), at, anchor, metrics);
+                if !free(rect) {
+                    continue;
+                }
+                let Some(found) = ways.fault(edge, rect) else {
+                    (label.lines, label.at, label.anchor) = (lines, at, anchor);
+                    return None;
+                };
+                if found < fault && best.as_ref().is_none_or(|(least, ..)| found < *least) {
+                    best = Some((found, lines.clone(), at, anchor));
+                }
             }
         }
         match best {
-            Some((found, at, anchor)) => {
-                (label.at, label.anchor) = (at, anchor);
+            Some((found, lines, at, anchor)) => {
+                (label.lines, label.at, label.anchor) = (lines, at, anchor);
                 Some(found)
             }
             None => Some(fault),
@@ -702,4 +712,31 @@ impl Plan {
             });
         }
     }
+}
+
+/// The place a label takes where none is free: its fault, its lines, its text and its anchor.
+type Fallback = (Fault, Vec<String>, (f64, f64), TextAnchor);
+
+/// The line of a label broken at the space nearest its middle, so that the plate
+/// gets narrower; `None` for a label of several lines or without a space.
+fn wrap_lines(lines: &[String]) -> Option<Vec<String>> {
+    if lines.len() != 1 || !lines[0].contains(' ') {
+        return None;
+    }
+    Some(
+        lines
+            .iter()
+            .flat_map(|line| {
+                let middle = line.chars().count() / 2;
+                let split = line
+                    .char_indices()
+                    .filter(|(_, c)| *c == ' ')
+                    .min_by_key(|(at, _)| line[..*at].chars().count().abs_diff(middle));
+                match split {
+                    Some((at, _)) => vec![line[..at].to_string(), line[at + 1..].to_string()],
+                    None => vec![line.clone()],
+                }
+            })
+            .collect(),
+    )
 }

@@ -1526,3 +1526,28 @@ fn a_label_without_a_free_place_takes_the_least_serious_one_and_names_the_fault(
         "{message}"
     );
 }
+
+/// The state diagram of issue 72 (case 4): on a phone the label "verworfen (B)" has no place of
+/// its own beside the dashed edge in one line, and stood on the main path.
+#[test]
+fn a_dropped_label_breaks_onto_two_lines_to_fit_beside_its_edge_on_a_phone() {
+    let output = phone(
+        r#"{"schemaVersion": 1, "type": "state", "locale": "de", "look": "editorial", "title": "Zust\u00e4nde und \u00dcberg\u00e4nge bei offener Ausrichtung", "state": {"states": [{"id": "none", "label": "Keine Spanne"}, {"id": "a", "label": "Phase A"}, {"id": "b", "label": "Phase B"}, {"id": "c-accumulation", "label": "Phase C", "sublabel": "Akkumulation"}, {"id": "c-distribution", "label": "Phase C", "sublabel": "Distribution"}, {"id": "e-accumulation-distribution", "label": "Phase E", "sublabel": "beide Seiten"}], "transitions": [{"from": "none", "to": "a", "event": "Fensterbreite"}, {"from": "a", "to": "c-accumulation", "event": "Spring", "action": "Akkumulation", "toSide": "left"}, {"from": "a", "to": "c-distribution", "event": "UTAD", "action": "Distribution"}, {"from": "a", "to": "none", "event": "verworfen (A)", "dash": "dashed", "fromSide": "right", "toSide": "left"}, {"from": "a", "to": "b", "event": "ST"}, {"from": "b", "to": "c-accumulation", "event": "Spring", "action": "Akkumulation", "fromSide": "left", "toSide": "right"}, {"from": "b", "to": "c-distribution", "event": "UTAD", "action": "Distribution"}, {"from": "b", "to": "none", "event": "verworfen (B)", "dash": "dashed"}, {"from": "b", "to": "b", "event": "ST"}, {"from": "e-accumulation-distribution", "to": "a", "event": "Fensterbreite"}], "mainPath": ["none", "a", "b"], "orientation": "portrait"}, "mobile": {"width": 360}}"#,
+    );
+    assert!(
+        output
+            .warnings
+            .iter()
+            .all(|warning| warning.code != "label_overlap"),
+        "{:?}",
+        output.warnings
+    );
+    let (plates, ways) = plates_and_ways(&output.content);
+    for (text, plate) in &plates {
+        let on_main = ways
+            .iter()
+            .any(|(_, main, piece)| *main && crosses(*plate, *piece));
+        assert!(!on_main, "{text} stands on the main path");
+    }
+    assert!(output.content.contains(">verworfen</text>"));
+}

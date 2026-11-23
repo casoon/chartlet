@@ -17,7 +17,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   moves to the place with the least serious fault, never onto the main path, and its
   `label_overlap` warning says whether it would cover another edge, cover an arrowhead, cover the
   main path or stand closer to another edge than to its own. Labels that are free of overlap do
-  not move.
+  not move. A one-line label that finds no place breaks at its middle space onto two lines and
+  tries the narrower plate along its edge before that.
 
 ## [0.26.0] - 2026-11-23
 
