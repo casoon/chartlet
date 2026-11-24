@@ -60,6 +60,8 @@ pub(crate) struct Node {
     /// The node's category in the perspective a diagram shows, as the class of the stripe drawn
     /// across the bottom of its box and the category's name.
     pub category: Option<(&'static str, String)>,
+    /// A longer explanation, added to the node's tooltip below its name.
+    pub detail: Option<String>,
 }
 
 impl Node {
@@ -255,6 +257,7 @@ impl Diagram {
                     tag: node.tag.clone(),
                     role: node.role,
                     category: None,
+                    detail: node.detail.clone(),
                 })
                 .collect(),
             edges: flow
@@ -357,6 +360,7 @@ impl Diagram {
             sides: Sides::default(),
         });
         self.nodes.push(Node {
+            detail: None,
             label: text.to_owned(),
             sublabel: None,
             shape: Shape::Note,

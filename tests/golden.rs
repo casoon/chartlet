@@ -760,6 +760,11 @@ const EXAMPLES: &[(&str, &str, &str)] = &[
         include_str!("../examples/editorial-flow.svg"),
     ),
     (
+        "support-triage",
+        include_str!("../examples/support-triage.json"),
+        include_str!("../examples/support-triage.svg"),
+    ),
+    (
         "editorial-flow-dark",
         include_str!("../examples/editorial-flow-dark.json"),
         include_str!("../examples/editorial-flow-dark.svg"),

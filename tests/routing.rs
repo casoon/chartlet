@@ -37,6 +37,7 @@ const BASELINE: &[(&str, &str, usize, u32, usize)] = &[
     ("editorial-dense-flow", "desktop", 0, 3661, 0),
     ("editorial-flow", "desktop", 0, 923, 0),
     ("editorial-flow", "mobile", 0, 1038, 0),
+    ("support-triage", "desktop", 0, 558, 0),
     ("editorial-flow-dark", "desktop", 0, 923, 0),
     ("editorial-states", "desktop", 0, 512, 0),
     ("editorial-states", "mobile", 0, 540, 0),

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "type": "flow",
+  "title": "Triage of a support ticket",
+  "source": "Illustrative support process",
+  "flow": {
+    "nodes": [
+      { "id": "ticket", "label": "Ticket arrives", "kind": "start", "detail": "Mail, chat and the web form all open a ticket.\nThe customer gets an automatic receipt." },
+      { "id": "urgent", "label": "Service down?", "kind": "decision", "detail": "Down means the customer cannot log in or a paid feature fails for every user of the account." },
+      { "id": "page", "label": "Page the on-call engineer", "detail": "Within 15 minutes, day and night.\nThe engineer owns the ticket until the service is back." },
+      { "id": "queue", "label": "Queue by product", "detail": "Billing, account and integrations each have a queue of their own; the first answer is due within one working day." },
+      { "id": "solved", "label": "Answered", "kind": "end" }
+    ],
+    "edges": [
+      { "from": "ticket", "to": "urgent" },
+      { "from": "urgent", "to": "page", "label": "yes" },
+      { "from": "urgent", "to": "queue", "label": "no" },
+      { "from": "page", "to": "solved" },
+      { "from": "queue", "to": "solved" }
+    ],
+    "mainPath": ["ticket", "urgent", "queue", "solved"]
+  }
+}

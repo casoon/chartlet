@@ -9,6 +9,8 @@ pub(crate) const MAX_NODES: usize = 40;
 pub(crate) const MAX_EDGES: usize = 80;
 pub(crate) const MAX_LANES: usize = 8;
 pub(crate) const MAX_GROUPS: usize = 8;
+/// Characters of a step's `detail`: room for a short briefing, not for a document.
+pub(crate) const MAX_DETAIL: usize = 1200;
 
 /// A flow chart: steps joined by arrows, laid out in layers along the direction of the flow,
 /// optionally in lanes and framed in groups.
@@ -205,6 +207,10 @@ pub struct FlowNodeSpec {
     /// the tag its kind carries.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tag: Option<String>,
+    /// A longer explanation of the step, shown on hover as its tooltip and listed in the data
+    /// table; it takes no room in the drawing. Line breaks are kept.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
     #[serde(default, skip_serializing_if = "NodeKind::is_process")]
     pub kind: NodeKind,
     /// The `id` of the lane the step belongs to; required once the chart has lanes.
@@ -823,6 +829,9 @@ impl FlowSpec {
             }
             if let Some(tag) = &node.tag {
                 validate_text(tag, &format!("{path}/tag"), crate::spec::MAX_TAG)?;
+            }
+            if let Some(detail) = &node.detail {
+                validate_text(detail, &format!("{path}/detail"), MAX_DETAIL)?;
             }
             match (&node.lane, self.lanes.is_empty()) {
                 (None, false) => {

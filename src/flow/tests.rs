@@ -1551,3 +1551,62 @@ fn a_dropped_label_breaks_onto_two_lines_to_fit_beside_its_edge_on_a_phone() {
     }
     assert!(output.content.contains(">verworfen</text>"));
 }
+
+#[test]
+fn a_detail_extends_the_tooltip_and_fills_a_column_without_moving_anything() {
+    let with = SPEC.replace(
+        r#"{"id": "edit", "label": "Edit"}"#,
+        r#"{"id": "edit", "label": "Edit", "detail": "At most two rounds.\nThen a second reader."}"#,
+    );
+    let (plain, detailed) = (svg(SPEC), svg(&with));
+    assert!(detailed.warnings.is_empty(), "{:?}", detailed.warnings);
+    assert!(
+        detailed
+            .content
+            .contains("<title>Edit\nAt most two rounds.\nThen a second reader.</title>"),
+        "{}",
+        detailed.content
+    );
+    // Only the tooltip and the ID (a hash of the specification) change: the drawing keeps every
+    // position.
+    let id = |content: &str| content.split("id=\"").nth(1).expect("an id")[..25].to_owned();
+    let strip = |content: &str, title: &str| content.replace(&id(content), "").replace(title, "");
+    let (before, after) = (
+        strip(&plain.content, "<title>Edit</title>"),
+        strip(
+            &detailed.content,
+            "<title>Edit\nAt most two rounds.\nThen a second reader.</title>",
+        ),
+    );
+    assert!(before == after, "the drawing changed");
+    let spec: ChartSpec = serde_json::from_str(&with).expect("valid");
+    let table = super::describe::data_table(&spec);
+    assert_eq!(table.columns.last().map(String::as_str), Some("Details"));
+    assert!(
+        table
+            .rows
+            .iter()
+            .any(|row| row[0] == "Edit"
+                && row.last().is_some_and(|cell| cell.starts_with("At most")))
+    );
+    assert!(
+        table
+            .rows
+            .iter()
+            .any(|row| row[0] == "Draft" && row.last().is_some_and(String::is_empty))
+    );
+}
+
+#[test]
+fn a_detail_must_hold_visible_text_within_its_limit() {
+    for (detail, code) in [("   ", "empty_text"), (&*"x".repeat(1201), "text_too_long")] {
+        let with = SPEC.replace(
+            r#"{"id": "edit", "label": "Edit"}"#,
+            &format!(r#"{{"id": "edit", "label": "Edit", "detail": "{detail}"}}"#),
+        );
+        let error = render_json(&with, RenderFormat::Svg, &RenderOptions::default())
+            .expect_err("the detail is rejected");
+        assert_eq!(error.code, code);
+        assert_eq!(error.path, "/flow/nodes/2/detail");
+    }
+}

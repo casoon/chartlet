@@ -46,6 +46,7 @@ impl Diagram {
     /// line; the layout stands it in the first layer of the group's steps.
     fn push_frame_note(&mut self, group: usize, text: &str, path: String) {
         self.nodes.push(Node {
+            detail: None,
             label: text.to_owned(),
             sublabel: None,
             shape: Shape::Note,

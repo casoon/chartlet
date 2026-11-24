@@ -7,6 +7,13 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-24
+
+### Added
+
+- **Flow charts:** `detail` on a step, a longer explanation shown on hover below the step's name
+  and listed in a Details column of the data table.
+
 ### Fixed
 
 - **Time charts:** the label of a zone lower than 20 px, whose places just above and below it are
