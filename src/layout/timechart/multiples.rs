@@ -2,7 +2,7 @@
 
 use super::{
     MULTIPLES_MARGIN,
-    axes::{fitted_unit, push_time_ticks, push_value_grid},
+    axes::{AXIS_TITLE_LINES, fitted_unit, push_time_ticks, push_value_grid},
     frame::{Detail, TimeFrame, time_axis, time_scale},
     marks::draw_pane,
     time_tick_spacing,
@@ -10,8 +10,8 @@ use super::{
 use crate::{
     error::ChartWarning,
     layout::{
-        LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PANEL_GUTTER, PANEL_MARGIN, PlotArea, count,
-        fit_text,
+        LABEL_LINE, LABEL_SIZE, LEGEND_HEIGHT, LEGEND_ROW, PANEL_GUTTER, PANEL_MARGIN, PlotArea,
+        count, fit_text,
         legend::{add_layer_legend, legend_rows},
         panel_plot_pixels,
         title::{push_title, title_extra},
@@ -55,21 +55,26 @@ pub(in crate::layout) fn multiples_header(
         cursor += count(legend_rows(spec, width - 2.0 * MULTIPLES_MARGIN, metrics)) * LEGEND_HEIGHT;
     }
     if let Some(axis_title) = &spec.value_axis.title {
-        elements.push(Element::Text(Text {
-            x: MULTIPLES_MARGIN,
-            y: cursor + 10.0,
-            class: "chartlet-axis-title",
-            anchor: TextAnchor::Start,
-            content: fit_text(
-                axis_title,
-                width - 2.0 * MULTIPLES_MARGIN,
-                LABEL_SIZE,
-                metrics,
-                warnings,
-                "/valueAxis/title",
-            ),
-        }));
-        cursor += 20.0;
+        let lines = crate::layers::wrap_lines(
+            axis_title,
+            width - 2.0 * MULTIPLES_MARGIN,
+            LABEL_SIZE,
+            AXIS_TITLE_LINES,
+            metrics,
+            warnings,
+            "/valueAxis/title",
+        );
+        let further = count(lines.len() - 1) * LABEL_LINE;
+        for (index, content) in lines.into_iter().enumerate() {
+            elements.push(Element::Text(Text {
+                x: MULTIPLES_MARGIN,
+                y: cursor + 10.0 + count(index) * LABEL_LINE,
+                class: "chartlet-axis-title",
+                anchor: TextAnchor::Start,
+                content,
+            }));
+        }
+        cursor += 20.0 + further;
     }
     cursor + 8.0
 }

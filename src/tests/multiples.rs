@@ -125,6 +125,37 @@ fn small_multiples_share_one_scale_and_one_legend() {
 }
 
 #[test]
+fn a_long_shared_value_axis_title_wraps_above_the_panels() {
+    let title = "Emissionen je Sektor in Millionen Tonnen Kohlendioxid-Äquivalent";
+    let spec = multiples(&[panel("Energy", 2.0), panel("Industry", 1.0)].join(","))
+        .replace("\"Emissions\"", &format!("\"{title}\""))
+        .replacen('{', r#"{"mobile": {"width": 320},"#, 1);
+    let options = RenderOptions {
+        variant: Variant::Mobile,
+        ..RenderOptions::default()
+    };
+    let output = render_json(&spec, RenderFormat::Svg, &options).unwrap();
+    assert!(
+        output
+            .warnings
+            .iter()
+            .all(|warning| warning.path != "/valueAxis/title"),
+        "{:?}",
+        output.warnings
+    );
+    let lines = placed_texts(&output.content, "chartlet-axis-title");
+    assert!(lines.len() > 1, "{lines:?}");
+    let words: Vec<&str> = lines.iter().map(|(_, _, line)| line.as_str()).collect();
+    assert_eq!(words.join(" "), title);
+    // The panels start below the last line.
+    let first_panel = placed_texts(&output.content, "chartlet-panel-title");
+    assert!(
+        first_panel[0].1 > lines[lines.len() - 1].1 + 12.0,
+        "{first_panel:?}"
+    );
+}
+
+#[test]
 fn small_multiples_are_validated_by_name() {
     let two = [panel("A", 1.0), panel("B", 1.0)].join(",");
     assert_eq!(

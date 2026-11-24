@@ -4,7 +4,7 @@
 use super::{frame::TimeFrame, time_tick_spacing};
 use crate::{
     error::ChartWarning,
-    layout::{LABEL_SIZE, PlotArea, fit_text},
+    layout::{LABEL_LINE, LABEL_SIZE, PlotArea, count, fit_text},
     metrics::TextMetrics,
     scene::{Element, Line, Text, TextAnchor},
     spec::{ChartSpec, Stack},
@@ -267,20 +267,59 @@ pub(super) fn push_pane_axes(
         elements,
     );
 
-    if let Some(title) = spec.panes[pane_index].value_axis.title.as_deref() {
+    let lines = pane_title_lines(spec, pane_index, plot.width, metrics, warnings);
+    let last = count(lines.len().saturating_sub(1));
+    for (index, content) in lines.into_iter().enumerate() {
         elements.push(Element::Text(Text {
             x: plot.left,
-            y: plot.top - 20.0,
+            y: plot.top - 20.0 - (last - count(index)) * LABEL_LINE,
             class: "chartlet-axis-title",
             anchor: TextAnchor::Start,
-            content: fit_text(
+            content,
+        }));
+    }
+}
+
+/// The most lines a value axis title takes above its pane.
+pub(in crate::layout) const AXIS_TITLE_LINES: usize = 3;
+
+/// The value axis title of a pane on as many lines as `width` needs, up to
+/// [`AXIS_TITLE_LINES`]; empty without a title.
+fn pane_title_lines(
+    spec: &ChartSpec,
+    pane_index: usize,
+    width: f64,
+    metrics: &impl TextMetrics,
+    warnings: &mut Vec<ChartWarning>,
+) -> Vec<String> {
+    spec.panes[pane_index]
+        .value_axis
+        .title
+        .as_deref()
+        .map(|title| {
+            crate::layers::wrap_lines(
                 title,
-                plot.width,
+                width,
                 LABEL_SIZE,
+                AXIS_TITLE_LINES,
                 metrics,
                 warnings,
                 &format!("/panes/{pane_index}/valueAxis/title"),
-            ),
-        }));
-    }
+            )
+        })
+        .unwrap_or_default()
+}
+
+/// How far each pane moves down for the lines of its value axis title beyond the first.
+pub(super) fn pane_title_room(
+    spec: &ChartSpec,
+    width: f64,
+    metrics: &impl TextMetrics,
+) -> Vec<f64> {
+    (0..spec.panes.len())
+        .map(|pane_index| {
+            let lines = pane_title_lines(spec, pane_index, width, metrics, &mut Vec::new());
+            count(lines.len().saturating_sub(1)) * LABEL_LINE
+        })
+        .collect()
 }

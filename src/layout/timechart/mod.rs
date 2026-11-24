@@ -17,7 +17,7 @@ use crate::{
     spec::{ChartSpec, LegendPlacement, MAX_SERIES, Mark},
     time::Precision,
 };
-use axes::{push_pane_axes, push_time_axis_title};
+use axes::{pane_title_room, push_pane_axes, push_time_axis_title};
 use end_labels::{end_label_room, push_end_labels};
 pub(crate) use frame::TimeFrame;
 use frame::{Detail, pane_frames, time_gutter};
@@ -148,7 +148,8 @@ pub(super) fn layout_time(
         vertical_bars: true,
     };
 
-    let frames = pane_frames(spec, zone, plot, warnings);
+    let title_room = pane_title_room(spec, plot.width, metrics);
+    let frames = pane_frames(spec, zone, plot, &title_room, warnings);
     let mut elements = Vec::new();
     push_title(
         &mut elements,
@@ -225,11 +226,13 @@ fn layout_sparkline(
         vertical_bars: true,
     };
     let inset = f64::from(SPARK_INSET);
-    let mut frames = pane_frames(spec, zone, plot(inset), warnings);
+    // A sparkline draws no value axis titles.
+    let title_room = vec![0.0; spec.panes.len()];
+    let mut frames = pane_frames(spec, zone, plot(inset), &title_room, warnings);
     // Half a body and half its outline.
     let candle = crate::ohlc::half_body(spec, 0, &frames[0]) + 1.0;
     if candle > inset {
-        frames = pane_frames(spec, zone, plot(candle), warnings);
+        frames = pane_frames(spec, zone, plot(candle), &title_room, warnings);
     }
     let mut elements = Vec::new();
     for (pane_index, frame) in frames.iter().enumerate() {

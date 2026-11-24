@@ -7,6 +7,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **Time charts:** a pane's `valueAxis.title` wider than the plot breaks onto up to three lines
+  instead of being shortened, and the pane moves down by the lines it adds; the same holds for the
+  shared value axis title of small multiples. Titles that fit on one line stay as they are.
+
 ## [0.27.0] - 2026-11-24
 
 ### Added

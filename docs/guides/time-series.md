@@ -284,6 +284,10 @@ its tick labels and its title sit below the bottom pane, and its vertical grid l
 every pane. Each pane has its own `valueAxis` — title, `format` and `decimals` — and its own value
 scale, fitted to its layers and annotations. `heightRatio` (1–10, default 1) sets the share of the
 height a pane takes against the others: `3` and `1` give the upper pane three quarters.
+The `valueAxis.title` stands above its pane; a title wider than the plot, as it is more often in
+the mobile variant, breaks at spaces onto up to three lines, and the pane starts lower by the
+lines it adds. Only what still does not fit on the third line is shortened (`text_truncated`).
+The shared `valueAxis.title` of small multiples breaks the same way above the panels.
 
 ```json
 "panes": [
