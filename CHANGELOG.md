@@ -24,6 +24,7 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 - **npm:** `renderChart` finds its WebAssembly build without `import.meta.resolve`, so it also
   loads through config loaders that turn ES modules into CommonJS.
+- **Pages:** the project site uses the current shared theme (0.19.0).
 
 ## [0.27.1] - 2026-11-25
 
