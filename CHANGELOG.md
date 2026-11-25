@@ -7,6 +7,10 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Changed
+
+- **Pages:** the project site uses the current shared theme (0.18.0).
+
 ### Fixed
 
 - **Time charts:** a pane's `valueAxis.title` wider than the plot breaks onto up to three lines
