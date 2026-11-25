@@ -229,23 +229,27 @@ const MIN_PANE_HEIGHT: f64 = 40.0;
 
 /// One frame per pane of a time chart, stacked from top to bottom within `plot`: every pane
 /// shares the time span and takes a share of the height by its `heightRatio`, and scales its
-/// values on its own.
+/// values on its own. Each pane starts lower by its entry in `title_room`, the room the further
+/// lines of its value axis title take.
 pub(super) fn pane_frames(
     spec: &ChartSpec,
     zone: TimeZone,
     plot: PlotArea,
+    title_room: &[f64],
     warnings: &mut Vec<ChartWarning>,
 ) -> Vec<TimeFrame> {
     let (span, slots) = time_axis(spec, zone);
     let precision = spec.time_precision(zone);
     let panes = spec.panes.len();
     let ratios: u32 = spec.panes.iter().map(|pane| pane.height_ratio).sum();
-    let available = plot.height - PANE_GAP * count(panes - 1);
+    let rooms: f64 = title_room.iter().sum();
+    let available = plot.height - PANE_GAP * count(panes - 1) - rooms;
     let mut top = plot.top;
     let mut frames = Vec::new();
     for (pane_index, pane) in spec.panes.iter().enumerate() {
+        top += title_room[pane_index];
         let height = if panes == 1 {
-            plot.height
+            plot.height - rooms
         } else {
             available * f64::from(pane.height_ratio) / f64::from(ratios)
         };

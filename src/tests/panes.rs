@@ -1176,3 +1176,85 @@ fn a_column_layer_takes_no_line_fields() {
         ("option_not_supported", "/panes/0/layers/2/mark".to_owned())
     );
 }
+
+/// The top and bottom of every pane, from the vertical grid lines at its time ticks.
+fn pane_spans(svg: &str) -> Vec<(f64, f64)> {
+    let mut spans: Vec<(f64, f64)> = Vec::new();
+    for chunk in svg.split("<line ").skip(1) {
+        let tag = chunk.split("/>").next().expect("a line element ends");
+        if !tag.contains("class=\"chartlet-grid\"") {
+            continue;
+        }
+        let read = |name: &str| -> f64 {
+            tag.split(&format!("{name}=\""))
+                .nth(1)
+                .and_then(|rest| rest.split('"').next())
+                .expect("a coordinate")
+                .parse()
+                .expect("a number")
+        };
+        let span = (read("y1"), read("y2"));
+        if (read("x1") - read("x2")).abs() < 1e-9 && !spans.contains(&span) {
+            spans.push(span);
+        }
+    }
+    spans
+}
+
+#[test]
+fn a_long_pane_title_wraps_above_its_pane_in_the_mobile_variant() {
+    let price = "Drei bullische Kerzen, jede mit kleinerem Körper und längerem oberen Docht als die vorherige";
+    let volume = "Umsatz je Kerze, der mit jeder weiteren Kerze des Musters zurückgeht";
+    let spec = stacked(
+        &format!(
+            r#"{{"heightRatio": 3, "valueAxis": {{"title": "{price}", "decimals": 2}}, "layers": [{{"mark": "ohlc", "name": "Price", "data": {CANDLES}}}]}},
+            {{"valueAxis": {{"title": "{volume}"}}, "layers": [{{"mark": "line", "name": "Volume", "markers": false, "points": [{{"time": "2026-03-02", "value": 12}}, {{"time": "2026-03-03", "value": 20}}, {{"time": "2026-03-04", "value": 8}}]}}]}}"#
+        ),
+        r#", "mobile": {"width": 320}"#,
+    );
+    let options = RenderOptions {
+        variant: Variant::Mobile,
+        ..RenderOptions::default()
+    };
+    let output = render_json(&spec, RenderFormat::Svg, &options).unwrap();
+    assert!(
+        output
+            .warnings
+            .iter()
+            .all(|warning| warning.code != "text_truncated" && warning.code != "label_overlap"),
+        "{:?}",
+        output.warnings
+    );
+    let svg = &output.content;
+    // Both titles in full, each on lines of their own, one label line apart; the time axis
+    // title follows.
+    let titles = placed_texts(svg, "chartlet-axis-title");
+    let (price_lines, rest) = titles.split_at(3);
+    let (volume_lines, day) = rest.split_at(2);
+    for (lines, title) in [(price_lines, price), (volume_lines, volume)] {
+        let words: Vec<&str> = lines.iter().map(|(_, _, line)| line.as_str()).collect();
+        assert_eq!(words.join(" "), title);
+        for pair in lines.windows(2) {
+            assert!((pair[1].1 - pair[0].1 - 14.0).abs() < 1e-9, "{lines:?}");
+        }
+    }
+    assert_eq!(day[0].2, "Day");
+    // Every title sits below the legend and the pane above it, and above its own pane, with room
+    // for the 12-pixel text between them.
+    let legend_bottom = placed_texts(svg, "chartlet-legend")
+        .iter()
+        .map(|(_, y, _)| *y)
+        .fold(f64::MIN, f64::max);
+    let panes = pane_spans(svg);
+    assert_eq!(panes.len(), 2, "{panes:?}");
+    for (lines, above, (top, _)) in [
+        (price_lines, legend_bottom, panes[0]),
+        (volume_lines, panes[0].1, panes[1]),
+    ] {
+        assert!(lines[0].1 - 12.0 > above + 3.0, "{lines:?} below {above}");
+        assert!(
+            lines[lines.len() - 1].1 + 3.0 < top - 12.0,
+            "{lines:?} above {top}"
+        );
+    }
+}
