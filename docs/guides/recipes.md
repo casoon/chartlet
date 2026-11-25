@@ -166,6 +166,26 @@ table:
 [Data table and full description](revenue.html)
 ```
 
+**Code blocks in documentation sites.** In Astro, Starlight, Docusaurus, VitePress or mdBook a
+specification can stay in the page as a fenced `chartlet` block and becomes the HTML figure while
+the site builds; see [Markdown and documentation sites](../markdown/).
+
+**Checks in CI.** Rendered charts that are committed stay in step with their specifications when
+CI renders them again and fails on any difference. `--strict` fails on layout warnings,
+`inspect --strict` on gaps in a model's documentation. With `@casoon/chartlet` as a
+devDependency, `npx chartlet` runs the pinned version and needs no Rust toolchain:
+
+```sh
+for spec in charts/*.json; do
+  npx chartlet render "$spec" --strict -o "${spec%.json}.svg"
+done
+git diff --exit-code -- charts/
+npx chartlet inspect charts/architecture.json --strict
+```
+
+The output is deterministic, so a difference always means a changed specification or a changed
+chartlet version, never a different machine.
+
 **Optional browser behavior** (crosshair, series toggle) is opt-in: render with `hooks` and load
 `@casoon/chartlet/interactive`; without it the figure is complete. See
 [Interaction](../interaction/).

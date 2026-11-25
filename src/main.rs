@@ -19,6 +19,7 @@ static HELP: std::sync::Mutex<Vec<Value>> = std::sync::Mutex::new(Vec::new());
 const PROJECT_THEME: &str = "chartlet.theme.json";
 
 mod inspect_command;
+mod mdbook_command;
 mod preview;
 mod watch;
 
@@ -247,6 +248,7 @@ fn run(warnings: &mut Vec<ChartWarning>, json_diagnostics: bool) -> Result<(), F
         Some("render") => {}
         Some("stylesheet") => return Ok(write_stdout(&shared_stylesheet(arguments)?)?),
         Some("inspect") => return inspect_command::run(arguments),
+        Some("mdbook") => return mdbook_command::run(arguments),
         Some("-h" | "--help") => return Ok(write_stdout(&usage())?),
         _ => return Err(usage().into()),
     }
@@ -636,7 +638,8 @@ fn strict_failure(warnings: &[ChartWarning], allowed: &[String]) -> Option<Failu
 fn usage() -> String {
     "usage: chartlet render <spec.json|-> [--format svg|html|png] [--scale <factor>] [-o <path>] [--id-prefix <prefix>] [--table details|visible] [--variant desktop|mobile|print|social] [--view <key> | --all-views] [--perspective <key>] [--theme <light|dark|blueprint|classic|editorial|theme.json>] [--size <preset>] [--manifest <path>] [--font <file.ttf> [--embed-font]] [--styles inline|external] [--focus | --no-focus] [--hooks] [--strict [--allow-warning <code>]...] [--diagnostics text|json [--advice]] [--watch] [--preview [--port <port>]]
        chartlet inspect <spec.json|-> [--disable <code>]... [--strict] [--format text|json] [--diagnostics text|json]
-       chartlet stylesheet [--types bar,time,...] [--no-common] [--breakpoints 420,...] | --common [--breakpoints 420,...]".to_owned()
+       chartlet stylesheet [--types bar,time,...] [--no-common] [--breakpoints 420,...] | --common [--breakpoints 420,...]
+       chartlet mdbook [supports <renderer>]".to_owned()
 }
 
 /// Writes binary content, such as a PNG, to stdout as it is.

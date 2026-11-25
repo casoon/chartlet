@@ -44,7 +44,7 @@ experimental: their layout may change between minor releases.
 - **Getting started:** [installation](getting-started/installation/) and a
   [first chart](getting-started/quickstart/).
 - **Guides:** chart types, time series, interaction without JavaScript, responsive charts,
-  Astro, JavaScript runtimes, customizing the look, AI agents, accessibility, print, social images
+  Astro, Markdown and documentation sites, JavaScript runtimes, customizing the look, AI agents, accessibility, print, social images
   and PNG, QR codes, warnings and errors.
 - **Reference:** the [specification](reference/specification/), [CLI options](reference/cli/),
   the [Rust crate](reference/rust/) and the [support matrix](reference/support/).

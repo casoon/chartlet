@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -51,15 +52,17 @@ export function stylesheet(options = {}) {
 }
 
 // Resolved by package name, not relative to this file: bundlers such as Vite copy this module
-// into a server chunk elsewhere, but leave the package where Node can resolve it.
+// into a server chunk elsewhere, but leave the package where Node can resolve it. Through
+// `createRequire`, not `import.meta.resolve`, which loaders that turn ES modules into CommonJS
+// (jiti, used by Docusaurus for its config) cannot translate.
 function readWasm() {
-  const url = new URL(import.meta.resolve("@casoon/chartlet/chartlet.wasm"));
+  const path = createRequire(import.meta.url).resolve("@casoon/chartlet/chartlet.wasm");
   try {
-    return readFileSync(url);
+    return readFileSync(path);
   } catch (error) {
     if (error.code === "ENOENT") {
       throw new Error(
-        `chartlet.wasm is missing at ${url.pathname}. In a checkout, run \`npm run build:wasm\`; otherwise set CHARTLET_BIN to a chartlet executable.`,
+        `chartlet.wasm is missing at ${path}. In a checkout, run \`npm run build:wasm\`; otherwise set CHARTLET_BIN to a chartlet executable.`,
       );
     }
     throw error;

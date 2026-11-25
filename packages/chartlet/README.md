@@ -107,6 +107,40 @@ const spec = a.spec({ title: 'Orders' });
 `flow()` builds a flow chart the same way, with `lane`, `node`, `group`, the same edge calls,
 `mainPath` and `sameRank`. See [JavaScript runtimes](https://github.com/casoon/chartlet/blob/main/docs/guides/javascript.md#architecture-builder).
 
+## Markdown
+
+Fenced code blocks in the language `chartlet` become the rendered figure while the Markdown is
+built. `@casoon/chartlet/remark` works in Markdown and MDX (Astro, Starlight, Docusaurus with
+`react: true`, Next.js); `@casoon/chartlet/markdown-it` in markdown-it pipelines (VitePress with
+`vue: true`, Slidev, Marp):
+
+```js
+import remarkChartlet from '@casoon/chartlet/remark';
+import markdownItChartlet from '@casoon/chartlet/markdown-it';
+
+unified().use(remarkParse).use(remarkChartlet, { table: 'visible' }); // …
+new MarkdownIt().use(markdownItChartlet);
+```
+
+A block sets its own `id`, `view` and `perspective` after the language
+(`` ```chartlet id=revenue ``); the options apply to every block. See
+[Markdown and documentation sites](https://github.com/casoon/chartlet/blob/main/docs/guides/markdown.md).
+
+## Command line
+
+The package installs a `chartlet` command that renders with the WebAssembly build, so no Rust
+toolchain is needed:
+
+```sh
+npx @casoon/chartlet render spec.json --format html -o chart.html
+npx @casoon/chartlet inspect model.json --strict
+```
+
+It takes the options of `render`, `inspect` and `stylesheet` of the Rust CLI and writes the same
+bytes and diagnostics. PNG output, `--font`, `--watch`, `--preview` and `mdbook` need the CLI from
+crates.io (`cargo install chartlet`). See
+[CLI options](https://github.com/casoon/chartlet/blob/main/docs/reference/cli.md#without-rust-the-cli-from-npm).
+
 ## Cloudflare Workers and Vite
 
 Runtimes that cannot compile WebAssembly from bytes, such as workerd, import the module and pass
