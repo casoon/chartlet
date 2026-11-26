@@ -407,7 +407,9 @@ widths differ noticeably from the built-in profile; `inspect_json` runs the insp
   you place by hand, with more than about 40 boxes.
 - You want to explore data rather than publish a finished chart.
 
+## Author
 
+Built and maintained by [Jörn Seidel](https://www.casoon.de/joern-seidel/) ([CASOON](https://www.casoon.de/)). Background and design decisions are described in an article on Insights (in German): [chartlet: Diagramme zur Build-Zeit als deterministisches SVG](https://insights.casoon.de/artikel/chartlet-diagramme-zur-build-zeit-deterministisches-svg/).
 
 ## License
 
