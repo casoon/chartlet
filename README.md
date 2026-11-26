@@ -407,6 +407,8 @@ widths differ noticeably from the built-in profile; `inspect_json` runs the insp
   you place by hand, with more than about 40 boxes.
 - You want to explore data rather than publish a finished chart.
 
+
+
 ## License
 
 [MIT](LICENSE)
