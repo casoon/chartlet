@@ -414,3 +414,15 @@ test("inspects a model alike from WebAssembly and the CLI", () => {
     assert.equal(inspectChart(spec, { ...options, disable: ["nonsense"] }).ok, false);
   }
 });
+
+test("reports the CLI's refusal of an option when the specification is larger than a pipe", () => {
+  // The CLI refuses the option before it reads stdin, so writing the specification fails with
+  // EPIPE; the answer is the CLI's error, not the broken pipe.
+  const padded = readExample("shop-architecture.json") + " ".repeat(200_000);
+  const refused = inspectChart(padded, { binary, disable: ["nonsense"] });
+  assert.equal(refused.ok, false);
+  assert.match(refused.error.message, /unknown inspection "nonsense"/);
+
+  const large = { ...JSON.parse(readExample("monthly-revenue.json")), description: "x".repeat(200_000) };
+  assert.throws(() => renderChart(large, { binary, variant: "nonsense" }), /--variant must be/);
+});

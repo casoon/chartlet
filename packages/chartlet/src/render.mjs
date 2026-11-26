@@ -115,7 +115,7 @@ export function inspectChart(spec, options = {}) {
     encoding: "utf8",
     maxBuffer: MAX_OUTPUT_BYTES,
   });
-  if (result.error) {
+  if (spawnFailed(result)) {
     throw cliError(result.error, binary);
   }
   const diagnostics = JSON.parse(result.stderr);
@@ -219,10 +219,17 @@ function runCli(binary, input, options, extraArgs) {
     }
   }
 
-  if (result.error) {
+  if (spawnFailed(result)) {
     throw cliError(result.error, binary);
   }
   return { result, manifest };
+}
+
+// A CLI that refuses its arguments exits before it reads the specification from stdin, so writing
+// the specification can fail with EPIPE. The exit status and the error on stderr are complete then,
+// and they are the answer.
+function spawnFailed(result) {
+  return Boolean(result.error) && !(result.error.code === "EPIPE" && result.status !== null);
 }
 
 function cliError(error, binary) {
