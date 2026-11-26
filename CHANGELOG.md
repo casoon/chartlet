@@ -7,10 +7,24 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Added
+
+- **CLI:** `chartlet mdbook` is an mdBook preprocessor that renders every fenced `chartlet` block
+  of a book as the chart's HTML figure. Details:
+  [mdBook](https://casoon.github.io/chartlet/docs/guides/markdown/#mdbook).
+- **npm:** the package installs a `chartlet` command (`npx @casoon/chartlet render …`) with the
+  options and output of `render`, `inspect` and `stylesheet`, without a Rust toolchain. Details:
+  [CLI from npm](https://casoon.github.io/chartlet/docs/reference/cli/#without-rust-the-cli-from-npm).
+- **npm:** `@casoon/chartlet/remark` and `@casoon/chartlet/markdown-it` render fenced `chartlet`
+  blocks in Markdown and MDX while a site builds, in Astro, Starlight, Docusaurus, VitePress and
+  other pipelines. Details:
+  [Markdown and documentation sites](https://casoon.github.io/chartlet/docs/guides/markdown/).
+
 ### Changed
 
+- **npm:** `renderChart` finds its WebAssembly build without `import.meta.resolve`, so it also
+  loads through config loaders that turn ES modules into CommonJS.
 - **Pages:** the project site uses the current shared theme (0.19.0).
-
 
 ## [0.27.1] - 2026-11-25
 

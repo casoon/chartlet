@@ -20,6 +20,10 @@ cargo install chartlet
 
 To build from a clone of the repository instead, run `cargo install --path .`.
 
+Without a Rust toolchain, the npm package brings the same command:
+`npx @casoon/chartlet render spec.json`. PNG output, watching and the preview need the CLI from
+crates.io; see [CLI options](../../reference/cli/#without-rust-the-cli-from-npm).
+
 </div>
 <div slot="astro">
 
@@ -28,7 +32,8 @@ npm install @casoon/chartlet
 ```
 
 The package carries the renderer as WebAssembly; it needs no Rust toolchain. To render with an
-installed CLI instead, set `CHARTLET_BIN` to its path.
+installed CLI instead, set `CHARTLET_BIN` to its path. The same package renders charts written as
+code blocks in Markdown; see [Markdown and documentation sites](../../guides/markdown/).
 
 </div>
 <div slot="rust">

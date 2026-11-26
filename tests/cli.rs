@@ -1294,3 +1294,61 @@ fn the_focus_control_of_a_diagram_follows_the_styles_and_its_own_flags() {
     let asked = html(&["--styles", "external", "--focus"]);
     assert!(asked.contains("<details class=\"chartlet-focus\">"));
 }
+
+#[test]
+fn mdbook_renders_chartlet_fences_in_every_chapter() {
+    let supports = |renderer: &str| {
+        Command::new(env!("CARGO_BIN_EXE_chartlet"))
+            .args(["mdbook", "supports", renderer])
+            .status()
+            .expect("chartlet CLI should start")
+            .success()
+    };
+    assert!(supports("html"));
+    assert!(!supports("pdf"));
+
+    let spec = std::fs::read_to_string("examples/monthly-revenue.json").expect("example");
+    let chapter = |name: &str, content: String, sub_items: serde_json::Value| {
+        serde_json::json!({ "Chapter": {
+            "name": name, "content": content, "number": null, "sub_items": sub_items,
+            "path": format!("{name}.md"), "source_path": format!("{name}.md"), "parent_names": [],
+        } })
+    };
+    let nested = chapter(
+        "nested",
+        format!("```chartlet id=inner\n{spec}\n```\n"),
+        serde_json::json!([]),
+    );
+    let book = serde_json::json!([
+        { "root": ".", "config": { "book": {}, "preprocessor": { "chartlet": { "table": "visible" } } },
+          "renderer": "html", "mdbook_version": "0.5.4" },
+        { "items": [chapter("top", format!("# Top\n\n```chartlet\n{spec}\n```\n```js\n1\n```\n"), serde_json::json!([nested]))] },
+    ]);
+    let output = run_with_stdin(&["mdbook"], &book.to_string());
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let book: serde_json::Value = serde_json::from_slice(&output.stdout).expect("a book as JSON");
+    let top = &book["items"][0]["Chapter"];
+    let content = top["content"].as_str().expect("content");
+    assert!(content.starts_with("# Top\n\n<figure") && content.contains("```js\n1\n```\n"));
+    assert!(content.contains("<table") && !content.contains("<details class=\"chartlet-data\""));
+    let inner = top["sub_items"][0]["Chapter"]["content"]
+        .as_str()
+        .expect("content");
+    assert!(inner.contains("id=\"inner\""));
+
+    let broken = serde_json::json!([
+        { "root": ".", "config": {} },
+        { "items": [chapter("bad", "```chartlet\n{}\n```\n".to_owned(), serde_json::json!([]))] },
+    ]);
+    let output = run_with_stdin(&["mdbook"], &broken.to_string());
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).expect("UTF-8");
+    assert!(
+        stderr.starts_with("chartlet: bad.md line 1: invalid_spec at /"),
+        "{stderr}"
+    );
+}

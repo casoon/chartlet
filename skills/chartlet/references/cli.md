@@ -1,8 +1,8 @@
 # CLI route (no MCP server)
 
 Prerequisite: the `chartlet` binary (`cargo install chartlet`, Rust 1.88 or newer), or Node 22.12+
-with `npm install @casoon/chartlet` and `renderChartDetailed` from it. Check with
-`chartlet --help`.
+with `npx @casoon/chartlet` in place of `chartlet` below (same options and output; no PNG) or
+`renderChartDetailed` from `@casoon/chartlet`. Check with `chartlet --help`.
 
 | Step | Command |
 | --- | --- |

@@ -14,6 +14,9 @@
     "README.md",
     "LICENSE"
   ],
+  "bin": {
+    "chartlet": "src/cli.mjs"
+  },
   "exports": {
     ".": {
       "types": "./src/index.d.ts",
@@ -33,6 +36,16 @@
       "types": "./src/builder.d.mts",
       "import": "./src/builder.mjs"
     },
+    "./remark": {
+      "types": "./src/remark.d.mts",
+      "import": "./src/remark.mjs",
+      "default": "./src/remark.mjs"
+    },
+    "./markdown-it": {
+      "types": "./src/markdown-it.d.mts",
+      "import": "./src/markdown-it.mjs",
+      "default": "./src/markdown-it.mjs"
+    },
     "./astro": "./src/Chart.astro"
   },
   "peerDependencies": {
@@ -44,7 +57,11 @@
     }
   },
   "devDependencies": {
-    "astro": "^7.3.2"
+    "astro": "^7.3.2",
+    "hast-util-from-html": "^2.1.0",
+    "hast-util-to-html": "^9.0.7",
+    "markdown-it": "^15.0.3",
+    "mdast-util-to-hast": "^13.2.2"
   },
   "scripts": {
     "build:wasm": "node scripts/build-wasm.mjs",

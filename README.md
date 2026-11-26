@@ -12,7 +12,8 @@ A chart itself runs no JavaScript in the browser: no chart script, no hydration,
 | --- | --- |
 | **Try it in the browser**, nothing to install | The [playground](https://casoon.github.io/chartlet/playground/) runs the compiler as WebAssembly in your tab and uploads nothing. |
 | **Use it with an AI agent** | `claude mcp add chartlet -- npx -y @casoon/chartlet-mcp`, or the same server in any MCP client; see [`@casoon/chartlet-mcp`](packages/chartlet-mcp/) and [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/). Needs Node.js 22.12 or newer. |
-| **Integrate it in a project** | `cargo install chartlet` for the CLI, `npm install @casoon/chartlet` for Astro and JavaScript (no Rust needed), or the crate; see the [quick start](#quick-start) below and [Installation](https://casoon.github.io/chartlet/docs/getting-started/installation/). |
+| **Integrate it in a project** | `cargo install chartlet` for the CLI, `npm install @casoon/chartlet` for Astro, JavaScript and the same CLI without Rust (`npx @casoon/chartlet`), or the crate; see the [quick start](#quick-start) below and [Installation](https://casoon.github.io/chartlet/docs/getting-started/installation/). |
+| **Write charts in Markdown** | A fenced `chartlet` block in Astro, Starlight, Docusaurus, VitePress or mdBook becomes the figure while the site builds; see [Markdown and documentation sites](#markdown-and-documentation-sites). |
 
 ![Grouped bar chart comparing budget and actual costs from January to April](examples/budget-vs-actual.svg)
 
@@ -52,6 +53,9 @@ Install the CLI from crates.io (Rust 1.88 or newer), or build it from a clone wi
 ```sh
 cargo install chartlet
 ```
+
+Without Rust, `npx @casoon/chartlet` runs the same command from npm (Node.js 22.12 or newer); PNG
+output, `--watch` and `--preview` need the CLI from crates.io.
 
 Save a minimal specification as `spec.json`:
 
@@ -289,6 +293,7 @@ used for editor validation. Every field, per chart type, and every limit is list
 chartlet render <spec.json | -> [options]
 chartlet inspect <spec.json | -> [--format text|json] [--strict]
 chartlet stylesheet [--types bar,time,...] [--no-common | --common] [--breakpoints 420,...]
+chartlet mdbook
 ```
 
 | Option of `render` | Effect |
@@ -306,7 +311,8 @@ chartlet stylesheet [--types bar,time,...] [--no-common | --common] [--breakpoin
 
 `chartlet inspect` checks an architecture model, a flow chart or a class diagram for gaps in its
 documentation without rendering it — unlabelled connections and decision branches, components in
-no view, unreachable steps — each with a JSON Pointer and a hint. See
+no view, unreachable steps — each with a JSON Pointer and a hint. `chartlet mdbook` is a
+preprocessor that renders the `chartlet` code blocks of an mdBook. See
 [CLI options](docs/reference/cli.md).
 
 ## Accessibility
@@ -365,6 +371,21 @@ import revenue from '../data/monthly-revenue.json';
 Vite, see [JavaScript runtimes](docs/guides/javascript.md) — and `@casoon/chartlet/builder`
 assembles architecture and flow specifications in code, with ids checked at the call. To render
 with an installed CLI instead, set `CHARTLET_BIN` to its path.
+
+## Markdown and documentation sites
+
+A specification can stay in the page as a fenced code block in the language `chartlet`; while the
+site builds, it becomes the HTML figure with its data table:
+
+| Site generator | Set up |
+| --- | --- |
+| Astro, Starlight, Docusaurus, Next.js with MDX, any remark pipeline | `@casoon/chartlet/remark` |
+| VitePress, Slidev, Marp, any markdown-it pipeline | `@casoon/chartlet/markdown-it` |
+| mdBook | `[preprocessor.chartlet]` with `command = "chartlet mdbook"` in `book.toml` |
+
+A block can set its own `id`, `view` and `perspective` after the language
+(`` ```chartlet id=revenue ``). An invalid specification stops the build with the line of the block.
+See [Markdown and documentation sites](docs/guides/markdown.md).
 
 ## AI agents
 
