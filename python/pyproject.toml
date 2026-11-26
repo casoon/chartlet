@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "chartlet"
 # The same version as the crate and the npm packages; the release workflow checks it.
-version = "0.27.1"
+version = "0.28.0"
 description = "Compile structured data into deterministic, accessible static charts"
 readme = "README.md"
 license = "MIT"
