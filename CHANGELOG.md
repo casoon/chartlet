@@ -7,6 +7,12 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **npm:** with `binary` or `CHARTLET_BIN`, `renderChart` and `inspectChart` report the CLI's own
+  error for an option it refuses, instead of `EPIPE`, which a large specification caused every time
+  and a small one at random.
+
 ## [0.28.0] - 2026-11-26
 
 ### Added
