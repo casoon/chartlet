@@ -7,6 +7,8 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-11-26
+
 ### Added
 
 - **CLI:** `chartlet mdbook` is an mdBook preprocessor that renders every fenced `chartlet` block

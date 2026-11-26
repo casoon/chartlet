@@ -65,6 +65,7 @@ const specJson = `{
       commands={[
         { label: 'npm', command: 'npm install @casoon/chartlet' },
         { label: 'cargo', command: 'cargo install chartlet' },
+        { label: 'pip', command: 'pip install chartlet' },
       ]}
     />
     <div class="start-links">
@@ -105,7 +106,7 @@ const specJson = `{
         {
           label: 'Project',
           title: 'Add it to a build',
-          body: 'cargo install chartlet for the CLI, or npm install @casoon/chartlet for Astro and JavaScript, which needs no Rust.',
+          body: 'cargo install chartlet for the CLI, npm install @casoon/chartlet for Astro, JavaScript and Markdown sites, or pip install chartlet for Python. Neither package needs Rust.',
           href: url('docs/getting-started/installation/'),
         },
       ]}
@@ -194,6 +195,8 @@ const specJson = `{
     items={[
       { name: 'Astro', category: '<Chart> component, build time', icon: 'Ast', href: url('docs/guides/astro/') },
       { name: 'JavaScript', category: '@casoon/chartlet, WebAssembly', icon: 'JS', href: url('docs/getting-started/installation/') },
+      { name: 'Markdown sites', category: 'remark, markdown-it, mdBook', icon: 'MD', href: url('docs/guides/markdown/') },
+      { name: 'Python', category: 'Jupyter, Sphinx, MkDocs', icon: 'Py', href: url('docs/guides/python/') },
       { name: 'Rust and CLI', category: 'crate and chartlet command', icon: 'Rs', href: url('docs/reference/cli/') },
       { name: 'AI agents', category: 'MCP server and skill', icon: 'MCP', href: url('docs/guides/ai-agents/') },
     ]}
@@ -207,9 +210,9 @@ const specJson = `{
   </BuildOutput>
 
   <Quickstart
-    lead="From a specification to a finished chart. The CLI, the Astro component and the JavaScript API are covered in the documentation."
+    lead="From a specification to a finished chart. The CLI, the Astro component, the JavaScript API, Markdown sites and Python are covered in the documentation."
     steps={[
-      'Install the CLI, or the npm package for Astro and JavaScript.',
+      'Install the CLI, the npm package for Astro, JavaScript and Markdown, or the Python package.',
       'Describe the chart in a small JSON specification.',
       'Render it with <code>chartlet render spec.json -o chart.svg</code> or the <code>&lt;Chart&gt;</code> component.',
     ]}
