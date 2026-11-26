@@ -1,11 +1,12 @@
 name: Release
 
-# Tag `vX.Y.Z` → check the crate and both npm packages, then publish them after
-# approval: the crate through crates.io Trusted Publishing in the `crates-io`
-# environment, the packages through npm Trusted Publishing (provenance) in the
-# `npm` environment. Both exchange a GitHub OIDC token for a short-lived one, so
-# no registry token is stored anywhere; both environments have a required
-# reviewer, so a publish stays a deliberate step. See "Releasing" in
+# Tag `vX.Y.Z` → check the crate, both npm packages and the Python package, then
+# publish them after approval: the crate through crates.io Trusted Publishing in
+# the `crates-io` environment, the npm packages through npm Trusted Publishing
+# (provenance) in the `npm` environment, the Python package through PyPI Trusted
+# Publishing (attestations) in the `pypi` environment. Each exchanges a GitHub
+# OIDC token for a short-lived one, so no registry token is stored anywhere; the
+# environments have a required reviewer, so a publish stays a deliberate step. See "Releasing" in
 # CONTRIBUTING.md.
 on:
   push:
@@ -33,6 +34,7 @@ jobs:
           for p in chartlet chartlet-mcp; do
             test "$version" = "$(node -p "require('./packages/$p/package.json').version")"
           done
+          test "$version" = "$(sed -n 's/^version = "\(.*\)"/\1/p' python/pyproject.toml | head -1)"
 
       # The version, components and targets come from rust-toolchain.toml.
       - name: Rust toolchain
@@ -53,6 +55,27 @@ jobs:
       # `prepack`), installs the tarballs into an empty project and uses them.
       - name: Smoke install
         run: node scripts/smoke-install.mjs
+
+      # The wheel and sdist of the Python package, with the WebAssembly build the
+      # smoke install made; installed into an empty environment and used once.
+      # The publish job uploads exactly these files.
+      - name: Python package
+        env:
+          CHARTLET_WASM: ${{ github.workspace }}/packages/chartlet/src/chartlet.wasm
+        run: |
+          python3 -m venv "$RUNNER_TEMP/build"
+          "$RUNNER_TEMP/build/bin/pip" install --quiet build
+          "$RUNNER_TEMP/build/bin/python" -m build --outdir "$RUNNER_TEMP/python-dist" python
+          python3 -m venv "$RUNNER_TEMP/smoke"
+          "$RUNNER_TEMP/smoke/bin/pip" install --quiet "$RUNNER_TEMP"/python-dist/*.whl
+          cd "$RUNNER_TEMP"
+          smoke/bin/python -c "import chartlet, pathlib; assert chartlet.render(pathlib.Path('$GITHUB_WORKSPACE/examples/monthly-revenue.json')) == pathlib.Path('$GITHUB_WORKSPACE/examples/monthly-revenue.svg').read_text()"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: python-dist
+          path: ${{ runner.temp }}/python-dist
+          if-no-files-found: error
 
       # Packs and builds the crate as crates.io would receive it.
       - name: Crate package
@@ -139,3 +162,32 @@ jobs:
             tarball=$(cd "$dir" && npm pack --silent --pack-destination "$RUNNER_TEMP" | tail -1)
             npm publish --access public "$RUNNER_TEMP/$tarball"
           done
+
+  publish-pypi:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: python-dist
+          path: dist
+
+      # A version that is on PyPI already is skipped, like the other registries.
+      - name: Already published?
+        id: check
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if curl -sSf "https://pypi.org/pypi/chartlet/$version/json" >/dev/null 2>&1; then
+            echo "chartlet $version is on PyPI already — skipped"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Trusted Publishing; the action signs and uploads PEP 740 attestations.
+      - name: Publish
+        if: steps.check.outputs.skip != 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1

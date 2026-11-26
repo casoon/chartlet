@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chartlet"
+# The same version as the crate and the npm packages; the release workflow checks it.
+version = "0.27.1"
+description = "Compile structured data into deterministic, accessible static charts"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+# The renderer is the WebAssembly build of the npm package; wasmtime runs it.
+dependencies = ["wasmtime>=30"]
+keywords = ["charts", "svg", "accessibility", "static", "visualization", "sphinx", "mkdocs"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Framework :: MkDocs",
+  "Framework :: Sphinx :: Extension",
+  "Framework :: Jupyter",
+  "Programming Language :: Python :: 3",
+  "Topic :: Documentation",
+  "Topic :: Scientific/Engineering :: Visualization",
+]
+
+[project.urls]
+Homepage = "https://casoon.github.io/chartlet/"
+Documentation = "https://casoon.github.io/chartlet/docs/guides/python/"
+Repository = "https://github.com/casoon/chartlet"
+Changelog = "https://github.com/casoon/chartlet/blob/main/CHANGELOG.md"
+
+# `markdown_extensions: [chartlet]` in mkdocs.yml, `markdown.Markdown(extensions=["chartlet"])`.
+[project.entry-points."markdown.extensions"]
+chartlet = "chartlet.markdown:ChartletExtension"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chartlet"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/chartlet", "tests", "hatch_build.py", "README.md", "LICENSE"]
+
+# chartlet.wasm is built, not committed; the hook puts it in place and both targets ship it.
+[tool.hatch.build]
+artifacts = ["src/chartlet/chartlet.wasm"]
+
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"

@@ -1,6 +1,6 @@
 ---
 title: Markdown and documentation sites
-description: Write a chart as a fenced code block in Markdown and get the rendered figure in Astro, Starlight, Docusaurus, VitePress, mdBook or any remark or markdown-it pipeline.
+description: Write a chart as a fenced code block in Markdown and get the rendered figure in Astro, Starlight, Docusaurus, VitePress, mdBook, Sphinx, MkDocs or any remark, markdown-it or Python-Markdown pipeline.
 order: 3
 ---
 
@@ -27,9 +27,12 @@ and data table. The page loads no chart script.
 | Astro, Starlight, Docusaurus, Next.js with MDX, any remark pipeline | remark | `@casoon/chartlet/remark` |
 | VitePress, Slidev, Marp, any markdown-it pipeline | markdown-it | `@casoon/chartlet/markdown-it` |
 | mdBook | preprocessor of the CLI | `chartlet mdbook` |
+| Sphinx, with reStructuredText or MyST Markdown | Sphinx extension | `chartlet.sphinx` |
+| MkDocs, any Python-Markdown pipeline | Markdown extension | `chartlet` |
 
-Both plugins come with `npm install @casoon/chartlet`; the preprocessor with
-`cargo install chartlet`.
+Both JavaScript plugins come with `npm install @casoon/chartlet`; the preprocessor with
+`cargo install chartlet`; the Sphinx and MkDocs extensions with `pip install chartlet`, set up in
+[Python](../python/#sphinx).
 
 ## Fence settings
 
@@ -139,6 +142,23 @@ settings in the same table apply to all charts of the book:
 An invalid specification stops the build with the chapter, the line of the block and the error.
 Warnings go to standard error with the same place. Blocks inside block quotes and lists stay as
 they are; put the block at the top level of the chapter.
+
+## Sphinx and MkDocs
+
+```python
+# conf.py
+extensions = ["myst_parser", "chartlet.sphinx"]
+myst_fence_as_directive = ["chartlet"]  # for ```chartlet fences in MyST Markdown
+```
+
+```yaml
+# mkdocs.yml
+markdown_extensions:
+  - chartlet
+```
+
+In reStructuredText the block is the directive `.. chartlet::`. Options for every chart, errors and
+warnings are described in [Python](../python/#sphinx).
 
 ## What stays the same
 

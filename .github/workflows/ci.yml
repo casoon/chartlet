@@ -77,6 +77,18 @@ jobs:
           npm run build:wasm
           npm test
 
+      # The Python package with the module just built, against the CLI that `cargo test` built.
+      - name: Python package
+        if: matrix.os == 'ubuntu-latest'
+        working-directory: python
+        env:
+          CHARTLET_WASM: ${{ github.workspace }}/packages/chartlet/src/chartlet.wasm
+          CHARTLET_BIN: ${{ github.workspace }}/target/debug/chartlet
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet . pytest sphinx myst-parser mkdocs
+          "$RUNNER_TEMP/venv/bin/python" -m pytest -q
+
       # Size and memory of the module just built, against the committed baseline (peakmark.toml,
       # peakmark.baseline.json). The binary is the release of casoon/peakmark; its hash and build
       # provenance are verified before it runs.

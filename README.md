@@ -12,8 +12,8 @@ A chart itself runs no JavaScript in the browser: no chart script, no hydration,
 | --- | --- |
 | **Try it in the browser**, nothing to install | The [playground](https://casoon.github.io/chartlet/playground/) runs the compiler as WebAssembly in your tab and uploads nothing. |
 | **Use it with an AI agent** | `claude mcp add chartlet -- npx -y @casoon/chartlet-mcp`, or the same server in any MCP client; see [`@casoon/chartlet-mcp`](packages/chartlet-mcp/) and [AI agents](https://casoon.github.io/chartlet/docs/guides/ai-agents/). Needs Node.js 22.12 or newer. |
-| **Integrate it in a project** | `cargo install chartlet` for the CLI, `npm install @casoon/chartlet` for Astro, JavaScript and the same CLI without Rust (`npx @casoon/chartlet`), or the crate; see the [quick start](#quick-start) below and [Installation](https://casoon.github.io/chartlet/docs/getting-started/installation/). |
-| **Write charts in Markdown** | A fenced `chartlet` block in Astro, Starlight, Docusaurus, VitePress or mdBook becomes the figure while the site builds; see [Markdown and documentation sites](#markdown-and-documentation-sites). |
+| **Integrate it in a project** | `cargo install chartlet` for the CLI, `npm install @casoon/chartlet` for Astro, JavaScript and the same CLI without Rust (`npx @casoon/chartlet`), `pip install chartlet` for Python and Jupyter, or the crate; see the [quick start](#quick-start) below and [Installation](https://casoon.github.io/chartlet/docs/getting-started/installation/). |
+| **Write charts in Markdown** | A fenced `chartlet` block in Astro, Starlight, Docusaurus, VitePress, mdBook, Sphinx or MkDocs becomes the figure while the site builds; see [Markdown and documentation sites](#markdown-and-documentation-sites). |
 
 ![Grouped bar chart comparing budget and actual costs from January to April](examples/budget-vs-actual.svg)
 
@@ -372,6 +372,27 @@ Vite, see [JavaScript runtimes](docs/guides/javascript.md) — and `@casoon/char
 assembles architecture and flow specifications in code, with ids checked at the call. To render
 with an installed CLI instead, set `CHARTLET_BIN` to its path.
 
+## Python
+
+The Python package carries the same WebAssembly renderer and runs it with wasmtime; it needs no
+Rust toolchain:
+
+```sh
+pip install chartlet
+```
+
+```python
+import chartlet
+
+svg = chartlet.render(spec)                       # the bytes of `chartlet render`
+html = chartlet.render(spec, format="html", table="visible")
+chartlet.Chart(spec)                              # shows the figure in a Jupyter notebook
+```
+
+`spec` is a dictionary, JSON text or a `pathlib.Path`; the options are those of the CLI. The same
+package adds the `chartlet` directive to Sphinx and fenced `chartlet` blocks to MkDocs, below. See
+[Python](docs/guides/python.md).
+
 ## Markdown and documentation sites
 
 A specification can stay in the page as a fenced code block in the language `chartlet`; while the
@@ -382,9 +403,12 @@ site builds, it becomes the HTML figure with its data table:
 | Astro, Starlight, Docusaurus, Next.js with MDX, any remark pipeline | `@casoon/chartlet/remark` |
 | VitePress, Slidev, Marp, any markdown-it pipeline | `@casoon/chartlet/markdown-it` |
 | mdBook | `[preprocessor.chartlet]` with `command = "chartlet mdbook"` in `book.toml` |
+| Sphinx, with reStructuredText or MyST Markdown | `extensions = ["chartlet.sphinx"]` in `conf.py` |
+| MkDocs, any Python-Markdown pipeline | `markdown_extensions: [chartlet]` in `mkdocs.yml` |
 
 A block can set its own `id`, `view` and `perspective` after the language
-(`` ```chartlet id=revenue ``). An invalid specification stops the build with the line of the block.
+(`` ```chartlet id=revenue ``). An invalid specification stops the build and names the block;
+Sphinx reports it as an error at the directive, which fails the build with `-W`.
 See [Markdown and documentation sites](docs/guides/markdown.md).
 
 ## AI agents
