@@ -128,6 +128,7 @@ chartlet is before 1.0; screen reader and user testing are still pending. Status
 | WebAssembly build in Cloudflare Workers | Verified | `@casoon/chartlet/wasm` with an imported `chartlet.wasm`; checked locally in workerd, not in a deployed Worker. |
 | WebAssembly build in the browser | Designed, not yet verified | Same entry point; the [playground](../../guides/playground/) compiles the module in a worker. Its first run on the deployed site is the verification; the browser versions it lists are derived from the features it uses, not tested one by one. |
 | MCP server (`@casoon/chartlet-mcp`) | Designed, not yet verified | stdio server with `chartlet_inspect_data`, `chartlet_validate_spec`, `chartlet_render`, `chartlet_explain`, `chartlet_inspect`, `chartlet_diagram_starter`, `chartlet_chart_starter`, the schema as a resource and the MCP App view `ui://chartlet/figure`; covered by unit tests, an end-to-end test with the reference MCP client and a browser test of the view with axe, in Claude Code 2.1.316 (macOS 27.2 arm64, Node.js 24.22.1, checked 2026-11-18) the server added with the documented command connects and lists its nine tools; first render, validation and correction, `outputPath` and its refusals have not yet been run in a host, and Claude Desktop, Codex and an MCP Apps client are untested. |
+| WebAssembly build in Python | Verified | The `chartlet` package renders through it with wasmtime; tests compare every example with the CLI output byte for byte on CPython 3.10 (wasmtime 30) and 3.12 (wasmtime 51), and build a Sphinx project (reStructuredText and MyST) and an MkDocs site. The Jupyter display is covered by a unit test, not yet checked in a running notebook. |
 | Native Node bindings | Not supported | The npm package renders through the WebAssembly build instead; `CHARTLET_BIN` selects the CLI. |
 | Series filtering and stepped zoom | Designed, not yet verified | Available in the HTML profile with native controls and CSS; broader browser and assistive-technology verification is pending. |
 | Mark tooltips | Designed, not yet verified | Native SVG titles provide hover hints; the description and table remain the accessible alternatives. |
@@ -138,8 +139,8 @@ chartlet follows [Semantic Versioning](https://semver.org/) and is before 1.0, s
 below is the one that applies to 0.x; the [changelog](https://github.com/casoon/chartlet/blob/main/CHANGELOG.md)
 lists every change by release.
 
-**One release, one version.** The crate, the CLI, `@casoon/chartlet` and `@casoon/chartlet-mcp` of
-a release carry the same version number, and the schema in `schema/` belongs to it. The packages do
+**One release, one version.** The crate, the CLI, `@casoon/chartlet`, `@casoon/chartlet-mcp` and
+the Python package `chartlet` of a release carry the same version number, and the schema in `schema/` belongs to it. The packages do
 not need identical versions at run time: `@casoon/chartlet-mcp` depends on `@casoon/chartlet` with a
 caret range, which before 1.0 means the same minor (`^0.27.0` accepts `0.27.x`). Its bundled schema
 and the renderer are therefore always from the same minor, and a patch of the renderer never
@@ -183,6 +184,7 @@ diff when you move to a new minor; do not expect committed output to stay identi
 | Runtime | Supported |
 | --- | --- |
 | Node.js (`@casoon/chartlet`, `@casoon/chartlet-mcp`) | 22.12 or newer (`engines`); the tests run on Node.js 22. No Rust toolchain is needed. |
+| Python (`chartlet` on PyPI) | 3.10 or newer, with wasmtime 30 or newer. No Rust toolchain is needed. |
 | Rust (crate, CLI) | 1.88 or newer (`rust-version`); development and CI use the version in `rust-toolchain.toml`. |
 | Astro (`@casoon/chartlet/astro`) | 6.0 or newer (optional peer dependency). |
 | Cloudflare Workers, browsers | Through `@casoon/chartlet/wasm`; see the status in the Distribution table above. |

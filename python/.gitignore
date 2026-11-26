@@ -1,0 +1,5 @@
+src/chartlet/chartlet.wasm
+dist/
+__pycache__/
+.venv/
+.pytest_cache/

@@ -125,6 +125,11 @@ Before a version is published, from a clean checkout:
       with `--features png`) from `.github/workflows/ci.yml`; the golden and schema tests are part
       of `cargo test`. CI runs on the version tag; run them locally before it.
 - [ ] `npm test` in `packages/chartlet` and `packages/chartlet-mcp`.
+- [ ] In `python/`: install the package with `pytest`, `sphinx`, `myst-parser` and `mkdocs` into a
+      virtual environment and run `pytest`. Building the package runs the npm package's WebAssembly
+      build (`CHARTLET_WASM` names a built module instead); the tests compare every example with the
+      CLI (`CHARTLET_BIN`, or a release build of the repository) and build a Sphinx project and an
+      MkDocs site.
 - [ ] `node scripts/smoke-install.mjs`: packs both npm packages, installs the tarballs into an empty
       project outside the repository, renders a chart and a diagram through WebAssembly (the diagram
       against its golden SVG), checks that `chartlet.wasm`, `chartlet.css` and the schema resolve from
@@ -135,7 +140,7 @@ Before a version is published, from a clean checkout:
       tools. `--cli` adds `cargo install --locked --path .` into a temporary root and compares the
       CLI output with the WebAssembly output. The release workflow runs the default checks again on
       the tag, before the publish.
-- [ ] Versions: crate, both packages and the `@casoon/chartlet` range of `@casoon/chartlet-mcp`
+- [ ] Versions: crate, the npm packages, `python/pyproject.toml` and the `@casoon/chartlet` range of `@casoon/chartlet-mcp`
       agree; `CHANGELOG.md` moves `[Unreleased]` to the version; README and the site are current.
       `node scripts/check-versions.mjs` compares the crate, both packages, the Rust version and
       the statements in README and docs that repeat them, and the install paths of the README. The
@@ -151,10 +156,12 @@ Before a version is published, from a clean checkout:
 Publishing, once the version is committed and merged to `main`:
 
 - [ ] Tag the merge commit: `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag starts
-      `.github/workflows/release.yml`: it checks that the tag matches the crate and both packages,
-      runs the smoke install and `cargo publish --dry-run`, then waits for approval in the
-      `crates-io` and `npm` environments (Required Reviewer; both can be approved in one dialog).
+      `.github/workflows/release.yml`: it checks that the tag matches the crate and the three packages,
+      runs the smoke install, builds and tries the Python wheel and `cargo publish --dry-run`, then
+      waits for approval in the `crates-io`, `npm` and `pypi` environments (Required Reviewer; all
+      can be approved in one dialog).
       It publishes the crate through crates.io Trusted Publishing and `@casoon/chartlet` and
-      `@casoon/chartlet-mcp` through npm Trusted Publishing — no stored token, provenance attached
-      to the npm packages. A version already on a registry is skipped, so a failed job can be run
+      `@casoon/chartlet-mcp` through npm Trusted Publishing and the Python package through PyPI
+      Trusted Publishing — no stored token, provenance attached to the npm packages and
+      attestations to the Python files. A version already on a registry is skipped, so a failed job can be run
       again. Never run `npm publish` or `cargo publish` from a machine.

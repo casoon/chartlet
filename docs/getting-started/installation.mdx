@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: chartlet ships as a CLI and crate on crates.io and as an npm package with a WebAssembly build. All three use the same renderer.
+description: chartlet ships as a CLI and crate on crates.io, as an npm package with a WebAssembly build and as a Python package with the same build. All of them use the same renderer.
 order: 1
 ---
 
@@ -10,6 +10,7 @@ order: 1
     { id: 'cli', label: 'CLI' },
     { id: 'astro', label: 'Astro' },
     { id: 'rust', label: 'Rust' },
+    { id: 'python', label: 'Python' },
   ]}
 >
 <div slot="cli">
@@ -43,6 +44,17 @@ cargo add chartlet
 ```
 
 </div>
+<div slot="python">
+
+```sh
+pip install chartlet
+```
+
+The package carries the renderer as WebAssembly and runs it with wasmtime; it needs no Rust
+toolchain. It renders in scripts and Jupyter notebooks and adds charts to Sphinx and MkDocs; see
+[Python](../../guides/python/).
+
+</div>
 </Tabs>
 
 <Callout type="caution">
@@ -56,6 +68,7 @@ cargo add chartlet
 | --- | --- |
 | CLI and crate | Rust 1.88 or newer |
 | `@casoon/chartlet` | Node.js 22.12 or newer; Astro 6 or newer for the component |
+| `chartlet` on PyPI | Python 3.10 or newer |
 
 ## Next steps
 

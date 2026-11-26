@@ -19,12 +19,19 @@ are in the [documentation](https://casoon.github.io/chartlet/docs/).
   blocks in Markdown and MDX while a site builds, in Astro, Starlight, Docusaurus, VitePress and
   other pipelines. Details:
   [Markdown and documentation sites](https://casoon.github.io/chartlet/docs/guides/markdown/).
+- **Python:** the package `chartlet` on PyPI renders through the same WebAssembly build with the
+  output of `chartlet render`, shows charts in Jupyter (`chartlet.Chart`), adds the `chartlet`
+  directive to Sphinx and renders fenced `chartlet` blocks in MkDocs. Details:
+  [Python](https://casoon.github.io/chartlet/docs/guides/python/).
 
 ### Changed
 
 - **npm:** `renderChart` finds its WebAssembly build without `import.meta.resolve`, so it also
   loads through config loaders that turn ES modules into CommonJS.
 - **Pages:** the project site uses the current shared theme (0.19.0).
+- **Releases:** the Python package is published by the Release workflow on the version tag as
+  well, with PyPI Trusted Publishing (attestations, no stored token), after approval in the `pypi`
+  environment.
 
 ## [0.27.1] - 2026-11-25
 
