@@ -29,6 +29,7 @@ Homepage = "https://casoon.github.io/chartlet/"
 Documentation = "https://casoon.github.io/chartlet/docs/guides/python/"
 Repository = "https://github.com/casoon/chartlet"
 Changelog = "https://github.com/casoon/chartlet/blob/main/CHANGELOG.md"
+CASOON = "https://www.casoon.de/"
 
 # `markdown_extensions: [chartlet]` in mkdocs.yml, `markdown.Markdown(extensions=["chartlet"])`.
 [project.entry-points."markdown.extensions"]
